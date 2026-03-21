@@ -1,0 +1,16 @@
+{
+  "HomePage": {
+    "title": "Find the Right Lawyer in Sri Lanka",
+    "subtitle": "Expert legal assistance. Verified attorneys. Book consultations instantly.",
+    "searchPlaceholder": "Search by practice area or district...",
+    "searchButton": "Find Lawyers",
+    "featuredLawyers": "Featured Legal Experts"
+  },
+  "Navigation": {
+    "home": "Home",
+    "directory": "Lawyer Directory",
+    "blog": "Legal Insights",
+    "login": "Login / Register",
+    "dashboard": "Dashboard"
+  }
+}
