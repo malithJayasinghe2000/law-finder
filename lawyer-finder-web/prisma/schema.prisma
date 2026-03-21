@@ -1,13 +1,83 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
+}
+
+enum Role {
+  ADMIN
+  LAWYER
+  CLIENT
+}
+
+enum InquiryStatus {
+  PENDING
+  CONTACTED
+}
+
+enum ArticleStatus {
+  DRAFT
+  PUBLISHED
+}
+
+model User {
+  id           String         @id @default(uuid())
+  email        String         @unique
+  passwordHash String
+  role         Role           @default(CLIENT)
+  createdAt    DateTime       @default(now())
+  profile      LawyerProfile?
+}
+
+model LawyerProfile {
+  id              String      @id @default(uuid())
+  userId          String      @unique
+  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fullName        String
+  baslNumber      String      @unique
+  profileImageUrl String?
+  bio             String?
+  practiceAreas   String[]
+  languages       String[]
+  district        String?
+  baseFeeRange    String?
+  isVerified      Boolean     @default(false)
+  inquiries       Inquiry[]
+  articles        Article[]
+  reviews         Review[]
+}
+
+model Inquiry {
+  id          String        @id @default(uuid())
+  lawyerId    String
+  lawyer      LawyerProfile @relation(fields: [lawyerId], references: [id], onDelete: Cascade)
+  clientName  String
+  clientPhone String
+  clientEmail String
+  message     String
+  status      InquiryStatus @default(PENDING)
+  createdAt   DateTime      @default(now())
+}
+
+model Article {
+  id        String        @id @default(uuid())
+  authorId  String
+  author    LawyerProfile @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  title     String
+  slug      String        @unique
+  content   String
+  status    ArticleStatus @default(DRAFT)
+  createdAt DateTime      @default(now())
+}
+
+model Review {
+  id           String        @id @default(uuid())
+  lawyerId     String
+  lawyer       LawyerProfile @relation(fields: [lawyerId], references: [id], onDelete: Cascade)
+  reviewerName String
+  rating       Int
+  comment      String
+  isApproved   Boolean       @default(false)
 }

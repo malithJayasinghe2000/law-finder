@@ -1,64 +1,65 @@
-import Image from "next/image";
+import { getTranslations } from 'next-intl/server';
+import Link from 'next/link';
+import { Search, ShieldCheck } from 'lucide-react';
 
-export default function Home() {
+export default async function HomePage({ params }: { params: Promise<{ locale: string }> }) {
+  const { locale } = await params;
+  const t = await getTranslations({ locale });
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div className="min-h-screen bg-gray-50 flex flex-col">
+      {/* Navbar */}
+      <header className="bg-white border-b sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+          <div className="text-2xl font-black text-blue-900 tracking-tighter">LawFinder SL</div>
+          <nav className="flex items-center gap-6">
+            <Link href={`/${locale}/lawyers`} className="font-medium text-gray-600 hover:text-blue-600 transition-colors">Directory</Link>
+            <Link href={`/${locale}/login`} className="font-bold text-white px-5 py-2.5 bg-blue-600 shadow-md shadow-blue-500/20 rounded-lg hover:bg-blue-700 transition-colors">Login / Register</Link>
+          </nav>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
+      </header>
+
+      {/* Hero Section */}
+      <main className="flex-1">
+        <section className="bg-gradient-to-br from-blue-950 to-blue-900 text-white py-28 px-6 relative overflow-hidden">
+          {/* Subtle background glow effect using Tailwind */}
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-blue-500/20 rounded-full blur-3xl mix-blend-screen pointer-events-none"></div>
+          
+          <div className="max-w-4xl mx-auto text-center relative z-10">
+            <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight mb-8 leading-tight">
+              {t('HomePage.title', { fallback: 'Find the Right Lawyer in Sri Lanka' })}
+            </h1>
+            <p className="text-xl md:text-2xl text-blue-100/80 mb-12 max-w-2xl mx-auto font-light">
+              {t('HomePage.subtitle', { fallback: 'Expert legal assistance. Verified attorneys. Book consultations instantly.' })}
+            </p>
+            
+            {/* Search Box */}
+            <div className="bg-white/10 backdrop-blur-md p-2 rounded-2xl flex max-w-3xl mx-auto border border-white/20 focus-within:ring-4 ring-blue-500/50 transition-all shadow-2xl">
+              <input 
+                type="text" 
+                placeholder={t('HomePage.searchPlaceholder', { fallback: 'Search by practice area or district...' })}
+                className="flex-1 px-6 py-4 text-white placeholder:text-blue-100 bg-transparent text-lg outline-none"
+              />
+              <button className="bg-blue-600 hover:bg-blue-500 transition-colors px-10 py-4 rounded-xl font-bold flex items-center gap-2 shadow-lg">
+                <Search className="w-5 h-5" />
+                {t('HomePage.searchButton', { fallback: 'Find Lawyers' })}
+              </button>
+            </div>
+          </div>
+        </section>
+
+        {/* Value Proposition */}
+        <section className="py-24 px-6 max-w-7xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="bg-white p-10 rounded-3xl shadow-sm border border-gray-100 flex flex-col items-center hover:shadow-xl transition-shadow cursor-default">
+              <div className="w-20 h-20 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mb-6">
+                <ShieldCheck className="w-10 h-10" />
+              </div>
+              <h3 className="text-2xl font-bold mb-4 text-gray-900 tracking-tight">Verified Professionals</h3>
+              <p className="text-gray-500 text-center text-lg leading-relaxed">Every lawyer is rigorously verified against the Bar Association of Sri Lanka (BASL) registry.</p>
+            </div>
+          </div>
+        </section>
       </main>
     </div>
   );
