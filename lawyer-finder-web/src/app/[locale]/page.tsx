@@ -1,6 +1,5 @@
 import { getTranslations } from 'next-intl/server';
 import Link from 'next/link';
-import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -25,8 +24,6 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
 
   return (
     <div className="flex min-h-screen flex-col">
-      <Header locale={locale} />
-
       <main className="flex-1">
         {/* Hero Section */}
         <section className="relative overflow-hidden bg-primary py-24 sm:py-32 lg:py-40">
