@@ -1,8 +1,13 @@
 import { SignJWT, jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
 
-// In production, this must be a strong 32+ character random string in .env
-const secretKey = process.env.JWT_SECRET || 'super-secret-key-change-in-production-law-finder-app';
+const secretKey = process.env.JWT_SECRET;
+if (!secretKey) {
+  throw new Error(
+    'FATAL: JWT_SECRET environment variable is not set. ' +
+    'Generate a strong random string and add it to your .env file.'
+  );
+}
 const encodedKey = new TextEncoder().encode(secretKey);
 
 export type SessionPayload = {
@@ -20,11 +25,11 @@ export async function encrypt(payload: SessionPayload) {
 
 export async function decrypt(session: string | undefined = '') {
   try {
-    const { payload } = await jwtVerify(session, encodedKey, {
+    const { payload } = await jwtVerify(session!, encodedKey, {
       algorithms: ['HS256'],
     });
-    return payload as SessionPayload;
-  } catch (error) {
+    return payload as unknown as SessionPayload;
+  } catch {
     return null;
   }
 }
@@ -37,10 +42,10 @@ export async function getSession() {
 }
 
 export async function createSession(payload: SessionPayload) {
-  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
   const session = await encrypt(payload);
   const cookieStore = await cookies();
-  
+
   cookieStore.set('session', session, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',

@@ -4,13 +4,15 @@
     "subtitle": "Expert legal assistance. Verified attorneys. Book consultations instantly.",
     "searchPlaceholder": "Search by practice area or district...",
     "searchButton": "Find Lawyers",
-    "featuredLawyers": "Featured Legal Experts"
+    "featuredLawyers": "Featured Legal Experts",
+    "directory": "Lawyer Directory",
+    "inquireNow": "Inquire Now"
   },
   "Navigation": {
     "home": "Home",
     "directory": "Lawyer Directory",
     "blog": "Legal Insights",
-    "login": "Login / Register",
+    "login": "Sign In",
     "dashboard": "Dashboard"
   }
 }

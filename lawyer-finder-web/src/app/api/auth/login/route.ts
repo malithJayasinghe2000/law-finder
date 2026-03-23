@@ -8,23 +8,22 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
     const validated = loginSchema.safeParse(body);
-    
+
     if (!validated.success) {
-      return NextResponse.json({ error: 'Invalid credentials' }, { status: 400 });
+      return NextResponse.json({ error: 'Invalid credentials format.' }, { status: 400 });
     }
 
     const { email, password } = validated.data;
     const user = await prisma.user.findUnique({ where: { email } });
 
     if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
-      return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 });
+      return NextResponse.json({ error: 'Invalid email or password.' }, { status: 401 });
     }
 
-    // Create secure HttpOnly cookie session
-    await createSession({ userId: user.id, role: user.role as any });
+    await createSession({ userId: user.id, role: user.role });
 
     return NextResponse.json({ success: true, role: user.role }, { status: 200 });
-  } catch (error) {
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+  } catch {
+    return NextResponse.json({ error: 'Internal server error.' }, { status: 500 });
   }
 }

@@ -4,7 +4,6 @@ import { PrismaClient } from '@prisma/client';
 
 const prismaClientSingleton = () => {
   const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-  // @ts-ignore
   const adapter = new PrismaPg(pool);
   return new PrismaClient({ adapter });
 };

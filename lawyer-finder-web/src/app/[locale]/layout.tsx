@@ -10,29 +10,48 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: 'HomePage' });
   return {
-    title: t('title'),
-    description: t('subtitle')
+    title: {
+      default: t('title'),
+      template: '%s | LawFinder SL',
+    },
+    description: t('subtitle'),
+    keywords: ['Sri Lanka', 'lawyer', 'legal', 'attorney', 'BASL', 'law finder', 'legal help'],
+    openGraph: {
+      title: t('title'),
+      description: t('subtitle'),
+      type: 'website',
+      locale: locale,
+      siteName: 'LawFinder SL',
+    },
   };
 }
 
 export default async function RootLayout({
   children,
-  params
+  params,
 }: {
   children: React.ReactNode;
   params: Promise<{ locale: string }>;
 }) {
   const { locale } = await params;
-  
-  if (!routing.locales.includes(locale as any)) {
+
+  if (!routing.locales.includes(locale as 'en' | 'si' | 'ta')) {
     notFound();
   }
 
   const messages = await getMessages({ locale });
 
   return (
-    <html lang={locale}>
-      <body className="min-h-full flex flex-col antialiased">
+    <html lang={locale} suppressHydrationWarning>
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
+          rel="stylesheet"
+        />
+      </head>
+      <body className="min-h-screen flex flex-col antialiased">
         <NextIntlClientProvider messages={messages} locale={locale}>
           {children}
         </NextIntlClientProvider>

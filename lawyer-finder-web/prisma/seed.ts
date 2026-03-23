@@ -3,13 +3,18 @@ import { Pool } from 'pg'
 import { PrismaPg } from '@prisma/adapter-pg'
 import * as bcrypt from 'bcryptjs'
 
+// Block seeder from running in production
+if (process.env.NODE_ENV === 'production') {
+  console.error('SEEDER BLOCKED: Cannot run seed in production environment.');
+  process.exit(1);
+}
+
 const pool = new Pool({ connectionString: process.env.DATABASE_URL })
-// @ts-ignore
 const adapter = new PrismaPg(pool)
 const prisma = new PrismaClient({ adapter })
 
 async function main() {
-  const passwordHash = await bcrypt.hash('password123', 10)
+  const passwordHash = await bcrypt.hash('password123', 12)
 
   // 1. Create Admin
   const admin = await prisma.user.upsert({
@@ -32,14 +37,16 @@ async function main() {
       role: 'LAWYER',
       profile: {
         create: {
-          fullName: 'Test Lawyer',
-          baslNumber: 'BASL-TEST-123',
+          fullName: 'Kavindu Perera',
+          baslNumber: 'BASL-2024-0451',
           isVerified: true,
-          practiceAreas: ['Family Law', 'Property Law'],
-          languages: ['Sinhala', 'English'],
-          district: 'Colombo'
-        }
-      }
+          bio: 'Senior attorney with over 15 years of experience in property and family law across the Colombo district. Fluent in all three national languages.',
+          practiceAreas: ['Family Law', 'Property Law', 'Civil Law'],
+          languages: ['Sinhala', 'Tamil', 'English'],
+          district: 'Colombo',
+          baseFeeRange: 'LKR 5,000 - 15,000',
+        },
+      },
     },
   })
 
@@ -55,11 +62,11 @@ async function main() {
   })
 
   console.log('-------------------------------------------')
-  console.log('✅ Database seeded perfectly!')
+  console.log('Database seeded successfully.')
   console.log('Login Credentials (Password for all: password123):')
-  console.log(`Admin:  ${admin.email}`)
-  console.log(`Lawyer: ${lawyer.email}`)
-  console.log(`Client: ${client.email}`)
+  console.log(`  Admin:  ${admin.email}`)
+  console.log(`  Lawyer: ${lawyer.email}`)
+  console.log(`  Client: ${client.email}`)
   console.log('-------------------------------------------')
 }
 

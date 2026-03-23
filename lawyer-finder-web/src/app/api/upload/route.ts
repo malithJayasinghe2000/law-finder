@@ -8,37 +8,59 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+
 export async function POST(req: Request) {
   try {
     const session = await getSession();
-    // Only logged-in LAWYERs or ADMINs can upload profile images
     if (!session || session.role === 'CLIENT') {
-      return NextResponse.json({ error: 'Unauthorized to upload images' }, { status: 401 });
+      return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 });
     }
 
-    const data = await req.formData();
-    const file: File | null = data.get('file') as unknown as File;
-    
+    const formData = await req.formData();
+    const file = formData.get('file') as File | null;
+
     if (!file) {
-      return NextResponse.json({ error: 'No file provided' }, { status: 400 });
+      return NextResponse.json({ error: 'No file provided.' }, { status: 400 });
+    }
+
+    // Validate file type
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      return NextResponse.json(
+        { error: 'Invalid file type. Only JPG, PNG, and WebP are allowed.' },
+        { status: 400 }
+      );
+    }
+
+    // Validate file size
+    if (file.size > MAX_FILE_SIZE) {
+      return NextResponse.json(
+        { error: 'File too large. Maximum size is 5MB.' },
+        { status: 400 }
+      );
     }
 
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
-    return new Promise((resolve, reject) => {
-      cloudinary.uploader.upload_stream(
-        { folder: 'lawyer_profiles', allowed_formats: ['jpg', 'png', 'webp'] }, 
-        (error, result) => {
-          if (error || !result) {
-            reject(NextResponse.json({ error: 'Cloudinary upload failed' }, { status: 500 }));
-          } else {
-            resolve(NextResponse.json({ url: result.secure_url }, { status: 200 }));
+    const result = await new Promise<{ secure_url: string }>((resolve, reject) => {
+      cloudinary.uploader
+        .upload_stream(
+          { folder: 'lawyer_profiles', allowed_formats: ['jpg', 'png', 'webp'] },
+          (error, result) => {
+            if (error || !result) {
+              reject(new Error('Upload failed.'));
+            } else {
+              resolve(result);
+            }
           }
-        }
-      ).end(buffer);
+        )
+        .end(buffer);
     });
-  } catch (error) {
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+
+    return NextResponse.json({ url: result.secure_url }, { status: 200 });
+  } catch {
+    return NextResponse.json({ error: 'Upload failed.' }, { status: 500 });
   }
 }

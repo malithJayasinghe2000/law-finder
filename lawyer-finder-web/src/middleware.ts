@@ -5,43 +5,62 @@ import { decrypt } from '@/lib/auth';
 
 const intlMiddleware = createMiddleware(routing);
 
+// Extract locale from pathname
+function getLocale(pathname: string): string {
+  const segments = pathname.split('/');
+  const potentialLocale = segments[1];
+  if (['en', 'si', 'ta'].includes(potentialLocale)) return potentialLocale;
+  return 'en';
+}
+
 export default async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const locale = getLocale(pathname);
 
-  // Protect /dashboard and internal API boundaries
-  if (pathname.includes('/dashboard') || pathname.startsWith('/api/protected')) {
+  // Protect /dashboard routes
+  if (pathname.includes('/dashboard')) {
     const sessionCookie = request.cookies.get('session');
-    
-    // Auth Check
+
     if (!sessionCookie?.value) {
-      if (pathname.startsWith('/api')) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-      }
-      return NextResponse.redirect(new URL('/en/login', request.url));
+      return NextResponse.redirect(new URL(`/${locale}/login`, request.url));
     }
 
     const payload = await decrypt(sessionCookie.value);
-    
-    // Invalid Token Check
+
     if (!payload) {
-      if (pathname.startsWith('/api')) {
-        return NextResponse.json({ error: 'Invalid Session' }, { status: 401 });
-      }
-      return NextResponse.redirect(new URL('/en/login', request.url));
+      return NextResponse.redirect(new URL(`/${locale}/login`, request.url));
     }
 
-    // Role-Based Auth Check for Admin
+    // Role-Based Access
     if (pathname.includes('/dashboard/admin') && payload.role !== 'ADMIN') {
-      return NextResponse.redirect(new URL('/en/dashboard/lawyer', request.url));
+      return NextResponse.redirect(new URL(`/${locale}/dashboard/lawyer`, request.url));
     }
-    
-    // Role-Based Auth Check for Lawyer
+
     if (pathname.includes('/dashboard/lawyer') && payload.role !== 'LAWYER' && payload.role !== 'ADMIN') {
-      return NextResponse.redirect(new URL('/en', request.url));
+      return NextResponse.redirect(new URL(`/${locale}`, request.url));
     }
   }
 
-  // Pass to i18n Next-Intl Middleware if not an API route
+  // Protect API routes that require auth
+  if (pathname.startsWith('/api/admin') || pathname.startsWith('/api/lawyers/profile')) {
+    const sessionCookie = request.cookies.get('session');
+
+    if (!sessionCookie?.value) {
+      return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 });
+    }
+
+    const payload = await decrypt(sessionCookie.value);
+    if (!payload) {
+      return NextResponse.json({ error: 'Invalid session.' }, { status: 401 });
+    }
+
+    // Admin-only routes
+    if (pathname.startsWith('/api/admin') && payload.role !== 'ADMIN') {
+      return NextResponse.json({ error: 'Forbidden.' }, { status: 403 });
+    }
+  }
+
+  // i18n middleware for non-API routes
   if (!pathname.startsWith('/api')) {
     return intlMiddleware(request);
   }
@@ -50,5 +69,5 @@ export default async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!_next|.*\\..*).*)'] 
+  matcher: ['/((?!_next|.*\\..*).*)'],
 };
