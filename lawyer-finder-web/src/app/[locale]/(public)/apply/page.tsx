@@ -36,13 +36,13 @@ export default async function ApplyPage({ params }: { params: Promise<{ locale: 
   const rejectedReason = isRejected ? app.adminNotes : null;
 
   return (
-    <div className="min-h-screen bg-gray-50 py-16 px-4 sm:px-6 flex items-center justify-center">
+    <div className="min-h-[85vh] bg-background py-16 px-4 sm:px-6 flex items-center justify-center">
        <div className="w-full max-w-2xl">
           {isRejected && (
-            <div className="mb-6 p-4 rounded-xl bg-red-50 text-red-900 border border-red-200">
-               <h3 className="font-bold">Previous Application Rejected</h3>
+            <div className="mb-6 p-5 rounded-none bg-red-50 text-red-900 border border-red-200 shadow-sm">
+               <h3 className="font-bold text-lg">Previous Application Rejected</h3>
                <p className="text-sm mt-1">{rejectedReason || 'No specific reasoning provided by administration.'}</p>
-               <p className="text-sm text-red-700 mt-2 font-medium">Please correct the information above and submit a new application.</p>
+               <p className="text-sm text-red-700 mt-3 font-semibold uppercase tracking-wide">Please correct the information above and submit a new application.</p>
             </div>
           )}
           <ApplicationClientForm locale={locale} initialStep={startingStep} initialData={draftData} />

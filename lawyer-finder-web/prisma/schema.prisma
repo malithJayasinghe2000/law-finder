@@ -71,6 +71,13 @@ model LawyerProfile {
   languages       String[]
   district        String?
   baseFeeRange    String?
+  gender            String?
+  yearsOfExperience Int?
+  practiceType      String?
+  courts            String[]
+  isNotary          Boolean     @default(false)
+  licenseImageUrl   String?
+  identityImageUrl  String?
   isVerified      Boolean     @default(false)
   inquiries       Inquiry[]
   articles        Article[]
