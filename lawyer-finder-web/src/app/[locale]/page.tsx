@@ -3,92 +3,119 @@ import Link from 'next/link';
 import Footer from '@/components/layout/Footer';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import {
-  Search,
-  ShieldCheck,
-  Scale,
-  BookOpen,
   ArrowRight,
-  MapPin,
-  Languages,
-  Star,
-  Users,
+  Globe,
+  ArrowUpRight,
+  ShieldCheck,
+  Search,
   MessageSquare,
-  Gavel,
+  BookOpen,
+  Star,
+  Languages,
+  Scale,
+  Gavel
 } from 'lucide-react';
+import ChatWidget from '@/components/home/ChatWidget';
+import LawyersMarquee from '@/components/home/LawyersMarquee';
 
 export default async function HomePage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
   const t = await getTranslations({ locale });
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex min-h-screen flex-col font-sans">
       <main className="flex-1">
-        {/* Hero Section */}
-        <section className="relative overflow-hidden bg-primary py-24 sm:py-32 lg:py-40">
-          {/* Background pattern */}
-          <div className="absolute inset-0 opacity-[0.03]">
-            <div className="absolute inset-0" style={{
-              backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
-            }} />
+        
+        {/* Dark Hero Section matching the image */}
+        <section className="relative bg-[#0a0a0a] text-white min-h-[90vh] flex flex-col justify-center py-20 px-6 lg:px-12 xl:px-24">
+          {/* Background Image & Overlay */}
+          <div className="absolute inset-0 overflow-hidden pointer-events-none">
+            <img 
+              src="https://images.unsplash.com/photo-1589829085413-56de8ae18c73?q=80&w=2500&auto=format&fit=crop" 
+              alt="Courtroom background" 
+              className="object-cover w-full h-full opacity-40 mix-blend-luminosity"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] via-[#0a0a0a]/60 to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-r from-[#0a0a0a] via-[#0a0a0a]/40 to-transparent" />
           </div>
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-white/5 rounded-full blur-3xl pointer-events-none" />
 
-          <div className="relative mx-auto max-w-5xl px-4 text-center sm:px-6">
-            <Badge variant="secondary" className="mb-6 px-4 py-1.5 text-xs font-semibold tracking-wider uppercase">
-              <ShieldCheck className="mr-1.5 h-3.5 w-3.5" />
-              BASL Verified Platform
-            </Badge>
-
-            <h1 className="text-4xl font-extrabold tracking-tight text-primary-foreground sm:text-5xl lg:text-7xl">
-              {t('HomePage.title')}
-            </h1>
-
-            <p className="mx-auto mt-6 max-w-2xl text-lg text-primary-foreground/70 sm:text-xl">
-              {t('HomePage.subtitle')}
-            </p>
-
-            {/* Search Box */}
-            <div className="mx-auto mt-10 max-w-2xl">
-              <div className="flex rounded-xl bg-white/10 p-1.5 backdrop-blur-md border border-white/10 shadow-2xl shadow-black/20 focus-within:ring-2 focus-within:ring-white/30 transition-all">
-                <div className="flex flex-1 items-center gap-3 px-4">
-                  <Search className="h-5 w-5 text-primary-foreground/50 shrink-0" />
-                  <input
-                    type="text"
-                    placeholder={t('HomePage.searchPlaceholder')}
-                    className="w-full bg-transparent py-3.5 text-primary-foreground placeholder:text-primary-foreground/40 outline-none text-base"
-                  />
-                </div>
-                <Link href={`/${locale}/lawyers`}>
-                  <Button size="lg" variant="secondary" className="gap-2 font-semibold px-6 rounded-lg">
-                    {t('HomePage.searchButton')}
-                    <ArrowRight className="h-4 w-4" />
-                  </Button>
-                </Link>
-              </div>
+          <div className="relative z-10 w-full max-w-7xl mx-auto flex flex-col lg:flex-row lg:items-end justify-between gap-12 mt-12">
+            
+            {/* Left side text */}
+            <div className="max-w-2xl">
+              <h1 className="text-5xl sm:text-6xl md:text-7xl font-semibold leading-[1.1] tracking-tight mb-4">
+                Smart Legal<br />
+                Strategies for<br />
+                Real-World<br />
+                Cases
+              </h1>
             </div>
 
-            {/* Trust indicators */}
-            <div className="mt-12 flex flex-wrap items-center justify-center gap-8 text-sm text-primary-foreground/50">
-              <div className="flex items-center gap-2">
-                <Users className="h-4 w-4" />
-                <span>500+ Verified Lawyers</span>
+            {/* Right side stats & button */}
+            <div className="max-w-md flex flex-col gap-10">
+              <div className="flex gap-8">
+                <div>
+                  <div className="text-4xl sm:text-5xl font-light mb-2">98%</div>
+                  <div className="text-white/60 text-sm tracking-wide">Client Satisfaction</div>
+                </div>
+                <div>
+                  <div className="text-4xl sm:text-5xl font-light mb-2">1,500+</div>
+                  <div className="text-white/60 text-sm tracking-wide">Cases Resolved Successfully</div>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <MapPin className="h-4 w-4" />
-                <span>All 25 Districts</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Languages className="h-4 w-4" />
-                <span>Sinhala, Tamil, English</span>
+
+              <p className="text-white/80 text-lg sm:text-xl font-light leading-relaxed">
+                Delivering practical legal solutions with insight, precision, and forward-thinking strategy.
+              </p>
+
+              <div>
+                <Link href={`/${locale}/lawyers`}>
+                  <Button className="bg-white text-black hover:bg-white/90 rounded-none px-8 py-7 text-lg w-full sm:w-auto flex items-center justify-between group">
+                    Find Legal Help
+                    <ArrowRight className="ml-6 w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                  </Button>
+                </Link>
+                
+                <div className="mt-8 border-t border-white/20 pt-6 flex flex-row items-center justify-between">
+                  <Globe className="w-5 h-5 text-white/50" />
+                  <span className="text-white/50 text-sm">Supporting clients since 2012</span>
+                </div>
               </div>
             </div>
           </div>
         </section>
 
-        {/* Features */}
-        <section className="py-20 sm:py-28">
+        {/* Marquee Section */}
+        <LawyersMarquee />
+
+        {/* Content Section mimicking 'About the Firm' layout provided in the screenshot */}
+        <section className="py-24 px-6 lg:px-12 xl:px-24 bg-background">
+          <div className="max-w-7xl mx-auto flex flex-col lg:flex-row gap-16 justify-between items-start">
+            <div className="max-w-3xl">
+              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-light leading-snug tracking-tight text-foreground">
+                Since 2012, we've transformed the way legal support is delivered —
+                blending strategic thinking, deep domain expertise, and unwavering 
+                dedication to secure the best outcomes for our clients.
+              </h2>
+            </div>
+            
+            <div className="flex flex-col items-start lg:items-end gap-6 min-w-[200px] lg:pt-4">
+              <Link href={`/${locale}/about`} className="group flex items-center gap-2 border-b border-foreground pb-1 text-lg font-medium hover:text-primary transition-colors">
+                About the Firm.
+                <ArrowUpRight className="w-5 h-5 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
+              </Link>
+              <img 
+                src="https://images.unsplash.com/photo-1505664194779-8beaceb93744?q=80&w=300&auto=format&fit=crop" 
+                alt="Law books" 
+                className="w-48 h-32 object-cover rounded-md grayscale opacity-80"
+              />
+            </div>
+          </div>
+        </section>
+
+        {/* Original Features Section with updated styling */}
+        <section className="py-20 bg-muted/30">
           <div className="mx-auto max-w-7xl px-4 sm:px-6">
             <div className="mx-auto max-w-2xl text-center mb-16">
               <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
@@ -132,7 +159,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
                   desc: 'Full platform support in Sinhala, Tamil, and English. Access justice in the language you are most comfortable with.',
                 },
               ].map((feature) => (
-                <Card key={feature.title} className="group hover:shadow-lg transition-all duration-300 border-border/50 hover:border-border">
+                <Card key={feature.title} className="group hover:shadow-lg transition-all duration-300 border-border/50 hover:border-border rounded-xl">
                   <CardContent className="p-8">
                     <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-xl bg-primary/5 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors duration-300">
                       <feature.icon className="h-6 w-6" />
@@ -147,7 +174,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
         </section>
 
         {/* CTA Section */}
-        <section className="border-t bg-card py-20 sm:py-28">
+        <section className="border-t bg-card py-20">
           <div className="mx-auto max-w-3xl px-4 text-center sm:px-6">
             <div className="mx-auto mb-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
               <Gavel className="h-7 w-7" />
@@ -160,13 +187,13 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
             </p>
             <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
               <Link href={`/${locale}/register`}>
-                <Button size="lg" className="gap-2 font-semibold px-8">
+                <Button size="lg" className="gap-2 font-semibold px-8 rounded-none">
                   <Scale className="h-4 w-4" />
                   Register Your Practice
                 </Button>
               </Link>
               <Link href={`/${locale}/lawyers`}>
-                <Button size="lg" variant="outline" className="gap-2 font-semibold px-8">
+                <Button size="lg" variant="outline" className="gap-2 font-semibold px-8 rounded-none">
                   Browse Directory
                   <ArrowRight className="h-4 w-4" />
                 </Button>
@@ -174,7 +201,11 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
             </div>
           </div>
         </section>
+
       </main>
+
+      {/* Persistent AI Chat Widget */}
+      <ChatWidget />
 
       <Footer locale={locale} />
     </div>
