@@ -105,9 +105,9 @@ export default function AdminDashboard() {
   if (loading) {
     return (
       <div className="p-6 lg:p-10 space-y-6 max-w-6xl w-full">
-        <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-8 w-48 rounded-none" />
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 lg:grid-cols-5">
-           <Skeleton className="h-24 rounded-xl" />
+           <Skeleton className="h-24 rounded-none" />
         </div>
       </div>
     );
@@ -127,7 +127,7 @@ export default function AdminDashboard() {
     <div className="w-full">
       {/* Header */}
       <div className="mb-8 flex items-center gap-4">
-        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/20">
+        <div className="flex h-12 w-12 items-center justify-center rounded-none bg-[#0a0a0a] text-white shadow-md">
           <LayoutDashboard className="h-6 w-6" />
         </div>
         <div>
@@ -136,10 +136,9 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* Stats */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5 mb-8">
         {statCards.map((stat) => (
-          <Card key={stat.label}>
+          <Card key={stat.label} className="rounded-none shadow-sm">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
                 <stat.icon className={`h-5 w-5 ${stat.color}`} />
@@ -154,13 +153,13 @@ export default function AdminDashboard() {
       </div>
 
       {/* Pending Lawyers */}
-      <Card className="mb-6">
+      <Card className="mb-6 rounded-none shadow-sm">
         <CardContent className="p-6">
           <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
             <Shield className="h-4 w-4" />
             Lawyers Pending Verification
             {data.pendingLawyers.length > 0 && (
-              <Badge variant="outline" className="text-amber-600 border-amber-300 bg-amber-50">
+              <Badge variant="outline" className="rounded-none text-amber-600 border-amber-300 bg-amber-50">
                 {data.pendingLawyers.length}
               </Badge>
             )}
@@ -173,9 +172,9 @@ export default function AdminDashboard() {
           ) : (
             <div className="space-y-3">
               {data.pendingLawyers.map((lawyer) => (
-                <div key={lawyer.id} className="flex items-center justify-between gap-4 rounded-lg border p-4">
+                <div key={lawyer.id} className="flex items-center justify-between gap-4 rounded-none border p-4 hover:shadow-sm transition-shadow">
                   <div className="min-w-0 flex-1">
-                    <p className="font-medium text-sm">{lawyer.fullName}</p>
+                    <p className="font-semibold text-sm">{lawyer.fullName}</p>
                     <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground mt-1">
                       <span>BASL: {lawyer.baslNumber}</span>
                       <span>{lawyer.user.email}</span>
@@ -189,7 +188,7 @@ export default function AdminDashboard() {
                       size="sm"
                       onClick={() => setSelectedLawyer(lawyer)}
                       variant="secondary"
-                      className="gap-1 font-semibold"
+                      className="gap-1 font-semibold rounded-none"
                     >
                       <Search className="h-4 w-4" /> Review Dossier
                     </Button>
@@ -197,7 +196,7 @@ export default function AdminDashboard() {
                       size="sm"
                       variant="outline"
                       onClick={() => setRejectLawyerId(lawyer.id)}
-                      className="gap-1 text-destructive hover:text-destructive hover:bg-destructive/10"
+                      className="gap-1 text-destructive hover:text-destructive hover:bg-destructive/10 rounded-none"
                     >
                       <XCircle className="h-4 w-4" /> Refuse
                     </Button>
@@ -210,13 +209,13 @@ export default function AdminDashboard() {
       </Card>
 
       {/* Pending Reviews */}
-      <Card>
+      <Card className="rounded-none shadow-sm">
         <CardContent className="p-6">
           <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
             <Star className="h-4 w-4" />
             Reviews Pending Approval
             {data.pendingReviews.length > 0 && (
-              <Badge variant="outline" className="text-amber-600 border-amber-300 bg-amber-50">
+              <Badge variant="outline" className="rounded-none text-amber-600 border-amber-300 bg-amber-50">
                 {data.pendingReviews.length}
               </Badge>
             )}
@@ -229,7 +228,7 @@ export default function AdminDashboard() {
           ) : (
             <div className="space-y-3">
               {data.pendingReviews.map((review) => (
-                <div key={review.id} className="rounded-lg border p-4">
+                <div key={review.id} className="rounded-none shadow-sm border p-4 hover:shadow-md transition-shadow">
                   <div className="flex items-start justify-between gap-4">
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 mb-1">
@@ -253,7 +252,7 @@ export default function AdminDashboard() {
                         size="sm"
                         onClick={() => handleAction('approve-review', review.id, 'Approve')}
                         disabled={actionLoading === `approve-review-${review.id}`}
-                        className="gap-1"
+                        className="gap-1 rounded-none font-semibold"
                       >
                         {actionLoading === `approve-review-${review.id}` ? (
                           <Loader2 className="h-3 w-3 animate-spin" />
@@ -267,7 +266,7 @@ export default function AdminDashboard() {
                         variant="outline"
                         onClick={() => handleAction('reject-review', review.id, 'Reject')}
                         disabled={actionLoading === `reject-review-${review.id}`}
-                        className="gap-1 text-destructive hover:text-destructive"
+                        className="gap-1 text-destructive hover:text-destructive rounded-none"
                       >
                         {actionLoading === `reject-review-${review.id}` ? (
                           <Loader2 className="h-3 w-3 animate-spin" />
@@ -287,26 +286,26 @@ export default function AdminDashboard() {
 
       {/* --- MODALS --- */}
       <Dialog open={!!selectedLawyer} onOpenChange={(open) => !open && setSelectedLawyer(null)}>
-        <DialogContent className="max-w-2xl bg-white/95 backdrop-blur-3xl border-0 shadow-2xl">
+        <DialogContent className="max-w-2xl bg-white/95 backdrop-blur-3xl border-0 shadow-2xl rounded-none">
           <DialogHeader>
             <DialogTitle className="text-2xl font-bold tracking-tight">Verification Readout</DialogTitle>
-            <DialogDescription>Validate all submitted credentials prior to platform enrollment.</DialogDescription>
+            <DialogDescription className="font-medium text-gray-600">Validate all submitted credentials prior to platform enrollment.</DialogDescription>
           </DialogHeader>
           
           {selectedLawyer && (
             <div className="space-y-6 my-2">
-              <div className="grid grid-cols-2 gap-4 text-sm bg-gray-50/50 p-6 rounded-2xl border border-gray-100">
-                 <div><span className="text-gray-500 font-medium">Full Legal Name</span><p className="font-bold text-base mt-0.5 text-gray-900">{selectedLawyer.draftData?.step1?.fullName || 'N/A'}</p></div>
-                 <div><span className="text-gray-500 font-medium">NIC Number</span><p className="font-bold text-base mt-0.5 text-gray-900">{selectedLawyer.draftData?.step1?.nic || 'N/A'}</p></div>
-                 <div><span className="text-gray-500 font-medium">Contact Phone</span><p className="font-bold text-base mt-0.5 text-gray-900">{selectedLawyer.draftData?.step1?.phone || 'N/A'}</p></div>
-                 <div><span className="text-gray-500 font-medium">Email Account</span><p className="font-bold text-base mt-0.5 text-gray-900">{selectedLawyer.user.email}</p></div>
+              <div className="grid grid-cols-2 gap-4 text-sm bg-gray-50/50 p-6 rounded-none border border-gray-100">
+                 <div><span className="text-gray-500 font-medium">Full Legal Name</span><p className="font-semibold text-base mt-0.5 text-gray-900">{selectedLawyer.draftData?.step1?.fullName || 'N/A'}</p></div>
+                 <div><span className="text-gray-500 font-medium">NIC Number</span><p className="font-semibold text-base mt-0.5 text-gray-900">{selectedLawyer.draftData?.step1?.nic || 'N/A'}</p></div>
+                 <div><span className="text-gray-500 font-medium">Contact Phone</span><p className="font-semibold text-base mt-0.5 text-gray-900">{selectedLawyer.draftData?.step1?.phone || 'N/A'}</p></div>
+                 <div><span className="text-gray-500 font-medium">Email Account</span><p className="font-semibold text-base mt-0.5 text-gray-900">{selectedLawyer.user.email}</p></div>
                  <div className="col-span-2"><span className="text-gray-500 font-medium">Physical Address</span><p className="font-bold text-base mt-0.5 text-gray-900">{selectedLawyer.draftData?.step1?.address || 'N/A'}</p></div>
               </div>
               
-              <div className="grid grid-cols-2 gap-4 text-sm bg-blue-50/50 p-6 rounded-2xl border border-blue-100">
-                 <div><span className="text-blue-600/80 font-bold uppercase text-[10px] tracking-wider">BASL Hash Sequence</span><p className="font-black text-xl text-blue-900 mt-0.5">{selectedLawyer.draftData?.step2?.baslNumber || 'N/A'}</p></div>
-                 <div><span className="text-blue-600/80 font-bold uppercase text-[10px] tracking-wider">Supreme Court Year</span><p className="font-bold text-base text-blue-900 mt-1.5">{selectedLawyer.draftData?.step2?.enrollmentYear || 'N/A'}</p></div>
-                 <div className="col-span-2"><span className="text-blue-600/80 font-bold uppercase text-[10px] tracking-wider">Practice Domains</span><p className="font-bold text-sm text-blue-900 mt-1">{selectedLawyer.draftData?.step3?.practiceAreas || 'N/A'}</p></div>
+              <div className="grid grid-cols-2 gap-4 text-sm bg-gray-50/50 p-6 rounded-none border border-gray-100">
+                 <div><span className="text-gray-600 font-bold uppercase text-[10px] tracking-wider">BASL Hash Sequence</span><p className="font-semibold text-xl text-[#0a0a0a] mt-0.5">{selectedLawyer.draftData?.step2?.baslNumber || 'N/A'}</p></div>
+                 <div><span className="text-gray-600 font-bold uppercase text-[10px] tracking-wider">Supreme Court Year</span><p className="font-semibold text-base text-[#0a0a0a] mt-1.5">{selectedLawyer.draftData?.step2?.enrollmentYear || 'N/A'}</p></div>
+                 <div className="col-span-2"><span className="text-gray-600 font-bold uppercase text-[10px] tracking-wider">Practice Domains</span><p className="font-semibold text-sm text-[#0a0a0a] mt-1">{selectedLawyer.draftData?.step3?.practiceAreas || 'N/A'}</p></div>
                  <div><span className="text-blue-600/80 font-bold uppercase text-[10px] tracking-wider">Primary District</span><p className="font-bold text-sm text-blue-900 mt-1">{selectedLawyer.draftData?.step3?.district || 'N/A'}</p></div>
                  <div><span className="text-blue-600/80 font-bold uppercase text-[10px] tracking-wider">Spoken Languages</span><p className="font-bold text-sm text-blue-900 mt-1">{selectedLawyer.draftData?.step3?.languages || 'N/A'}</p></div>
               </div>
@@ -314,8 +313,8 @@ export default function AdminDashboard() {
           )}
 
           <DialogFooter className="gap-2 sm:gap-0 mt-4 border-t pt-4">
-            <Button variant="ghost" onClick={() => setSelectedLawyer(null)}>Cancel</Button>
-            <Button className="bg-green-600 hover:bg-green-700 font-bold tracking-tight shadow-lg shadow-green-600/20" disabled={actionLoading !== null} onClick={() => selectedLawyer && handleAction('verify-lawyer', selectedLawyer.id, 'Approve')}>
+            <Button variant="ghost" className="rounded-none font-semibold" onClick={() => setSelectedLawyer(null)}>Cancel</Button>
+            <Button className="rounded-none bg-[#0a0a0a] hover:bg-black font-semibold tracking-tight shadow-md" disabled={actionLoading !== null} onClick={() => selectedLawyer && handleAction('verify-lawyer', selectedLawyer.id, 'Approve')}>
               {actionLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <CheckCircle2 className="w-4 h-4 mr-2" />} Authorize & Grant License
             </Button>
           </DialogFooter>
@@ -323,7 +322,7 @@ export default function AdminDashboard() {
       </Dialog>
 
       <Dialog open={!!rejectLawyerId} onOpenChange={(open) => !open && setRejectLawyerId(null)}>
-        <DialogContent className="sm:max-w-md border-red-100 shadow-xl shadow-red-900/5">
+        <DialogContent className="sm:max-w-md border-red-100 shadow-xl rounded-none">
           <DialogHeader>
             <DialogTitle className="text-red-600 flex items-center gap-2 text-xl font-bold"><XCircle className="w-5 h-5"/> Revoke Application</DialogTitle>
             <DialogDescription className="text-red-900/60 font-medium">
@@ -335,12 +334,12 @@ export default function AdminDashboard() {
               placeholder="e.g. Your BASL sequence fails security verification..."
               value={rejectReason}
               onChange={(e) => setRejectReason(e.target.value)}
-              className="min-h-[140px] resize-none border-red-100 focus-visible:ring-red-500/20 font-medium text-gray-900 bg-red-50/30"
+              className="min-h-[140px] resize-none border-red-100 focus-visible:ring-red-500/20 font-medium text-gray-900 bg-red-50/30 rounded-none"
             />
           </div>
           <DialogFooter className="border-t pt-4">
-            <Button variant="ghost" onClick={() => setRejectLawyerId(null)}>Cancel</Button>
-            <Button variant="destructive" className="font-bold" disabled={!rejectReason.trim() || actionLoading !== null} onClick={() => rejectLawyerId && handleAction('reject-lawyer', rejectLawyerId, 'Reject')}>
+            <Button variant="ghost" className="rounded-none font-semibold" onClick={() => setRejectLawyerId(null)}>Cancel</Button>
+            <Button variant="destructive" className="font-semibold rounded-none" disabled={!rejectReason.trim() || actionLoading !== null} onClick={() => rejectLawyerId && handleAction('reject-lawyer', rejectLawyerId, 'Reject')}>
               {actionLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <XCircle className="w-4 h-4 mr-2" />} Confirm Rejection
             </Button>
           </DialogFooter>

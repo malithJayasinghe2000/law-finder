@@ -47,82 +47,61 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <div className="w-full max-w-md">
+    <div className="flex min-h-[85vh] items-center justify-center px-4 bg-background">
+      <div className="w-full max-w-[420px]">
         {/* Logo */}
-        <div className="mb-8 flex flex-col items-center gap-3">
-          <Link href={`/${locale}`} className="flex items-center gap-2.5 group">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-              <Scale className="h-5 w-5" />
+        <div className="mb-10 flex flex-col items-center gap-3">
+          <Link href={`/${locale}`} className="flex items-center gap-2 group">
+            <div className="flex h-12 w-12 items-center justify-center rounded-none bg-[#0a0a0a] text-white shadow-md transition-transform group-hover:scale-105">
+              <Scale className="h-6 w-6" />
             </div>
-            <span className="text-xl font-bold tracking-tight">
-              LawFinder<span className="text-muted-foreground font-normal ml-0.5">SL</span>
+            <span className="text-2xl font-semibold tracking-tight text-[#0a0a0a]">
+              LawFinder<span className="font-light opacity-60 ml-0.5">SL</span>
             </span>
           </Link>
         </div>
 
-        <Card>
-          <CardContent className="p-8">
-            <div className="mb-6">
-              <h1 className="text-2xl font-bold tracking-tight">Welcome back</h1>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Sign in to your account to continue
-              </p>
+        <div className="bg-white p-10 rounded-none shadow-md border border-neutral-200">
+          <div className="mb-8 text-center">
+            <h1 className="text-[26px] font-semibold tracking-tight text-[#0a0a0a] mb-2">Welcome Back</h1>
+            <p className="text-[15px] font-light text-neutral-500">Sign in to your account</p>
+          </div>
+
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+            <div className="space-y-2">
+              <label className="text-[13px] font-semibold text-neutral-900 uppercase tracking-wide">Email</label>
+              <input
+                type="email"
+                placeholder="hello@example.com"
+                {...register('email')}
+                className="w-full bg-neutral-50 border border-neutral-200 text-[#0a0a0a] px-4 py-3.5 rounded-none outline-none focus:border-[#0a0a0a] focus:bg-white transition-all"
+              />
+              {errors.email && <p className="text-sm text-red-500 mt-1">{errors.email.message}</p>}
             </div>
 
-            <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-5">
-              <div className="space-y-2">
-                <Label htmlFor="email">Email Address</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="hello@example.com"
-                  {...register('email')}
-                  className={errors.email ? 'border-destructive focus-visible:ring-destructive' : ''}
-                />
-                {errors.email && (
-                  <p className="text-xs text-destructive">{errors.email.message}</p>
-                )}
-              </div>
+            <div className="space-y-2">
+              <label className="text-[13px] font-semibold text-neutral-900 uppercase tracking-wide">Password</label>
+              <input
+                type="password"
+                placeholder="••••••••"
+                {...register('password')}
+                className="w-full bg-neutral-50 border border-neutral-200 text-[#0a0a0a] px-4 py-3.5 rounded-none outline-none focus:border-[#0a0a0a] focus:bg-white transition-all"
+              />
+              {errors.password && <p className="text-sm text-red-500 mt-1">{errors.password.message}</p>}
+            </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="Enter your password"
-                  {...register('password')}
-                  className={errors.password ? 'border-destructive focus-visible:ring-destructive' : ''}
-                />
-                {errors.password && (
-                  <p className="text-xs text-destructive">{errors.password.message}</p>
-                )}
-              </div>
+            <button type="submit" disabled={loading} className="w-full flex items-center justify-center gap-2 bg-[#0a0a0a] text-white py-4 rounded-none font-medium hover:bg-neutral-800 transition-colors mt-6 disabled:opacity-70">
+              {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <LogIn className="h-5 w-5" />}
+              {loading ? 'Signing in...' : 'Sign In'}
+            </button>
+          </form>
 
-              <Button type="submit" disabled={loading} className="mt-2 w-full gap-2 font-semibold">
-                {loading ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <LogIn className="h-4 w-4" />
-                )}
-                {loading ? 'Signing in...' : 'Sign In'}
-              </Button>
-
-              <p className="text-center text-sm text-muted-foreground">
-                Don&apos;t have an account?{' '}
-                <Link href={`/${locale}/register`} className="font-medium text-primary hover:underline">
-                  Create one
-                </Link>
-              </p>
-            </form>
-          </CardContent>
-        </Card>
-
-        <div className="mt-6 text-center">
-          <Link href={`/${locale}`} className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
-            <ArrowLeft className="h-3.5 w-3.5" />
-            Back to homepage
-          </Link>
+          <p className="text-center text-[15px] text-neutral-600 mt-8 font-light">
+            Don't have an account?{' '}
+            <Link href={`/${locale}/register`} className="font-medium text-[#0a0a0a] hover:underline">
+              Create one
+            </Link>
+          </p>
         </div>
       </div>
     </div>

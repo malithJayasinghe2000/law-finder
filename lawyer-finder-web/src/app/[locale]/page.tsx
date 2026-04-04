@@ -28,58 +28,64 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
       <main className="flex-1">
         
         {/* Dark Hero Section matching the image */}
-        <section className="relative bg-[#0a0a0a] text-white min-h-[90vh] flex flex-col justify-center py-20 px-6 lg:px-12 xl:px-24">
+        <section className="relative bg-[#0a0a0a] text-white min-h-[100vh] flex flex-col pt-32 pb-16 px-6 lg:px-12 xl:px-24">
           {/* Background Image & Overlay */}
           <div className="absolute inset-0 overflow-hidden pointer-events-none">
             <img 
-              src="https://images.unsplash.com/photo-1589829085413-56de8ae18c73?q=80&w=2500&auto=format&fit=crop" 
-              alt="Courtroom background" 
-              className="object-cover w-full h-full opacity-40 mix-blend-luminosity"
+              src="/hero.png" 
+              alt="Lawyer Hero" 
+              className="object-cover w-full h-full opacity-70"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] via-[#0a0a0a]/60 to-transparent" />
-            <div className="absolute inset-0 bg-gradient-to-r from-[#0a0a0a] via-[#0a0a0a]/40 to-transparent" />
+            {/* Dark Toplayer Overlay as requested */}
+            <div className="absolute inset-0 bg-black/40" />
+            <div className="absolute inset-0 bg-gradient-to-b from-[#0f1115]/90 via-transparent to-[#0a0a0a]/90" />
           </div>
 
-          <div className="relative z-10 w-full max-w-7xl mx-auto flex flex-col lg:flex-row lg:items-end justify-between gap-12 mt-12">
-            
-            {/* Left side text */}
-            <div className="max-w-2xl">
-              <h1 className="text-5xl sm:text-6xl md:text-7xl font-semibold leading-[1.1] tracking-tight mb-4">
-                Smart Legal<br />
-                Strategies for<br />
-                Real-World<br />
-                Cases
-              </h1>
-            </div>
-
-            {/* Right side stats & button */}
-            <div className="max-w-md flex flex-col gap-10">
-              <div className="flex gap-8">
+          <div className="relative z-10 flex-1 w-full max-w-[1400px] mx-auto flex flex-col justify-between">
+            {/* Top Row: Stats (Left) and Description (Right) */}
+            <div className="flex flex-col md:flex-row justify-between items-start w-full gap-10 mt-10">
+              <div className="flex flex-wrap gap-16">
                 <div>
-                  <div className="text-4xl sm:text-5xl font-light mb-2">98%</div>
-                  <div className="text-white/60 text-sm tracking-wide">Client Satisfaction</div>
+                  <div className="text-5xl sm:text-6xl font-light mb-3 text-white tracking-tight">98%</div>
+                  <div className="text-white/70 text-sm sm:text-base tracking-wide font-light">Client Satisfaction</div>
                 </div>
                 <div>
-                  <div className="text-4xl sm:text-5xl font-light mb-2">1,500+</div>
-                  <div className="text-white/60 text-sm tracking-wide">Cases Resolved Successfully</div>
+                  <div className="text-5xl sm:text-6xl font-light mb-3 text-white tracking-tight">1,500+</div>
+                  <div className="text-white/70 text-sm sm:text-base tracking-wide font-light">Cases Resolved Successfully</div>
                 </div>
               </div>
 
-              <p className="text-white/80 text-lg sm:text-xl font-light leading-relaxed">
-                Delivering practical legal solutions with insight, precision, and forward-thinking strategy.
-              </p>
+              <div className="max-w-[400px] text-left md:text-right mt-6 md:mt-0">
+                <p className="text-white/80 text-lg sm:text-xl font-light leading-relaxed">
+                  Delivering practical legal solutions with insight, precision, and forward-thinking strategy.
+                </p>
+              </div>
+            </div>
 
-              <div>
+            {/* Bottom Row: Title (Left) and Button (Right) */}
+            <div className="flex flex-col md:flex-row justify-between items-end w-full gap-12 mt-20 mb-8">
+              <div className="max-w-3xl">
+                <h1 className="text-5xl sm:text-6xl md:text-[5.5rem] font-light leading-[1.05] tracking-tight text-white mb-0 md:-mb-4">
+                  Smart Legal<br />
+                  Strategies for<br />
+                  Real-World<br />
+                  Cases
+                </h1>
+              </div>
+
+              <div className="w-full max-w-[340px]">
                 <Link href={`/${locale}/lawyers`}>
-                  <Button className="bg-white text-black hover:bg-white/90 rounded-none px-8 py-7 text-lg w-full sm:w-auto flex items-center justify-between group">
+                  <Button className="bg-white text-black hover:bg-neutral-200 rounded-none px-6 py-8 text-lg font-medium w-full flex items-center justify-between group">
                     Find Legal Help
-                    <ArrowRight className="ml-6 w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                    <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                   </Button>
                 </Link>
                 
-                <div className="mt-8 border-t border-white/20 pt-6 flex flex-row items-center justify-between">
-                  <Globe className="w-5 h-5 text-white/50" />
-                  <span className="text-white/50 text-sm">Supporting clients since 2012</span>
+                <div className="mt-8 border-t border-white/30 pt-6 flex flex-row items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <Globe className="w-5 h-5 text-white/60" />
+                    <span className="text-white/60 text-sm font-light">Supporting clients since 2012</span>
+                  </div>
                 </div>
               </div>
             </div>

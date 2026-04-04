@@ -52,7 +52,7 @@ export default async function RootLayout({
           rel="stylesheet"
         />
       </head>
-      <body className="min-h-screen flex flex-col antialiased">
+      <body className="min-h-screen flex flex-col antialiased font-light">
         <NextIntlClientProvider messages={messages} locale={locale}>
           <HeaderWrapper locale={locale} />
           <div className="flex-1">
