@@ -27,6 +27,7 @@ export async function POST(req: Request) {
       data: {
         email,
         passwordHash,
+        fullName: validated.data.fullName,
         role: 'CLIENT'
       }
     });

@@ -31,13 +31,16 @@ enum ArticleStatus {
 }
 
 model User {
-  id           String             @id @default(uuid())
-  email        String             @unique
-  passwordHash String
-  role         Role               @default(CLIENT)
-  createdAt    DateTime           @default(now())
-  profile      LawyerProfile?
-  application  LawyerApplication?
+  id              String             @id @default(uuid())
+  email           String             @unique
+  passwordHash    String
+  fullName        String?
+  profileImageUrl String?
+  role            Role               @default(CLIENT)
+  createdAt       DateTime           @default(now())
+  profile         LawyerProfile?
+  application     LawyerApplication?
+  reviews         Review[]           @relation("ReviewAuthor")
 }
 
 model LawyerApplication {
@@ -112,10 +115,13 @@ model Review {
   id           String        @id @default(uuid())
   lawyerId     String
   lawyer       LawyerProfile @relation(fields: [lawyerId], references: [id], onDelete: Cascade)
+  reviewerId   String?
+  reviewer     User?         @relation("ReviewAuthor", fields: [reviewerId], references: [id], onDelete: SetNull)
   reviewerName String
   rating       Int
   comment      String
   isApproved   Boolean       @default(false)
+  createdAt    DateTime      @default(now())
 }
 
 enum PromoStatus {

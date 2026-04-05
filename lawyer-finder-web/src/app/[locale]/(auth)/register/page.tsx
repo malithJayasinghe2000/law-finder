@@ -3,12 +3,26 @@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { registerSchema, RegisterFormValues } from '@/schemas/auth.schema';
-import { useState } from 'react';
-import { toast } from 'sonner';import Link from 'next/link';
+import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
+import { useParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { Scale, Loader2 } from 'lucide-react';
 
 export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
+  const { locale } = useParams();
+  const router = useRouter();
+
+  useEffect(() => {
+    fetch('/api/auth/session')
+      .then(res => res.json())
+      .then(data => {
+        if (data.authenticated) {
+          window.location.href = data.role === 'CLIENT' ? `/${locale}` : `/${locale}/dashboard/${data.role.toLowerCase()}`;
+        }
+      });
+  }, [locale]);
   const { register, handleSubmit, formState: { errors } } = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema)
   });

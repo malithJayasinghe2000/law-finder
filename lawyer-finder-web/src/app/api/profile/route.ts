@@ -1,0 +1,153 @@
+import { NextResponse } from 'next/server';
+import prisma from '@/lib/db';
+import { getSession } from '@/lib/auth';
+import bcrypt from 'bcryptjs';
+
+// GET: Fetch the logged-in user's profile data
+export async function GET() {
+  try {
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: session.userId },
+      select: {
+        id: true,
+        email: true,
+        fullName: true,
+        profileImageUrl: true,
+        role: true,
+        createdAt: true,
+      },
+    });
+
+    if (!user) {
+      return NextResponse.json({ error: 'User not found.' }, { status: 404 });
+    }
+
+    // If lawyer, also fetch lawyer profile data
+    let lawyerProfile = null;
+    if (user.role === 'LAWYER') {
+      lawyerProfile = await prisma.lawyerProfile.findUnique({
+        where: { userId: user.id },
+        select: {
+          id: true,
+          fullName: true,
+          baslNumber: true,
+          nic: true,
+          address: true,
+          contactPhone: true,
+          profileImageUrl: true,
+          bio: true,
+          practiceAreas: true,
+          languages: true,
+          district: true,
+          baseFeeRange: true,
+          gender: true,
+          yearsOfExperience: true,
+          practiceType: true,
+          courts: true,
+          isNotary: true,
+          isVerified: true,
+        },
+      });
+    }
+
+    return NextResponse.json({ user, lawyerProfile }, { status: 200 });
+  } catch (error) {
+    console.error('[PROFILE_GET_ERROR]', error);
+    return NextResponse.json({ error: 'Internal server error.' }, { status: 500 });
+  }
+}
+
+// PUT: Update the logged-in user's profile
+export async function PUT(req: Request) {
+  try {
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 });
+    }
+
+    const body = await req.json();
+    const { fullName, profileImageUrl, currentPassword, newPassword, lawyerProfile } = body;
+
+    // Update user basic info
+    const updateData: Record<string, unknown> = {};
+    if (fullName !== undefined) updateData.fullName = fullName;
+    if (profileImageUrl !== undefined) updateData.profileImageUrl = profileImageUrl;
+
+    // Handle password change
+    if (newPassword) {
+      if (!currentPassword) {
+        return NextResponse.json({ error: 'Current password is required to change password.' }, { status: 400 });
+      }
+
+      const user = await prisma.user.findUnique({
+        where: { id: session.userId },
+        select: { passwordHash: true },
+      });
+
+      if (!user) {
+        return NextResponse.json({ error: 'User not found.' }, { status: 404 });
+      }
+
+      const isValid = await bcrypt.compare(currentPassword, user.passwordHash);
+      if (!isValid) {
+        return NextResponse.json({ error: 'Current password is incorrect.' }, { status: 400 });
+      }
+
+      if (newPassword.length < 8) {
+        return NextResponse.json({ error: 'New password must be at least 8 characters.' }, { status: 400 });
+      }
+
+      updateData.passwordHash = await bcrypt.hash(newPassword, 10);
+    }
+
+    // Update user record
+    if (Object.keys(updateData).length > 0) {
+      console.log(`[PROFILE_PUT] Updating User ${session.userId}:`, updateData);
+      await prisma.user.update({
+        where: { id: session.userId },
+        data: updateData,
+      });
+    }
+
+    // If lawyer, update LawyerProfile too
+    if (session.role === 'LAWYER' && lawyerProfile) {
+      const existingProfile = await prisma.lawyerProfile.findUnique({
+        where: { userId: session.userId },
+      });
+
+      if (existingProfile) {
+        const lawyerUpdateData: Record<string, unknown> = {};
+        const allowedFields = [
+          'fullName', 'bio', 'practiceAreas', 'languages', 'district',
+          'baseFeeRange', 'contactPhone', 'address', 'gender',
+          'yearsOfExperience', 'practiceType', 'courts', 'isNotary',
+          'profileImageUrl', 'nic',
+        ];
+
+        for (const field of allowedFields) {
+          if (lawyerProfile[field] !== undefined) {
+            lawyerUpdateData[field] = lawyerProfile[field];
+          }
+        }
+
+        if (Object.keys(lawyerUpdateData).length > 0) {
+          console.log(`[PROFILE_PUT] Updating LawyerProfile for User ${session.userId}:`, lawyerUpdateData);
+          await prisma.lawyerProfile.update({
+            where: { id: existingProfile.id },
+            data: lawyerUpdateData,
+          });
+        }
+      }
+    }
+
+    return NextResponse.json({ success: true, message: 'Profile updated successfully.' }, { status: 200 });
+  } catch (error) {
+    console.error('[PROFILE_UPDATE_ERROR]', error);
+    return NextResponse.json({ error: 'Failed to update profile.' }, { status: 500 });
+  }
+}

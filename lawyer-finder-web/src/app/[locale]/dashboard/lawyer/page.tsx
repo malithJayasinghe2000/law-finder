@@ -67,7 +67,7 @@ export default function LawyerDashboard() {
   const approvedReviews = profile.reviews.filter((r) => r.isApproved).length;
 
   return (
-    <div className="p-6 lg:p-10 max-w-5xl">
+    <div className="p-6 lg:p-10 max-w-[2400px]">
       {/* Header */}
       <div className="mb-8">
         <div className="flex items-center gap-3 mb-1">
