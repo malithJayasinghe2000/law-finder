@@ -108,7 +108,7 @@ export default function DashboardSidebar({ role, locale }: DashboardSidebarProps
       {/* Mobile sidebar trigger */}
       <div className="fixed bottom-4 right-4 z-50 lg:hidden">
         <Sheet open={open} onOpenChange={setOpen}>
-          <SheetTrigger asChild>
+          <SheetTrigger>
             <Button size="icon" className="h-12 w-12 rounded-full shadow-lg">
               <Menu className="h-5 w-5" />
             </Button>

@@ -13,14 +13,28 @@ export default async function DashboardLayout({ children, params }: { children: 
 
   return (
     <SidebarProvider>
-      <div className="flex w-full min-h-[calc(100vh-64px)]">
+      <div className="flex w-full min-h-screen bg-neutral-50 relative overflow-hidden">
         <AppSidebar locale={locale} role={session.role} />
-        <div className="flex-1 flex flex-col min-w-0 bg-gray-50/30">
-          <header className="flex h-14 md:hidden items-center border-b px-4 bg-white sticky top-16 z-30">
-            <SidebarTrigger className="shrink-0" />
-            <span className="font-bold ml-3 text-sm text-gray-900 line-clamp-1">{session.role === 'ADMIN' ? 'Control Panel' : 'Lawyer Portal'}</span>
+        <div className="flex-1 flex flex-col min-w-0 max-w-full">
+          {/* Top bar */}
+          <header className="h-14 border-b border-neutral-200 bg-white flex items-center justify-between px-4 lg:px-6 sticky top-0 z-40">
+            <div className="flex items-center gap-3">
+              <div className="md:hidden">
+                <SidebarTrigger />
+              </div>
+              <span className="text-[13px] font-semibold text-neutral-900 tracking-tight">{session.role === 'ADMIN' ? 'Admin Dashboard' : 'Lawyer Portal'}</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="text-xs font-bold rounded-none cursor-pointer hover:text-neutral-500 border border-neutral-200 px-2 py-2">
+                <a href='/'>Back To Home</a>
+              </div>
+              <div className="w-8 h-8 bg-[#0a0a0a] text-white flex items-center justify-center text-xs font-bold rounded-none">
+                {session.role[0]}
+              </div>
+              
+            </div>
           </header>
-          <main className="flex-1 p-4 md:p-8 lg:p-12 overflow-x-hidden">
+          <main className="flex-1 p-6 lg:p-8 overflow-x-hidden">
             <div className="mx-auto w-full max-w-7xl">
                {children}
             </div>
