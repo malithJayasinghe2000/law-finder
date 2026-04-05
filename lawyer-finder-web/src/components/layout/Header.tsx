@@ -15,9 +15,10 @@ interface HeaderProps {
   locale: string;
   userRole?: string | null;
   appStatus?: string | null;
+  userProfile?: { fullName: string | null; profileImageUrl: string | null } | null;
 }
 
-export default function Header({ locale, userRole = null, appStatus = null }: HeaderProps) {
+export default function Header({ locale, userRole = null, appStatus = null, userProfile = null }: HeaderProps) {
   const t = useTranslations('Navigation');
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
@@ -92,24 +93,36 @@ export default function Header({ locale, userRole = null, appStatus = null }: He
     // Desktop Dropdown
     return (
       <DropdownMenu>
-        <DropdownMenuTrigger className={`relative flex items-center justify-center h-9 w-9 rounded-none ml-4 shadow-sm border outline-none hover:ring-2 hover:ring-primary/20 transition-all ${isPremiumDesign ? 'border-white/50' : 'border-border/50'}`}>
-          <Avatar className="h-9 w-9 rounded-none">
-            <AvatarFallback className={`font-semibold rounded-none ${isPremiumDesign ? 'bg-white/10 text-white' : 'bg-primary/10 text-primary'}`}>
-              {userRole[0]}
-            </AvatarFallback>
+        <DropdownMenuTrigger className={`relative flex items-center justify-center h-10 w-10 rounded-none ml-4 shadow-sm outline-none hover:ring-2 hover:ring-primary/20 transition-all ${isPremiumDesign ? 'border-white/50' : 'border-border/50'}`}>
+          <Avatar className="h-10 w-10 rounded-none">
+            {userProfile?.profileImageUrl ? (
+              <img src={userProfile.profileImageUrl} alt="Profile" className="h-full w-full object-cover" />
+            ) : (
+              <img src='/avatar.png' alt="Profile" className="h-full w-full object-cover" />
+            )}
           </Avatar>
         </DropdownMenuTrigger>
-        <DropdownMenuContent className="w-56 rounded-none shadow-xl border-border" align="end">
-          <div className="px-2 py-1.5 font-normal border-b pb-2 mb-2">
+        <DropdownMenuContent className="w-60 rounded-none shadow-xl border-border p-0" align="end">
+          <div className="px-4 py-4 bg-neutral-50 border-b">
             <div className="flex flex-col space-y-1">
-              <p className="text-sm font-medium leading-none tracking-tight">Account</p>
-              <p className="text-xs leading-none text-muted-foreground font-mono bg-muted p-1 rounded-sm w-fit mt-1">{userRole}</p>
+              <p className="text-sm font-bold leading-none tracking-tight text-neutral-900">{userProfile?.fullName || 'Account'}</p>
+              <p className="text-[10px] leading-none text-neutral-400 font-bold uppercase tracking-widest mt-1">{userRole}</p>
             </div>
           </div>
           
+          <div className="p-1">
+            <Link href={`/${locale}/profile`}>
+              <DropdownMenuItem className="cursor-pointer font-medium py-2 ms-1">
+                <UserCircle className="mr-2 h-4 w-4" /> Profile Settings
+              </DropdownMenuItem>
+            </Link>
+          </div>
+
+          <DropdownMenuSeparator className="m-0" />
+          
           {userRole === 'ADMIN' && (
             <Link href={`/${locale}/dashboard/admin`}>
-              <DropdownMenuItem className="cursor-pointer font-medium text-primary">
+              <DropdownMenuItem className="cursor-pointer font-medium text-primary ms-1 mb-2">
                 <LayoutDashboard className="mr-2 h-4 w-4" /> Admin Panel
               </DropdownMenuItem>
             </Link>
@@ -117,7 +130,7 @@ export default function Header({ locale, userRole = null, appStatus = null }: He
 
           {userRole === 'LAWYER' && (
             <Link href={`/${locale}/dashboard/lawyer`}>
-              <DropdownMenuItem className="cursor-pointer font-medium text-primary">
+              <DropdownMenuItem className="cursor-pointer font-medium py-2 ms-1">
                 <LayoutDashboard className="mr-2 h-4 w-4" /> My Dashboard
               </DropdownMenuItem>
             </Link>
@@ -127,7 +140,7 @@ export default function Header({ locale, userRole = null, appStatus = null }: He
             <>
               {appStatus === 'DRAFT' && (
                 <Link href={`/${locale}/apply`}>
-                  <DropdownMenuItem className="cursor-pointer text-amber-600 focus:text-amber-700 font-medium">
+                  <DropdownMenuItem className="cursor-pointer text-amber-600 focus:text-amber-700 font-medium ms-1 mb-2">
                     <FileText className="mr-2 h-4 w-4" /> Resume Application
                   </DropdownMenuItem>
                 </Link>
@@ -139,7 +152,7 @@ export default function Header({ locale, userRole = null, appStatus = null }: He
               )}
               {(!appStatus || appStatus === 'REJECTED') && (
                 <Link href={`/${locale}/apply`}>
-                  <DropdownMenuItem className="cursor-pointer text-blue-600 focus:text-blue-700 font-bold">
+                  <DropdownMenuItem className="cursor-pointer text-blue-600 focus:text-blue-700 font-bold ms-1 mb-2">
                     <Scale className="mr-2 h-4 w-4" /> Become a Lawyer
                   </DropdownMenuItem>
                 </Link>
@@ -148,7 +161,7 @@ export default function Header({ locale, userRole = null, appStatus = null }: He
           )}
 
           <DropdownMenuSeparator className="my-2" />
-          <DropdownMenuItem onClick={handleLogout} className="text-red-600 focus:text-red-700 cursor-pointer font-semibold">
+          <DropdownMenuItem onClick={handleLogout} className="text-red-600 focus:text-red-700 cursor-pointer font-semibold ms-1 mb-2">
             <LogOut className="mr-2 h-4 w-4" /> Log out
           </DropdownMenuItem>
         </DropdownMenuContent>

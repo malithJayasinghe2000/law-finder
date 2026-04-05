@@ -20,7 +20,12 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Invalid email or password.' }, { status: 401 });
     }
 
-    await createSession({ userId: user.id, role: user.role });
+    await createSession({ 
+      userId: user.id, 
+      role: user.role, 
+      fullName: user.fullName,
+      profileImageUrl: user.profileImageUrl 
+    });
 
     return NextResponse.json({ success: true, role: user.role }, { status: 200 });
   } catch {

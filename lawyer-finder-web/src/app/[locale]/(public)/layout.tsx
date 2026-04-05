@@ -11,7 +11,7 @@ export default async function PublicLayout({
 
   return (
     <div className="min-h-[100vh] flex flex-col text-foreground selection:bg-primary/30">
-      <main className="flex-1 w-full pt-10 pb-20 relative z-10">
+      <main className="flex-1 w-full relative z-10">
         {children}
       </main>
       <div className="border-t">

@@ -13,6 +13,8 @@ const encodedKey = new TextEncoder().encode(secretKey);
 export type SessionPayload = {
   userId: string;
   role: 'ADMIN' | 'LAWYER' | 'CLIENT';
+  fullName?: string | null;
+  profileImageUrl?: string | null;
 };
 
 export async function encrypt(payload: SessionPayload) {

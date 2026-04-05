@@ -23,7 +23,7 @@ export function AppSidebar({ locale, role }: { locale: string; role: string }) {
     { href: `/${locale}/dashboard/lawyer`, icon: LayoutDashboard, label: 'Overview' },
     { href: `/${locale}/dashboard/lawyer/inquiries`, icon: Users, label: 'Client Inquiries' },
     { href: `/${locale}/dashboard/lawyer/articles`, icon: FileText, label: 'My Articles' },
-    { href: `/${locale}/dashboard/lawyer/settings`, icon: Settings, label: 'Profile Settings' },
+    { href: `/${locale}/profile`, icon: Settings, label: 'Profile Settings' },
   ];
 
   const links = role === 'ADMIN' ? adminLinks : lawyerLinks;
@@ -51,7 +51,7 @@ export function AppSidebar({ locale, role }: { locale: string; role: string }) {
               const active = isLinkActive(link);
               return (
                 <SidebarMenuItem key={link.href}>
-                  <SidebarMenuButton 
+                  <SidebarMenuButton
                     isActive={active}
                     className={`h-10 rounded-none transition-all duration-150 ${active ? 'bg-[#0a0a0a] text-white font-semibold shadow-sm' : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900 font-medium'}`}
                   >
@@ -67,12 +67,12 @@ export function AppSidebar({ locale, role }: { locale: string; role: string }) {
         </SidebarGroup>
       </SidebarContent>
       <SidebarFooter className="border-t border-neutral-200 p-3">
-        <button 
+        <button
           onClick={async () => {
-             try {
-                const res = await fetch('/api/auth/logout', { method: 'POST' });
-                if(res.ok) window.location.href = `/${locale}`;
-             } catch { toast.error('Failed to logout'); }
+            try {
+              const res = await fetch('/api/auth/logout', { method: 'POST' });
+              if (res.ok) window.location.href = `/${locale}`;
+            } catch { toast.error('Failed to logout'); }
           }}
           className="flex items-center gap-3 w-full h-10 px-3 rounded-none text-red-600 hover:bg-red-50 hover:text-red-700 font-semibold transition-colors text-[13px]"
         >

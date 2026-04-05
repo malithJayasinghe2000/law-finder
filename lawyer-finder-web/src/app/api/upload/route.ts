@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { v2 as cloudinary } from 'cloudinary';
 import { getSession } from '@/lib/auth';
+import { writeFile, mkdir } from 'fs/promises';
+import path from 'path';
+import { existsSync } from 'fs';
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -14,7 +17,7 @@ const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 export async function POST(req: Request) {
   try {
     const session = await getSession();
-    if (!session || session.role === 'CLIENT') {
+    if (!session) {
       return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 });
     }
 
@@ -44,13 +47,31 @@ export async function POST(req: Request) {
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
+    // Fallback to local storage if Cloudinary is not configured
+    if (!process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_CLOUD_NAME) {
+      console.log('[UPLOAD] Cloudinary not configured, falling back to local storage.');
+      
+      const uploadDir = path.join(process.cwd(), 'public', 'uploads');
+      if (!existsSync(uploadDir)) {
+        await mkdir(uploadDir, { recursive: true });
+      }
+
+      const filename = `${Date.now()}-${file.name.replace(/\s+/g, '-')}`;
+      const filepath = path.join(uploadDir, filename);
+      
+      await writeFile(filepath, buffer);
+      return NextResponse.json({ url: `/uploads/${filename}` }, { status: 200 });
+    }
+
+    // Cloudinary upload
     const result = await new Promise<{ secure_url: string }>((resolve, reject) => {
       cloudinary.uploader
         .upload_stream(
           { folder: 'lawyer_profiles', allowed_formats: ['jpg', 'png', 'webp'] },
           (error, result) => {
             if (error || !result) {
-              reject(new Error('Upload failed.'));
+              console.error('[CLOUDINARY_ERROR]', error);
+              reject(new Error('Cloudinary upload failed.'));
             } else {
               resolve(result);
             }
@@ -60,7 +81,8 @@ export async function POST(req: Request) {
     });
 
     return NextResponse.json({ url: result.secure_url }, { status: 200 });
-  } catch {
+  } catch (error) {
+    console.error('[UPLOAD_ERROR]', error);
     return NextResponse.json({ error: 'Upload failed.' }, { status: 500 });
   }
 }
