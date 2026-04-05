@@ -2,24 +2,23 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
 
-// GET: Admin fetches all pending lawyers, pending reviews, and stats
 export async function GET() {
   try {
     const session = await getSession();
     if (!session || session.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Forbidden.' }, { status: 403 });
+      return NextResponse.json({ error: 'Forbidden. Admin privileges locked.' }, { status: 403 });
     }
 
     const [
-      pendingLawyers,
+      pendingApplications,
       pendingReviews,
       totalVerified,
       totalInquiries,
       totalArticles,
     ] = await Promise.all([
-      prisma.lawyerProfile.findMany({
-        where: { isVerified: false },
-        orderBy: { user: { createdAt: 'desc' } },
+      prisma.lawyerApplication.findMany({
+        where: { status: 'SUBMITTED' },
+        orderBy: { submittedAt: 'desc' },
         include: { user: { select: { email: true, createdAt: true } } },
       }),
       prisma.review.findMany({
@@ -31,23 +30,35 @@ export async function GET() {
       prisma.article.count({ where: { status: 'PUBLISHED' } }),
     ]);
 
+    // Safety-first parse of raw PostgreSQL JSON payload logic.
+    const mappedApplications = pendingApplications.map(app => {
+      const data = app.draftData as any;
+      return {
+        id: app.id,
+        fullName: data?.step1?.fullName || 'No Name Provided',
+        baslNumber: data?.step2?.baslNumber || 'MISSING',
+        user: app.user,
+        draftData: data
+      };
+    });
+
     return NextResponse.json({
-      pendingLawyers,
+      pendingLawyers: mappedApplications,
       pendingReviews,
       stats: {
         totalVerified,
-        pendingApprovals: pendingLawyers.length,
+        pendingApprovals: pendingApplications.length,
         totalInquiries,
         totalArticles,
         pendingReviewCount: pendingReviews.length,
       },
     }, { status: 200 });
-  } catch {
-    return NextResponse.json({ error: 'Internal server error.' }, { status: 500 });
+  } catch (err) {
+    console.error(err);
+    return NextResponse.json({ error: 'Internal server architecture mismatch.' }, { status: 500 });
   }
 }
 
-// PATCH: Admin action - verify lawyer or approve review
 export async function PATCH(req: Request) {
   try {
     const session = await getSession();
@@ -59,15 +70,7 @@ export async function PATCH(req: Request) {
     const { action, id } = body as { action: string; id: string };
 
     if (!action || !id) {
-      return NextResponse.json({ error: 'Action and ID are required.' }, { status: 400 });
-    }
-
-    if (action === 'verify-lawyer') {
-      await prisma.lawyerProfile.update({
-        where: { id },
-        data: { isVerified: true },
-      });
-      return NextResponse.json({ success: true, message: 'Lawyer verified.' });
+      return NextResponse.json({ error: 'Payload configuration violation.' }, { status: 400 });
     }
 
     if (action === 'approve-review') {
@@ -75,20 +78,15 @@ export async function PATCH(req: Request) {
         where: { id },
         data: { isApproved: true },
       });
-      return NextResponse.json({ success: true, message: 'Review approved.' });
-    }
-
-    if (action === 'reject-lawyer') {
-      await prisma.lawyerProfile.delete({ where: { id } });
-      return NextResponse.json({ success: true, message: 'Lawyer rejected and removed.' });
+      return NextResponse.json({ success: true, message: 'Review successfully approved.' });
     }
 
     if (action === 'reject-review') {
       await prisma.review.delete({ where: { id } });
-      return NextResponse.json({ success: true, message: 'Review rejected and removed.' });
+      return NextResponse.json({ success: true, message: 'Review successfully deleted.' });
     }
 
-    return NextResponse.json({ error: 'Unknown action.' }, { status: 400 });
+    return NextResponse.json({ error: 'Illegal macro execution.' }, { status: 400 });
   } catch {
     return NextResponse.json({ error: 'Internal server error.' }, { status: 500 });
   }

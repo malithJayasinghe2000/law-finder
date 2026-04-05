@@ -17,18 +17,43 @@ enum InquiryStatus {
   CONTACTED
 }
 
+enum ApplicationStatus {
+  DRAFT
+  SUBMITTED
+  IN_REVIEW
+  APPROVED
+  REJECTED
+}
+
 enum ArticleStatus {
   DRAFT
   PUBLISHED
 }
 
 model User {
-  id           String         @id @default(uuid())
-  email        String         @unique
+  id           String             @id @default(uuid())
+  email        String             @unique
   passwordHash String
-  role         Role           @default(CLIENT)
-  createdAt    DateTime       @default(now())
+  role         Role               @default(CLIENT)
+  createdAt    DateTime           @default(now())
   profile      LawyerProfile?
+  application  LawyerApplication?
+}
+
+model LawyerApplication {
+  id           String            @id @default(uuid())
+  userId       String            @unique
+  user         User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status       ApplicationStatus @default(DRAFT)
+  currentStep  Int               @default(1)
+  
+  // Storing draft info flexibly before finalizing a row in LawyerProfile
+  draftData    Json              @default("{}")
+  
+  adminNotes   String?
+  submittedAt  DateTime?
+  updatedAt    DateTime          @updatedAt
+  createdAt    DateTime          @default(now())
 }
 
 model LawyerProfile {
@@ -37,12 +62,22 @@ model LawyerProfile {
   user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   fullName        String
   baslNumber      String      @unique
+  nic             String?     
+  address         String?
+  contactPhone    String?
   profileImageUrl String?
   bio             String?
   practiceAreas   String[]
   languages       String[]
   district        String?
   baseFeeRange    String?
+  gender            String?
+  yearsOfExperience Int?
+  practiceType      String?
+  courts            String[]
+  isNotary          Boolean     @default(false)
+  licenseImageUrl   String?
+  identityImageUrl  String?
   isVerified      Boolean     @default(false)
   inquiries       Inquiry[]
   articles        Article[]

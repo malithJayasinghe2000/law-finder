@@ -4,179 +4,101 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { registerSchema, RegisterFormValues } from '@/schemas/auth.schema';
 import { useState } from 'react';
-import { toast } from 'sonner';
-import { useParams } from 'next/navigation';
-import Link from 'next/link';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Scale, UserPlus, Loader2, ArrowLeft, Shield } from 'lucide-react';
+import { toast } from 'sonner';import Link from 'next/link';
+import { Scale, Loader2 } from 'lucide-react';
 
 export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
-  const { locale } = useParams();
-
-  const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<RegisterFormValues>({
-    resolver: zodResolver(registerSchema),
-    defaultValues: { role: 'CLIENT' },
+  const { register, handleSubmit, formState: { errors } } = useForm<RegisterFormValues>({
+    resolver: zodResolver(registerSchema)
   });
-
-  const selectedRole = watch('role');
 
   const onSubmit = async (data: RegisterFormValues) => {
     setLoading(true);
     try {
       const res = await fetch('/api/auth/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
+        method: 'POST', body: JSON.stringify(data)
       });
       const result = await res.json();
-
+      
       if (!res.ok) throw new Error(result.error?.message || result.error || 'Registration failed');
-
-      toast.success('Account created successfully. Please sign in.');
-      window.location.href = `/${locale}/login`;
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Registration failed';
-      toast.error(message);
+      
+      toast.success('Account created successfully! Please log in.');
+      window.location.href = '/en/login';
+    } catch (err: any) {
+      toast.error(err.message);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4 py-12">
-      <div className="w-full max-w-md">
+    <div className="flex min-h-[85vh] items-center justify-center px-4 bg-background py-10">
+      <div className="w-full max-w-[420px]">
         {/* Logo */}
-        <div className="mb-8 flex flex-col items-center gap-3">
-          <Link href={`/${locale}`} className="flex items-center gap-2.5 group">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-              <Scale className="h-5 w-5" />
+        <div className="mb-10 flex flex-col items-center gap-3">
+          <Link href={`/en`} className="flex items-center gap-2 group">
+            <div className="flex h-12 w-12 items-center justify-center rounded-none bg-[#0a0a0a] text-white shadow-md transition-transform group-hover:scale-105">
+              <Scale className="h-6 w-6" />
             </div>
-            <span className="text-xl font-bold tracking-tight">
-              LawFinder<span className="text-muted-foreground font-normal ml-0.5">SL</span>
+            <span className="text-2xl font-semibold tracking-tight text-[#0a0a0a]">
+              LawFinder<span className="font-light opacity-60 ml-0.5">SL</span>
             </span>
           </Link>
         </div>
 
-        <Card>
-          <CardContent className="p-8">
-            <div className="mb-6">
-              <h1 className="text-2xl font-bold tracking-tight">Create your account</h1>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Join LawFinder SL as a citizen or legal professional
-              </p>
+        <div className="bg-white p-10 rounded-none shadow-md border border-neutral-200">
+          <div className="mb-8 text-center">
+            <h1 className="text-[26px] font-semibold tracking-tight text-[#0a0a0a] mb-2">Create Account</h1>
+            <p className="text-[15px] font-light text-neutral-500">Join the digital legal network.</p>
+          </div>
+
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+            <div className="space-y-2">
+              <label className="text-[13px] font-semibold text-neutral-900 uppercase tracking-wide">Full Name</label>
+              <input
+                type="text"
+                placeholder="John Doe"
+                {...register('fullName')}
+                className="w-full bg-neutral-50 border border-neutral-200 text-[#0a0a0a] px-4 py-3.5 rounded-none outline-none focus:border-[#0a0a0a] focus:bg-white transition-all"
+              />
+              {errors.fullName && <p className="text-sm text-red-500 mt-1">{errors.fullName.message}</p>}
             </div>
 
-            <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-5">
-              <div className="space-y-2">
-                <Label htmlFor="fullName">Full Name</Label>
-                <Input
-                  id="fullName"
-                  type="text"
-                  placeholder="Your full name"
-                  {...register('fullName')}
-                  className={errors.fullName ? 'border-destructive' : ''}
-                />
-                {errors.fullName && (
-                  <p className="text-xs text-destructive">{errors.fullName.message}</p>
-                )}
-              </div>
+            <div className="space-y-2">
+              <label className="text-[13px] font-semibold text-neutral-900 uppercase tracking-wide">Email</label>
+              <input
+                type="email"
+                placeholder="hello@example.com"
+                {...register('email')}
+                className="w-full bg-neutral-50 border border-neutral-200 text-[#0a0a0a] px-4 py-3.5 rounded-none outline-none focus:border-[#0a0a0a] focus:bg-white transition-all"
+              />
+              {errors.email && <p className="text-sm text-red-500 mt-1">{errors.email.message}</p>}
+            </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="email">Email Address</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="hello@example.com"
-                  {...register('email')}
-                  className={errors.email ? 'border-destructive' : ''}
-                />
-                {errors.email && (
-                  <p className="text-xs text-destructive">{errors.email.message}</p>
-                )}
-              </div>
+            <div className="space-y-2">
+              <label className="text-[13px] font-semibold text-neutral-900 uppercase tracking-wide">Password</label>
+              <input
+                type="password"
+                placeholder="••••••••"
+                {...register('password')}
+                className="w-full bg-neutral-50 border border-neutral-200 text-[#0a0a0a] px-4 py-3.5 rounded-none outline-none focus:border-[#0a0a0a] focus:bg-white transition-all"
+              />
+              {errors.password && <p className="text-sm text-red-500 mt-1">{errors.password.message}</p>}
+            </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="Min. 8 characters"
-                  {...register('password')}
-                  className={errors.password ? 'border-destructive' : ''}
-                />
-                {errors.password && (
-                  <p className="text-xs text-destructive">{errors.password.message}</p>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label>I am a</Label>
-                <Select
-                  value={selectedRole}
-                  onValueChange={(val) => setValue('role', val as 'CLIENT' | 'LAWYER')}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select your role" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="CLIENT">Citizen seeking legal help</SelectItem>
-                    <SelectItem value="LAWYER">Legal Professional / Lawyer</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {selectedRole === 'LAWYER' && (
-                <div className="space-y-2 rounded-lg border border-dashed p-4 bg-muted/30">
-                  <div className="flex items-center gap-2 text-sm font-medium text-foreground mb-2">
-                    <Shield className="h-4 w-4" />
-                    Lawyer Verification
-                  </div>
-                  <Label htmlFor="baslNumber">BASL Registration Number</Label>
-                  <Input
-                    id="baslNumber"
-                    type="text"
-                    placeholder="e.g. BASL-12345"
-                    {...register('baslNumber')}
-                    className={errors.baslNumber ? 'border-destructive' : ''}
-                  />
-                  {errors.baslNumber && (
-                    <p className="text-xs text-destructive">{errors.baslNumber.message}</p>
-                  )}
-                  <p className="text-xs text-muted-foreground">
-                    Your BASL number will be verified by our admin team before your profile goes live.
-                  </p>
-                </div>
-              )}
-
-              <Button type="submit" disabled={loading} className="mt-2 w-full gap-2 font-semibold">
-                {loading ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <UserPlus className="h-4 w-4" />
-                )}
-                {loading ? 'Creating account...' : 'Create Account'}
-              </Button>
-
-              <p className="text-center text-sm text-muted-foreground">
-                Already have an account?{' '}
-                <Link href={`/${locale}/login`} className="font-medium text-primary hover:underline">
-                  Sign in
-                </Link>
-              </p>
-            </form>
-          </CardContent>
-        </Card>
-
-        <div className="mt-6 text-center">
-          <Link href={`/${locale}`} className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
-            <ArrowLeft className="h-3.5 w-3.5" />
-            Back to homepage
-          </Link>
+            <button type="submit" disabled={loading} className="w-full flex items-center justify-center gap-2 bg-[#0a0a0a] text-white py-4 rounded-none font-medium hover:bg-neutral-800 transition-colors mt-6 disabled:opacity-70">
+              {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : null}
+              {loading ? 'Creating...' : 'Create Account'}
+            </button>
+          </form>
+          
+          <p className="text-center text-[15px] text-neutral-600 mt-6 font-light">
+            Already have an account?{' '}
+            <Link href={`/en/login`} className="font-medium text-[#0a0a0a] hover:underline">
+              Sign in
+            </Link>
+          </p>
         </div>
       </div>
     </div>

@@ -36,7 +36,7 @@ export default async function LawyerDirectory({
   });
 
   return (
-    <div className="py-12 sm:py-16">
+    <div className="py-8 sm:py-9">
       <div className="mx-auto max-w-7xl px-4 sm:px-6">
         {/* Header */}
         <div className="mb-10 max-w-2xl">
@@ -114,59 +114,64 @@ export default async function LawyerDirectory({
 
               return (
                 <Link key={lawyer.id} href={`/${locale}/lawyers/${lawyer.id}`}>
-                  <Card className="group h-full hover:shadow-lg transition-all duration-300 hover:border-primary/20 cursor-pointer">
-                    <CardContent className="p-6">
-                      <div className="flex items-start gap-4">
-                        {/* Avatar */}
-                        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-primary/5 text-primary text-lg font-bold">
-                          {lawyer.fullName.split(' ').map(n => n[0]).join('').slice(0, 2)}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2">
-                            <h3 className="truncate font-semibold group-hover:text-primary transition-colors">
-                              {lawyer.fullName}
-                            </h3>
-                            <ShieldCheck className="h-4 w-4 shrink-0 text-primary" />
-                          </div>
-                          {lawyer.district && (
-                            <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
-                              <MapPin className="h-3 w-3" />
-                              {lawyer.district}
-                            </div>
-                          )}
+                  <div className="group relative flex h-[440px] flex-col overflow-hidden rounded-none bg-[#222a35] text-white transition-transform duration-300 hover:-translate-y-1 hover:shadow-lg">
+                    {/* Top Image Area */}
+                    <div className="relative h-[220px] w-full shrink-0">
+                      <img 
+                        src={lawyer.profileImageUrl || 'https://images.unsplash.com/photo-1556157382-97eda2d62296?auto=format&fit=crop&w=800&q=80'} 
+                        alt={lawyer.fullName}
+                        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-[#222a35] via-[rgba(34,42,53,0.3)] to-transparent" />
+                      
+                      <div className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-none bg-white/20 backdrop-blur-md transition-colors hover:bg-white/30 text-white">
+                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" /></svg>
+                      </div>
+                    </div>
+
+                    {/* Content Area */}
+                    <div className="relative z-10 flex flex-1 flex-col px-6 pb-6 -mt-3">
+                      {/* Title & Price */}
+                      <div className="mb-2 flex items-start justify-between gap-3">
+                        <h3 className="text-[22px] font-semibold tracking-tight text-white drop-shadow-sm leading-tight mt-1 max-w-[70%]">
+                          {lawyer.fullName}
+                        </h3>
+                        <div className="shrink-0 rounded-none bg-white/10 px-3 py-1.5 text-sm font-semibold text-white backdrop-blur-md border border-white/5">
+                          {lawyer.baseFeeRange ? `LKR ${lawyer.baseFeeRange.split('-')[0].trim()}` : 'TBD'}
                         </div>
                       </div>
 
-                      {/* Practice Areas */}
-                      <div className="mt-4 flex flex-wrap gap-1.5">
-                        {lawyer.practiceAreas.slice(0, 3).map((area) => (
-                          <Badge key={area} variant="secondary" className="text-xs font-normal">
-                            {area}
-                          </Badge>
-                        ))}
-                        {lawyer.practiceAreas.length > 3 && (
-                          <Badge variant="outline" className="text-xs font-normal">
-                            +{lawyer.practiceAreas.length - 3}
-                          </Badge>
-                        )}
-                      </div>
+                      {/* Bio */}
+                      <p className="line-clamp-2 text-[13px] text-white/70 leading-relaxed font-light mb-4 text-balance">
+                        {lawyer.bio || 'Experienced legal professional dedicated to providing precise and strategic guidance.'}
+                      </p>
 
-                      {/* Footer */}
-                      <div className="mt-4 flex items-center justify-between pt-4 border-t">
-                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                          <Languages className="h-3.5 w-3.5" />
-                          {lawyer.languages.join(', ')}
-                        </div>
+                      {/* Badges row */}
+                      <div className="mt-auto flex gap-2 overflow-x-hidden whitespace-nowrap mb-6 scrollbar-hide">
                         {avgRating > 0 && (
-                          <div className="flex items-center gap-1 text-xs font-medium">
-                            <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
-                            {avgRating.toFixed(1)}
-                            <span className="text-muted-foreground">({lawyer.reviews.length})</span>
+                           <div className="flex shrink-0 items-center gap-1.5 rounded-none bg-white/10 px-3 py-[5px] text-xs font-medium backdrop-blur-md border border-white/5">
+                             <Star className="h-3.5 w-3.5 fill-current" />
+                             {avgRating.toFixed(1)}
+                           </div>
+                        )}
+                        {lawyer.district && (
+                          <div className="flex shrink-0 items-center rounded-none bg-white/10 px-3 py-[5px] text-xs font-medium backdrop-blur-md border border-white/5 text-white/90">
+                            {lawyer.district}
                           </div>
                         )}
+                        {lawyer.practiceAreas.slice(0, 1).map((area) => (
+                           <div key={area} className="flex shrink-0 items-center rounded-none bg-white/10 px-3 py-[5px] text-xs font-medium backdrop-blur-md border border-white/5 text-white/90">
+                             {area}
+                           </div>
+                        ))}
                       </div>
-                    </CardContent>
-                  </Card>
+
+                      {/* Button */}
+                      <button className="w-full rounded-none bg-white py-3.5 text-[15px] font-bold text-[#222a35] transition-colors hover:bg-neutral-200 mt-auto">
+                        View Profile
+                      </button>
+                    </div>
+                  </div>
                 </Link>
               );
             })}
