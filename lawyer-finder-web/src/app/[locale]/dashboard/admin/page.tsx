@@ -1,113 +1,56 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Separator } from '@/components/ui/separator';
-import { Textarea } from '@/components/ui/textarea';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import {
   Shield, Users, Inbox, FileText, Star,
-  CheckCircle2, XCircle, Loader2, LayoutDashboard, Search
+  LayoutDashboard, TrendingUp, UserPlus, Scale,
+  ArrowUpRight, ArrowDownRight
 } from 'lucide-react';
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, AreaChart, Area
+} from 'recharts';
 
 interface AdminData {
-  pendingLawyers: {
-    id: string;
-    fullName: string;
-    baslNumber: string;
-    user: { email: string; createdAt: string };
-    draftData: any;
-  }[];
-  pendingReviews: {
-    id: string;
-    reviewerName: string;
-    rating: number;
-    comment: string;
-    lawyer: { fullName: string };
-  }[];
   stats: {
     totalVerified: number;
     pendingApprovals: number;
     totalInquiries: number;
     totalArticles: number;
     pendingReviewCount: number;
+    totalUsers: number;
+    totalLawyers: number;
+    totalClients: number;
   };
+  monthlyData: { month: string; lawyers: number; clients: number }[];
+  pendingLawyers: any[];
+  pendingReviews: any[];
 }
 
 export default function AdminDashboard() {
   const [data, setData] = useState<AdminData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-  // Modal Control States
-  const [selectedLawyer, setSelectedLawyer] = useState<AdminData['pendingLawyers'][0] | null>(null);
-  const [rejectLawyerId, setRejectLawyerId] = useState<string | null>(null);
-  const [rejectReason, setRejectReason] = useState("");
-
-  const fetchData = () => {
+  useEffect(() => {
     fetch('/api/admin')
       .then((res) => res.json())
       .then(setData)
       .catch(() => toast.error('Failed to load admin data.'))
       .finally(() => setLoading(false));
-  };
-
-  useEffect(() => { fetchData(); }, []);
-
-  const handleAction = async (action: string, id: string, label: string) => {
-    if (action === 'reject-lawyer' && !rejectReason.trim()) {
-      return toast.error("Rejection reason is mandatory.");
-    }
-
-    setActionLoading(`${action}-${id}`);
-    try {
-      let endpoint = '/api/admin';
-      let method = 'PATCH';
-      let body = JSON.stringify({ action, id });
-
-      if (action === 'verify-lawyer') {
-        endpoint = `/api/applications/${id}/approve`;
-        method = 'POST';
-        body = JSON.stringify({});
-      } else if (action === 'reject-lawyer') {
-        endpoint = `/api/applications/${id}/reject`;
-        method = 'POST';
-        body = JSON.stringify({ reason: rejectReason });
-      }
-
-      const res = await fetch(endpoint, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body,
-      });
-      const result = await res.json();
-      if (!res.ok) throw new Error(result.error);
-      
-      toast.success(result.message || `${label} successful.`);
-      
-      // Cleanup UI
-      setSelectedLawyer(null);
-      setRejectLawyerId(null);
-      setRejectReason("");
-      
-      fetchData();
-    } catch {
-      toast.error(`Failed to ${label.toLowerCase()}.`);
-    } finally {
-      setActionLoading(null);
-    }
-  };
+  }, []);
 
   if (loading) {
     return (
-      <div className="p-6 lg:p-10 space-y-6 max-w-6xl w-full">
-        <Skeleton className="h-8 w-48 rounded-none" />
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 lg:grid-cols-5">
-           <Skeleton className="h-24 rounded-none" />
+      <div className="w-full space-y-6">
+        <div className="h-8 w-48 bg-neutral-200 animate-pulse" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {[...Array(8)].map((_, i) => (
+            <div key={i} className="h-28 bg-white border border-neutral-200 animate-pulse" />
+          ))}
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="h-80 bg-white border border-neutral-200 animate-pulse" />
+          <div className="h-80 bg-white border border-neutral-200 animate-pulse" />
         </div>
       </div>
     );
@@ -116,235 +59,192 @@ export default function AdminDashboard() {
   if (!data) return null;
 
   const statCards = [
-    { label: 'Verified Lawyers', value: data.stats.totalVerified, icon: Shield, color: 'text-primary' },
-    { label: 'Pending Approvals', value: data.stats.pendingApprovals, icon: Users, color: 'text-amber-600' },
-    { label: 'Total Inquiries', value: data.stats.totalInquiries, icon: Inbox, color: 'text-primary' },
-    { label: 'Published Articles', value: data.stats.totalArticles, icon: FileText, color: 'text-primary' },
-    { label: 'Pending Reviews', value: data.stats.pendingReviewCount, icon: Star, color: 'text-amber-600' },
+    { label: 'Total Users', value: data.stats.totalUsers, icon: Users, trend: '+12%', up: true },
+    { label: 'Verified Lawyers', value: data.stats.totalVerified, icon: Shield, trend: '+5%', up: true },
+    { label: 'Pending Approvals', value: data.stats.pendingApprovals, icon: UserPlus, trend: data.stats.pendingApprovals > 0 ? 'Action needed' : 'Clear', up: false },
+    { label: 'Total Clients', value: data.stats.totalClients, icon: Scale, trend: '+8%', up: true },
+    { label: 'Total Inquiries', value: data.stats.totalInquiries, icon: Inbox, trend: '+3%', up: true },
+    { label: 'Published Articles', value: data.stats.totalArticles, icon: FileText, trend: 'Active', up: true },
+    { label: 'Pending Reviews', value: data.stats.pendingReviewCount, icon: Star, trend: data.stats.pendingReviewCount > 0 ? 'Needs review' : 'Clear', up: false },
+    { label: 'Platform Health', value: '99%', icon: TrendingUp, trend: 'Stable', up: true },
   ];
 
   return (
-    <div className="w-full">
-      {/* Header */}
-      <div className="mb-8 flex items-center gap-4">
-        <div className="flex h-12 w-12 items-center justify-center rounded-none bg-[#0a0a0a] text-white shadow-md">
-          <LayoutDashboard className="h-6 w-6" />
+    <div className="w-full space-y-8">
+      {/* Page Header */}
+      <div className="flex items-center gap-4">
+        <div className="flex h-11 w-11 items-center justify-center bg-[#0a0a0a] text-white">
+          <LayoutDashboard className="h-5 w-5" />
         </div>
         <div>
-          <h1 className="text-3xl font-black tracking-tight text-gray-900">Admin Pipeline</h1>
-          <p className="font-medium text-gray-500 mt-0.5">Manage verifications, reviews, and platform analytics in real-time.</p>
+          <h1 className="text-2xl font-bold tracking-tight text-neutral-900">Dashboard</h1>
+          <p className="text-sm text-neutral-500 font-medium">Platform overview and analytics</p>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5 mb-8">
+      {/* Stats Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {statCards.map((stat) => (
-          <Card key={stat.label} className="rounded-none shadow-sm">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <stat.icon className={`h-5 w-5 ${stat.color}`} />
-                <div>
-                  <p className="text-2xl font-bold">{stat.value}</p>
-                  <p className="text-xs text-muted-foreground">{stat.label}</p>
+          <div key={stat.label} className="bg-white border border-neutral-200 p-5 hover:shadow-sm transition-shadow">
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 bg-neutral-100 flex items-center justify-center">
+                  <stat.icon className="h-4 w-4 text-neutral-600" />
                 </div>
               </div>
-            </CardContent>
-          </Card>
+              <span className={`text-[11px] font-semibold flex items-center gap-0.5 ${stat.up ? 'text-emerald-600' : 'text-amber-600'}`}>
+                {stat.up ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
+                {stat.trend}
+              </span>
+            </div>
+            <div className="mt-3">
+              <p className="text-2xl font-bold text-neutral-900 tracking-tight">{stat.value}</p>
+              <p className="text-[11px] text-neutral-500 font-medium mt-0.5 uppercase tracking-wide">{stat.label}</p>
+            </div>
+          </div>
         ))}
       </div>
 
-      {/* Pending Lawyers */}
-      <Card className="mb-6 rounded-none shadow-sm">
-        <CardContent className="p-6">
-          <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-            <Shield className="h-4 w-4" />
-            Lawyers Pending Verification
-            {data.pendingLawyers.length > 0 && (
-              <Badge variant="outline" className="rounded-none text-amber-600 border-amber-300 bg-amber-50">
-                {data.pendingLawyers.length}
-              </Badge>
-            )}
-          </h2>
-
-          {data.pendingLawyers.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-6 text-center">
-              All lawyers are verified. No pending approvals.
-            </p>
-          ) : (
-            <div className="space-y-3">
-              {data.pendingLawyers.map((lawyer) => (
-                <div key={lawyer.id} className="flex items-center justify-between gap-4 rounded-none border p-4 hover:shadow-sm transition-shadow">
-                  <div className="min-w-0 flex-1">
-                    <p className="font-semibold text-sm">{lawyer.fullName}</p>
-                    <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground mt-1">
-                      <span>BASL: {lawyer.baslNumber}</span>
-                      <span>{lawyer.user.email}</span>
-                      <span>
-                        Joined {new Date(lawyer.user.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex gap-2 shrink-0">
-                    <Button
-                      size="sm"
-                      onClick={() => setSelectedLawyer(lawyer)}
-                      variant="secondary"
-                      className="gap-1 font-semibold rounded-none"
-                    >
-                      <Search className="h-4 w-4" /> Review Dossier
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setRejectLawyerId(lawyer.id)}
-                      className="gap-1 text-destructive hover:text-destructive hover:bg-destructive/10 rounded-none"
-                    >
-                      <XCircle className="h-4 w-4" /> Refuse
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Pending Reviews */}
-      <Card className="rounded-none shadow-sm">
-        <CardContent className="p-6">
-          <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-            <Star className="h-4 w-4" />
-            Reviews Pending Approval
-            {data.pendingReviews.length > 0 && (
-              <Badge variant="outline" className="rounded-none text-amber-600 border-amber-300 bg-amber-50">
-                {data.pendingReviews.length}
-              </Badge>
-            )}
-          </h2>
-
-          {data.pendingReviews.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-6 text-center">
-              No reviews pending approval.
-            </p>
-          ) : (
-            <div className="space-y-3">
-              {data.pendingReviews.map((review) => (
-                <div key={review.id} className="rounded-none shadow-sm border p-4 hover:shadow-md transition-shadow">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-sm font-medium">{review.reviewerName}</span>
-                        <div className="flex items-center gap-0.5">
-                          {Array.from({ length: 5 }).map((_, i) => (
-                            <Star
-                              key={i}
-                              className={`h-3 w-3 ${i < review.rating ? 'fill-amber-400 text-amber-400' : 'text-muted-foreground/20'}`}
-                            />
-                          ))}
-                        </div>
-                      </div>
-                      <p className="text-xs text-muted-foreground mb-1">
-                        For: {review.lawyer.fullName}
-                      </p>
-                      <p className="text-sm text-muted-foreground">{review.comment}</p>
-                    </div>
-                    <div className="flex gap-2 shrink-0">
-                      <Button
-                        size="sm"
-                        onClick={() => handleAction('approve-review', review.id, 'Approve')}
-                        disabled={actionLoading === `approve-review-${review.id}`}
-                        className="gap-1 rounded-none font-semibold"
-                      >
-                        {actionLoading === `approve-review-${review.id}` ? (
-                          <Loader2 className="h-3 w-3 animate-spin" />
-                        ) : (
-                          <CheckCircle2 className="h-3 w-3" />
-                        )}
-                        Approve
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleAction('reject-review', review.id, 'Reject')}
-                        disabled={actionLoading === `reject-review-${review.id}`}
-                        className="gap-1 text-destructive hover:text-destructive rounded-none"
-                      >
-                        {actionLoading === `reject-review-${review.id}` ? (
-                          <Loader2 className="h-3 w-3 animate-spin" />
-                        ) : (
-                          <XCircle className="h-3 w-3" />
-                        )}
-                        Reject
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* --- MODALS --- */}
-      <Dialog open={!!selectedLawyer} onOpenChange={(open) => !open && setSelectedLawyer(null)}>
-        <DialogContent className="max-w-2xl bg-white/95 backdrop-blur-3xl border-0 shadow-2xl rounded-none">
-          <DialogHeader>
-            <DialogTitle className="text-2xl font-bold tracking-tight">Verification Readout</DialogTitle>
-            <DialogDescription className="font-medium text-gray-600">Validate all submitted credentials prior to platform enrollment.</DialogDescription>
-          </DialogHeader>
-          
-          {selectedLawyer && (
-            <div className="space-y-6 my-2">
-              <div className="grid grid-cols-2 gap-4 text-sm bg-gray-50/50 p-6 rounded-none border border-gray-100">
-                 <div><span className="text-gray-500 font-medium">Full Legal Name</span><p className="font-semibold text-base mt-0.5 text-gray-900">{selectedLawyer.draftData?.step1?.fullName || 'N/A'}</p></div>
-                 <div><span className="text-gray-500 font-medium">NIC Number</span><p className="font-semibold text-base mt-0.5 text-gray-900">{selectedLawyer.draftData?.step1?.nic || 'N/A'}</p></div>
-                 <div><span className="text-gray-500 font-medium">Contact Phone</span><p className="font-semibold text-base mt-0.5 text-gray-900">{selectedLawyer.draftData?.step1?.phone || 'N/A'}</p></div>
-                 <div><span className="text-gray-500 font-medium">Email Account</span><p className="font-semibold text-base mt-0.5 text-gray-900">{selectedLawyer.user.email}</p></div>
-                 <div className="col-span-2"><span className="text-gray-500 font-medium">Physical Address</span><p className="font-bold text-base mt-0.5 text-gray-900">{selectedLawyer.draftData?.step1?.address || 'N/A'}</p></div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4 text-sm bg-gray-50/50 p-6 rounded-none border border-gray-100">
-                 <div><span className="text-gray-600 font-bold uppercase text-[10px] tracking-wider">BASL Hash Sequence</span><p className="font-semibold text-xl text-[#0a0a0a] mt-0.5">{selectedLawyer.draftData?.step2?.baslNumber || 'N/A'}</p></div>
-                 <div><span className="text-gray-600 font-bold uppercase text-[10px] tracking-wider">Supreme Court Year</span><p className="font-semibold text-base text-[#0a0a0a] mt-1.5">{selectedLawyer.draftData?.step2?.enrollmentYear || 'N/A'}</p></div>
-                 <div className="col-span-2"><span className="text-gray-600 font-bold uppercase text-[10px] tracking-wider">Practice Domains</span><p className="font-semibold text-sm text-[#0a0a0a] mt-1">{selectedLawyer.draftData?.step3?.practiceAreas || 'N/A'}</p></div>
-                 <div><span className="text-blue-600/80 font-bold uppercase text-[10px] tracking-wider">Primary District</span><p className="font-bold text-sm text-blue-900 mt-1">{selectedLawyer.draftData?.step3?.district || 'N/A'}</p></div>
-                 <div><span className="text-blue-600/80 font-bold uppercase text-[10px] tracking-wider">Spoken Languages</span><p className="font-bold text-sm text-blue-900 mt-1">{selectedLawyer.draftData?.step3?.languages || 'N/A'}</p></div>
-              </div>
-            </div>
-          )}
-
-          <DialogFooter className="gap-2 sm:gap-0 mt-4 border-t pt-4">
-            <Button variant="ghost" className="rounded-none font-semibold" onClick={() => setSelectedLawyer(null)}>Cancel</Button>
-            <Button className="rounded-none bg-[#0a0a0a] hover:bg-black font-semibold tracking-tight shadow-md" disabled={actionLoading !== null} onClick={() => selectedLawyer && handleAction('verify-lawyer', selectedLawyer.id, 'Approve')}>
-              {actionLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <CheckCircle2 className="w-4 h-4 mr-2" />} Authorize & Grant License
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={!!rejectLawyerId} onOpenChange={(open) => !open && setRejectLawyerId(null)}>
-        <DialogContent className="sm:max-w-md border-red-100 shadow-xl rounded-none">
-          <DialogHeader>
-            <DialogTitle className="text-red-600 flex items-center gap-2 text-xl font-bold"><XCircle className="w-5 h-5"/> Revoke Application</DialogTitle>
-            <DialogDescription className="text-red-900/60 font-medium">
-              This applicant will be immediately notified via Email Service. You must log the specific reasoning.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="my-2">
-            <Textarea
-              placeholder="e.g. Your BASL sequence fails security verification..."
-              value={rejectReason}
-              onChange={(e) => setRejectReason(e.target.value)}
-              className="min-h-[140px] resize-none border-red-100 focus-visible:ring-red-500/20 font-medium text-gray-900 bg-red-50/30 rounded-none"
-            />
+      {/* Charts Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Lawyers Monthly Chart */}
+        <div className="bg-white border border-neutral-200 p-6">
+          <div className="mb-6">
+            <h3 className="text-sm font-bold text-neutral-900 uppercase tracking-wide">Lawyers Registered</h3>
+            <p className="text-xs text-neutral-500 mt-0.5">Monthly lawyer registrations (last 12 months)</p>
           </div>
-          <DialogFooter className="border-t pt-4">
-            <Button variant="ghost" className="rounded-none font-semibold" onClick={() => setRejectLawyerId(null)}>Cancel</Button>
-            <Button variant="destructive" className="font-semibold rounded-none" disabled={!rejectReason.trim() || actionLoading !== null} onClick={() => rejectLawyerId && handleAction('reject-lawyer', rejectLawyerId, 'Reject')}>
-              {actionLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <XCircle className="w-4 h-4 mr-2" />} Confirm Rejection
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={data.monthlyData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#999' }} />
+                <YAxis tick={{ fontSize: 11, fill: '#999' }} allowDecimals={false} />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: '#0a0a0a',
+                    border: 'none',
+                    borderRadius: '0',
+                    color: '#fff',
+                    fontSize: '12px',
+                    fontWeight: '600'
+                  }}
+                />
+                <Bar dataKey="lawyers" fill="#0a0a0a" name="Lawyers" radius={[0, 0, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Clients Monthly Chart */}
+        <div className="bg-white border border-neutral-200 p-6">
+          <div className="mb-6">
+            <h3 className="text-sm font-bold text-neutral-900 uppercase tracking-wide">Clients Registered</h3>
+            <p className="text-xs text-neutral-500 mt-0.5">Monthly client registrations (last 12 months)</p>
+          </div>
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={data.monthlyData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#999' }} />
+                <YAxis tick={{ fontSize: 11, fill: '#999' }} allowDecimals={false} />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: '#0a0a0a',
+                    border: 'none',
+                    borderRadius: '0',
+                    color: '#fff',
+                    fontSize: '12px',
+                    fontWeight: '600'
+                  }}
+                />
+                <Area type="monotone" dataKey="clients" stroke="#0a0a0a" fill="#0a0a0a" fillOpacity={0.08} name="Clients" strokeWidth={2} />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </div>
+
+      {/* Quick Summary Cards */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Pending Approvals Summary */}
+        <div className="bg-white border border-neutral-200 p-6">
+          <h3 className="text-sm font-bold text-neutral-900 uppercase tracking-wide mb-4 flex items-center gap-2">
+            <Shield className="w-4 h-4" />
+            Pending Verifications
+          </h3>
+          {data.pendingLawyers.length === 0 ? (
+            <p className="text-xs text-neutral-500 py-4 text-center">No pending verifications</p>
+          ) : (
+            <div className="space-y-2">
+              {data.pendingLawyers.slice(0, 3).map((lawyer: any) => (
+                <div key={lawyer.id} className="flex items-center justify-between border border-neutral-100 p-3">
+                  <div>
+                    <p className="text-sm font-semibold text-neutral-900">{lawyer.fullName}</p>
+                    <p className="text-[11px] text-neutral-500">{lawyer.baslNumber}</p>
+                  </div>
+                  <span className="text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 px-2 py-1">PENDING</span>
+                </div>
+              ))}
+              {data.pendingLawyers.length > 3 && (
+                <p className="text-xs text-neutral-500 text-center pt-1">+{data.pendingLawyers.length - 3} more</p>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Pending Reviews Summary */}
+        <div className="bg-white border border-neutral-200 p-6">
+          <h3 className="text-sm font-bold text-neutral-900 uppercase tracking-wide mb-4 flex items-center gap-2">
+            <Star className="w-4 h-4" />
+            Pending Reviews
+          </h3>
+          {data.pendingReviews.length === 0 ? (
+            <p className="text-xs text-neutral-500 py-4 text-center">No pending reviews</p>
+          ) : (
+            <div className="space-y-2">
+              {data.pendingReviews.slice(0, 3).map((review: any) => (
+                <div key={review.id} className="flex items-center justify-between border border-neutral-100 p-3">
+                  <div>
+                    <p className="text-sm font-semibold text-neutral-900">{review.reviewerName}</p>
+                    <p className="text-[11px] text-neutral-500">For: {review.lawyer.fullName}</p>
+                  </div>
+                  <div className="flex items-center gap-0.5">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <Star key={i} className={`h-3 w-3 ${i < review.rating ? 'fill-amber-400 text-amber-400' : 'text-neutral-200'}`} />
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* System Overview */}
+        <div className="bg-[#0a0a0a] text-white p-6">
+          <h3 className="text-sm font-bold uppercase tracking-wide mb-4 flex items-center gap-2">
+            <TrendingUp className="w-4 h-4" />
+            System Overview
+          </h3>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between py-2 border-b border-neutral-800">
+              <span className="text-xs text-neutral-400 uppercase tracking-wide">Lawyers Registered</span>
+              <span className="text-lg font-bold">{data.stats.totalLawyers}</span>
+            </div>
+            <div className="flex items-center justify-between py-2 border-b border-neutral-800">
+              <span className="text-xs text-neutral-400 uppercase tracking-wide">Active Clients</span>
+              <span className="text-lg font-bold">{data.stats.totalClients}</span>
+            </div>
+            <div className="flex items-center justify-between py-2 border-b border-neutral-800">
+              <span className="text-xs text-neutral-400 uppercase tracking-wide">Total Inquiries</span>
+              <span className="text-lg font-bold">{data.stats.totalInquiries}</span>
+            </div>
+            <div className="flex items-center justify-between py-2">
+              <span className="text-xs text-neutral-400 uppercase tracking-wide">Articles Published</span>
+              <span className="text-lg font-bold">{data.stats.totalArticles}</span>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

@@ -60,7 +60,7 @@ export default function InquiryDialog({ lawyerId, lawyerName }: InquiryDialogPro
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger asChild>
+      <DialogTrigger>
         <Button size="lg" className="w-full gap-2 font-semibold">
           <Mail className="h-4 w-4" />
           Inquire Now

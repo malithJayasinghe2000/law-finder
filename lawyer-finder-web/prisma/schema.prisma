@@ -82,6 +82,7 @@ model LawyerProfile {
   inquiries       Inquiry[]
   articles        Article[]
   reviews         Review[]
+  paidPromos      PaidPromo[]
 }
 
 model Inquiry {
@@ -115,4 +116,28 @@ model Review {
   rating       Int
   comment      String
   isApproved   Boolean       @default(false)
+}
+
+enum PromoStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum PaymentStatus {
+  PAID
+  UNPAID
+  PENDING
+}
+
+model PaidPromo {
+  id            String        @id @default(uuid())
+  lawyerId      String
+  lawyer        LawyerProfile @relation(fields: [lawyerId], references: [id], onDelete: Cascade)
+  fromDate      DateTime
+  toDate        DateTime
+  status        PromoStatus   @default(INACTIVE)
+  paymentStatus PaymentStatus @default(UNPAID)
+  invoiceId     String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
 }

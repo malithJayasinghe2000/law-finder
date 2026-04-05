@@ -23,6 +23,10 @@ export default function Header({ locale, userRole = null, appStatus = null }: He
   const [open, setOpen] = useState(false);
   const isPremiumDesign = pathname === `/${locale}` || pathname === '/';
 
+  if (pathname.includes('/dashboard')) {
+    return null;
+  }
+
   const navLinks = [
     { href: `/${locale}/lawyers`, label: t('directory'), icon: Search },
     { href: `/${locale}/blog`, label: t('blog'), icon: BookOpen },
