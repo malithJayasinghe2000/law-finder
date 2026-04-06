@@ -2,7 +2,8 @@
 
 import React, { useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { Download, Printer } from 'lucide-react';
+import { Download, Printer, ArrowLeft, ShieldCheck } from 'lucide-react';
+import Link from 'next/link';
 
 export default function PaymentTemplatePage() {
   const printRef = useRef<HTMLDivElement>(null);
@@ -11,163 +12,251 @@ export default function PaymentTemplatePage() {
     window.print();
   };
 
-  const handleDownload = () => {
-    window.print(); // Instruct user to save as PDF in print dialog
-  };
-
   return (
-    <div className="p-6 lg:p-10 max-w-[1200px] mx-auto min-h-screen bg-gray-50 flex gap-8 flex-col xl:flex-row">
-      <div className="flex-1 bg-white shadow-sm p-12 overflow-x-auto print:p-0 print:shadow-none print:m-0 border border-gray-200">
+    <div className="p-4 sm:p-6 lg:p-10 max-w-[1400px] mx-auto min-h-screen bg-neutral-50 flex gap-6 flex-col xl:flex-row print:p-0 print:m-0 print:border-none print:w-full print:max-w-none print:bg-white print:block">
+      <title>Invoice Management | Lawyer.ai Admin</title>
+      
+      {/* Invoice Document Wrapper */}
+      <div className="flex-1 bg-white shadow-xl p-4 sm:p-8 md:p-10 overflow-x-auto print:p-0 print:shadow-none print:m-0 border border-neutral-200 print:border-none rounded-none relative print:overflow-visible print:block print:w-full print:max-w-none">
         <div 
           ref={printRef} 
-          className="print-area min-w-[800px] text-gray-900 font-sans"
+          className="print-area mx-auto text-[#0a0a0a] font-sans w-full max-w-[850px] min-w-[320px] flex flex-col print:max-w-none print:w-full print:min-w-0"
         >
-          {/* Header */}
-          <div className="flex justify-between items-start mb-24">
-            <h1 className="text-4xl tracking-widest font-light text-gray-800">INVOICE</h1>
-            <div className="w-16 h-16 bg-black text-white rounded-full flex items-center justify-center font-serif italic text-3xl font-light">
-              d.
+          {/* Header Section */}
+          <div className="flex justify-between items-start mb-8 border-b-2 border-black pb-8">
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <div className="bg-black text-white p-2 print:bg-black print:text-white shrink-0" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                   <ShieldCheck className="w-5 h-5 text-white" />
+                </div>
+                <h1 className="text-xl sm:text-2xl font-black tracking-tight uppercase text-black">Lawyer.ai</h1>
+              </div>
+              <p className="text-[9px] sm:text-[10px] uppercase tracking-[0.2em] font-bold text-neutral-400">
+                FiveNeurals (PVT) Ltd · Legal Tech Division
+              </p>
+            </div>
+            
+            <div className="text-right">
+              <h2 className="text-2xl sm:text-3xl font-light tracking-tighter mb-0 text-neutral-900 uppercase">Invoice</h2>
+              <p className="text-[9px] sm:text-[10px] font-mono text-neutral-500 uppercase tracking-wider">#LAI-2026-10492</p>
             </div>
           </div>
 
-          {/* Addresses & Meta */}
-          <div className="flex justify-between items-start mb-16 text-[15px] font-medium text-gray-600">
+          {/* Contact Details Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 mb-8 text-[13px] print:grid-cols-2">
             <div>
-              <h2 className="text-lg font-bold text-gray-900 mb-6">LawyerAI Promo System</h2>
-              <div className="grid grid-cols-[50px_1fr] gap-y-2 text-sm max-w-[200px]">
-                <span className="text-gray-400">Nr:</span>
-                <span>19-10XX</span>
-                <span className="text-gray-400">From:</span>
-                <span>04. Sep 2026</span>
+              <h4 className="text-[9px] font-bold text-neutral-400 uppercase tracking-widest mb-3 uppercase">Issued By</h4>
+              <div className="font-medium text-neutral-800">
+                <p className="font-bold text-black border-l-2 border-black pl-3 mb-1">FiveNeurals (PVT) LTD</p>
+                <div className="pl-3 opacity-80 leading-snug text-[12px]">
+                  <p>No 12, Flower Road, Colombo 07</p>
+                  <p>contact@lawyer.ai | +94 11 234 5678</p>
+                </div>
               </div>
             </div>
-            <div className="text-right text-sm leading-relaxed text-gray-500">
-              LawyerAI Inc.<br/>
-              Musterstraße 12<br/>
-              80335 München<br/>
-              Deutschland
+
+            <div className="text-left sm:text-right print:text-right">
+              <h4 className="text-[9px] font-bold text-neutral-400 uppercase tracking-widest mb-3 uppercase">Bill To</h4>
+              <div className="font-medium text-neutral-800">
+                <p className="font-bold text-black border-l-2 sm:border-l-0 sm:border-r-2 print:border-l-0 print:border-r-2 border-black pl-3 sm:pl-0 pr-0 sm:pr-3 print:pl-0 print:pr-3 mb-1">Upali Bandara, Attorney-at-Law</p>
+                <div className="pl-3 sm:pl-0 pr-0 sm:pr-3 print:pl-0 print:pr-3 opacity-80 leading-snug text-[12px]">
+                  <p>Kandy Chambers, Suite 04, Kandy</p>
+                  <p>upali@lawyers.lk | Client: LAI-USR-9302</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Date & Meta Info Row */}
+          <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-6 bg-neutral-50 border-y border-neutral-100 py-3 px-3 sm:px-4 print:bg-neutral-50" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
+            <div>
+              <span className="text-[8px] sm:text-[9px] font-bold text-neutral-400 uppercase tracking-widest block mb-0.5 uppercase">Date</span>
+              <span className="text-[10px] sm:text-xs font-bold text-neutral-900 tracking-tight">April 06, 2026</span>
+            </div>
+            <div>
+              <span className="text-[8px] sm:text-[9px] font-bold text-neutral-400 uppercase tracking-widest block mb-0.5 uppercase">Terms</span>
+              <span className="text-[10px] sm:text-xs font-bold text-neutral-900 tracking-tight">Net 15 Days</span>
+            </div>
+            <div className="text-right">
+              <span className="text-[8px] sm:text-[9px] font-bold text-neutral-400 uppercase tracking-widest block mb-0.5 uppercase">Due</span>
+              <span className="text-[10px] sm:text-xs font-bold text-red-600 tracking-tight">April 21, 2026</span>
             </div>
           </div>
 
           {/* Items Table */}
-          <table className="w-full text-left mb-16 mt-8">
-            <thead>
-              <tr className="border-b border-gray-200 text-sm text-gray-400 font-normal">
-                <th className="pb-4 font-normal">Description</th>
-                <th className="pb-4 font-normal text-right w-32">Rate (LKR)</th>
-                <th className="pb-4 font-normal text-right w-24">Quantity</th>
-                <th className="pb-4 font-normal text-right w-40">Subtotal</th>
-              </tr>
-            </thead>
-            <tbody className="text-[15px] font-medium text-gray-700 bg-[#f7f7f7] border-t border-white border-[10px]">
-              <tr className="">
-                <td className="py-6 px-4">Premium Lawyer Promotion</td>
-                <td className="py-6 px-4 text-right">2500.00</td>
-                <td className="py-6 px-4 text-right">12</td>
-                <td className="py-6 px-4 text-right">30,000.00</td>
-              </tr>
-              <tr className="border-t-[4px] border-white bg-[#ececec]">
-                <td className="py-6 px-4">Featured Directory Placement</td>
-                <td className="py-6 px-4 text-right">2500.00</td>
-                <td className="py-6 px-4 text-right">35</td>
-                <td className="py-6 px-4 text-right">87,500.00</td>
-              </tr>
-            </tbody>
-          </table>
+          <div className="mb-8 overflow-x-auto print:overflow-visible">
+            <table className="w-full text-left min-w-[500px] print:min-w-0">
+              <thead>
+                <tr className="border-b-2 border-black text-[10px] text-black font-extrabold uppercase tracking-widest">
+                  <th className="py-3 pr-4">Description</th>
+                  <th className="py-3 text-center w-24 sm:w-28">Rate (LKR)</th>
+                  <th className="py-3 text-center w-16 sm:w-20">Qty</th>
+                  <th className="py-3 text-right w-28 sm:w-32">Amount</th>
+                </tr>
+              </thead>
+              <tbody className="text-[12px] sm:text-[13px]">
+                <tr className="border-b border-neutral-100">
+                  <td className="py-4 pr-4 align-top">
+                    <p className="font-bold text-black mb-0.5">Premium Lawyer Profile Promotion (Monthly)</p>
+                    <p className="text-[10px] sm:text-[11px] text-neutral-400 font-medium leading-relaxed italic">Featured placement in results.</p>
+                  </td>
+                  <td className="py-4 text-center font-medium">8,500.00</td>
+                  <td className="py-4 text-center font-medium text-neutral-400">1</td>
+                  <td className="py-4 text-right font-bold tracking-tight">8,500.00</td>
+                </tr>
+                <tr className="border-b border-neutral-100">
+                  <td className="py-4 pr-4 align-top">
+                    <p className="font-bold text-black mb-0.5">Featured Directory Ad Slots</p>
+                    <p className="text-[10px] sm:text-[11px] text-neutral-400 font-medium leading-relaxed italic">Sidebar advertising placement.</p>
+                  </td>
+                  <td className="py-4 text-center font-medium">2,500.00</td>
+                  <td className="py-4 text-center font-medium text-neutral-400">12</td>
+                  <td className="py-4 text-right font-bold tracking-tight">30,000.00</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
 
-          {/* Total & Bank Details */}
-          <div className="flex justify-between items-end mb-24 bg-[#e8e8e8]">
-            <div className="p-8 text-sm text-gray-500 max-w-[60%] leading-relaxed">
-              <span className="font-semibold text-gray-700 block mb-3">Bank Details</span>
-              <div className="grid grid-cols-[50px_1fr] gap-y-1">
-                <span>IBAN:</span>
-                <span className="font-medium text-gray-800">DE01 1234 0000 1234 5678 90</span>
-                <span>BIC:</span>
-                <span className="font-medium text-gray-800">SSXXEAMXXX</span>
+          {/* Summary Section - Forced Table Layout for and Print Reliability */}
+          <div className="w-full mb-8">
+            <div className="flex flex-col md:flex-row justify-between gap-6 md:gap-10 items-start print:flex-row print:gap-10 print:flex-nowrap">
+              {/* Payment Details */}
+              <div className="bg-neutral-50 p-5 border-l-4 border-black print:bg-neutral-50 w-full md:w-[320px] print:w-[320px] shrink-0" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
+                <h5 className="text-[10px] font-bold text-black uppercase tracking-widest mb-3 uppercase">Payment Details</h5>
+                <div className="grid grid-cols-[80px_1fr] text-[11px] gap-y-1.5 gap-x-2">
+                  <span className="text-neutral-400 uppercase font-bold text-[8px]">Bank:</span>
+                  <span className="font-bold text-neutral-900 uppercase">Commercial Bank</span>
+                  <span className="text-neutral-400 uppercase font-bold text-[8px]">Account:</span>
+                  <span className="font-bold text-neutral-900 tracking-wider">0103 2492 4920 492</span>
+                  <span className="text-neutral-400 uppercase font-bold text-[8px]">Ref:</span>
+                  <span className="font-black text-black underline uppercase tracking-tight">#LAI-10492</span>
+                </div>
               </div>
-            </div>
-            
-            <div className="bg-black text-white p-8 min-w-[300px] text-right flex flex-col justify-end">
-                <span className="text-gray-400 text-sm mb-2 block">Total Amount</span>
-                <span className="text-3xl font-light">117,500.00 LKR</span>
+
+              {/* Totals Table */}
+              <div className="w-full md:w-[320px] print:w-[320px] ml-auto shrink-0 mt-4 md:mt-0 print:mt-0">
+                 <table className="w-full">
+                   <tbody>
+                     <tr className="text-[11px] font-semibold text-neutral-500">
+                       <td className="py-1 uppercase tracking-wider text-[9px]">Sub-Total</td>
+                       <td className="py-1 text-right text-neutral-900 font-bold">38,500.00 LKR</td>
+                     </tr>
+                     <tr className="text-[11px] font-semibold text-neutral-500">
+                       <td className="py-1 uppercase tracking-wider text-[9px]">Tax (VAT 0%)</td>
+                       <td className="py-1 text-right text-neutral-900 font-bold">0.00 LKR</td>
+                     </tr>
+                     <tr>
+                       <td colSpan={2} className="py-2">
+                         <div className="grand-total-box w-full bg-black text-white p-4 flex justify-between items-center sm:p-5 print:bg-black print:text-white" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact', backgroundColor: '#000000', color: '#ffffff' }}>
+                            <span className="text-[9px] sm:text-[10px] uppercase font-bold tracking-[0.2em] text-white/70">Grand Total</span>
+                            <span className="text-xl sm:text-2xl font-black text-white tracking-tight">38,500.00 LKR</span>
+                         </div>
+                       </td>
+                     </tr>
+                   </tbody>
+                 </table>
+              </div>
             </div>
           </div>
 
-          {/* Footer Notice */}
-          <div className="text-center text-xs text-gray-400 mt-20 pt-8 border-t border-gray-200 pb-12 flex justify-between">
-              <div className="grid grid-cols-[30px_1fr] text-left gap-y-2">
-                 <span>A.</span><span>Musterstraße 12, 80335 München</span>
-                 <span>T.</span><span>+49 123 4567 89 01</span>
-                 <span>M.</span><span>hello@dominiktampe.de</span>
-                 <span>W.</span><span>dominiktampe.de</span>
+          {/* Signature/Footer Notice */}
+          <div className="mt-6 border-t border-neutral-100 flex flex-col sm:flex-row justify-between items-start sm:items-end gap-6 sm:gap-0 print:flex-row print:items-end print:gap-0 pt-6">
+            <div className="space-y-2 w-full sm:max-w-[400px] print:max-w-[400px]">
+              <div className="p-3 border border-dashed border-neutral-200">
+                <p className="text-[10px] sm:text-[11px] text-neutral-500 font-medium leading-relaxed italic">
+                  Note: This is a computer generated invoice and does not require a physical signature.
+                </p>
               </div>
-
-              <div className="text-left leading-relaxed">
-                 <span className="font-bold text-gray-700">Bank Details</span><br/>
-                 Dominik Tampe<br/>
-                 DE01 1234 0000 1234 5678 90<br/>
-                 SSXXEAMXXX
-              </div>
-
-               <div className="text-right leading-relaxed">
-                 <span className="font-bold text-gray-700">Tax Number</span><br/>
-                 123/456/78910<br/>
-                 Finanzamt München
-              </div>
+              <p className="text-[8px] sm:text-[9px] font-bold text-neutral-400 uppercase tracking-widest">
+                © 2026 FiveNeurals (PVT) Ltd
+              </p>
+            </div>
+            <div className="text-left sm:text-right print:text-right w-full sm:w-auto print:w-auto">
+               <div className="mb-2 inline-block w-32 border-b border-black py-4 opacity-10"></div>
+               <p className="text-[9px] font-bold text-black uppercase tracking-widest">Authorized Head</p>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Control Panel (Hidden on Print) */}
-      <div className="w-full xl:w-72 shrink-0 print:hidden space-y-4">
-        <div className="bg-white p-6 border border-gray-200 sticky top-10">
-          <h3 className="font-semibold text-gray-800 mb-4 uppercase tracking-wider text-sm">Actions</h3>
-          <p className="text-xs text-gray-500 mb-6">Print or save this invoice as a PDF document.</p>
-          
-          <Button 
-            onClick={handlePrint}
-            className="w-full flex items-center gap-2 mb-3 bg-black text-white rounded-none hover:bg-gray-800 h-12"
-          >
-            <Printer className="w-4 h-4" />
-            Print Invoice
-          </Button>
-          
-          <Button 
-            onClick={handleDownload}
-            variant="outline"
-            className="w-full flex items-center gap-2 rounded-none border-gray-300 h-12"
-          >
-            <Download className="w-4 h-4" />
-            Save as PDF
-          </Button>
-          
-          <div className="mt-6 pt-6 border-t border-gray-100 text-[11px] text-gray-400">
-             * To download as PDF, click "Save as PDF" and select "Save as PDF" as the destination printer in the browser dialog.
+      {/* Floating Control Panel */}
+      <div className="w-full xl:w-[320px] shrink-0 print:hidden">
+        <div className="bg-white p-6 md:p-8 border border-neutral-200 sticky top-10 shadow-md">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-10 h-10 bg-neutral-900 flex items-center justify-center border border-neutral-100">
+              <ShieldCheck className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h3 className="font-black text-black uppercase tracking-tighter text-lg leading-none">Invoice Actions</h3>
+              <p className="text-[10px] text-neutral-400 font-bold uppercase tracking-widest mt-1">Management Console</p>
+            </div>
           </div>
+          <div className="space-y-3">
+            <Button 
+              onClick={handlePrint}
+              className="w-full flex items-center justify-between gap-2 bg-[#0a0a0a] text-white rounded-none hover:bg-neutral-800 h-14 px-6 group"
+            >
+              <div className="flex items-center gap-3">
+                <Printer className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                <span className="uppercase text-xs font-bold tracking-widest">Save Invoice</span>
+              </div>
+              <ArrowLeft className="w-4 h-4 rotate-180 opacity-20" />
+            </Button>
+          </div>
+
         </div>
       </div>
 
-      {/* Print Styles */}
       <style dangerouslySetInnerHTML={{__html: `
         @media print {
-          body {
-            background-color: white;
+          @page {
+            size: A4 portrait;
+            margin: 10mm;
+          }
+          html, body {
+            margin: 0 !important;
+            padding: 0 !important;
+            background: white !important;
+            height: auto !important;
+          }
+          body * {
+            box-sizing: border-box !important;
+          }
+          /* Override layout wrappers */
+          #__next, .sidebar-root, main, .flex-1, .min-h-screen {
+            display: block !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            padding: 0 !important;
+            margin: 0 !important;
+          }
+          aside, nav, header, footer, .print\\:hidden, div[class*="Sidebar"], button {
+             display: none !important;
+             height: 0 !important;
+             width: 0 !important;
+             visibility: hidden !important;
+             opacity: 0 !important;
+          }
+          .print-area {
+            display: block !important;
+            width: 100% !important;
+            max-width: none !important;
+            margin: 0 !important;
+            padding: 0 !important;
+          }
+          .grand-total-box {
+            background-color: black !important;
+            color: white !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
           }
-          header, nav, aside { display: none !important; }
-          .print\\:hidden { display: none !important; }
-          .print-area {
-            width: 100% !important;
-            max-width: none !important;
-            min-w: auto;
-          }
-           @page {
-            size: A4 portrait;
-            margin: 1cm;
+          * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
           }
         }
       `}} />
     </div>
   );
 }
+

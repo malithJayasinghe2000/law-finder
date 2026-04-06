@@ -207,7 +207,10 @@ export default function LawyerProfileClient({
             <div className="mb-8">
               <div className="flex items-center gap-3 mb-2">
                 {lawyer.isVerified && (
-                  <span className="bg-[#0a0a0a] text-white text-[10px] font-bold px-3 py-1 uppercase tracking-widest">Verified</span>
+                  <div className="flex items-center gap-1 bg-[#0a0a0a] text-white text-[10px] font-bold px-3 py-1 uppercase tracking-widest">
+                    <ShieldCheck className="h-3.5 w-3.5" />
+                    <p>Verified</p>
+                  </div>
                 )}
                 {lawyer.practiceType && (
                   <span className="bg-neutral-100 text-neutral-700 text-[10px] font-bold px-3 py-1 uppercase tracking-widest">{lawyer.practiceType}</span>

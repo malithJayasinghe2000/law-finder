@@ -86,7 +86,7 @@ export default function Footer({ locale }: { locale: string }) {
 
         <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
           <p className="text-xs text-muted-foreground">
-            {year} LawFinder SL. All rights reserved.
+            {year} LawFinder SL. Powered by FiveNeurals (PVT) LTD.
           </p>
           <p className="text-xs text-muted-foreground">
             Verified by the Bar Association of Sri Lanka (BASL)
