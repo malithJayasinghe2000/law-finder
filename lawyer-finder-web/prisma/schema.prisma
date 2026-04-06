@@ -30,6 +30,13 @@ enum ArticleStatus {
   PUBLISHED
 }
 
+enum SubscriptionStatus {
+  ACTIVE
+  CANCELED
+  EXPIRED
+  PAST_DUE
+}
+
 model User {
   id              String             @id @default(uuid())
   email           String             @unique
@@ -82,11 +89,84 @@ model LawyerProfile {
   licenseImageUrl   String?
   identityImageUrl  String?
   isVerified        Boolean     @default(false)
+  subscriptionId    String?
+  Subscription     Subscription[]
+  
   inquiries         Inquiry[]
   articles          Article[]
   reviews           Review[]
   paidPromos        PaidPromo[]
 }
+
+model SubscriptionPlan {
+  id            String   @id @default(uuid())
+  name          String
+  tier          Int      @default(0)
+  monthlyAmount Int
+  yearlyAmount  Int
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  subscriptions Subscription[]
+  subscriptionDetails SubscriptionDetails[]
+}
+
+model Subscription {
+  id          String   @id @default(uuid())
+  lawyerId    String
+  lawyer      LawyerProfile @relation(fields: [lawyerId], references: [id], onDelete: Cascade)
+
+  planId      String
+  plan        SubscriptionPlan @relation(fields: [planId], references: [id])
+
+  status      SubscriptionStatus @default(ACTIVE)
+
+  startDate   DateTime @default(now())
+  endDate     DateTime?
+  nextBilling DateTime
+
+  autoRenew   Boolean  @default(true)
+
+  cycles      SubscriptionCycle[]
+
+  createdAt   DateTime @default(now())
+}
+
+model SubscriptionCycle {
+  id              String   @id @default(uuid())
+
+  subscriptionId  String
+  subscription    Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  startDate       DateTime
+  endDate         DateTime
+
+  status          SubscriptionStatus
+
+  invoices        Invoice[]
+}
+
+model Invoice {
+  id                 String   @id @default(uuid())
+
+  subscriptionCycleId String
+  subscriptionCycle   SubscriptionCycle @relation(fields: [subscriptionCycleId], references: [id], onDelete: Cascade)
+
+  amount             Int
+  status             PaymentStatus @default(UNPAID)
+
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+model SubscriptionDetails {
+  id          String        @id @default(uuid())
+  subscriptionId    String
+  subscription      SubscriptionPlan @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  details     String
+}
+
 
 model Inquiry {
   id          String        @id @default(uuid())

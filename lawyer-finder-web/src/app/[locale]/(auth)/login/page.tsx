@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Scale, LogIn, Loader2, ArrowLeft } from 'lucide-react';
+import { FieldError } from '@/components/ui/FieldError';
 
 export default function LoginPage() {
   const [loading, setLoading] = useState(false);
@@ -85,9 +86,9 @@ export default function LoginPage() {
                 type="email"
                 placeholder="hello@example.com"
                 {...register('email')}
-                className="w-full bg-neutral-50 border border-neutral-200 text-[#0a0a0a] px-4 py-3.5 rounded-none outline-none focus:border-[#0a0a0a] focus:bg-white transition-all"
+                className="w-full bg-neutral-50 border border-neutral-200 text-[#0a0a0a] px-4 py-3.5 rounded-none outline-none focus:border-[#0a0a0a] focus:bg-white transition-all shadow-sm"
               />
-              {errors.email && <p className="text-sm text-red-500 mt-1">{errors.email.message}</p>}
+              <FieldError message={errors.email?.message} />
             </div>
 
             <div className="space-y-2">
@@ -96,9 +97,9 @@ export default function LoginPage() {
                 type="password"
                 placeholder="••••••••"
                 {...register('password')}
-                className="w-full bg-neutral-50 border border-neutral-200 text-[#0a0a0a] px-4 py-3.5 rounded-none outline-none focus:border-[#0a0a0a] focus:bg-white transition-all"
+                className="w-full bg-neutral-50 border border-neutral-200 text-[#0a0a0a] px-4 py-3.5 rounded-none outline-none focus:border-[#0a0a0a] focus:bg-white transition-all shadow-sm"
               />
-              {errors.password && <p className="text-sm text-red-500 mt-1">{errors.password.message}</p>}
+              <FieldError message={errors.password?.message} />
             </div>
 
             <button type="submit" disabled={loading} className="w-full flex items-center justify-center gap-2 bg-[#0a0a0a] text-white py-4 rounded-none font-medium hover:bg-neutral-800 transition-colors mt-6 disabled:opacity-70">
