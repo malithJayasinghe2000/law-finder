@@ -10,21 +10,7 @@ import {
   Shield, Calendar,
 } from 'lucide-react';
 
-const PRACTICE_AREAS = [
-  'Criminal Law', 'Family Law', 'Property Law', 'Labor Law', 'Corporate Law',
-  'Civil Law', 'Constitutional Law', 'Tax Law', 'Immigration Law',
-  'Environmental Law', 'Intellectual Property', 'Human Rights',
-];
-
 const LANGUAGES = ['Sinhala', 'Tamil', 'English'];
-
-const DISTRICTS = [
-  'Colombo', 'Gampaha', 'Kalutara', 'Kandy', 'Matale', 'Nuwara Eliya',
-  'Galle', 'Matara', 'Hambantota', 'Jaffna', 'Kilinochchi', 'Mannar',
-  'Vavuniya', 'Mullaitivu', 'Batticaloa', 'Ampara', 'Trincomalee',
-  'Kurunegala', 'Puttalam', 'Anuradhapura', 'Polonnaruwa', 'Badulla',
-  'Monaragala', 'Ratnapura', 'Kegalle',
-];
 
 export default function ProfileSettingsPage() {
   const { locale } = useParams();
@@ -63,6 +49,21 @@ export default function ProfileSettingsPage() {
   const [isNotary, setIsNotary] = useState(false);
   const [nic, setNic] = useState('');
   const [lawyerProfileImageUrl, setLawyerProfileImageUrl] = useState('');
+
+  const [lookups, setLookups] = useState<{ districts: string[], practiceAreas: string[], practiceTypes: string[] }>({
+    districts: [],
+    practiceAreas: [],
+    practiceTypes: []
+  });
+
+  useEffect(() => {
+    fetch('/api/lookups')
+      .then(res => res.json())
+      .then(data => {
+        if (data.districts) setLookups(data);
+      })
+      .catch(console.error);
+  }, []);
 
   useEffect(() => {
     fetchProfile();
@@ -254,7 +255,7 @@ export default function ProfileSettingsPage() {
             <h3 className="text-sm font-bold text-[#0a0a0a] uppercase tracking-widest mb-6">Profile Picture</h3>
             <div className="flex items-center gap-6">
               <div className="relative group">
-                <div className="h-24 w-24 bg-neutral-100 overflow-hidden">
+                <div className="h-24 w-24 bg-neutral-100 rounded-full overflow-hidden border border-neutral-200 shadow-sm">
                   <img
                     src={profileImageUrl || '/avatar.png'}
                     alt="Profile"
@@ -264,7 +265,7 @@ export default function ProfileSettingsPage() {
                 <button
                   onClick={() => fileInputRef.current?.click()}
                   disabled={uploading}
-                  className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity"
+                  className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity rounded-full"
                 >
                   {uploading ? <Loader2 className="h-5 w-5 text-white animate-spin" /> : <Camera className="h-5 w-5 text-white" />}
                 </button>
@@ -450,10 +451,7 @@ export default function ProfileSettingsPage() {
                       className="w-full bg-neutral-50 border border-neutral-200 text-[#0a0a0a] px-4 py-3 outline-none focus:border-[#0a0a0a] focus:bg-white transition-all text-sm"
                     >
                       <option value="">Select</option>
-                      <option value="Solo">Solo Practice</option>
-                      <option value="Firm">Law Firm</option>
-                      <option value="Government">Government</option>
-                      <option value="Corporate">Corporate Legal</option>
+                      {lookups.practiceTypes.map(t => <option key={t} value={t}>{t}</option>)}
                     </select>
                   </div>
                   <div className="space-y-2">
@@ -464,7 +462,7 @@ export default function ProfileSettingsPage() {
                       className="w-full bg-neutral-50 border border-neutral-200 text-[#0a0a0a] px-4 py-3 outline-none focus:border-[#0a0a0a] focus:bg-white transition-all text-sm"
                     >
                       <option value="">Select</option>
-                      {DISTRICTS.map(d => <option key={d} value={d}>{d}</option>)}
+                      {lookups.districts.map(d => <option key={d} value={d}>{d}</option>)}
                     </select>
                   </div>
                   <div className="space-y-2">
@@ -512,19 +510,18 @@ export default function ProfileSettingsPage() {
                 </label>
               </div>
 
-              {/* Practice Areas */}
               <div className="mb-10 pb-10 border-b border-neutral-200">
-                <h3 className="text-sm font-bold text-[#0a0a0a] uppercase tracking-widest mb-6">Practice Areas</h3>
+                <h3 className="text-sm font-bold text-[#0a0a0a] uppercase tracking-[0.2em] mb-8 font-sans">Practice Areas</h3>
                 <div className="flex flex-wrap gap-2">
-                  {PRACTICE_AREAS.map(area => (
+                  {lookups.practiceAreas.map(area => (
                     <button
                       key={area}
                       type="button"
                       onClick={() => toggleArrayItem(practiceAreas, setPracticeAreas, area)}
-                      className={`px-4 py-2 text-sm font-medium transition-colors ${
+                      className={`px-5 py-3 text-sm font-medium transition-all duration-200 border-none rounded-none focus:outline-none ${
                         practiceAreas.includes(area)
                           ? 'bg-[#0a0a0a] text-white'
-                          : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
+                          : 'bg-neutral-50 text-neutral-500 hover:bg-neutral-100'
                       }`}
                     >
                       {area}
@@ -535,17 +532,17 @@ export default function ProfileSettingsPage() {
 
               {/* Languages */}
               <div className="mb-10 pb-10 border-b border-neutral-200">
-                <h3 className="text-sm font-bold text-[#0a0a0a] uppercase tracking-widest mb-6">Languages</h3>
+                <h3 className="text-sm font-bold text-[#0a0a0a] uppercase tracking-[0.2em] mb-8 font-sans">Languages</h3>
                 <div className="flex flex-wrap gap-2">
                   {LANGUAGES.map(lang => (
                     <button
                       key={lang}
                       type="button"
                       onClick={() => toggleArrayItem(languages, setLanguagesState, lang)}
-                      className={`px-4 py-2 text-sm font-medium transition-colors ${
+                      className={`px-6 py-3 text-sm font-medium transition-all duration-200 border-none rounded-none focus:outline-none ${
                         languages.includes(lang)
                           ? 'bg-[#0a0a0a] text-white'
-                          : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
+                          : 'bg-neutral-50 text-neutral-500 hover:bg-neutral-100'
                       }`}
                     >
                       {lang}

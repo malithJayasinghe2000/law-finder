@@ -6,13 +6,15 @@
     "searchButton": "Find Lawyers",
     "featuredLawyers": "Featured Legal Experts",
     "directory": "Lawyer Directory",
-    "inquireNow": "Inquire Now"
+    "inquireNow": "Inquire Now",
+    "about": "About"
   },
   "Navigation": {
     "home": "Home",
-    "directory": "Lawyer Directory",
+    "directory": "Find Lawyer",
     "blog": "Legal Insights",
     "login": "Sign In",
-    "dashboard": "Dashboard"
+    "dashboard": "Dashboard",
+    "about": "About"
   }
 }

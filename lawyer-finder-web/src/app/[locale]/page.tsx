@@ -17,18 +17,45 @@ import {
   Gavel
 } from 'lucide-react';
 import ChatWidget from '@/components/home/ChatWidget';
-import LawyersMarquee from '@/components/home/LawyersMarquee';
+import HeroChatInput from '@/components/home/HeroChatInput';
+import HeroReviewsMarquee from '@/components/home/HeroReviewsMarquee';
+import prisma from '@/lib/db';
 
 export default async function HomePage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
   const t = await getTranslations({ locale });
+
+  // Fetch top 12 approved reviews
+  const topReviews = await prisma.review.findMany({
+    where: { isApproved: true },
+    take: 12,
+    include: { lawyer: true, reviewer: true },
+    orderBy: { rating: 'desc' }
+  });
+
+  const serializedReviews = topReviews.map((r) => ({
+    id: r.id,
+    reviewerName: r.reviewerName,
+    rating: r.rating,
+    comment: r.comment,
+    lawyerName: r.lawyer?.fullName || undefined,
+    reviewerImage: r.reviewer?.profileImageUrl || undefined,
+  }));
+
+  // Fetch top lawyers for cards section
+  const topLawyers = await prisma.lawyerProfile.findMany({
+    where: { isVerified: true },
+    include: { reviews: { where: { isApproved: true } } },
+    take: 8,
+    orderBy: { reviews: { _count: 'desc' } }, // Just ordering by most reviewed for demo
+  });
 
   return (
     <div className="flex min-h-screen flex-col font-sans">
       <main className="flex-1">
         
         {/* Dark Hero Section matching the image */}
-        <section className="relative bg-[#0a0a0a] text-white min-h-[100vh] flex flex-col pt-32 pb-16 px-6 lg:px-12 xl:px-24">
+        <section className="relative bg-[#0a0a0a] text-white min-h-[90vh] flex flex-col pt-20 pb-12 px-6 lg:px-12 xl:px-24">
           {/* Background Image & Overlay */}
           <div className="absolute inset-0 overflow-hidden pointer-events-none">
             <img 
@@ -41,169 +68,99 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
             <div className="absolute inset-0 bg-gradient-to-b from-[#0f1115]/90 via-transparent to-[#0a0a0a]/90" />
           </div>
 
-          <div className="relative z-10 flex-1 w-full max-w-[1400px] mx-auto flex flex-col justify-between">
-            {/* Top Row: Stats (Left) and Description (Right) */}
-            <div className="flex flex-col md:flex-row justify-between items-start w-full gap-10 mt-10">
-              <div className="flex flex-wrap gap-16">
-                <div>
-                  <div className="text-5xl sm:text-6xl font-light mb-3 text-white tracking-tight">98%</div>
-                  <div className="text-white/70 text-sm sm:text-base tracking-wide font-light">Client Satisfaction</div>
-                </div>
-                <div>
-                  <div className="text-5xl sm:text-6xl font-light mb-3 text-white tracking-tight">1,500+</div>
-                  <div className="text-white/70 text-sm sm:text-base tracking-wide font-light">Cases Resolved Successfully</div>
-                </div>
-              </div>
+          <div className="relative z-10 flex-1 w-full max-w-[1400px] mx-auto flex flex-col items-center justify-center pt-8 text-center">
+            
+            <h1 className="text-4xl sm:text-5xl md:text-6xl font-light leading-[1.1] tracking-tight text-white mb-4">
+              Chat Smarter, Not Harder –<br />
+              <span className="font-semibold px-2">LawyerAI</span>
+            </h1>
+            <p className="text-white/60 text-base md:text-lg font-light mb-8 max-w-2xl px-4">
+              Your Ultimate AI Chat Partner & Legal Directory – Instant Answers, Endless Knowledge!
+            </p>
 
-              <div className="max-w-[400px] text-left md:text-right mt-6 md:mt-0">
-                <p className="text-white/80 text-lg sm:text-xl font-light leading-relaxed">
-                  Delivering practical legal solutions with insight, precision, and forward-thinking strategy.
+            <HeroChatInput locale={locale} />
+            
+            {serializedReviews.length > 0 && (
+              <HeroReviewsMarquee reviews={serializedReviews} />
+            )}
+          </div>
+        </section>
+
+        {/* Top Lawyers Section (White Space) */}
+        <section className="bg-white py-20 px-6 lg:px-12 xl:px-24">
+          <div className="mx-auto max-w-[1400px]">
+            <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-6">
+              <div>
+                <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-[#0a0a0a] mb-3">
+                  Top Legal Professionals
+                </h2>
+                <p className="text-neutral-500 text-lg font-light">
+                  Find verified lawyers for your active legal matters.
                 </p>
               </div>
-            </div>
-
-            {/* Bottom Row: Title (Left) and Button (Right) */}
-            <div className="flex flex-col md:flex-row justify-between items-end w-full gap-12 mt-20 mb-8">
-              <div className="max-w-3xl">
-                <h1 className="text-5xl sm:text-6xl md:text-[5.5rem] font-light leading-[1.05] tracking-tight text-white mb-0 md:-mb-4">
-                  Smart Legal<br />
-                  Strategies for<br />
-                  Real-World<br />
-                  Cases
-                </h1>
-              </div>
-
-              <div className="w-full max-w-[340px]">
-                <Link href={`/${locale}/lawyers`}>
-                  <Button className="bg-white text-black hover:bg-neutral-200 rounded-none px-6 py-8 text-lg font-medium w-full flex items-center justify-between group">
-                    Find Legal Help
-                    <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                  </Button>
-                </Link>
-                
-                <div className="mt-8 border-t border-white/30 pt-6 flex flex-row items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <Globe className="w-5 h-5 text-white/60" />
-                    <span className="text-white/60 text-sm font-light">Supporting clients since 2012</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Marquee Section */}
-        <LawyersMarquee />
-
-        {/* Content Section mimicking 'About the Firm' layout provided in the screenshot */}
-        <section className="py-24 px-6 lg:px-12 xl:px-24 bg-background">
-          <div className="max-w-7xl mx-auto flex flex-col lg:flex-row gap-16 justify-between items-start">
-            <div className="max-w-3xl">
-              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-light leading-snug tracking-tight text-foreground">
-                Since 2012, we've transformed the way legal support is delivered —
-                blending strategic thinking, deep domain expertise, and unwavering 
-                dedication to secure the best outcomes for our clients.
-              </h2>
-            </div>
-            
-            <div className="flex flex-col items-start lg:items-end gap-6 min-w-[200px] lg:pt-4">
-              <Link href={`/${locale}/about`} className="group flex items-center gap-2 border-b border-foreground pb-1 text-lg font-medium hover:text-primary transition-colors">
-                About the Firm.
-                <ArrowUpRight className="w-5 h-5 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
-              </Link>
-              <img 
-                src="https://images.unsplash.com/photo-1505664194779-8beaceb93744?q=80&w=300&auto=format&fit=crop" 
-                alt="Law books" 
-                className="w-48 h-32 object-cover rounded-md grayscale opacity-80"
-              />
-            </div>
-          </div>
-        </section>
-
-        {/* Original Features Section with updated styling */}
-        <section className="py-20 bg-muted/30">
-          <div className="mx-auto max-w-7xl px-4 sm:px-6">
-            <div className="mx-auto max-w-2xl text-center mb-16">
-              <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
-                The trusted way to find legal help
-              </h2>
-              <p className="mt-4 text-lg text-muted-foreground">
-                A secure, intelligent platform designed specifically for Sri Lankan legal needs
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {[
-                {
-                  icon: ShieldCheck,
-                  title: 'BASL Verified Attorneys',
-                  desc: 'Every lawyer on LawFinder is verified against the Bar Association of Sri Lanka registry. No fake profiles, guaranteed authenticity.',
-                },
-                {
-                  icon: Search,
-                  title: 'Intelligent Search',
-                  desc: 'Filter lawyers by practice area, district, language, and fee range. Find exactly the right legal expert for your case.',
-                },
-                {
-                  icon: MessageSquare,
-                  title: 'Direct Inquiry System',
-                  desc: 'Send secure inquiries directly to lawyers with your case details. Get connected without the hassle of cold calls.',
-                },
-                {
-                  icon: BookOpen,
-                  title: 'Knowledge Hub',
-                  desc: 'Access expert legal articles written by verified attorneys. Understand your rights before you consult.',
-                },
-                {
-                  icon: Star,
-                  title: 'Verified Reviews',
-                  desc: 'Read honest reviews from real clients. Every review is moderated to ensure trustworthy feedback.',
-                },
-                {
-                  icon: Languages,
-                  title: 'Trilingual Support',
-                  desc: 'Full platform support in Sinhala, Tamil, and English. Access justice in the language you are most comfortable with.',
-                },
-              ].map((feature) => (
-                <Card key={feature.title} className="group hover:shadow-lg transition-all duration-300 border-border/50 hover:border-border rounded-xl">
-                  <CardContent className="p-8">
-                    <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-xl bg-primary/5 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors duration-300">
-                      <feature.icon className="h-6 w-6" />
-                    </div>
-                    <h3 className="text-lg font-semibold tracking-tight mb-2">{feature.title}</h3>
-                    <p className="text-sm text-muted-foreground leading-relaxed">{feature.desc}</p>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* CTA Section */}
-        <section className="border-t bg-card py-20">
-          <div className="mx-auto max-w-3xl px-4 text-center sm:px-6">
-            <div className="mx-auto mb-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-              <Gavel className="h-7 w-7" />
-            </div>
-            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
-              Are you a legal professional?
-            </h2>
-            <p className="mx-auto mt-4 max-w-xl text-lg text-muted-foreground">
-              Join hundreds of Sri Lankan attorneys already using LawFinder to grow their practice, publish insights, and connect with clients.
-            </p>
-            <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
-              <Link href={`/${locale}/register`}>
-                <Button size="lg" className="gap-2 font-semibold px-8 rounded-none">
-                  <Scale className="h-4 w-4" />
-                  Register Your Practice
-                </Button>
-              </Link>
               <Link href={`/${locale}/lawyers`}>
-                <Button size="lg" variant="outline" className="gap-2 font-semibold px-8 rounded-none">
-                  Browse Directory
-                  <ArrowRight className="h-4 w-4" />
+                <Button className="bg-[#0a0a0a] text-white hover:bg-neutral-800 rounded-none px-8 py-6 text-sm font-bold uppercase tracking-widest flex items-center gap-2 group">
+                  Find Lawyer
+                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                 </Button>
               </Link>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {topLawyers.map((lawyer) => {
+                const avgRating = lawyer.reviews.length > 0 
+                  ? lawyer.reviews.reduce((s, r) => s + r.rating, 0) / lawyer.reviews.length : 0;
+                
+                return (
+                  <Link key={lawyer.id} href={`/${locale}/lawyers/${lawyer.id}`}>
+                    <div className="group relative flex h-[400px] flex-col overflow-hidden rounded-none bg-[#222a35] text-white transition-transform duration-300 hover:-translate-y-1 hover:shadow-lg">
+                      <div className="relative h-[200px] w-full shrink-0">
+                        <img
+                          src={lawyer.profileImageUrl || 'https://images.unsplash.com/photo-1556157382-97eda2d62296?auto=format&fit=crop&w=800&q=80'}
+                          alt={lawyer.fullName}
+                          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-[#222a35] via-[rgba(214,214,214,0.3)] to-transparent" />
+                        
+                        {lawyer.languages.length > 0 && (
+                          <div className="absolute right-4 top-4 flex h-7 items-center justify-center rounded-none bg-black/40 backdrop-blur-md px-2.5 text-[10px] font-bold uppercase tracking-widest text-white border border-white/10 transition-colors hover:bg-black/60">
+                            {lawyer.languages.map((l) => l.slice(0, 2)).join(' • ')}
+                          </div>
+                        )}
+                      </div>
+                      <div className="relative z-10 flex flex-1 flex-col px-5 pb-5 -mt-3">
+                        <div className="mb-2 flex items-start justify-between gap-3">
+                          <h3 className="text-[18px] font-semibold tracking-tight text-white drop-shadow-sm leading-tight mt-1 max-w-[70%] line-clamp-1">
+                            {lawyer.fullName}
+                          </h3>
+                          <div className="shrink-0 rounded-none bg-white/10 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur-md border border-white/5 uppercase tracking-widest">
+                            {lawyer.baseFeeRange ? `LKR ${lawyer.baseFeeRange.split('-')[0].trim()}` : 'TBD'}
+                          </div>
+                        </div>
+                        <p className="line-clamp-2 text-[13px] text-white/70 leading-relaxed font-light mb-4">
+                          {lawyer.bio || 'Experienced legal professional.'}
+                        </p>
+                        <div className="mt-auto flex gap-2 overflow-hidden whitespace-nowrap mb-6">
+                          {avgRating > 0 && (
+                            <div className="flex shrink-0 items-center gap-1.5 rounded-none bg-white/10 px-3 py-[5px] text-[10px] font-bold backdrop-blur-md border border-white/5 text-white/90">
+                              <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
+                              {avgRating.toFixed(1)}
+                            </div>
+                          )}
+                          {lawyer.district && (
+                            <div className="flex shrink-0 items-center rounded-none bg-white/10 px-3 py-[5px] text-[10px] uppercase font-bold backdrop-blur-md border border-white/5 text-white/90">
+                              {lawyer.district}
+                            </div>
+                          )}
+                        </div>
+                        <button className="w-full rounded-none bg-white py-3.5 text-[13px] font-bold text-[#222a35] uppercase tracking-widest transition-colors hover:bg-neutral-200 mt-auto">
+                          View Profile
+                        </button>
+                      </div>
+                    </div>
+                  </Link>
+                );
+              })}
             </div>
           </div>
         </section>
