@@ -16,6 +16,7 @@ import { FieldError } from '@/components/ui/FieldError';
 const paymentSchema = z.object({
   bankName: z.string().min(1, 'Bank Name is required'),
   referenceNumber: z.string().min(1, 'Reference Number is required'),
+  paymentMethod: z.string().min(1, 'Payment Method is required'),
   accountName: z.string().min(1, 'Account Name is required'),
   bankSlip: z.any().refine((files) => files?.length > 0, 'Bank Slip is required'),
 });
@@ -84,7 +85,7 @@ export default function OfflinePaymentClient({ locale, plan, amount, invoice, cy
   if (isSuccess) {
     return (
       <div className="min-h-screen bg-neutral-50 flex items-center justify-center p-6">
-        <Card className="max-w-[1400px] w-full rounded-none border-t-8 border-t-green-500 shadow-2xl p-8 text-center space-y-6">
+        <Card className="max-w-md w-full rounded-none border-t-8 border-t-green-500 shadow-2xl p-8 text-center space-y-6">
           <div className="flex justify-center">
             <div className="bg-green-100 p-4 rounded-full">
               <CheckCircle2 className="w-12 h-12 text-green-600" />
@@ -104,24 +105,8 @@ export default function OfflinePaymentClient({ locale, plan, amount, invoice, cy
 
   return (
     <div className="min-h-screen bg-neutral-50 py-12 px-6">
-      <div className="max-w-4xl mx-auto flex flex-col gap-8">
-        
-        {/* Navigation Header */}
-        <div className="flex items-center justify-between">
-          <Button 
-            onClick={() => router.back()}
-            variant="ghost" 
-            className="flex items-center gap-2 text-neutral-500 hover:text-black font-bold uppercase tracking-widest text-xs"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Back to Invoice
-          </Button>
-          <div className="flex items-center gap-2">
-             <ShieldCheck className="w-5 h-5 text-black" />
-             <span className="font-black text-lg uppercase tracking-tighter">Lawyer.ai Secured Submission</span>
-          </div>
-        </div>
-
+      <div className="max-w-[1400px] mx-auto flex flex-col gap-8">
+      
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           
           {/* Main Form Section */}
@@ -132,7 +117,7 @@ export default function OfflinePaymentClient({ locale, plan, amount, invoice, cy
                    <div className="bg-black p-2">
                       <Banknote className="w-5 h-5 text-white" />
                    </div>
-                   <CardTitle className="text-2xl font-black uppercase tracking-tighter">Payment Submission</CardTitle>
+                   <CardTitle className="text-sm font-bold text-neutral-900 uppercase tracking-wider">Payment Submission</CardTitle>
                 </div>
                 <CardDescription className="text-neutral-500 font-medium pt-2">
                   Please provide the details of your bank transfer or cash deposit as shown on your receipt.
@@ -140,9 +125,19 @@ export default function OfflinePaymentClient({ locale, plan, amount, invoice, cy
               </CardHeader>
               <CardContent>
                 <form id="payment-form" onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="accountName" className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest">Sender's Account Name</Label>
+                    <Input 
+                      id="accountName"
+                      {...register('accountName')}
+                      placeholder="Name as on account or deposit slip" 
+                      className="rounded-none h-12 border-neutral-200 focus:ring-black placeholder:text-neutral-300"
+                    />
+                    {errors.accountName && <FieldError message={errors.accountName.message} />}
+                  </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                     <div className="space-y-2">
-                      <Label htmlFor="bankName" className="text-xs font-black uppercase tracking-widest text-neutral-400">Bank Name</Label>
+                      <Label htmlFor="bankName" className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest">Bank Name</Label>
                       <Input 
                         id="bankName"
                         {...register('bankName')}
@@ -152,7 +147,7 @@ export default function OfflinePaymentClient({ locale, plan, amount, invoice, cy
                       {errors.bankName && <FieldError message={errors.bankName.message} />}
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="referenceNumber" className="text-xs font-black uppercase tracking-widest text-neutral-400">Reference / Slip Number</Label>
+                      <Label htmlFor="referenceNumber" className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest">Reference / Slip Number</Label>
                       <Input 
                         id="referenceNumber"
                         {...register('referenceNumber')}
@@ -162,20 +157,28 @@ export default function OfflinePaymentClient({ locale, plan, amount, invoice, cy
                       {errors.referenceNumber && <FieldError message={errors.referenceNumber.message} />}
                     </div>
                   </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="accountName" className="text-xs font-black uppercase tracking-widest text-neutral-400">Sender's Account Name</Label>
-                    <Input 
-                      id="accountName"
-                      {...register('accountName')}
-                      placeholder="Name as on account or deposit slip" 
-                      className="rounded-none h-12 border-neutral-200 focus:ring-black placeholder:text-neutral-300"
-                    />
-                    {errors.accountName && <FieldError message={errors.accountName.message} />}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <Label htmlFor="paymentMethod" className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest">Payment Method</Label>
+                      <select 
+                        id="paymentMethod"
+                        {...register('paymentMethod')}
+                        className="w-full bg-white px-3 rounded-none h-12 border border-neutral-200 focus:ring-black focus:border-black outline-none placeholder:text-neutral-300 transition-all text-sm appearance-none cursor-pointer"
+                        style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' fill=\'none\' viewBox=\'0 0 24 24\' stroke=\'currentColor\'%3E%3Cpath stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'2\' d=\'M19 9l-7 7-7-7\' /%3E%3C/svg%3E")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right 0.75rem center', backgroundSize: '1rem' }}
+                      >
+                        <option value="" disabled>Select Payment Method</option>
+                        <option value="bank_transfer">Bank Transfer</option>
+                        <option value="cash_deposit">Cash Deposit</option>
+                      </select>
+                      {errors.paymentMethod && <FieldError message={errors.paymentMethod.message} />}
+                    </div>
+                    <div></div>
                   </div>
 
+                  
+
                   <div className="space-y-2">
-                    <Label htmlFor="bankSlip" className="text-xs font-black uppercase tracking-widest text-neutral-400">Upload Bank Slip (Photo or PDF)</Label>
+                    <Label htmlFor="bankSlip" className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest">Upload Bank Slip (Photo or PDF)</Label>
                     <div className="relative group">
                        <Input 
                         id="bankSlip"
@@ -226,13 +229,13 @@ export default function OfflinePaymentClient({ locale, plan, amount, invoice, cy
           <div className="space-y-6">
              <Card className="rounded-none border-l-4 border-l-black shadow-lg">
                 <CardHeader>
-                   <CardTitle className="text-sm font-black uppercase tracking-widest">Subscription Summary</CardTitle>
+                   <CardTitle className="text-md font-bold text-neutral-500 uppercase tracking-widest">Subscription Summary</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                    <div className="flex justify-between items-start">
                       <div>
                          <p className="text-xs font-bold text-neutral-400 uppercase">Plan</p>
-                         <p className="font-black text-lg leading-tight">{plan.name}</p>
+                         <p className="font-medium text-lg leading-tight">{plan.name}</p>
                          <p className="text-[10px] font-bold text-primary uppercase mt-1 italic">{cycle} billing</p>
                       </div>
                    </div>

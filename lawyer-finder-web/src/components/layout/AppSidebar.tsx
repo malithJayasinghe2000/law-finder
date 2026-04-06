@@ -3,11 +3,13 @@
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { Sidebar, SidebarContent, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarGroup, SidebarGroupLabel, SidebarFooter, SidebarMenuSub, SidebarMenuSubItem, SidebarMenuSubButton } from '@/components/ui/sidebar';
-import { LayoutDashboard, Users, FileText, Settings, Star, ShieldCheck, LogOut, Megaphone, Image, ShieldPlus, ChevronDown, History } from 'lucide-react';
+import { LayoutDashboard, Users, FileText, Settings, Star, ShieldCheck, LogOut, Megaphone, Image, ShieldPlus, ChevronDown, History, CreditCard } from 'lucide-react';
 import { toast } from 'sonner';
+import React, { useState } from 'react';
 
 export function AppSidebar({ locale, role }: { locale: string; role: string }) {
   const pathname = usePathname();
+  const [openSubmenus, setOpenSubmenus] = useState<string[]>(['Payments']); // Default open for better UX, or empty
 
   const adminLinks = [
     { href: `/${locale}/dashboard/admin`, icon: LayoutDashboard, label: 'Dashboard', exact: true },
@@ -25,9 +27,10 @@ export function AppSidebar({ locale, role }: { locale: string; role: string }) {
     { href: `/${locale}/dashboard/lawyer`, icon: LayoutDashboard, label: 'Overview' },
     { 
       href: `/${locale}/dashboard/lawyer/payments`, 
-      icon: ShieldPlus, 
+      icon: CreditCard, 
       label: 'Payments',
       subLinks: [
+        { href: `/${locale}/dashboard/lawyer/payments/invoice`, icon: FileText, label: 'Invoices' },
         { href: `/${locale}/dashboard/lawyer/payments/history`, icon: History, label: 'Payment History' },
       ]
     },
@@ -38,11 +41,19 @@ export function AppSidebar({ locale, role }: { locale: string; role: string }) {
 
   const links = role === 'ADMIN' ? adminLinks : lawyerLinks;
 
-  const isLinkActive = (link: typeof links[0]) => {
-    if ('exact' in link && link.exact) {
+  const isLinkActive = (link: any) => {
+    if (link.exact) {
       return pathname === link.href;
     }
     return pathname === link.href || pathname.startsWith(link.href + '/');
+  };
+
+  const toggleSubmenu = (label: string) => {
+    setOpenSubmenus(prev => 
+      prev.includes(label) 
+        ? prev.filter(l => l !== label) 
+        : [...prev, label]
+    );
   };
 
   return (
@@ -66,40 +77,45 @@ export function AppSidebar({ locale, role }: { locale: string; role: string }) {
                   {hasSublinks ? (
                     <div className="flex flex-col">
                       <SidebarMenuButton
+                        onClick={() => toggleSubmenu(link.label)}
+                        isActive={active}
                         className={`h-10 rounded-none transition-all duration-150 ${active ? 'bg-[#0a0a0a] text-white font-semibold shadow-sm' : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900 font-medium'}`}
                       >
                         <div className="flex items-center gap-3 w-full px-1">
-                          <link.icon className={`w-[18px] h-[18px] shrink-0 ${active ? 'text-black' : 'text-neutral-400'}`} />
+                          <link.icon className={`w-[18px] h-[18px] shrink-0 ${active ? 'text-white' : 'text-neutral-400'}`} />
                           <span className="text-[13px]">{link.label}</span>
-                          <ChevronDown className={`w-4 h-4 ml-auto transition-transform ${active ? 'rotate-180' : ''}`} />
+                          <ChevronDown className={`w-4 h-4 ml-auto transition-transform ${openSubmenus.includes(link.label) ? 'rotate-180' : ''}`} />
                         </div>
                       </SidebarMenuButton>
-                      <SidebarMenuSub className="border-l border-neutral-200 ml-5 pl-2 mt-1 gap-1">
-                        {link.subLinks!.map((sub) => {
-                          const subActive = pathname === sub.href;
-                          return (
-                            <SidebarMenuSubItem key={sub.href}>
-                              <SidebarMenuSubButton asChild isActive={subActive}>
-                                <Link 
-                                  href={sub.href} 
-                                  className={`flex items-center gap-3 w-full px-2 py-2 text-[12px] transition-colors rounded-none ${subActive ? 'text-black font-bold bg-neutral-100' : 'text-neutral-500 hover:text-neutral-900 hover:bg-neutral-50'}`}
-                                >
-                                  <sub.icon className="w-3.5 h-3.5" />
-                                  <span>{sub.label}</span>
-                                </Link>
-                              </SidebarMenuSubButton>
-                            </SidebarMenuSubItem>
-                          );
-                        })}
-                      </SidebarMenuSub>
+                      {openSubmenus.includes(link.label) && (
+                        <SidebarMenuSub className="border-l border-neutral-200 ml-5 pl-2 mt-1 gap-1">
+                          {link.subLinks!.map((sub) => {
+                            const subActive = pathname === sub.href;
+                            return (
+                              <SidebarMenuSubItem key={sub.href}>
+                                <SidebarMenuSubButton asChild isActive={subActive}>
+                                  <Link 
+                                    href={sub.href} 
+                                    className={`flex items-center gap-3 w-full px-2 py-2 text-[12px] transition-colors rounded-none ${subActive ? 'text-black font-bold bg-neutral-100 border-l-2 border-black' : 'text-neutral-500 hover:text-neutral-900 hover:bg-neutral-50'}`}
+                                  >
+                                    <sub.icon className="w-3.5 h-3.5" />
+                                    <span>{sub.label}</span>
+                                  </Link>
+                                </SidebarMenuSubButton>
+                              </SidebarMenuSubItem>
+                            );
+                          })}
+                        </SidebarMenuSub>
+                      )}
                     </div>
                   ) : (
                     <SidebarMenuButton
                       isActive={active}
+                      asChild
                       className={`h-10 rounded-none transition-all duration-150 ${active ? 'bg-[#0a0a0a] text-white font-semibold shadow-sm' : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900 font-medium'}`}
                     >
                       <Link href={link.href} className="flex items-center gap-3 w-full px-1">
-                        <link.icon className={`w-[18px] h-[18px] shrink-0 ${active ? 'text-black' : 'text-neutral-400'}`} />
+                        <link.icon className={`w-[18px] h-[18px] shrink-0 ${active ? 'text-white' : 'text-neutral-400'}`} />
                         <span className="text-[13px]">{link.label}</span>
                       </Link>
                     </SidebarMenuButton>
