@@ -34,6 +34,10 @@ export default function Header({ locale, userRole = null, appStatus = null, user
     { href: `/${locale}/about`, label: t('about'), icon: Scale },
   ];
 
+  if (userRole === 'LAWYER' || userRole === 'ADMIN') {
+    navLinks.push({ href: `/${locale}/pricing`, label: 'Pricing', icon: Scale });
+  }
+
   const handleLogout = async () => {
     try {
       const res = await fetch('/api/auth/logout', { method: 'POST' });

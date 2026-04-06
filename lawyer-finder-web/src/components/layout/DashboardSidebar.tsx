@@ -29,6 +29,7 @@ export default function DashboardSidebar({ role, locale }: DashboardSidebarProps
     { href: `/${locale}/dashboard/admin`, label: 'Overview', icon: LayoutDashboard },
     { href: `/${locale}/dashboard/admin/lawyers`, label: 'Manage Lawyers', icon: Shield },
     { href: `/${locale}/dashboard/admin/reviews`, label: 'Manage Reviews', icon: Star },
+    { href: `/${locale}/dashboard/admin/subscription-conf`, label: 'Subscription Config', icon: Star },
   ];
 
   const links = role === 'ADMIN' ? adminLinks : lawyerLinks;
