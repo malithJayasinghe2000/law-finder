@@ -28,14 +28,14 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
   // Fetch top 12 approved reviews
   const topReviews = await prisma.review.findMany({
     where: { isApproved: true },
-    take: 12,
+    take: 25,
     include: { lawyer: true, reviewer: true },
     orderBy: { rating: 'desc' }
   });
 
   const serializedReviews = topReviews.map((r) => ({
     id: r.id,
-    reviewerName: r.reviewerName,
+    reviewerName: r.reviewer?.fullName || undefined,
     rating: r.rating,
     comment: r.comment,
     lawyerName: r.lawyer?.fullName || undefined,
@@ -71,8 +71,8 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
           <div className="relative z-10 flex-1 w-full max-w-[1400px] mx-auto flex flex-col items-center justify-center pt-8 text-center">
             
             <h1 className="text-4xl sm:text-5xl md:text-6xl font-light leading-[1.1] tracking-tight text-white mb-4">
-              Chat Smarter, Not Harder –<br />
-              <span className="font-semibold px-2">LawyerAI</span>
+              Chat Smarter, Not Harder <br />
+              <span className="font-semibold px-2">Lawyer.ai</span>
             </h1>
             <p className="text-white/60 text-base md:text-lg font-light mb-8 max-w-2xl px-4">
               Your Ultimate AI Chat Partner & Legal Directory – Instant Answers, Endless Knowledge!

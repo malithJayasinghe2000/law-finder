@@ -91,7 +91,7 @@ function ReviewCard({ review }: { review: Review }) {
           />
           <div>
             <p className="text-sm font-bold text-white tracking-tight">{review.reviewerName}</p>
-            {review.lawyerName && <p className="text-[10px] text-white/50 uppercase tracking-widest">{review.lawyerName}</p>}
+            {review.lawyerName && <p className="text-[10px] text-white/50 uppercase tracking-widest"><span className="font-bold text-white/70">Lawyer:</span> {review.lawyerName}</p>}
           </div>
         </div>
         <div className="flex items-center gap-0.5">

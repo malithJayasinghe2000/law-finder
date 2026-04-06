@@ -55,7 +55,7 @@ export default async function LawyerDirectory({
                 name="search"
                 placeholder="Search by name or specialty..."
                 defaultValue={filters.search || ''}
-                className="pl-10"
+                className="pl-10 h-9"
               />
             </div>
             <select
@@ -80,6 +80,9 @@ export default async function LawyerDirectory({
             </select>
             <button type="submit" className="h-9 px-5 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors">
               Filter
+            </button>
+            <button type="reset" className="h-9 px-5 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors">
+              Clear
             </button>
           </div>
         </form>
