@@ -12,6 +12,7 @@ export function AppSidebar({ locale, role }: { locale: string; role: string }) {
   const adminLinks = [
     { href: `/${locale}/dashboard/admin`, icon: LayoutDashboard, label: 'Dashboard', exact: true },
     { href: `/${locale}/dashboard/admin/verification`, icon: ShieldCheck, label: 'Verification' },
+    { href: `/${locale}/dashboard/admin/paymentTemplate`, icon: ShieldCheck, label: 'Payment Templates' },
     { href: `/${locale}/dashboard/admin/paid-promo`, icon: Megaphone, label: 'Paid Promo' },
     { href: `/${locale}/dashboard/admin/advertisements`, icon: Image, label: 'Advertisements' },
     { href: `/${locale}/dashboard/admin/users`, icon: Users, label: 'User Management' },

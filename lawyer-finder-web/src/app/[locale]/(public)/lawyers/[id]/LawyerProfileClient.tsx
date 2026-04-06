@@ -16,6 +16,7 @@ interface Review {
   rating: number;
   comment: string;
   createdAt: string;
+  reviewerImage: string | null;
 }
 
 interface LawyerData {
@@ -51,6 +52,7 @@ interface OtherLawyer {
   baseFeeRange: string | null;
   avgRating: number;
   reviewCount: number;
+  languages: string[];
 }
 
 interface Props {
@@ -262,17 +264,7 @@ export default function LawyerProfileClient({
                     </div>
                   </div>
                 )}
-                {lawyer.languages.length > 0 && (
-                  <div className="flex items-start gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center bg-neutral-100 shrink-0">
-                      <Languages className="h-4 w-4 text-neutral-600" />
-                    </div>
-                    <div>
-                      <p className="text-[11px] text-neutral-400 font-medium uppercase tracking-wide">Languages</p>
-                      <p className="text-sm font-semibold text-[#0a0a0a]">{lawyer.languages.join(', ')}</p>
-                    </div>
-                  </div>
-                )}
+
                 {lawyer.contactPhone && (
                   <div className="flex items-start gap-3">
                     <div className="flex h-10 w-10 items-center justify-center bg-neutral-100 shrink-0">
@@ -344,11 +336,11 @@ export default function LawyerProfileClient({
 
             {/* Practice Areas */}
             <div className="mb-8 pb-8 border-b border-neutral-200">
-              <h3 className="text-sm font-bold text-[#0a0a0a] uppercase tracking-widest mb-4">Practice Areas</h3>
+              <h3 className="text-sm font-bold text-[#0a0a0a] uppercase tracking-[0.2em] mb-6">Practice Areas</h3>
               <div className="flex flex-wrap gap-2">
                 {lawyer.practiceAreas.length > 0 ? (
                   lawyer.practiceAreas.map((area) => (
-                    <span key={area} className="bg-neutral-100 text-neutral-700 px-4 py-2 text-sm font-medium">
+                    <span key={area} className="bg-[#0a0a0a] text-white px-5 py-3 text-sm font-medium">
                       {area}
                     </span>
                   ))
@@ -358,13 +350,27 @@ export default function LawyerProfileClient({
               </div>
             </div>
 
+            {/* Languages */}
+            {lawyer.languages.length > 0 && (
+              <div className="mb-8 pb-8 border-b border-neutral-200">
+                <h3 className="text-sm font-bold text-[#0a0a0a] uppercase tracking-[0.2em] mb-6">Languages</h3>
+                <div className="flex flex-wrap gap-2">
+                  {lawyer.languages.map((lang) => (
+                    <span key={lang} className="bg-[#0a0a0a] text-white px-5 py-3 text-sm font-medium">
+                      {lang}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Courts */}
             {lawyer.courts.length > 0 && (
               <div className="mb-8 pb-8 border-b border-neutral-200">
-                <h3 className="text-sm font-bold text-[#0a0a0a] uppercase tracking-widest mb-4">Courts</h3>
+                <h3 className="text-sm font-bold text-[#0a0a0a] uppercase tracking-[0.2em] mb-6">Courts</h3>
                 <div className="flex flex-wrap gap-2">
                   {lawyer.courts.map((court) => (
-                    <span key={court} className="border border-neutral-200 text-neutral-600 px-4 py-2 text-sm font-medium">
+                    <span key={court} className="border border-neutral-200 text-neutral-600 px-5 py-3 text-sm font-medium">
                       {court}
                     </span>
                   ))}
@@ -423,9 +429,11 @@ export default function LawyerProfileClient({
                   >
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 bg-[#0a0a0a] text-white flex items-center justify-center text-xs font-bold">
-                          {review.reviewerName[0]?.toUpperCase()}
-                        </div>
+                        <img 
+                          src={review.reviewerImage || '/avatar.png'} 
+                          alt={review.reviewerName} 
+                          className="w-10 h-10 object-cover border border-neutral-100 bg-neutral-50" 
+                        />
                         <div>
                           <p className="text-sm font-semibold text-[#0a0a0a]">{review.reviewerName}</p>
                           <p className="text-[11px] text-neutral-400">{new Date(review.createdAt).toLocaleDateString()}</p>
@@ -496,9 +504,11 @@ export default function LawyerProfileClient({
                           className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-[#222a35] via-[rgba(34,42,53,0.3)] to-transparent" />
-                        <div className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center bg-white/20 backdrop-blur-md transition-colors hover:bg-white/30 text-white">
-                          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" /></svg>
-                        </div>
+                        {l.languages && l.languages.length > 0 && (
+                          <div className="absolute right-4 top-4 flex h-7 items-center justify-center rounded-none bg-black/40 backdrop-blur-md px-2.5 text-[10px] font-bold uppercase tracking-widest text-white border border-white/10 transition-colors hover:bg-black/60">
+                            {l.languages.map((lang) => lang.slice(0, 2)).join(' • ')}
+                          </div>
+                        )}
                       </div>
 
                       {/* Content Area */}

@@ -20,7 +20,11 @@ export default async function LawyerProfilePage({
     where: { id },
     include: {
       user: { select: { createdAt: true } },
-      reviews: { where: { isApproved: true }, orderBy: { id: 'desc' } },
+      reviews: { 
+        where: { isApproved: true }, 
+        orderBy: { id: 'desc' },
+        include: { reviewer: true }
+      },
     },
   });
 
@@ -45,6 +49,7 @@ export default async function LawyerProfilePage({
     reviews: lawyer.reviews.map(r => ({
       ...r,
       createdAt: r.createdAt.toISOString(),
+      reviewerImage: r.reviewer?.profileImageUrl || null,
     })),
   };
 
@@ -62,6 +67,7 @@ export default async function LawyerProfilePage({
       baseFeeRange: l.baseFeeRange,
       avgRating: Math.round(avg * 10) / 10,
       reviewCount: l.reviews.length,
+      languages: l.languages,
     };
   });
 

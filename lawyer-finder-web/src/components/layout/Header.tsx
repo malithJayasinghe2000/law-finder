@@ -31,6 +31,7 @@ export default function Header({ locale, userRole = null, appStatus = null, user
   const navLinks = [
     { href: `/${locale}/lawyers`, label: t('directory'), icon: Search },
     { href: `/${locale}/blog`, label: t('blog'), icon: BookOpen },
+    { href: `/${locale}/about`, label: t('about'), icon: Scale },
   ];
 
   const handleLogout = async () => {
@@ -82,7 +83,7 @@ export default function Header({ locale, userRole = null, appStatus = null, user
           {userRole === 'LAWYER' && <Link href={`/${locale}/dashboard/lawyer`}><Button variant="outline" className="w-full justify-start gap-2 text-primary border-primary/20 hover:bg-primary/5">Lawyer Dashboard</Button></Link>}
           {userRole === 'CLIENT' && appStatus === 'DRAFT' && <Link href={`/${locale}/apply`}><Button className="w-full justify-start gap-2 bg-amber-500 hover:bg-amber-600">Resume App</Button></Link>}
           {userRole === 'CLIENT' && (appStatus === 'SUBMITTED' || appStatus === 'IN_REVIEW') && <Button variant="secondary" className="w-full justify-start gap-2" disabled>App Pending</Button>}
-          {userRole === 'CLIENT' && (!appStatus || appStatus === 'REJECTED') && <Link href={`/${locale}/apply`}><Button className="w-full justify-start gap-2 bg-blue-600 text-white">Become a Lawyer</Button></Link>}
+          {userRole === 'CLIENT' && (!appStatus || appStatus === 'REJECTED') && <Link href={`/${locale}/apply`}><Button className="w-full justify-start gap-2 text-white">Become a Lawyer</Button></Link>}
           <Button variant="destructive" className="w-full justify-start gap-2 mt-2" onClick={handleLogout}>
              <LogOut className="h-4 w-4" /> Logout
           </Button>
@@ -93,8 +94,8 @@ export default function Header({ locale, userRole = null, appStatus = null, user
     // Desktop Dropdown
     return (
       <DropdownMenu>
-        <DropdownMenuTrigger className={`relative flex items-center justify-center h-10 w-10 rounded-none ml-4 shadow-sm outline-none hover:ring-2 hover:ring-primary/20 transition-all ${isPremiumDesign ? 'border-white/50' : 'border-border/50'}`}>
-          <Avatar className="h-10 w-10 rounded-none">
+        <DropdownMenuTrigger className={`relative flex items-center justify-center h-10 w-10 rounded-full ml-4 shadow-sm outline-none hover:ring-2 hover:ring-primary/20 transition-all ${isPremiumDesign ? 'border-white/50' : 'border-border/50'}`}>
+          <Avatar className="h-10 w-10 rounded-full overflow-hidden border">
             {userProfile?.profileImageUrl ? (
               <img src={userProfile.profileImageUrl} alt="Profile" className="h-full w-full object-cover" />
             ) : (
@@ -102,68 +103,67 @@ export default function Header({ locale, userRole = null, appStatus = null, user
             )}
           </Avatar>
         </DropdownMenuTrigger>
-        <DropdownMenuContent className="w-60 rounded-none shadow-xl border-border p-0" align="end">
-          <div className="px-4 py-4 bg-neutral-50 border-b">
+        <DropdownMenuContent className="w-64 rounded-none shadow-2xl border-border p-0" align="end" sideOffset={8}>
+          <div className="px-6 py-5 bg-neutral-50/50 border-b">
             <div className="flex flex-col space-y-1">
-              <p className="text-sm font-bold leading-none tracking-tight text-neutral-900">{userProfile?.fullName || 'Account'}</p>
-              <p className="text-[10px] leading-none text-neutral-400 font-bold uppercase tracking-widest mt-1">{userRole}</p>
+              <p className="text-[15px] font-bold text-neutral-900 leading-none">{userProfile?.fullName || 'Account'}</p>
+              <p className="text-[10px] text-neutral-400 font-bold uppercase tracking-[0.15em] mt-1.5">{userRole}</p>
             </div>
           </div>
           
-          <div className="p-1">
+          <div className="py-1">
             <Link href={`/${locale}/profile`}>
-              <DropdownMenuItem className="cursor-pointer font-medium py-2 ms-1">
-                <UserCircle className="mr-2 h-4 w-4" /> Profile Settings
+              <DropdownMenuItem className="cursor-pointer font-medium py-3 px-6 rounded-none focus:bg-neutral-50 group">
+                <UserCircle className="mr-3 h-4 w-4 text-neutral-400 group-hover:text-neutral-900 transition-colors" /> Profile Settings
               </DropdownMenuItem>
             </Link>
-          </div>
 
-          <DropdownMenuSeparator className="m-0" />
-          
-          {userRole === 'ADMIN' && (
-            <Link href={`/${locale}/dashboard/admin`}>
-              <DropdownMenuItem className="cursor-pointer font-medium text-primary ms-1 mb-2">
-                <LayoutDashboard className="mr-2 h-4 w-4" /> Admin Panel
-              </DropdownMenuItem>
-            </Link>
-          )}
-
-          {userRole === 'LAWYER' && (
-            <Link href={`/${locale}/dashboard/lawyer`}>
-              <DropdownMenuItem className="cursor-pointer font-medium py-2 ms-1">
-                <LayoutDashboard className="mr-2 h-4 w-4" /> My Dashboard
-              </DropdownMenuItem>
-            </Link>
-          )}
-
-          {userRole === 'CLIENT' && (
-            <>
-              {appStatus === 'DRAFT' && (
-                <Link href={`/${locale}/apply`}>
-                  <DropdownMenuItem className="cursor-pointer text-amber-600 focus:text-amber-700 font-medium ms-1 mb-2">
-                    <FileText className="mr-2 h-4 w-4" /> Resume Application
-                  </DropdownMenuItem>
-                </Link>
-              )}
-              {(appStatus === 'SUBMITTED' || appStatus === 'IN_REVIEW') && (
-                <DropdownMenuItem disabled className="opacity-80 font-medium">
-                   <FileText className="mr-2 h-4 w-4" /> Application Pending
+            {userRole === 'ADMIN' && (
+              <Link href={`/${locale}/dashboard/admin`}>
+                <DropdownMenuItem className="cursor-pointer font-medium text-primary py-3 px-6 rounded-none focus:bg-primary/5 group">
+                  <LayoutDashboard className="mr-3 h-4 w-4 text-primary/60 group-hover:text-primary transition-colors" /> Admin Panel
                 </DropdownMenuItem>
-              )}
-              {(!appStatus || appStatus === 'REJECTED') && (
-                <Link href={`/${locale}/apply`}>
-                  <DropdownMenuItem className="cursor-pointer text-blue-600 focus:text-blue-700 font-bold ms-1 mb-2">
-                    <Scale className="mr-2 h-4 w-4" /> Become a Lawyer
-                  </DropdownMenuItem>
-                </Link>
-              )}
-            </>
-          )}
+              </Link>
+            )}
 
-          <DropdownMenuSeparator className="my-2" />
-          <DropdownMenuItem onClick={handleLogout} className="text-red-600 focus:text-red-700 cursor-pointer font-semibold ms-1 mb-2">
-            <LogOut className="mr-2 h-4 w-4" /> Log out
-          </DropdownMenuItem>
+            {userRole === 'LAWYER' && (
+              <Link href={`/${locale}/dashboard/lawyer`}>
+                <DropdownMenuItem className="cursor-pointer font-medium py-3 px-6 rounded-none focus:bg-neutral-50 group">
+                  <LayoutDashboard className="mr-3 h-4 w-4 text-neutral-400 group-hover:text-neutral-900 transition-colors" /> My Dashboard
+                </DropdownMenuItem>
+              </Link>
+            )}
+
+            {userRole === 'CLIENT' && (
+              <>
+                {appStatus === 'DRAFT' && (
+                  <Link href={`/${locale}/apply`}>
+                    <DropdownMenuItem className="cursor-pointer text-amber-600 focus:text-amber-700 font-medium py-3 px-6 rounded-none focus:bg-amber-50 group">
+                      <FileText className="mr-3 h-4 w-4 text-amber-500/60 group-hover:text-amber-600 transition-colors" /> Resume Application
+                    </DropdownMenuItem>
+                  </Link>
+                )}
+                {(appStatus === 'SUBMITTED' || appStatus === 'IN_REVIEW') && (
+                  <DropdownMenuItem disabled className="opacity-80 font-medium py-3 px-6">
+                     <FileText className="mr-3 h-4 w-4 text-neutral-400" /> Application Pending
+                  </DropdownMenuItem>
+                )}
+                {(!appStatus || appStatus === 'REJECTED') && (
+                  <Link href={`/${locale}/apply`}>
+                    <DropdownMenuItem className="cursor-pointer font-bold py-3 px-6 rounded-none focus:bg-neutral-50 group">
+                      <Scale className="mr-3 h-4 w-4 text-neutral-400 group-hover:text-neutral-900 transition-colors" /> Become a Lawyer
+                    </DropdownMenuItem>
+                  </Link>
+                )}
+              </>
+            )}
+
+            <DropdownMenuSeparator className="my-1" />
+            
+            <DropdownMenuItem onClick={handleLogout} className="text-red-600 focus:text-red-700 focus:bg-red-50 cursor-pointer font-semibold py-3 px-6 rounded-none group">
+              <LogOut className="mr-3 h-4 w-4 text-red-500/60 group-hover:text-red-600 transition-colors" /> Log out
+            </DropdownMenuItem>
+          </div>
         </DropdownMenuContent>
       </DropdownMenu>
     );
