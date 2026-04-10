@@ -82,7 +82,7 @@ export function AppSidebar({ locale, role }: { locale: string; role: string }) {
                         className={`h-10 rounded-none transition-all duration-150 ${active ? 'bg-[#0a0a0a] text-white font-semibold shadow-sm' : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900 font-medium'}`}
                       >
                         <div className="flex items-center gap-3 w-full px-1">
-                          <link.icon className={`w-[18px] h-[18px] shrink-0 ${active ? 'text-white' : 'text-neutral-400'}`} />
+                          <link.icon className={`w-[18px] h-[18px] shrink-0 ${active ? 'text-black' : 'text-neutral-400'}`} />
                           <span className="text-[13px]">{link.label}</span>
                           <ChevronDown className={`w-4 h-4 ml-auto transition-transform ${openSubmenus.includes(link.label) ? 'rotate-180' : ''}`} />
                         </div>
@@ -93,14 +93,17 @@ export function AppSidebar({ locale, role }: { locale: string; role: string }) {
                             const subActive = pathname === sub.href;
                             return (
                               <SidebarMenuSubItem key={sub.href}>
-                                <SidebarMenuSubButton asChild isActive={subActive}>
-                                  <Link 
-                                    href={sub.href} 
-                                    className={`flex items-center gap-3 w-full px-2 py-2 text-[12px] transition-colors rounded-none ${subActive ? 'text-black font-bold bg-neutral-100 border-l-2 border-black' : 'text-neutral-500 hover:text-neutral-900 hover:bg-neutral-50'}`}
-                                  >
-                                    <sub.icon className="w-3.5 h-3.5" />
-                                    <span>{sub.label}</span>
-                                  </Link>
+                      <SidebarMenuSubButton 
+                                  isActive={subActive}
+                                  render={
+                                    <Link 
+                                      href={sub.href} 
+                                      className={`flex items-center gap-3 w-full px-2 py-2 text-[12px] transition-colors rounded-none outline-none focus:outline-none focus:ring-0 focus-visible:ring-0 ${subActive ? 'text-black font-bold bg-neutral-100 border-l-2 border-black' : 'text-neutral-500 hover:text-neutral-900 hover:bg-neutral-50'}`}
+                                    />
+                                  }
+                                >
+                                  <sub.icon className={`w-3.5 h-3.5 ${subActive ? 'text-black' : ''}`} />
+                                  <span>{sub.label}</span>
                                 </SidebarMenuSubButton>
                               </SidebarMenuSubItem>
                             );
@@ -111,13 +114,11 @@ export function AppSidebar({ locale, role }: { locale: string; role: string }) {
                   ) : (
                     <SidebarMenuButton
                       isActive={active}
-                      asChild
-                      className={`h-10 rounded-none transition-all duration-150 ${active ? 'bg-[#0a0a0a] text-white font-semibold shadow-sm' : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900 font-medium'}`}
+                      className={`h-10 rounded-none transition-all duration-150 outline-none focus:outline-none focus:ring-0 focus-visible:ring-0 ${active ? 'bg-[#0a0a0a] text-white font-semibold shadow-sm' : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900 font-medium'}`}
+                      render={<Link href={link.href} className="flex items-center gap-3 w-full px-1" />}
                     >
-                      <Link href={link.href} className="flex items-center gap-3 w-full px-1">
-                        <link.icon className={`w-[18px] h-[18px] shrink-0 ${active ? 'text-white' : 'text-neutral-400'}`} />
+                        <link.icon className={`w-[18px] h-[18px] shrink-0 ${active ? 'text-black' : 'text-neutral-400'}`} />
                         <span className="text-[13px]">{link.label}</span>
-                      </Link>
                     </SidebarMenuButton>
                   )}
                 </SidebarMenuItem>
