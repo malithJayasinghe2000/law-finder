@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { ShieldCheck, Printer, ArrowLeft, CreditCard, Banknote, HelpCircle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -13,33 +13,117 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Badge } from '@/components/ui/badge';
+import { useToast } from '@/hooks/use-toast';
 
 interface InvoiceClientProps {
   locale: string;
+  planId: string;
   plan: any;
   user: any;
   billingCycle: string;
 }
 
-export default function InvoiceClient({ locale, plan, user, billingCycle }: InvoiceClientProps) {
+export default function InvoiceClient({ locale, planId, plan, user, billingCycle }: InvoiceClientProps) {
   const router = useRouter();
+  const { toast } = useToast();
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const amount = billingCycle === 'monthly' ? plan.monthlyAmount : plan.yearlyAmount;
-  const date = new Date().toLocaleDateString('en-US', {
-    month: 'long',
-    day: '2-digit',
-    year: 'numeric'
-  });
-  const dueDate = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', {
-    month: 'long',
-    day: '2-digit',
-    year: 'numeric'
-  });
+  const [invoiceData, setInvoiceData] = useState<{ id: string } | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [invoiceNumber, setInvoiceNumber] = useState('');
+  const [dates, setDates] = useState({ date: '', dueDate: '' });
+  
+  // Generate invoice number and dates only on client to avoid hydration mismatch
+  useEffect(() => {
+    const number = `LAI-${new Date().getFullYear()}-${Math.floor(10000 + Math.random() * 90000)}`;
+    setInvoiceNumber(number);
+    
+    const currentDate = new Date().toLocaleDateString('en-US', {
+      month: 'long',
+      day: '2-digit',
+      year: 'numeric'
+    });
+    const dueDate = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', {
+      month: 'long',
+      day: '2-digit',
+      year: 'numeric'
+    });
+    
+    setDates({ date: currentDate, dueDate });
+  }, []);
 
-  const invoiceNumber = `LAI-${new Date().getFullYear()}-${Math.floor(10000 + Math.random() * 90000)}`;
+  const amount = billingCycle === 'monthly' ? plan.monthlyAmount : plan.yearlyAmount;
 
   const handlePrint = () => {
     window.print();
+  };
+
+  const handlePayNow = async () => {
+    setIsLoading(true);
+    
+    try {
+      // Validate planId is provided
+      if (!planId) {
+        console.error('Plan ID is missing from route params');
+        toast({
+          title: 'Error',
+          description: 'Plan information is missing. Please refresh the page.',
+          variant: 'destructive',
+        });
+        setIsLoading(false);
+        return;
+      }
+
+      const payload = {
+        planId: planId,
+        billingCycle: billingCycle.toUpperCase() === 'MONTHLY' ? 'MONTHLY' : 'YEARLY',
+      };
+      console.log('Plan information:', { planId, planName: plan.name, billingCycle });
+      console.log('Sending to /api/invoices/create:', JSON.stringify(payload, null, 2));
+      
+      const response = await fetch('/api/invoices/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await response.json();
+      console.log('API Response:', { status: response.status, data });
+      
+      if (response.ok) {
+        setInvoiceData(data.invoice);
+        setIsModalOpen(true);
+        toast({
+          title: 'Success',
+          description: 'Invoice created successfully. Choose a payment method.',
+          variant: 'default',
+        });
+      } else {
+        // Show error as toast
+        toast({
+          title: 'Error',
+          description: data.error || 'Failed to create invoice',
+          variant: 'destructive',
+        });
+      }
+    } catch (error) {
+      console.error('Error creating invoice:', error);
+      toast({
+        title: 'Error',
+        description: 'An unexpected error occurred. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleOfflinePayment = () => {
+    if (!invoiceData?.id) return;
+    setIsModalOpen(false);
+    // Navigate to offline payment submission page
+    router.push(`/${locale}/dashboard/lawyer/payments/offline/${invoiceData.id}`);
   };
 
   return (
@@ -100,7 +184,7 @@ export default function InvoiceClient({ locale, plan, user, billingCycle }: Invo
           <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-6 bg-neutral-50 border-y border-neutral-100 py-3 px-3 sm:px-4 print:bg-neutral-50" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
             <div>
               <span className="text-[8px] sm:text-[9px] font-bold text-neutral-400 uppercase tracking-widest block mb-0.5 uppercase">Date</span>
-              <span className="text-[10px] sm:text-xs font-bold text-neutral-900 tracking-tight">{date}</span>
+              <span className="text-[10px] sm:text-xs font-bold text-neutral-900 tracking-tight">{dates.date}</span>
             </div>
             <div>
               <span className="text-[8px] sm:text-[9px] font-bold text-neutral-400 uppercase tracking-widest block mb-0.5 uppercase">Terms</span>
@@ -108,7 +192,7 @@ export default function InvoiceClient({ locale, plan, user, billingCycle }: Invo
             </div>
             <div className="text-right">
               <span className="text-[8px] sm:text-[9px] font-bold text-neutral-400 uppercase tracking-widest block mb-0.5 uppercase">Due</span>
-              <span className="text-[10px] sm:text-xs font-bold text-red-600 tracking-tight">{dueDate}</span>
+              <span className="text-[10px] sm:text-xs font-bold text-red-600 tracking-tight">{dates.dueDate}</span>
             </div>
           </div>
 
@@ -210,11 +294,14 @@ export default function InvoiceClient({ locale, plan, user, billingCycle }: Invo
           
           <div className="space-y-3">
              <Button 
-                onClick={() => setIsModalOpen(true)}
-                className="w-full flex items-center justify-center gap-3 bg-primary text-primary-foreground rounded-none hover:bg-primary/90 h-14 px-6 group shadow-lg shadow-primary/20"
+                onClick={handlePayNow}
+                disabled={isLoading}
+                className="w-full flex items-center justify-center gap-3 bg-primary text-primary-foreground rounded-none hover:bg-primary/90 h-14 px-6 group shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <CreditCard className="w-4 h-4 group-hover:scale-110 transition-transform" />
-                <span className="uppercase text-xs font-bold tracking-widest">Pay Now</span>
+                <span className="uppercase text-xs font-bold tracking-widest">
+                  {isLoading ? 'Creating Invoice...' : 'Pay Now'}
+                </span>
               </Button>
 
             <Button 
@@ -240,7 +327,7 @@ export default function InvoiceClient({ locale, plan, user, billingCycle }: Invo
         </div>
       </div>
 
-      {/* Payment Selection Modal */}
+      {/* Payment Method Selection Modal */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
         <DialogContent className="sm:max-w-[500px] rounded-none border-t-4 border-t-black">
           <DialogHeader>
@@ -277,7 +364,7 @@ export default function InvoiceClient({ locale, plan, user, billingCycle }: Invo
 
             {/* Offline Payment Option */}
             <Button 
-              onClick={() => router.push(`/${locale}/dashboard/lawyer/payments/offline/${plan.id}?cycle=${billingCycle}&amount=${amount}&invoice=${invoiceNumber}`)}
+              onClick={handleOfflinePayment}
               className="w-full h-24 bg-neutral-900 text-white flex flex-col items-center justify-center gap-2 hover:bg-neutral-800 rounded-none transition-all shadow-xl group"
             >
               <div className="flex items-center gap-3">

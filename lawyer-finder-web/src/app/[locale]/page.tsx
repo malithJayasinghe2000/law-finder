@@ -33,14 +33,16 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
     orderBy: { rating: 'desc' }
   });
 
-  const serializedReviews = topReviews.map((r) => ({
-    id: r.id,
-    reviewerName: r.reviewer?.fullName || undefined,
-    rating: r.rating,
-    comment: r.comment,
-    lawyerName: r.lawyer?.fullName || undefined,
-    reviewerImage: r.reviewer?.profileImageUrl || undefined,
-  }));
+  const serializedReviews = topReviews
+    .filter((r) => r.lawyer?.fullName)
+    .map((r) => ({
+      id: r.id,
+      reviewerName: r.reviewer?.fullName || 'Anonymous',
+      rating: r.rating,
+      comment: r.comment,
+      lawyerName: r.lawyer!.fullName,
+      reviewerImage: r.reviewer?.profileImageUrl || '',
+    }));
 
   // Fetch top lawyers for cards section
   const topLawyers = await prisma.lawyerProfile.findMany({

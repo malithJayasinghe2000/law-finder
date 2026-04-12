@@ -3,22 +3,24 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
-import { Scale, Menu, Search, BookOpen, LogOut, FileText, UserCircle, LayoutDashboard } from 'lucide-react';
+import { Scale, Menu, Search, BookOpen, LogOut, FileText, UserCircle, LayoutDashboard, Zap, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Badge } from '@/components/ui/badge';
 
 interface HeaderProps {
   locale: string;
   userRole?: string | null;
   appStatus?: string | null;
   userProfile?: { fullName: string | null; profileImageUrl: string | null } | null;
+  subscriptionTier?: string | null;
 }
 
-export default function Header({ locale, userRole = null, appStatus = null, userProfile = null }: HeaderProps) {
+export default function Header({ locale, userRole = null, appStatus = null, userProfile = null, subscriptionTier = null }: HeaderProps) {
   const t = useTranslations('Navigation');
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
@@ -27,7 +29,6 @@ export default function Header({ locale, userRole = null, appStatus = null, user
   if (pathname.includes('/dashboard')) {
     return null;
   }
-
   const navLinks = [
     { href: `/${locale}/lawyers`, label: t('directory'), icon: Search },
     { href: `/${locale}/blog`, label: t('blog'), icon: BookOpen },
@@ -107,11 +108,25 @@ export default function Header({ locale, userRole = null, appStatus = null, user
             )}
           </Avatar>
         </DropdownMenuTrigger>
-        <DropdownMenuContent className="w-64 rounded-none shadow-2xl border-border p-0" align="end" sideOffset={8}>
+        <DropdownMenuContent className="w-72 rounded-none shadow-2xl border-border p-0" align="end" sideOffset={8}>
           <div className="px-6 py-5 bg-neutral-50/50 border-b">
-            <div className="flex flex-col space-y-1">
+            <div className="flex flex-col space-y-2">
               <p className="text-[15px] font-bold text-neutral-900 leading-none">{userProfile?.fullName || 'Account'}</p>
-              <p className="text-[10px] text-neutral-400 font-bold uppercase tracking-[0.15em] mt-1.5">{userRole}</p>
+              <p className="text-[10px] text-neutral-400 font-bold uppercase tracking-[0.15em]">{userRole}</p>
+              {userRole === 'LAWYER' && subscriptionTier && (
+                <div className="flex items-center gap-2 mt-2 pt-2 border-t border-neutral-200">
+                  <Zap className="w-4 h-4 text-amber-500" />
+                  <div className="text-xs">
+                    <p className="font-semibold text-neutral-900">{subscriptionTier}</p>
+                    <p className="text-neutral-500">Active Subscription</p>
+                  </div>
+                </div>
+              )}
+              {userRole === 'LAWYER' && !subscriptionTier && (
+                <Link href={`/${locale}/pricing`} className="mt-2 pt-2 border-t border-neutral-200 block">
+                  <p className="text-xs font-semibold text-amber-600 hover:text-amber-700">Upgrade your subscription</p>
+                </Link>
+              )}
             </div>
           </div>
           
@@ -131,11 +146,18 @@ export default function Header({ locale, userRole = null, appStatus = null, user
             )}
 
             {userRole === 'LAWYER' && (
-              <Link href={`/${locale}/dashboard/lawyer`}>
-                <DropdownMenuItem className="cursor-pointer font-medium py-3 px-6 rounded-none focus:bg-neutral-50 group">
-                  <LayoutDashboard className="mr-3 h-4 w-4 text-neutral-400 group-hover:text-neutral-900 transition-colors" /> My Dashboard
-                </DropdownMenuItem>
-              </Link>
+              <>
+                <Link href={`/${locale}/dashboard/lawyer`}>
+                  <DropdownMenuItem className="cursor-pointer font-medium py-3 px-6 rounded-none focus:bg-neutral-50 group">
+                    <LayoutDashboard className="mr-3 h-4 w-4 text-neutral-400 group-hover:text-neutral-900 transition-colors" /> My Dashboard
+                  </DropdownMenuItem>
+                </Link>
+                <Link href={`/${locale}/profile`}>
+                  <DropdownMenuItem className="cursor-pointer font-medium py-3 px-6 rounded-none focus:bg-neutral-50 group">
+                    <Zap className="mr-3 h-4 w-4 text-amber-400 group-hover:text-amber-500 transition-colors" /> Subscription Plan
+                  </DropdownMenuItem>
+                </Link>
+              </>
             )}
 
             {userRole === 'CLIENT' && (

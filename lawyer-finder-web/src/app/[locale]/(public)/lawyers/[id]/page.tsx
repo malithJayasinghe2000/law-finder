@@ -25,6 +25,11 @@ export default async function LawyerProfilePage({
         orderBy: { id: 'desc' },
         include: { reviewer: true }
       },
+      Subscription: {
+        where: { status: 'ACTIVE' },
+        include: { plan: true, role: true },
+        take: 1,
+      },
     },
   });
 
@@ -51,6 +56,15 @@ export default async function LawyerProfilePage({
       createdAt: r.createdAt.toISOString(),
       reviewerImage: r.reviewer?.profileImageUrl || null,
     })),
+    subscription: lawyer.Subscription[0] ? {
+      id: lawyer.Subscription[0].id,
+      tier: lawyer.Subscription[0].plan.tier,
+      planName: lawyer.Subscription[0].plan.name,
+      status: lawyer.Subscription[0].status,
+      billingCycle: lawyer.Subscription[0].billingCycle,
+      startDate: lawyer.Subscription[0].startDate.toISOString(),
+      nextBilling: lawyer.Subscription[0].nextBilling.toISOString(),
+    } : null,
   };
 
   const serializedOtherLawyers = otherLawyers.map(l => {

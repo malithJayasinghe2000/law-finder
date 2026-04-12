@@ -26,7 +26,15 @@ export async function GET(req: Request) {
             district: true,
             baslNumber: true,
           },
+          include: {
+            Subscription: {
+              select: {
+                plan: true,
+              },
+            },
+          },
         },
+        
         application: {
           select: {
             status: true,

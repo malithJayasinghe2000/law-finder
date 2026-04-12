@@ -5,7 +5,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
-import { Inbox, FileText, Star, ShieldCheck, AlertCircle, Eye } from 'lucide-react';
+import { Inbox, FileText, Star, ShieldCheck, AlertCircle, Eye, CreditCard, Zap, Crown, Shield, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
+import Link from 'next/link';
 
 interface ProfileData {
   id: string;
@@ -25,6 +26,7 @@ interface ProfileData {
 export default function LawyerDashboard() {
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [subscriptionData, setSubscriptionData] = useState<any>(null);
 
   useEffect(() => {
     fetch('/api/lawyers/profile')
@@ -32,6 +34,11 @@ export default function LawyerDashboard() {
       .then(setProfile)
       .catch(() => {})
       .finally(() => setLoading(false));
+
+    fetch('/api/subscriptions/status')
+      .then((res) => res.json())
+      .then(setSubscriptionData)
+      .catch(() => {});
   }, []);
 
   if (loading) {
@@ -66,6 +73,8 @@ export default function LawyerDashboard() {
   const publishedArticles = profile.articles.filter((a) => a.status === 'PUBLISHED').length;
   const approvedReviews = profile.reviews.filter((r) => r.isApproved).length;
 
+  const sub = subscriptionData?.subscription;
+
   return (
     <div className="p-6 lg:p-10 max-w-[2400px]">
       {/* Header */}
@@ -85,6 +94,85 @@ export default function LawyerDashboard() {
         </div>
         <p className="text-sm text-muted-foreground">BASL: {profile.baslNumber}</p>
       </div>
+
+      {/* Subscription Status Card */}
+      <Card className={`rounded-none shadow-sm mb-6 border-l-4 ${
+        sub?.status === 'ACTIVE' ? 'border-l-green-500' :
+        sub?.status === 'CANCELED' ? 'border-l-amber-500' :
+        sub?.status === 'EXPIRED' ? 'border-l-red-500' :
+        sub?.status === 'PAST_DUE' ? 'border-l-blue-500' :
+        'border-l-neutral-300'
+      }`}>
+        <CardContent className="p-5">
+          {sub ? (
+            <div className="flex items-center justify-between flex-wrap gap-4">
+              <div className="flex items-center gap-4">
+                <div className={`flex h-11 w-11 items-center justify-center rounded-none ${
+                  sub.status === 'ACTIVE' ? 'bg-green-100' :
+                  sub.status === 'CANCELED' ? 'bg-amber-100' :
+                  sub.status === 'EXPIRED' ? 'bg-red-100' :
+                  'bg-blue-100'
+                }`}>
+                  {sub.status === 'ACTIVE' ? <CheckCircle className="h-5 w-5 text-green-700" /> :
+                   sub.status === 'CANCELED' ? <AlertTriangle className="h-5 w-5 text-amber-700" /> :
+                   sub.status === 'EXPIRED' ? <XCircle className="h-5 w-5 text-red-700" /> :
+                   <CreditCard className="h-5 w-5 text-blue-700" />}
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <p className="font-bold text-sm">{sub.planName}</p>
+                    <span className={`px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider ${
+                      sub.status === 'ACTIVE' ? 'bg-green-100 text-green-800' :
+                      sub.status === 'CANCELED' ? 'bg-amber-100 text-amber-800' :
+                      sub.status === 'EXPIRED' ? 'bg-red-100 text-red-800' :
+                      'bg-blue-100 text-blue-800'
+                    }`}>
+                      {sub.status}
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {sub.billingCycle} · {sub.daysRemaining != null ? `${sub.daysRemaining} days remaining` : ''}
+                    {sub.endDate ? ` · Expires ${new Date(sub.endDate).toLocaleDateString()}` : ''}
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                {sub.status === 'EXPIRED' && (
+                  <Link href="/en/pricing">
+                    <button className="text-xs font-bold uppercase tracking-wider bg-[#0a0a0a] text-white px-4 py-2 hover:bg-neutral-800 transition-colors">
+                      Subscribe
+                    </button>
+                  </Link>
+                )}
+                {!sub || sub.status === 'PAST_DUE' ? (
+                  <Link href="/en/pricing">
+                    <button className="text-xs font-bold uppercase tracking-wider border border-neutral-200 px-4 py-2 hover:bg-neutral-50 transition-colors">
+                      View Plans
+                    </button>
+                  </Link>
+                ) : null}
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="flex h-11 w-11 items-center justify-center rounded-none bg-neutral-100">
+                  <CreditCard className="h-5 w-5 text-neutral-400" />
+                </div>
+                <div>
+                  <p className="font-bold text-sm">No Active Subscription</p>
+                  <p className="text-xs text-muted-foreground">Subscribe to unlock premium features</p>
+                </div>
+              </div>
+              <Link href="/en/pricing">
+                <button className="text-xs font-bold uppercase tracking-wider bg-[#0a0a0a] text-white px-4 py-2 hover:bg-neutral-800 transition-colors">
+                  View Plans
+                </button>
+              </Link>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Stats */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 mb-8">

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import prisma from '@/lib/db';
-import { createSession } from '@/lib/auth';
+import { createSession, SessionPayload } from '@/lib/auth';
 import { loginSchema } from '@/schemas/auth.schema';
 
 export async function POST(req: Request) {
@@ -20,12 +20,37 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Invalid email or password.' }, { status: 401 });
     }
 
-    await createSession({ 
+    const sessionPayload: SessionPayload = { 
       userId: user.id, 
       role: user.role, 
       fullName: user.fullName,
       profileImageUrl: user.profileImageUrl 
-    });
+    };
+
+    // If lawyer, fetch subscription info and profileId for the session
+    if (user.role === 'LAWYER') {
+      const profile = await prisma.lawyerProfile.findUnique({
+        where: { userId: user.id },
+        select: { id: true },
+      });
+
+      if (profile) {
+        sessionPayload.profileId = profile.id;
+
+        const subscription = await prisma.subscription.findFirst({
+          where: { lawyerId: profile.id, status: { in: ['ACTIVE', 'PAST_DUE'] } },
+          include: { role: true },
+          orderBy: { createdAt: 'desc' },
+        });
+
+        if (subscription) {
+          sessionPayload.subscriptionRole = subscription.role.name;
+          sessionPayload.subscriptionStatus = subscription.status;
+        }
+      }
+    }
+
+    await createSession(sessionPayload);
 
     return NextResponse.json({ success: true, role: user.role }, { status: 200 });
   } catch {
