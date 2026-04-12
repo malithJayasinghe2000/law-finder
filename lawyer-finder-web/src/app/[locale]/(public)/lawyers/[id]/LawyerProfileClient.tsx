@@ -48,7 +48,7 @@ interface LawyerData {
   courts: string[];
   isNotary: boolean;
   isVerified: boolean;
-  user: { createdAt: string } | null;
+  user: { id: string; createdAt: string } | null;
   reviews: Review[];
   subscription?: Subscription | null;
 }
@@ -93,6 +93,40 @@ export default function LawyerProfileClient({
   const lawyerMarqueeRef = useRef<HTMLDivElement>(null);
   const [reviewPaused, setReviewPaused] = useState(false);
   const [lawyerPaused, setLawyerPaused] = useState(false);
+  const [chatLoading, setChatLoading] = useState(false);
+
+  const handleChatClick = async () => {
+    if (!isLoggedIn) {
+      router.push(`/${locale}/login`);
+      return;
+    }
+
+    if (currentUserId === lawyer.user?.id) {
+       toast.error("You cannot chat with yourself.");
+       return;
+    }
+
+    if (!lawyer.user?.id) {
+       toast.error("This lawyer does not have an active chat account.");
+       return;
+    }
+
+    setChatLoading(true);
+    try {
+      const res = await fetch('/api/chat/conversations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ targetUserId: lawyer.user?.id || lawyer.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to start chat');
+      
+      router.push(`/${locale}/messages?conv=${data.id}`);
+    } catch (err: any) {
+      toast.error(err.message || 'Error starting chat');
+      setChatLoading(false);
+    }
+  };
 
   const handleWriteReview = () => {
     if (!isLoggedIn) {
@@ -196,8 +230,13 @@ export default function LawyerProfileClient({
                 <button className="flex-1 flex items-center justify-center gap-2 bg-[#0a0a0a] text-white py-4 text-[15px] font-semibold hover:bg-neutral-800 transition-colors">
                   <CalendarCheck className="h-5 w-5" /> Book Now
                 </button>
-                <button className="flex-1 flex items-center justify-center gap-2 bg-white border border-neutral-200 text-[#0a0a0a] py-4 text-[15px] font-semibold hover:bg-neutral-50 transition-colors">
-                  <MessageSquare className="h-5 w-5" /> Chat
+                <button 
+                  onClick={handleChatClick}
+                  disabled={chatLoading}
+                  className="flex-1 flex items-center justify-center gap-2 bg-white border border-neutral-200 text-[#0a0a0a] py-4 text-[15px] font-semibold hover:bg-neutral-50 transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
+                >
+                  {chatLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <MessageSquare className="h-5 w-5" />} 
+                  {chatLoading ? 'Starting...' : 'Chat'}
                 </button>
               </div>
 

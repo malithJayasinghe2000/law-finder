@@ -14,6 +14,7 @@ const adapter = new PrismaPg(pool)
 const prisma = new PrismaClient({ adapter })
 
 async function main() {
+  
   const passwordHash = await bcrypt.hash('password123', 12)
 
   // 1. Create Admin
