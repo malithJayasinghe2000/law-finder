@@ -37,6 +37,18 @@ enum SubscriptionStatus {
   PAST_DUE
 }
 
+enum SubscriptionTier {
+  BASIC
+  PROFESSIONAL
+  PREMIUM
+  ENTERPRISE
+}
+
+enum BillingCycle {
+  MONTHLY
+  YEARLY
+}
+
 model User {
   id              String             @id @default(uuid())
   email           String             @unique
@@ -67,11 +79,11 @@ model LawyerApplication {
 }
 
 model LawyerProfile {
-  id                String      @id @default(uuid())
-  userId            String      @unique
-  user              User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                String         @id @default(uuid())
+  userId            String         @unique
+  user              User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   fullName          String
-  baslNumber        String      @unique
+  baslNumber        String         @unique
   nic               String?
   address           String?
   contactPhone      String?
@@ -85,88 +97,123 @@ model LawyerProfile {
   yearsOfExperience Int?
   practiceType      String?
   courts            String[]
-  isNotary          Boolean     @default(false)
+  isNotary          Boolean        @default(false)
   licenseImageUrl   String?
   identityImageUrl  String?
-  isVerified        Boolean     @default(false)
+  isVerified        Boolean        @default(false)
   subscriptionId    String?
-  Subscription     Subscription[]
-  
-  inquiries         Inquiry[]
-  articles          Article[]
-  reviews           Review[]
-  paidPromos        PaidPromo[]
+  Subscription      Subscription[]
+  invoices          Invoice[]      @relation("InvoiceLawyer")
+
+  inquiries  Inquiry[]
+  articles   Article[]
+  reviews    Review[]
+  paidPromos PaidPromo[]
 }
 
 model SubscriptionPlan {
-  id            String   @id @default(uuid())
+  id            String           @id @default(uuid())
   name          String
-  tier          Int      @default(0)
+  tier          SubscriptionTier
   monthlyAmount Int
   yearlyAmount  Int
 
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  subscriptions Subscription[]
+  subscriptions       Subscription[]
   subscriptionDetails SubscriptionDetails[]
+  invoices            Invoice[]
 }
 
 model Subscription {
-  id          String   @id @default(uuid())
-  lawyerId    String
-  lawyer      LawyerProfile @relation(fields: [lawyerId], references: [id], onDelete: Cascade)
+  id       String        @id @default(uuid())
+  lawyerId String
+  lawyer   LawyerProfile @relation(fields: [lawyerId], references: [id], onDelete: Cascade)
 
-  planId      String
-  plan        SubscriptionPlan @relation(fields: [planId], references: [id])
+  planId String
+  plan   SubscriptionPlan @relation(fields: [planId], references: [id])
 
-  status      SubscriptionStatus @default(ACTIVE)
+  roleId String
+  role   SubscriptionRole @relation(fields: [roleId], references: [id])
 
-  startDate   DateTime @default(now())
+  status       SubscriptionStatus @default(ACTIVE)
+  billingCycle BillingCycle       @default(MONTHLY)
+
+  startDate   DateTime  @default(now())
   endDate     DateTime?
   nextBilling DateTime
 
-  autoRenew   Boolean  @default(true)
+  autoRenew Boolean @default(true)
 
-  cycles      SubscriptionCycle[]
+  invoiceId String?  @unique
+  invoice   Invoice? @relation("SubscriptionInvoice", fields: [invoiceId], references: [id])
 
-  createdAt   DateTime @default(now())
+  cycles SubscriptionCycle[]
+  usages FeatureUsage[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model SubscriptionCycle {
-  id              String   @id @default(uuid())
+  id String @id @default(uuid())
 
-  subscriptionId  String
-  subscription    Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  subscriptionId String
+  subscription   Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
 
-  startDate       DateTime
-  endDate         DateTime
+  startDate DateTime
+  endDate   DateTime
 
-  status          SubscriptionStatus
+  status SubscriptionStatus
 
-  invoices        Invoice[]
+  invoices Invoice[]
 }
 
 model Invoice {
-  id                 String   @id @default(uuid())
+  id String @id @default(uuid())
 
-  subscriptionCycleId String
-  subscriptionCycle   SubscriptionCycle @relation(fields: [subscriptionCycleId], references: [id], onDelete: Cascade)
+  lawyerId String
+  lawyer   LawyerProfile? @relation("InvoiceLawyer", fields: [lawyerId], references: [id], onDelete: Cascade)
 
-  amount             Int
-  status             PaymentStatus @default(UNPAID)
+  subscriptionCycleId String?
+  subscriptionCycle   SubscriptionCycle? @relation(fields: [subscriptionCycleId], references: [id], onDelete: SetNull)
 
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  subscriptionId String?
+  planId         String
+  plan           SubscriptionPlan @relation(fields: [planId], references: [id])
+
+  amount          Int
+  status          PaymentStatus @default(PENDING)
+  paymentReason   String        @default("Subscription payment")
+  receiptImageUrl String?
+  paymentDetails  Json?
+  adminNotes      String?
+
+  remarks         InvoiceRemark[] @relation("InvoiceRemarks")
+  subscription Subscription? @relation("SubscriptionInvoice")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model InvoiceRemark {
+  id        String   @id @default(uuid())
+  invoiceId String
+  invoice   Invoice  @relation("InvoiceRemarks", fields: [invoiceId], references: [id], onDelete: Cascade)
+  
+  remark    String
+  isForLawyer Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model SubscriptionDetails {
-  id          String        @id @default(uuid())
-  subscriptionId    String
-  subscription      SubscriptionPlan @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
-  details     String
+  id             String           @id @default(uuid())
+  subscriptionId String
+  subscription   SubscriptionPlan @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  details        String
 }
-
 
 model Inquiry {
   id          String        @id @default(uuid())
@@ -213,6 +260,8 @@ enum PaymentStatus {
   PAID
   UNPAID
   PENDING
+  RESUBMIT
+  CANCELLED
 }
 
 model PaidPromo {
@@ -226,4 +275,95 @@ model PaidPromo {
   invoiceId     String?
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
+}
+
+// ============= Subscription RBAC System =============
+
+model SubscriptionRole {
+  id          String           @id @default(uuid())
+  name        SubscriptionTier
+  description String?
+
+  permissions   SubscriptionRolePermission[]
+  subscriptions Subscription[]
+  featureLimits FeatureLimitConfig[]         @relation(name: "RoleFeatureLimits")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([name])
+}
+
+model Permission {
+  id          String  @id @default(uuid())
+  name        String  @unique // e.g., "create_article", "post_inquiry", "access_chat"
+  slug        String  @unique // URL-friendly version
+  description String?
+  category    String // e.g., "articles", "inquiries", "chat"
+
+  roles SubscriptionRolePermission[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model SubscriptionRolePermission {
+  id     String           @id @default(uuid())
+  roleId String
+  role   SubscriptionRole @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  permissionId String
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([roleId, permissionId])
+}
+
+model Feature {
+  id          String  @id @default(uuid())
+  name        String  @unique // e.g., "articles_per_month", "inquiries_per_month"
+  slug        String  @unique
+  description String?
+  unit        String // e.g., "count", "GB", "hours"
+
+  usages FeatureUsage[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model FeatureLimitConfig {
+  id     String           @id @default(uuid())
+  roleId String
+  role   SubscriptionRole @relation(name: "RoleFeatureLimits", fields: [roleId], references: [id], onDelete: Cascade)
+
+  featureName String // e.g., "articles_per_month", "inquiries_per_month"
+  limit       Int // e.g., 10, 50, unlimited if -1
+  description String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([roleId, featureName])
+}
+
+model FeatureUsage {
+  id             String       @id @default(uuid())
+  subscriptionId String
+  subscription   Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  featureId String
+  feature   Feature @relation(fields: [featureId], references: [id])
+
+  usage Int @default(0)
+
+  // For monthly/yearly reset tracking
+  billingCycleStart DateTime
+  billingCycleEnd   DateTime
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([subscriptionId, featureId, billingCycleStart])
 }

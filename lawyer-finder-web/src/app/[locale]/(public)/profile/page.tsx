@@ -7,7 +7,8 @@ import Link from 'next/link';
 import {
   User, Mail, Lock, Camera, Save, Loader2, ArrowLeft, Scale,
   Phone, MapPin, Briefcase, Languages, Globe, Gavel, BookOpen,
-  Shield, Calendar,
+  Shield, Calendar, CreditCard, AlertTriangle, CheckCircle, XCircle,
+  RefreshCw, Zap, Crown,
 } from 'lucide-react';
 
 const LANGUAGES = ['Sinhala', 'Tamil', 'English'];
@@ -50,6 +51,12 @@ export default function ProfileSettingsPage() {
   const [nic, setNic] = useState('');
   const [lawyerProfileImageUrl, setLawyerProfileImageUrl] = useState('');
 
+  // Subscription state
+  const [subscriptionData, setSubscriptionData] = useState<any>(null);
+  const [subscriptionLoading, setSubscriptionLoading] = useState(false);
+  const [cancellingSubscription, setCancellingSubscription] = useState(false);
+  const [renewingSubscription, setRenewingSubscription] = useState(false);
+
   const [lookups, setLookups] = useState<{ districts: string[], practiceAreas: string[], practiceTypes: string[] }>({
     districts: [],
     practiceAreas: [],
@@ -67,16 +74,69 @@ export default function ProfileSettingsPage() {
 
   useEffect(() => {
     fetchProfile();
+    fetchSubscription();
   }, []);
+
+  const fetchSubscription = async () => {
+    setSubscriptionLoading(true);
+    try {
+      const res = await fetch('/api/subscriptions/status');
+      if (res.ok) {
+        const data = await res.json();
+        setSubscriptionData(data);
+      }
+    } catch {
+      // Non-critical, fail silently
+    } finally {
+      setSubscriptionLoading(false);
+    }
+  };
+
+  const handleCancelSubscription = async () => {
+    if (!confirm('Are you sure you want to cancel your subscription? You will retain access until your current billing period ends.')) return;
+    setCancellingSubscription(true);
+    try {
+      const res = await fetch('/api/subscriptions/cancel', { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      toast.success(data.message);
+      fetchSubscription();
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to cancel subscription');
+    } finally {
+      setCancellingSubscription(false);
+    }
+  };
+
+  const handleRenewSubscription = async () => {
+    setRenewingSubscription(true);
+    try {
+      const res = await fetch('/api/subscriptions/renew', { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      toast.success(data.message);
+      fetchSubscription();
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to renew subscription');
+    } finally {
+      setRenewingSubscription(false);
+    }
+  };
 
   const fetchProfile = async () => {
     try {
-      const res = await fetch('/api/profile');
-      if (!res.ok) {
-        router.push(`/${locale}/login`);
+      const res = await fetch('/api/profile', { credentials: 'omit' });
+      // We will actually just use default... Wait. Default is `same-origin`.
+      // Let's explicitly do 'same-origin'
+      const resNew = await fetch('/api/profile', { credentials: 'same-origin' });
+      if (!resNew.ok) {
+        console.error('Failed to fetch profile', resNew.status);
+        if (resNew.status === 401) {
+             router.push(`/${locale}/login`);
+        }
         return;
       }
-      const data = await res.json();
+      const data = await resNew.json();
       const u = data.user;
       setFullName(u.fullName || '');
       setEmail(u.email);
@@ -551,6 +611,134 @@ export default function ProfileSettingsPage() {
                 </div>
               </div>
             </>
+          )}
+
+          {/* Subscription Management Section */}
+          {isLawyer && (
+            <div className="mb-10 pb-10 border-b border-neutral-200">
+              <h3 className="text-sm font-bold text-[#0a0a0a] uppercase tracking-[0.2em] mb-8 font-sans">Subscription</h3>
+              
+              {subscriptionLoading ? (
+                <div className="flex items-center gap-2 text-neutral-400 py-6">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span className="text-sm">Loading subscription info...</span>
+                </div>
+              ) : subscriptionData?.hasSubscription ? (
+                <div className="space-y-6">
+                  {/* Plan & Status Row */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-neutral-50 p-5 border border-neutral-200">
+                    <div className="flex items-center gap-4">
+                      <div className="w-11 h-11 bg-[#0a0a0a] flex items-center justify-center shrink-0">
+                        {subscriptionData.subscription.tier === 'PREMIUM' ? <Crown className="h-5 w-5 text-white" /> :
+                         subscriptionData.subscription.tier === 'PROFESSIONAL' ? <Zap className="h-5 w-5 text-white" /> :
+                         <Shield className="h-5 w-5 text-white" />}
+                      </div>
+                      <div>
+                        <p className="font-bold text-[#0a0a0a] text-base">{subscriptionData.subscription.planName}</p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className={`inline-block px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
+                            subscriptionData.subscription.status === 'ACTIVE' ? 'bg-[#0a0a0a] text-white' :
+                            subscriptionData.subscription.status === 'CANCELED' ? 'bg-neutral-200 text-neutral-700' :
+                            subscriptionData.subscription.status === 'EXPIRED' ? 'bg-red-100 text-red-700' :
+                            'bg-neutral-200 text-neutral-600'
+                          }`}>
+                            {subscriptionData.subscription.status}
+                          </span>
+                          <span className="text-xs text-neutral-400">{subscriptionData.subscription.billingCycle}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Info Grid */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-px bg-neutral-200 border border-neutral-200">
+                    <div className="bg-white p-4">
+                      <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1">Started</p>
+                      <p className="text-sm font-semibold text-[#0a0a0a]">{new Date(subscriptionData.subscription.startDate).toLocaleDateString()}</p>
+                    </div>
+                    <div className="bg-white p-4">
+                      <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1">Expires</p>
+                      <p className="text-sm font-semibold text-[#0a0a0a]">{subscriptionData.subscription.endDate ? new Date(subscriptionData.subscription.endDate).toLocaleDateString() : '—'}</p>
+                    </div>
+                    <div className="bg-white p-4">
+                      <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1">Days Left</p>
+                      <p className="text-sm font-semibold text-[#0a0a0a]">{subscriptionData.subscription.daysRemaining ?? '—'}</p>
+                    </div>
+                    <div className="bg-white p-4">
+                      <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1">Auto Renew</p>
+                      <p className={`text-sm font-semibold ${subscriptionData.subscription.autoRenew ? 'text-[#0a0a0a]' : 'text-neutral-400'}`}>
+                        {subscriptionData.subscription.autoRenew ? 'Enabled' : 'Disabled'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Status Messages */}
+                  {subscriptionData.subscription.status === 'CANCELED' && (
+                    <p className="text-sm text-neutral-500 bg-neutral-50 border border-neutral-200 p-4">
+                      Your subscription has been cancelled. You retain access until {subscriptionData.subscription.endDate ? new Date(subscriptionData.subscription.endDate).toLocaleDateString() : 'expiry'}.
+                    </p>
+                  )}
+                  {subscriptionData.subscription.status === 'EXPIRED' && (
+                    <p className="text-sm text-neutral-500 bg-neutral-50 border border-neutral-200 p-4">
+                      Your subscription has expired. Subscribe to a new plan to regain access to premium features.
+                    </p>
+                  )}
+                  {subscriptionData.subscription.status === 'PAST_DUE' && (
+                    <p className="text-sm text-neutral-500 bg-neutral-50 border border-neutral-200 p-4">
+                      Your payment is pending approval. Your subscription will activate once payment is verified.
+                    </p>
+                  )}
+
+                  {/* Actions */}
+                  <div className="flex flex-wrap gap-3">
+                    {subscriptionData.subscription.status === 'ACTIVE' && (
+                      <button
+                        onClick={handleCancelSubscription}
+                        disabled={cancellingSubscription}
+                        className="flex items-center gap-2 border border-neutral-200 text-neutral-600 px-5 py-3 font-semibold hover:bg-neutral-50 transition-colors disabled:opacity-50 text-sm"
+                      >
+                        {cancellingSubscription ? <Loader2 className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4" />}
+                        {cancellingSubscription ? 'Cancelling...' : 'Cancel Subscription'}
+                      </button>
+                    )}
+                    {subscriptionData.subscription.status === 'CANCELED' && (
+                      <button
+                        onClick={handleRenewSubscription}
+                        disabled={renewingSubscription}
+                        className="flex items-center gap-2 bg-[#0a0a0a] text-white px-5 py-3 font-semibold hover:bg-neutral-800 transition-colors disabled:opacity-50 text-sm"
+                      >
+                        {renewingSubscription ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                        {renewingSubscription ? 'Renewing...' : 'Renew Subscription'}
+                      </button>
+                    )}
+                    {subscriptionData.subscription.status === 'EXPIRED' && (
+                      <Link href={`/${locale}/pricing`}>
+                        <button className="flex items-center gap-2 bg-[#0a0a0a] text-white px-5 py-3 font-semibold hover:bg-neutral-800 transition-colors text-sm">
+                          <CreditCard className="h-4 w-4" />
+                          Subscribe to New Plan
+                        </button>
+                      </Link>
+                    )}
+                    <Link href={`/${locale}/pricing`}>
+                      <button className="flex items-center gap-2 border border-neutral-200 text-neutral-600 px-5 py-3 font-semibold hover:bg-neutral-50 transition-colors text-sm">
+                        View Plans
+                      </button>
+                    </Link>
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-neutral-50 border border-neutral-200 p-8 text-center">
+                  <CreditCard className="h-8 w-8 text-neutral-300 mx-auto mb-3" />
+                  <p className="text-sm text-neutral-500 mb-4">No active subscription found.</p>
+                  <Link href={`/${locale}/pricing`}>
+                    <button className="inline-flex items-center gap-2 bg-[#0a0a0a] text-white px-6 py-3 font-semibold hover:bg-neutral-800 transition-colors text-sm">
+                      <CreditCard className="h-4 w-4" />
+                      Browse Subscription Plans
+                    </button>
+                  </Link>
+                </div>
+              )}
+            </div>
           )}
 
           {/* Save Button */}

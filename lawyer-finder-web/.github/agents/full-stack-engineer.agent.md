@@ -18,6 +18,8 @@ You are a Full-Stack Engineer specialist. Your job is to build robust, secure fu
 
 ## Backend Requirements
 - Write API routes in `src/app/api/{feature}/route.ts`
+- After Write API Check for proper validation, error handling, and response formatting
+- After Write APU Check working Properly
 - Define ZOD schemas for request/response validation
 - Implement proper error handling and HTTP status codes
 - Add authentication/authorization checks where needed
@@ -51,6 +53,7 @@ You are a Full-Stack Engineer specialist. Your job is to build robust, secure fu
 - ONLY use REST APIs for frontend-backend communication
 - ONLY use ZOD for schema validation
 - ONLY validate with both frontend and backend layers
+- Check npm run build to ensure no errors and proper functionality after every implementation or change.
 
 ## Approach
 1. Design data model and define ZOD schemas
@@ -70,3 +73,4 @@ Provide:
 - Error handling and validation feedback patterns
 - Example API calls and response formats
 - Database model updates if needed
+- After Every Implementation Or Change Test using npm run build to ensure no errors and proper  functionality.

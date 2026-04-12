@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import prisma from '@/lib/db';
 
-// GET: Check current session status (used to restrict auth pages for logged-in users)
+// GET: Check current session status with live data from DB
+// This avoids requiring re-login when admin approves subscription or role changes
 export async function GET() {
   try {
     const session = await getSession();
@@ -20,15 +21,54 @@ export async function GET() {
       },
     });
 
-    return NextResponse.json({
+    if (!user) {
+      return NextResponse.json({ authenticated: false }, { status: 200 });
+    }
+
+    // Build response with live data
+    const responseData: any = {
       authenticated: true,
-      role: session.role,
+      role: user.role, // Use live role from DB, not from JWT
       userId: session.userId,
-      fullName: user?.fullName,
-      profileImageUrl: user?.profileImageUrl,
-      email: user?.email,
-    }, { status: 200 });
+      fullName: user.fullName,
+      profileImageUrl: user.profileImageUrl,
+      email: user.email,
+    };
+
+    // If lawyer, fetch live subscription data from DB
+    if (user.role === 'LAWYER') {
+      const profile = await prisma.lawyerProfile.findUnique({
+        where: { userId: session.userId },
+        select: { id: true },
+      });
+
+      if (profile) {
+        responseData.profileId = profile.id;
+
+        const subscription = await prisma.subscription.findFirst({
+          where: {
+            lawyerId: profile.id,
+            status: { in: ['ACTIVE', 'PAST_DUE', 'CANCELED'] },
+          },
+          include: {
+            plan: true,
+            role: true,
+          },
+          orderBy: { createdAt: 'desc' },
+        });
+
+        if (subscription) {
+          responseData.subscriptionRole = subscription.role.name;
+          responseData.subscriptionStatus = subscription.status;
+          responseData.subscriptionPlan = subscription.plan.name;
+          responseData.subscriptionTier = subscription.plan.tier;
+        }
+      }
+    }
+
+    return NextResponse.json(responseData, { status: 200 });
   } catch {
     return NextResponse.json({ authenticated: false }, { status: 200 });
   }
 }
+

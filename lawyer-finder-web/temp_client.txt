@@ -1,0 +1,107 @@
+'use client';
+
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useToast } from '@/hooks/use-toast';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Separator } from '@/components/ui/separator';
+import { Badge } from '@/components/ui/badge';
+import { 
+  ArrowLeft, 
+  Check, 
+  X, 
+  RotateCcw, 
+  MessageSquare, 
+  Eye, 
+  Calendar,
+  DollarSign,
+  FileText,
+  User,
+  Hash,
+  CreditCard,
+} from 'lucide-react';
+
+interface AdminInvoiceDetailClientProps {
+  locale: string;
+  invoice: any;
+}
+
+export default function AdminInvoiceDetailClient({ 
+  locale, 
+  invoice 
+}: AdminInvoiceDetailClientProps) {
+  const router = useRouter();
+  const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(false);
+  const [action, setAction] = useState<'approve' | 'cancel' | 'resubmit' | null>(null);
+  const [adminRemark, setAdminRemark] = useState('');
+  const [actionTaken, setActionTaken] = useState<string | null>(invoice.status !== 'PENDING' ? invoice.status : null);
+
+  const handleAction = async (actionType: 'PAID' | 'CANCELLED' | 'RESUBMIT') => {
+    if (!adminRemark.trim()) {
+      toast({
+        title: 'Error',
+        description: 'Please add a remark before taking action',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const response = await fetch(`/api/admin/invoices/${invoice.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          status: actionType,
+          adminNotes: adminRemark,
+          remark: adminRemark,
+        }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to update invoice');
+      }
+
+      toast({
+        title: 'Success',
+        description: `Invoice ${actionType === 'PAID' ? 'approved' : actionType === 'CANCELLED' ? 'cancelled' : 'marked for resubmission'}`,
+      });
+
+      setActionTaken(actionType);
+      setAdminRemark('');
+      setAction(null);
+
+      setTimeout(() => {
+        router.push(`/${locale}/dashboard/admin/invoices`);
+      }, 2000);
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'An error occurred',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'PAID':
+        return 'bg-green-50 text-green-800 border-green-200';
+      case 'PENDING':
+        return 'bg-yellow-50 text-yellow-800 border-yellow-200';
+      case 'RESUBMIT':
+        return 'bg-orange-50 text-orange-800 border-orange-200';
+      case 'CANCELLED':
+        return 'bg-red-50 text-red-800 border-red-200';
+      default:
+        return 'bg-neutral-50 text-neutral-800 border-neutral-200';
+    }
+  };

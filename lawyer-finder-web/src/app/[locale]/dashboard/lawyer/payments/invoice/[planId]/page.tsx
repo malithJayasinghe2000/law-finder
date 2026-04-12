@@ -23,8 +23,16 @@ export default async function InvoicePage({
     include: { subscriptionDetails: true }
   });
 
+  console.log('DEBUG: planId requested:', planId);
+  console.log('DEBUG: plan found:', plan?.id);
+
   if (!plan) {
-    notFound();
+    console.error('DEBUG: Plan not found, triggering notFound for planId:', planId);
+    return (
+      <div className="p-10 text-red-500 font-bold border-4 border-red-500 m-10">
+        DEBUG: Plan NOT FOUND. planId was {planId}. Check Prisma.
+      </div>
+    );
   }
 
   const user = {
@@ -36,6 +44,7 @@ export default async function InvoicePage({
   return (
     <InvoiceClient 
       locale={locale} 
+      planId={planId}
       plan={plan} 
       user={user} 
       billingCycle={cycle} 

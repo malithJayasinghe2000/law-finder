@@ -15,6 +15,9 @@ export type SessionPayload = {
   role: 'ADMIN' | 'LAWYER' | 'CLIENT';
   fullName?: string | null;
   profileImageUrl?: string | null;
+  profileId?: string | null; // LawyerProfile ID
+  subscriptionRole?: 'BASIC' | 'PROFESSIONAL' | 'PREMIUM' | 'ENTERPRISE' | null; // Subscription tier
+  subscriptionStatus?: 'ACTIVE' | 'CANCELED' | 'EXPIRED' | 'PAST_DUE' | null; // Subscription status
 };
 
 export async function encrypt(payload: SessionPayload) {

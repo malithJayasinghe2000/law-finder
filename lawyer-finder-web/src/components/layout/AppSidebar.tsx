@@ -14,23 +14,26 @@ export function AppSidebar({ locale, role }: { locale: string; role: string }) {
   const adminLinks = [
     { href: `/${locale}/dashboard/admin`, icon: LayoutDashboard, label: 'Dashboard', exact: true },
     { href: `/${locale}/dashboard/admin/verification`, icon: ShieldCheck, label: 'Verification' },
+    { href: `/${locale}/dashboard/admin/invoices`, icon: FileText, label: 'Invoices' },
     { href: `/${locale}/dashboard/admin/paymentTemplate`, icon: ShieldCheck, label: 'Payment Templates' },
     { href: `/${locale}/dashboard/admin/paid-promo`, icon: Megaphone, label: 'Paid Promo' },
     { href: `/${locale}/dashboard/admin/advertisements`, icon: Image, label: 'Advertisements' },
     { href: `/${locale}/dashboard/admin/users`, icon: Users, label: 'User Management' },
     { href: `/${locale}/dashboard/admin/reviews`, icon: Star, label: 'Reviews' },
     { href: `/${locale}/dashboard/admin/settings`, icon: Settings, label: 'Settings' },
-    { href: `/${locale}/dashboard/admin/subscription-conf`, icon: ShieldPlus, label: 'Subscription Config' },
+    { href: `/${locale}/dashboard/admin/subscriptions`, icon: ShieldPlus, label: 'Subscription Config' },
   ];
 
   const lawyerLinks = [
     { href: `/${locale}/dashboard/lawyer`, icon: LayoutDashboard, label: 'Overview' },
+    { href: `/${locale}/dashboard/lawyer/schedule`, icon: History, label: 'Schedule' },
+    {href: `/${locale}/dashboard/lawyer/Promotion`, icon: Megaphone, label: 'Promotion' },
     { 
       href: `/${locale}/dashboard/lawyer/payments`, 
       icon: CreditCard, 
       label: 'Payments',
       subLinks: [
-        { href: `/${locale}/dashboard/lawyer/payments/invoice`, icon: FileText, label: 'Invoices' },
+        { href: `/${locale}/dashboard/lawyer/payments/invoices`, icon: FileText, label: 'Invoices' },
         { href: `/${locale}/dashboard/lawyer/payments/history`, icon: History, label: 'Payment History' },
       ]
     },

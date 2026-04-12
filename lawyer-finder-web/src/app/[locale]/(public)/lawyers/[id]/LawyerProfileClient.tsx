@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 import {
   Star, MapPin, Languages, ShieldCheck, Phone, Clock, Calendar,
   Briefcase, Scale, Gavel, BookOpen, ArrowRight, ArrowLeft,
-  MessageSquare, CalendarCheck, Send, X, Loader2, Globe, User,
+  MessageSquare, CalendarCheck, Send, X, Loader2, Globe, User, Zap,
 } from 'lucide-react';
 
 interface Review {
@@ -17,6 +17,16 @@ interface Review {
   comment: string;
   createdAt: string;
   reviewerImage: string | null;
+}
+
+interface Subscription {
+  id: string;
+  tier: string;
+  planName: string;
+  status: string;
+  billingCycle: string;
+  startDate: string;
+  nextBilling: string;
 }
 
 interface LawyerData {
@@ -40,6 +50,7 @@ interface LawyerData {
   isVerified: boolean;
   user: { createdAt: string } | null;
   reviews: Review[];
+  subscription?: Subscription | null;
 }
 
 interface OtherLawyer {
@@ -161,11 +172,18 @@ export default function LawyerProfileClient({
 
                 {/* Overlay Info */}
                 <div className="absolute bottom-0 left-0 right-0 p-6">
-                  {lawyer.isVerified && (
-                    <div className="flex items-center gap-1.5 text-white/90 text-xs font-medium mb-3 bg-white/10 backdrop-blur-md w-fit px-3 py-1.5">
-                      <ShieldCheck className="h-3.5 w-3.5" /> BASL Verified
-                    </div>
-                  )}
+                  <div className="flex items-center gap-2 mb-3 flex-wrap">
+                    {lawyer.isVerified && (
+                      <div className="flex items-center gap-1.5 text-white/90 text-xs font-medium bg-white/10 backdrop-blur-md w-fit px-3 py-1.5">
+                        <ShieldCheck className="h-3.5 w-3.5" /> BASL Verified
+                      </div>
+                    )}
+                    {lawyer.subscription && (
+                      <div className="flex items-center gap-1.5 text-white/90 text-xs font-medium bg-amber-500/80 backdrop-blur-md w-fit px-3 py-1.5">
+                        <Zap className="h-3.5 w-3.5" /> {lawyer.subscription.tier}
+                      </div>
+                    )}
+                  </div>
                   <h2 className="text-2xl font-bold text-white tracking-tight mb-1">{lawyer.fullName}</h2>
                   <p className="text-white/70 text-sm font-light">
                     {lawyer.practiceAreas.slice(0, 2).join(' · ') || 'Legal Professional'}

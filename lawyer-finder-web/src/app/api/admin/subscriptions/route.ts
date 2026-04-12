@@ -1,6 +1,14 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { SubscriptionTier } from '@prisma/client';
+
+const tierMap: { [key: number]: SubscriptionTier } = {
+  1: 'BASIC',
+  2: 'PROFESSIONAL',
+  3: 'PREMIUM',
+  4: 'ENTERPRISE',
+};
 
 // GET all subscriptions with their details
 export async function GET() {
@@ -41,9 +49,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Missing required fields.' }, { status: 400 });
     }
 
+    const tierValue = tierMap[Number(tier)] || 'BASIC';
+
     const newSubscription = await prisma.subscriptionPlan.create({
       data: {
-        tier: Number(tier),
+        tier: tierValue,
         name: String(name),
         monthlyAmount: Number(monthlyAmount),
         yearlyAmount: Number(yearlyAmount),
@@ -78,6 +88,8 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: 'Missing subscription ID.' }, { status: 400 });
     }
 
+    const tierValue = tierMap[Number(tier)] || 'BASIC';
+
     const updatedSubscription = await prisma.$transaction(async (tx) => {
       await tx.subscriptionDetails.deleteMany({
         where: { subscriptionId: id },
@@ -86,7 +98,7 @@ export async function PATCH(req: Request) {
       return tx.subscriptionPlan.update({
         where: { id },
         data: {
-          tier: Number(tier),
+          tier: tierValue,
           name: String(name),
           monthlyAmount: Number(monthlyAmount),
           yearlyAmount: Number(yearlyAmount),

@@ -1,13 +1,14 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import bcrypt from 'bcryptjs';
 
 // GET: Fetch the logged-in user's profile data
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
     const session = await getSession();
     if (!session) {
+      console.log('[API PROFILE GET] session is null!');
       return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 });
     }
 
@@ -29,6 +30,7 @@ export async function GET() {
 
     // If lawyer, also fetch lawyer profile data
     let lawyerProfile = null;
+    let subscription = null;
     if (user.role === 'LAWYER') {
       lawyerProfile = await prisma.lawyerProfile.findUnique({
         where: { userId: user.id },
@@ -53,9 +55,33 @@ export async function GET() {
           isVerified: true,
         },
       });
+
+      // Fetch active subscription
+      const activeSubscription = await prisma.subscription.findFirst({
+        where: {
+          lawyer: { userId: user.id },
+          status: 'ACTIVE',
+        },
+        include: {
+          plan: true,
+          role: true,
+        },
+      });
+
+      if (activeSubscription) {
+        subscription = {
+          id: activeSubscription.id,
+          tier: activeSubscription.plan.tier,
+          planName: activeSubscription.plan.name,
+          status: activeSubscription.status,
+          billingCycle: activeSubscription.billingCycle,
+          startDate: activeSubscription.startDate,
+          nextBilling: activeSubscription.nextBilling,
+        };
+      }
     }
 
-    return NextResponse.json({ user, lawyerProfile }, { status: 200 });
+    return NextResponse.json({ user, lawyerProfile, subscription }, { status: 200 });
   } catch (error) {
     console.error('[PROFILE_GET_ERROR]', error);
     return NextResponse.json({ error: 'Internal server error.' }, { status: 500 });
@@ -63,7 +89,7 @@ export async function GET() {
 }
 
 // PUT: Update the logged-in user's profile
-export async function PUT(req: Request) {
+export async function PUT(req: NextRequest) {
   try {
     const session = await getSession();
     if (!session) {
@@ -151,3 +177,5 @@ export async function PUT(req: Request) {
     return NextResponse.json({ error: 'Failed to update profile.' }, { status: 500 });
   }
 }
+
+export const dynamic = 'force-dynamic';

@@ -3,36 +3,47 @@ import prisma from "@/lib/db";
 import { notFound, redirect } from "next/navigation";
 import OfflinePaymentClient from "./OfflinePaymentClient";
 
-export default async function OfflinePaymentPage({ 
-  params, 
-  searchParams 
-}: { 
-  params: Promise<{ locale: string, planId: string }>;
-  searchParams: Promise<{ cycle?: string, amount?: string, invoice?: string }>;
+export default async function OfflinePaymentPage({
+  params,
+}: {
+  params: Promise<{ locale: string; planId: string }>;
 }) {
   const { locale, planId } = await params;
-  const { cycle = 'monthly', amount = '0', invoice = '000000' } = await searchParams;
   const session = await getSession();
 
   if (!session || session.role !== 'LAWYER') {
     redirect(`/${locale}/login`);
   }
 
-  const plan = await prisma.subscriptionPlan.findUnique({
-    where: { id: planId }
+  // Fetch invoice to verify it exists and belongs to current user
+  const invoice = await prisma.invoice.findUnique({
+    where: { id: planId },
+    include: {
+      lawyer: true,
+      plan: true,
+      remarks: {
+        orderBy: { createdAt: 'desc' }
+      }
+    },
   });
 
-  if (!plan) {
-    notFound();
+  if (!invoice) {
+    redirect(`/${locale}/dashboard/lawyer/payments/invoices`);
+  }
+
+  // Verify invoice belongs to current user
+  const lawyerProfile = await prisma.lawyerProfile.findUnique({
+    where: { userId: session.userId },
+  });
+
+  if (!lawyerProfile || invoice.lawyerId !== lawyerProfile.id) {
+    redirect(`/${locale}/dashboard/lawyer/payments/invoices`);
   }
 
   return (
-    <OfflinePaymentClient 
-      locale={locale} 
-      plan={plan} 
-      amount={amount} 
-      invoice={invoice} 
-      cycle={cycle} 
+    <OfflinePaymentClient
+      locale={locale}
+      invoice={invoice}
     />
   );
 }
