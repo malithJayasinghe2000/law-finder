@@ -151,13 +151,13 @@ export default async function PostDetailPage({
                   {post.author.profileImageUrl ? (
                     <img src={post.author.profileImageUrl} alt="" className="h-full w-full rounded-full object-cover" />
                   ) : (
-                    (post.author.fullName || '?').split(' ').map((n) => n[0]).join('').slice(0, 2)
+                    (post.author.profile?.fullName || post.author.fullName || '?').split(' ').map((n) => n[0]).join('').slice(0, 2)
                   )}
                 </div>
               </Link>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <span className="font-semibold">{post.author.fullName || 'Anonymous'}</span>
+                  <span className="font-semibold">{post.author.profile?.fullName || post.author.fullName || 'Unknown User'}</span>
                   {post.author.profile?.isVerified && (
                     <ShieldCheck className="h-4 w-4 text-primary" />
                   )}

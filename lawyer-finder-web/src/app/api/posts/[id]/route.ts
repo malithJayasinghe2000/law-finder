@@ -65,6 +65,9 @@ export async function GET(
     return NextResponse.json({
       post: {
         ...post,
+        author: post.isAnonymous 
+          ? { id: 'anonymous', fullName: 'Anonymous', role: 'USER', profileImageUrl: null, profile: null } 
+          : post.author,
         commentCount: post._count.comments,
         reportCount: session?.role === 'ADMIN' ? post._count.reports : undefined,
         userVote,

@@ -35,6 +35,7 @@ export default function CreatePostPage({
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [loadingCommunities, setLoadingCommunities] = useState(true);
+  const [isAnonymous, setIsAnonymous] = useState(false);
 
   useEffect(() => {
     params.then((p) => setLocale(p.locale));
@@ -149,6 +150,7 @@ export default function CreatePostPage({
           content: content.trim(),
           language,
           coverImage: coverImage || null,
+          isAnonymous,
         }),
       });
 
@@ -299,6 +301,20 @@ export default function CreatePostPage({
             <div className="text-xs text-muted-foreground mt-1 text-right">
               {content.length} characters (minimum 20)
             </div>
+          </div>
+
+          {/* Anonymous Toggle */}
+          <div className="flex items-center gap-2 mb-4">
+            <input
+              type="checkbox"
+              id="isAnonymous"
+              checked={isAnonymous}
+              onChange={(e) => setIsAnonymous(e.target.checked)}
+              className="w-4 h-4 text-primary bg-background border-gray-300 rounded cursor-pointer"
+            />
+            <label htmlFor="isAnonymous" className="text-sm font-medium cursor-pointer">
+              Post anonymously (hide my name from public view)
+            </label>
           </div>
 
           {/* Submit */}

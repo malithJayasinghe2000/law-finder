@@ -96,7 +96,7 @@ export async function GET(req: Request) {
               fullName: true,
               profileImageUrl: true,
               role: true,
-              profile: { select: { isVerified: true } },
+              profile: { select: { isVerified: true, fullName: true } },
             },
           },
           community: {
@@ -126,6 +126,9 @@ export async function GET(req: Request) {
 
     const enrichedPosts = posts.map((post) => ({
       ...post,
+      author: post.isAnonymous 
+        ? { id: 'anonymous', fullName: 'Anonymous', role: 'USER', profileImageUrl: null, profile: null } 
+        : post.author,
       commentCount: post._count.comments,
       userVote: userVotes[post.id] || null,
     }));
@@ -207,6 +210,7 @@ export async function POST(req: Request) {
         images: parsed.data.images || [],
         language: parsed.data.language,
         status: postStatus,
+        isAnonymous: parsed.data.isAnonymous || false,
       },
     });
 

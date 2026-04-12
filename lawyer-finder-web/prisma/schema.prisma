@@ -522,6 +522,7 @@ model Post {
   status   PostStatus @default(PENDING_REVIEW)
   isPinned Boolean    @default(false)
   isLocked Boolean    @default(false)
+  isAnonymous Boolean @default(false)
 
   upvotes      Int @default(0)
   downvotes    Int @default(0)

@@ -66,6 +66,7 @@ export const createPostSchema = z.object({
   coverImage: z.string().optional().nullable(),
   images: z.array(z.string()).max(5, 'Maximum 5 images allowed').optional(),
   language: z.enum(['en', 'si', 'ta']).default('en'),
+  isAnonymous: z.boolean().optional().default(false),
 });
 
 export const updatePostSchema = z.object({
