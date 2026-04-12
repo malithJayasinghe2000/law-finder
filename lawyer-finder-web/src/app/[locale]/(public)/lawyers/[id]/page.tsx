@@ -19,7 +19,7 @@ export default async function LawyerProfilePage({
   const lawyer = await prisma.lawyerProfile.findUnique({
     where: { id },
     include: {
-      user: { select: { createdAt: true } },
+      user: { select: { id: true, createdAt: true } },
       reviews: { 
         where: { isApproved: true }, 
         orderBy: { id: 'desc' },
@@ -50,7 +50,7 @@ export default async function LawyerProfilePage({
 
   const serializedLawyer = {
     ...lawyer,
-    user: lawyer.user ? { createdAt: lawyer.user.createdAt.toISOString() } : null,
+    user: lawyer.user ? { id: lawyer.user.id, createdAt: lawyer.user.createdAt.toISOString() } : null,
     reviews: lawyer.reviews.map(r => ({
       ...r,
       createdAt: r.createdAt.toISOString(),

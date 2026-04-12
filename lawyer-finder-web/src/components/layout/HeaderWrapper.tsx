@@ -53,6 +53,7 @@ export default async function HeaderWrapper({ locale }: { locale: string }) {
       appStatus={appStatus} 
       userProfile={userProfile}
       subscriptionTier={subscriptionTier}
+      userId={session.userId}
     />
   );
 }

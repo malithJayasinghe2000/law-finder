@@ -5,12 +5,13 @@ import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
-import { Scale, Menu, Search, BookOpen, LogOut, FileText, UserCircle, LayoutDashboard, Zap, CheckCircle2 } from 'lucide-react';
+import { Scale, Menu, Search, BookOpen, LogOut, FileText, UserCircle, LayoutDashboard, Zap, CheckCircle2, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
+import ChatBadge from '@/components/chat/ChatBadge';
 
 interface HeaderProps {
   locale: string;
@@ -18,9 +19,10 @@ interface HeaderProps {
   appStatus?: string | null;
   userProfile?: { fullName: string | null; profileImageUrl: string | null } | null;
   subscriptionTier?: string | null;
+  userId?: string | null;
 }
 
-export default function Header({ locale, userRole = null, appStatus = null, userProfile = null, subscriptionTier = null }: HeaderProps) {
+export default function Header({ locale, userRole = null, appStatus = null, userProfile = null, subscriptionTier = null, userId = null }: HeaderProps) {
   const t = useTranslations('Navigation');
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
@@ -38,6 +40,22 @@ export default function Header({ locale, userRole = null, appStatus = null, user
   if (userRole === 'LAWYER' || userRole === 'ADMIN') {
     navLinks.push({ href: `/${locale}/pricing`, label: 'Pricing', icon: Scale });
   }
+
+  if (userRole === 'CLIENT') {
+    navLinks.push({ href: `/${locale}/messages`, label: 'Messages', icon: MessageCircle });
+  }
+
+  const renderNavLabel = (link: any) => {
+    if (link.href === `/${locale}/messages` && userId) {
+      return (
+        <div className="flex items-center gap-2">
+           <ChatBadge userId={userId} />
+           <span>{link.label}</span>
+        </div>
+      );
+    }
+    return link.label;
+  };
 
   const handleLogout = async () => {
     try {
@@ -162,6 +180,14 @@ export default function Header({ locale, userRole = null, appStatus = null, user
 
             {userRole === 'CLIENT' && (
               <>
+                <Link href={`/${locale}/messages`}>
+                  <DropdownMenuItem className="cursor-pointer font-medium py-3 px-6 rounded-none focus:bg-neutral-50 group">
+                    <div className="flex items-center w-full">
+                      <MessageCircle className="mr-3 h-4 w-4 text-neutral-400 group-hover:text-neutral-900 transition-colors" /> 
+                      <span>Messages</span>
+                    </div>
+                  </DropdownMenuItem>
+                </Link>
                 {appStatus === 'DRAFT' && (
                   <Link href={`/${locale}/apply`}>
                     <DropdownMenuItem className="cursor-pointer text-amber-600 focus:text-amber-700 font-medium py-3 px-6 rounded-none focus:bg-amber-50 group">
@@ -221,7 +247,7 @@ export default function Header({ locale, userRole = null, appStatus = null, user
                     : 'text-muted-foreground hover:text-foreground font-medium'
               }`}
             >
-              {link.label}
+              {renderNavLabel(link)}
             </Link>
           ))}
         </nav>

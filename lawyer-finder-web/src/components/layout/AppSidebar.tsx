@@ -3,11 +3,12 @@
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { Sidebar, SidebarContent, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarGroup, SidebarGroupLabel, SidebarFooter, SidebarMenuSub, SidebarMenuSubItem, SidebarMenuSubButton } from '@/components/ui/sidebar';
-import { LayoutDashboard, Users, FileText, Settings, Star, ShieldCheck, LogOut, Megaphone, Image, ShieldPlus, ChevronDown, History, CreditCard } from 'lucide-react';
+import { LayoutDashboard, Users, FileText, Settings, Star, ShieldCheck, LogOut, Megaphone, Image, ShieldPlus, ChevronDown, History, CreditCard, MessageCircle } from 'lucide-react';
+import ChatBadge from '@/components/chat/ChatBadge';
 import { toast } from 'sonner';
 import React, { useState } from 'react';
 
-export function AppSidebar({ locale, role }: { locale: string; role: string }) {
+export function AppSidebar({ locale, role, userId }: { locale: string; role: string; userId?: string }) {
   const pathname = usePathname();
   const [openSubmenus, setOpenSubmenus] = useState<string[]>(['Payments']); // Default open for better UX, or empty
 
@@ -26,6 +27,7 @@ export function AppSidebar({ locale, role }: { locale: string; role: string }) {
 
   const lawyerLinks = [
     { href: `/${locale}/dashboard/lawyer`, icon: LayoutDashboard, label: 'Overview' },
+    { href: `/${locale}/dashboard/lawyer/chat`, icon: MessageCircle, label: 'Messages', hasBadge: true },
     { href: `/${locale}/dashboard/lawyer/schedule`, icon: History, label: 'Schedule' },
     {href: `/${locale}/dashboard/lawyer/Promotion`, icon: Megaphone, label: 'Promotion' },
     { 
@@ -122,6 +124,11 @@ export function AppSidebar({ locale, role }: { locale: string; role: string }) {
                     >
                         <link.icon className={`w-[18px] h-[18px] shrink-0 ${active ? 'text-black' : 'text-neutral-400'}`} />
                         <span className="text-[13px]">{link.label}</span>
+                        {('hasBadge' in link) && link.hasBadge && userId && (
+                          <div className="ml-auto flex items-center">
+                            <ChatBadge userId={userId} isSidebar={true} />
+                          </div>
+                        )}
                     </SidebarMenuButton>
                   )}
                 </SidebarMenuItem>
