@@ -12,9 +12,33 @@
   "Navigation": {
     "home": "Home",
     "directory": "Find Lawyer",
-    "blog": "Legal Insights",
+    "blog": "Community Hub",
     "login": "Sign In",
     "dashboard": "Dashboard",
     "about": "About"
+  },
+  "Community": {
+    "hub": "Community Hub",
+    "join": "Join",
+    "leave": "Leave",
+    "joined": "Joined",
+    "members": "Members",
+    "posts": "Posts",
+    "createPost": "Create Post",
+    "myPosts": "My Posts",
+    "communities": "Communities",
+    "guidelines": "Community Guidelines",
+    "requestCommunity": "Request Community",
+    "pendingReview": "Pending Review",
+    "published": "Published",
+    "rejected": "Rejected",
+    "upvote": "Upvote",
+    "downvote": "Downvote",
+    "comment": "Comment",
+    "share": "Share",
+    "report": "Report",
+    "translate": "Translate",
+    "viewOriginal": "View Original",
+    "autoTranslated": "Auto-translated"
   }
 }

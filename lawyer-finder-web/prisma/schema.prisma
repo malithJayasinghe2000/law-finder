@@ -30,6 +30,44 @@ enum ArticleStatus {
   PUBLISHED
 }
 
+enum PostStatus {
+  DRAFT
+  PENDING_REVIEW
+  PUBLISHED
+  REJECTED
+  REMOVED
+}
+
+enum CommunityStatus {
+  ACTIVE
+  ARCHIVED
+  SUSPENDED
+}
+
+enum CommunityRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum MemberRole {
+  MEMBER
+  MODERATOR
+  CREATOR
+}
+
+enum VoteType {
+  UPVOTE
+  DOWNVOTE
+}
+
+enum ReportStatus {
+  PENDING
+  REVIEWED
+  DISMISSED
+  ACTION_TAKEN
+}
+
 enum SubscriptionStatus {
   ACTIVE
   CANCELED
@@ -62,6 +100,15 @@ model User {
   reviews         Review[]           @relation("ReviewAuthor")
   conversations   ConversationParticipant[]
   messages        Message[]
+
+  // Community Hub relations
+  communities        CommunityMember[]
+  createdCommunities Community[]        @relation("CommunityCreator")
+  communityRequests  CommunityRequest[] @relation("CommunityRequester")
+  posts              Post[]             @relation("PostAuthor")
+  comments           Comment[]          @relation("CommentAuthor")
+  votes              Vote[]             @relation("UserVotes")
+  reports            Report[]           @relation("UserReports")
 }
 
 model LawyerApplication {
@@ -400,4 +447,183 @@ model Message {
   sender         User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
   content        String
   createdAt      DateTime     @default(now())
+}
+
+// ============= Community & Knowledge Hub =============
+
+model Community {
+  id          String          @id @default(uuid())
+  name        String          @unique
+  displayName String
+  description String
+  rules       String?
+  icon        String?
+  coverImage  String?
+  category    String
+  status      CommunityStatus @default(ACTIVE)
+
+  createdById String
+  createdBy   User @relation("CommunityCreator", fields: [createdById], references: [id])
+
+  members  CommunityMember[]
+  posts    Post[]
+
+  postCount   Int @default(0)
+  memberCount Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model CommunityMember {
+  id          String     @id @default(uuid())
+  communityId String
+  community   Community  @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role        MemberRole @default(MEMBER)
+
+  joinedAt DateTime @default(now())
+
+  @@unique([communityId, userId])
+}
+
+model CommunityRequest {
+  id          String                 @id @default(uuid())
+  requesterId String
+  requester   User                   @relation("CommunityRequester", fields: [requesterId], references: [id])
+  name        String
+  displayName String
+  description String
+  category    String
+  reason      String
+  status      CommunityRequestStatus @default(PENDING)
+  adminNotes  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Post {
+  id          String     @id @default(uuid())
+  communityId String
+  community   Community  @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  authorId    String
+  author      User       @relation("PostAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+
+  title    String
+  slug     String     @unique
+  content  String
+  excerpt  String?
+  coverImage String?
+  images   String[]
+  language String     @default("en")
+
+  status   PostStatus @default(PENDING_REVIEW)
+  isPinned Boolean    @default(false)
+  isLocked Boolean    @default(false)
+
+  upvotes      Int @default(0)
+  downvotes    Int @default(0)
+  score        Int @default(0)
+  commentCount Int @default(0)
+  viewCount    Int @default(0)
+
+  votes        Vote[]             @relation("PostVotes")
+  comments     Comment[]
+  reports      Report[]           @relation("PostReports")
+  translations PostTranslation[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model PostTranslation {
+  id      String  @id @default(uuid())
+  postId  String
+  post    Post    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  locale  String
+  title   String
+  content String
+  excerpt String?
+  isAuto  Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([postId, locale])
+}
+
+model Comment {
+  id       String  @id @default(uuid())
+  postId   String
+  post     Post    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  authorId String
+  author   User    @relation("CommentAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  parentId String?
+  parent   Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies  Comment[] @relation("CommentReplies")
+
+  content   String
+  language  String  @default("en")
+  isDeleted Boolean @default(false)
+
+  upvotes   Int @default(0)
+  downvotes Int @default(0)
+  score     Int @default(0)
+
+  votes        Vote[]               @relation("CommentVotes")
+  reports      Report[]             @relation("CommentReports")
+  translations CommentTranslation[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model CommentTranslation {
+  id        String  @id @default(uuid())
+  commentId String
+  comment   Comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  locale    String
+  content   String
+  isAuto    Boolean @default(true)
+
+  createdAt DateTime @default(now())
+
+  @@unique([commentId, locale])
+}
+
+model Vote {
+  id     String   @id @default(uuid())
+  userId String
+  user   User     @relation("UserVotes", fields: [userId], references: [id], onDelete: Cascade)
+  type   VoteType
+
+  postId    String?
+  post      Post?    @relation("PostVotes", fields: [postId], references: [id], onDelete: Cascade)
+  commentId String?
+  comment   Comment? @relation("CommentVotes", fields: [commentId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, postId])
+  @@unique([userId, commentId])
+}
+
+model Report {
+  id          String       @id @default(uuid())
+  reporterId  String
+  reporter    User         @relation("UserReports", fields: [reporterId], references: [id])
+  reason      String
+  description String?
+  status      ReportStatus @default(PENDING)
+  adminNotes  String?
+
+  postId    String?
+  post      Post?    @relation("PostReports", fields: [postId], references: [id], onDelete: Cascade)
+  commentId String?
+  comment   Comment? @relation("CommentReports", fields: [commentId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

@@ -1,0 +1,225 @@
+'use client';
+
+import { useState } from 'react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Check, X, Eye, AlertTriangle, FileText, Flag } from 'lucide-react';
+import { toast } from 'sonner';
+
+interface PendingPost {
+  id: string;
+  title: string;
+  content: string;
+  slug: string;
+  language: string;
+  createdAt: string;
+  author: { id: string; fullName: string | null; role: string };
+  community: { name: string; displayName: string };
+}
+
+interface PendingReport {
+  id: string;
+  reason: string;
+  description: string | null;
+  createdAt: string;
+  reporter: { id: string; fullName: string | null };
+  post: { id: string; title: string; slug: string } | null;
+  comment: { id: string; content: string } | null;
+}
+
+export default function ContentModerationClient({
+  pendingPosts: initialPosts,
+  pendingReports: initialReports,
+  locale,
+}: {
+  pendingPosts: PendingPost[];
+  pendingReports: PendingReport[];
+  locale: string;
+}) {
+  const [posts, setPosts] = useState(initialPosts);
+  const [reports, setReports] = useState(initialReports);
+  const [processing, setProcessing] = useState<string | null>(null);
+  const [expandedPost, setExpandedPost] = useState<string | null>(null);
+
+  const handleModeratePost = async (postId: string, status: 'PUBLISHED' | 'REJECTED') => {
+    setProcessing(postId);
+    try {
+      const res = await fetch('/api/admin/posts', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ postId, status }),
+      });
+      if (res.ok) {
+        setPosts((prev) => prev.filter((p) => p.id !== postId));
+        toast.success(`Post ${status.toLowerCase()}.`);
+      } else {
+        toast.error('Failed to moderate post.');
+      }
+    } catch {
+      toast.error('Error moderating post.');
+    } finally {
+      setProcessing(null);
+    }
+  };
+
+  const handleReviewReport = async (reportId: string, status: 'DISMISSED' | 'ACTION_TAKEN') => {
+    setProcessing(reportId);
+    try {
+      const res = await fetch(`/api/reports/${reportId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      });
+      if (res.ok) {
+        setReports((prev) => prev.filter((r) => r.id !== reportId));
+        toast.success(`Report ${status === 'DISMISSED' ? 'dismissed' : 'action taken'}.`);
+      }
+    } catch {
+      toast.error('Error processing report.');
+    } finally {
+      setProcessing(null);
+    }
+  };
+
+  return (
+    <Tabs defaultValue="posts" className="space-y-4">
+      <TabsList>
+        <TabsTrigger value="posts" className="gap-1.5">
+          <FileText className="h-4 w-4" /> Posts ({posts.length})
+        </TabsTrigger>
+        <TabsTrigger value="reports" className="gap-1.5">
+          <Flag className="h-4 w-4" /> Reports ({reports.length})
+        </TabsTrigger>
+      </TabsList>
+
+      {/* Pending Posts */}
+      <TabsContent value="posts" className="space-y-3">
+        {posts.length === 0 ? (
+          <Card>
+            <CardContent className="py-12 text-center text-muted-foreground">
+              <Check className="h-10 w-10 mx-auto mb-2 text-green-500" />
+              <p className="font-medium">All caught up!</p>
+              <p className="text-sm">No posts pending review.</p>
+            </CardContent>
+          </Card>
+        ) : (
+          posts.map((post) => (
+            <Card key={post.id} className="border-amber-200/50">
+              <CardContent className="p-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1 text-xs text-muted-foreground">
+                      <span>{post.community.displayName}</span>
+                      <span>•</span>
+                      <span>by {post.author.fullName} ({post.author.role})</span>
+                      <span>•</span>
+                      <span>{new Date(post.createdAt).toLocaleDateString()}</span>
+                      <Badge variant="outline" className="text-[10px]">{post.language}</Badge>
+                    </div>
+                    <h3 className="font-semibold tracking-tight mb-1">{post.title}</h3>
+                    
+                    {expandedPost === post.id ? (
+                      <div className="text-sm text-muted-foreground whitespace-pre-wrap border rounded-lg p-3 bg-muted/30 max-h-[300px] overflow-y-auto my-2">
+                        {post.content}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground line-clamp-2">{post.content.substring(0, 200)}...</p>
+                    )}
+                    
+                    <button
+                      onClick={() => setExpandedPost(expandedPost === post.id ? null : post.id)}
+                      className="text-xs text-primary hover:underline mt-1"
+                    >
+                      {expandedPost === post.id ? 'Collapse' : 'Read full post'}
+                    </button>
+                  </div>
+                  <div className="flex gap-2 flex-shrink-0">
+                    <Button
+                      size="sm"
+                      onClick={() => handleModeratePost(post.id, 'PUBLISHED')}
+                      disabled={processing === post.id}
+                      className="gap-1 bg-green-600 hover:bg-green-700"
+                    >
+                      <Check className="h-3.5 w-3.5" /> Approve
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleModeratePost(post.id, 'REJECTED')}
+                      disabled={processing === post.id}
+                      className="gap-1 text-red-500 border-red-200"
+                    >
+                      <X className="h-3.5 w-3.5" /> Reject
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))
+        )}
+      </TabsContent>
+
+      {/* Reports */}
+      <TabsContent value="reports" className="space-y-3">
+        {reports.length === 0 ? (
+          <Card>
+            <CardContent className="py-12 text-center text-muted-foreground">
+              <Check className="h-10 w-10 mx-auto mb-2 text-green-500" />
+              <p className="font-medium">No pending reports!</p>
+            </CardContent>
+          </Card>
+        ) : (
+          reports.map((report) => (
+            <Card key={report.id} className="border-red-200/50">
+              <CardContent className="p-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Badge variant="outline" className="text-xs text-red-500 border-red-200">
+                        {report.reason}
+                      </Badge>
+                      <span className="text-xs text-muted-foreground">
+                        Reported by {report.reporter.fullName}
+                      </span>
+                    </div>
+                    {report.post && (
+                      <p className="text-sm font-medium">Post: &quot;{report.post.title}&quot;</p>
+                    )}
+                    {report.comment && (
+                      <p className="text-sm text-muted-foreground line-clamp-2">
+                        Comment: &quot;{report.comment.content}&quot;
+                      </p>
+                    )}
+                    {report.description && (
+                      <p className="text-xs text-muted-foreground mt-1">{report.description}</p>
+                    )}
+                  </div>
+                  <div className="flex gap-2 flex-shrink-0">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleReviewReport(report.id, 'DISMISSED')}
+                      disabled={processing === report.id}
+                    >
+                      Dismiss
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => handleReviewReport(report.id, 'ACTION_TAKEN')}
+                      disabled={processing === report.id}
+                      className="gap-1 bg-red-500 hover:bg-red-600 text-white"
+                    >
+                      <AlertTriangle className="h-3.5 w-3.5" /> Take Action
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))
+        )}
+      </TabsContent>
+    </Tabs>
+  );
+}
