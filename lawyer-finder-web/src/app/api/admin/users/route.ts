@@ -26,13 +26,6 @@ export async function GET(req: Request) {
             district: true,
             baslNumber: true,
           },
-          include: {
-            Subscription: {
-              select: {
-                plan: true,
-              },
-            },
-          },
         },
         
         application: {
@@ -77,6 +70,8 @@ export async function GET(req: Request) {
     } else if (status === 'UNVERIFIED') {
       filtered = filtered.filter(u => u.role === 'LAWYER' && u.isVerified === false);
     }
+
+    console.log(filtered);
 
     return NextResponse.json({ users: filtered }, { status: 200 });
   } catch (err) {
