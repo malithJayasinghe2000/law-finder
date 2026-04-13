@@ -30,76 +30,80 @@ export async function GET(req: Request) {
         break;
     }
 
-    // Get top-level comments only (parentId is null)
-    const [comments, total] = await Promise.all([
-      prisma.comment.findMany({
-        where: { postId, parentId: null, isDeleted: false },
-        orderBy,
-        skip: (page - 1) * limit,
-        take: limit,
-        include: {
-          author: {
-            select: {
-              id: true,
-              fullName: true,
-              profileImageUrl: true,
-              role: true,
-              profile: { select: { isVerified: true } },
-            },
+    // Fetch all comments for the post to build a complete N-depth tree
+    const allComments = await prisma.comment.findMany({
+      where: { postId }, // Fetch all, including deleted, to maintain thread hierarchy
+      orderBy: { createdAt: 'asc' }, // Sorting will be dynamically applied to tree nodes next
+      include: {
+        author: {
+          select: {
+            id: true,
+            fullName: true,
+            profileImageUrl: true,
+            role: true,
+            profile: { select: { isVerified: true } },
           },
-          replies: {
-            where: { isDeleted: false },
-            orderBy: { score: 'desc' },
-            take: 5, // First 5 replies loaded inline
-            include: {
-              author: {
-                select: {
-                  id: true,
-                  fullName: true,
-                  profileImageUrl: true,
-                  role: true,
-                  profile: { select: { isVerified: true } },
-                },
-              },
-              _count: { select: { replies: true } },
-            },
-          },
-          _count: { select: { replies: true } },
         },
-      }),
-      prisma.comment.count({ where: { postId, parentId: null, isDeleted: false } }),
-    ]);
+      },
+    });
 
     // Get user votes on these comments
     let userVotes: Record<string, string> = {};
     const session = await getSession();
-    if (session) {
-      const allCommentIds = [
-        ...comments.map((c) => c.id),
-        ...comments.flatMap((c) => c.replies.map((r) => r.id)),
-      ];
-      if (allCommentIds.length > 0) {
-        const votes = await prisma.vote.findMany({
-          where: { userId: session.userId, commentId: { in: allCommentIds } },
-          select: { commentId: true, type: true },
-        });
-        userVotes = Object.fromEntries(votes.map((v) => [v.commentId!, v.type]));
-      }
+    if (session && allComments.length > 0) {
+      const allCommentIds = allComments.map((c) => c.id);
+      const votes = await prisma.vote.findMany({
+        where: { userId: session.userId, commentId: { in: allCommentIds } },
+        select: { commentId: true, type: true },
+      });
+      userVotes = Object.fromEntries(votes.map((v) => [v.commentId!, v.type]));
     }
 
-    const enrichedComments = comments.map((comment) => ({
-      ...comment,
-      replyCount: comment._count.replies,
-      userVote: userVotes[comment.id] || null,
-      replies: comment.replies.map((reply) => ({
-        ...reply,
-        replyCount: reply._count.replies,
-        userVote: userVotes[reply.id] || null,
-      })),
-    }));
+    // Build the nested tree
+    const commentMap = new Map();
+    allComments.forEach((c) => {
+      // If deleted, scrub content but keep the node to anchor its replies
+      const content = c.isDeleted ? '' : c.content;
+      commentMap.set(c.id, { ...c, content, replies: [], replyCount: 0, userVote: userVotes[c.id] || null });
+    });
+
+    const rootComments: any[] = [];
+    allComments.forEach((c) => {
+      const node = commentMap.get(c.id);
+      if (c.parentId) {
+        const parent = commentMap.get(c.parentId);
+        if (parent) {
+          parent.replies.push(node);
+          parent.replyCount += 1;
+        } else {
+          // If parent is completely missing, hoist to root
+          rootComments.push(node);
+        }
+      } else {
+        rootComments.push(node);
+      }
+    });
+
+    // Sort the tree based on requested order
+    const sortNodes = (nodes: any[]) => {
+      nodes.sort((a, b) => {
+        if (sort === 'new') return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        if (sort === 'old') return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+        return b.score - a.score; // best (default)
+      });
+      nodes.forEach(n => sortNodes(n.replies));
+    };
+    sortNodes(rootComments);
+
+    // Filter out root comments that are deleted AND have no replies
+    const validRootComments = rootComments.filter(c => !c.isDeleted || c.replies.length > 0);
+
+    // Apply pagination ONLY to root comments
+    const total = validRootComments.length;
+    const paginatedRoots = validRootComments.slice((page - 1) * limit, page * limit);
 
     return NextResponse.json({
-      comments: enrichedComments,
+      comments: paginatedRoots,
       pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
     });
   } catch (error) {
