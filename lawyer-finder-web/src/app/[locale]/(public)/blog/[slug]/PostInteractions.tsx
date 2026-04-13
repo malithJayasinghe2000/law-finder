@@ -247,7 +247,7 @@ export default function PostInteractions({
   return (
     <div>
       {/* Translation notice */}
-      {(needsTranslation || showTranslation) && (
+      {/* {(needsTranslation || showTranslation) && (
         <div className="mb-4">
           {translationLoading ? (
             <div className="flex items-center gap-2 py-2 px-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg text-sm text-blue-600">
@@ -262,7 +262,7 @@ export default function PostInteractions({
             />
           )}
         </div>
-      )}
+      )} */}
 
       {/* Post content */}
       {(currentUserId === post.authorId || currentUserRole === 'ADMIN') && (
