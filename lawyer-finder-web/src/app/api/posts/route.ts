@@ -167,45 +167,50 @@ export async function POST(req: Request) {
     }
 
     // Determine post status based on user trust level
-    let postStatus: 'PUBLISHED' | 'PENDING_REVIEW' = 'PENDING_REVIEW';
+    let postStatus: 'PUBLISHED' | 'PENDING_REVIEW' | 'DRAFT' = 'PENDING_REVIEW';
 
-    if (session.role === 'ADMIN') {
-      postStatus = 'PUBLISHED';
-    } else if (session.role === 'LAWYER') {
-      // Check if lawyer is verified
-      const profile = await prisma.lawyerProfile.findUnique({
-        where: { userId: session.userId },
-        select: { isVerified: true },
-      });
-      if (profile?.isVerified) {
-        postStatus = 'PUBLISHED'; // Verified lawyers auto-publish
-      }
+    if (parsed.data.isDraft) {
+      postStatus = 'DRAFT';
     } else {
-      // CLIENT: check post history
-      const publishedCount = await prisma.post.count({
-        where: { authorId: session.userId, status: 'PUBLISHED' },
-      });
-      const flaggedCount = await prisma.report.count({
-        where: {
-          post: { authorId: session.userId },
-          status: 'ACTION_TAKEN',
-        },
-      });
-      if (publishedCount >= 3 && flaggedCount === 0) {
-        postStatus = 'PUBLISHED'; // Trusted client auto-publishes
+      if (session.role === 'ADMIN') {
+        postStatus = 'PUBLISHED';
+      } else if (session.role === 'LAWYER') {
+        // Check if lawyer is verified
+        const profile = await prisma.lawyerProfile.findUnique({
+          where: { userId: session.userId },
+          select: { isVerified: true },
+        });
+        if (profile?.isVerified) {
+          postStatus = 'PUBLISHED'; // Verified lawyers auto-publish
+        }
+      } else {
+        // CLIENT: check post history
+        const publishedCount = await prisma.post.count({
+          where: { authorId: session.userId, status: 'PUBLISHED' },
+        });
+        const flaggedCount = await prisma.report.count({
+          where: {
+            post: { authorId: session.userId },
+            status: 'ACTION_TAKEN',
+          },
+        });
+        if (publishedCount >= 3 && flaggedCount === 0) {
+          postStatus = 'PUBLISHED'; // Trusted client auto-publishes
+        }
       }
     }
 
-    const slug = generateSlug(parsed.data.title);
-    const excerpt = generateExcerpt(parsed.data.content);
+    const unsluggedTitle = parsed.data.title || 'Untitled Draft';
+    const slug = generateSlug(unsluggedTitle);
+    const excerpt = generateExcerpt(parsed.data.content || '');
 
     const post = await prisma.post.create({
       data: {
         communityId: parsed.data.communityId,
         authorId: session.userId,
-        title: parsed.data.title,
+        title: unsluggedTitle,
         slug,
-        content: parsed.data.content,
+        content: parsed.data.content || '',
         excerpt,
         coverImage: parsed.data.coverImage || null,
         images: parsed.data.images || [],
@@ -226,7 +231,9 @@ export async function POST(req: Request) {
     return NextResponse.json({
       post,
       message:
-        postStatus === 'PUBLISHED'
+        postStatus === 'DRAFT'
+          ? 'Draft saved successfully!'
+          : postStatus === 'PUBLISHED'
           ? 'Post published successfully!'
           : 'Post submitted for review. It will be visible once approved.',
     }, { status: 201 });

@@ -130,14 +130,34 @@ export async function PATCH(
       if (parsed.data.images) updateData.images = parsed.data.images;
       if (parsed.data.language) updateData.language = parsed.data.language;
       
-      // Authors can restore removed/pending posts to PUBLISHED
-      if (parsed.data.status === 'PUBLISHED' && post.status !== 'PUBLISHED') {
-        updateData.status = 'PUBLISHED';
-      }
-      
-      // Authors can remove their own posts
-      if (parsed.data.status === 'REMOVED' && post.status === 'PUBLISHED') {
-        updateData.status = 'REMOVED';
+      // Authors can transition statuses
+      if (parsed.data.status && parsed.data.status !== post.status) {
+        if (parsed.data.status === 'REMOVED' && post.status === 'PUBLISHED') {
+          updateData.status = 'REMOVED';
+        } else if (parsed.data.status === 'DRAFT') {
+           updateData.status = 'DRAFT';
+        } else if (parsed.data.status === 'PENDING_REVIEW' || parsed.data.status === 'PUBLISHED') {
+          // Re-evaluate trust level
+          let newStatus: 'PUBLISHED' | 'PENDING_REVIEW' = 'PENDING_REVIEW';
+          if (session.role === 'ADMIN') {
+            newStatus = 'PUBLISHED';
+          } else if (session.role === 'LAWYER') {
+            const profile = await prisma.lawyerProfile.findUnique({
+              where: { userId: session.userId },
+              select: { isVerified: true },
+            });
+            if (profile?.isVerified) newStatus = 'PUBLISHED';
+          } else {
+            const publishedCount = await prisma.post.count({
+              where: { authorId: session.userId, status: 'PUBLISHED' },
+            });
+            const flaggedCount = await prisma.report.count({
+              where: { post: { authorId: session.userId }, status: 'ACTION_TAKEN' },
+            });
+            if (publishedCount >= 3 && flaggedCount === 0) newStatus = 'PUBLISHED';
+          }
+          updateData.status = newStatus;
+        }
       }
     }
 

@@ -136,10 +136,20 @@ export default function EditPostPage() {
     input.click();
   };
 
-  const handleSubmit = async () => {
-    if (!selectedCommunity || !title.trim() || !content.trim()) {
-      toast.error('Please fill in all required fields.');
-      return;
+  const handleSubmit = async (isDraft: boolean = false) => {
+    if (!isDraft) {
+      if (!title.trim() || !content.trim()) {
+        toast.error('Please fill in all required fields.');
+        return;
+      }
+      if (title.length < 5) {
+        toast.error('Title must be at least 5 characters.');
+        return;
+      }
+      if (content.length < 20) {
+        toast.error('Content must be at least 20 characters.');
+        return;
+      }
     }
 
     setSubmitting(true);
@@ -152,7 +162,8 @@ export default function EditPostPage() {
           content: content.trim(),
           language,
           coverImage: coverImage || null,
-          status: 'PUBLISHED', // Reset to published if edited
+          isDraft,
+          ...(currentStatus !== 'DRAFT' ? { status: isDraft ? 'DRAFT' : 'PENDING_REVIEW' } : { status: isDraft ? 'DRAFT' : 'PENDING_REVIEW'}),
         }),
       });
 
@@ -332,11 +343,21 @@ export default function EditPostPage() {
               Last saved: {new Date().toLocaleTimeString()}
             </p>
             <div className="flex gap-3">
-               <Link href={`/${locale}/blog/${slug}`}>
+               <Link href={`/${locale}/blog/${slug || 'my-posts'}`}>
                 <Button variant="outline">Cancel</Button>
                </Link>
+               {currentStatus === 'DRAFT' && (
+                 <Button
+                   variant="outline"
+                   onClick={() => handleSubmit(true)}
+                   disabled={submitting}
+                   className="font-semibold text-neutral-600"
+                 >
+                   Save as Draft
+                 </Button>
+               )}
               <Button
-                onClick={handleSubmit}
+                onClick={() => handleSubmit(false)}
                 disabled={submitting || !title.trim() || content.length < 20}
                 className="gap-2 font-semibold min-w-[140px]"
               >
@@ -347,7 +368,7 @@ export default function EditPostPage() {
                 ) : (
                   <>
                     <Send className="h-4 w-4" /> 
-                    {currentStatus === 'REMOVED' || currentStatus === 'REJECTED' ? 'Restore & Publish' : 'Save Changes'}
+                    {currentStatus === 'DRAFT' ? 'Publish Post' : (currentStatus === 'REMOVED' || currentStatus === 'REJECTED' ? 'Restore & Publish' : 'Save Changes')}
                   </>
                 )}
               </Button>

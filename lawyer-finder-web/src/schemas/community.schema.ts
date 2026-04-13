@@ -57,28 +57,48 @@ export const createPostSchema = z.object({
   communityId: z.string().uuid('Invalid community ID'),
   title: z
     .string()
-    .min(5, 'Title must be at least 5 characters')
-    .max(200, 'Title cannot exceed 200 characters'),
+    .max(200, 'Title cannot exceed 200 characters')
+    .optional().default(''),
   content: z
     .string()
-    .min(20, 'Content must be at least 20 characters')
-    .max(50000, 'Content cannot exceed 50,000 characters'),
+    .max(50000, 'Content cannot exceed 50,000 characters')
+    .optional().default(''),
   coverImage: z.string().optional().nullable(),
   images: z.array(z.string()).max(5, 'Maximum 5 images allowed').optional(),
   language: z.enum(['en', 'si', 'ta']).default('en'),
   isAnonymous: z.boolean().optional().default(false),
+  isDraft: z.boolean().optional().default(false),
+}).superRefine((data, ctx) => {
+  if (!data.isDraft) {
+    if (data.title.trim().length < 5) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Title must be at least 5 characters', path: ['title'] });
+    }
+    if (data.content.trim().length < 20) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Content must be at least 20 characters', path: ['content'] });
+    }
+  }
 });
 
 export const updatePostSchema = z.object({
-  title: z.string().min(5).max(200).optional(),
-  content: z.string().min(20).max(50000).optional(),
+  title: z.string().max(200).optional(),
+  content: z.string().max(50000).optional(),
   coverImage: z.string().optional().nullable(),
   images: z.array(z.string()).max(5).optional(),
   language: z.enum(['en', 'si', 'ta']).optional(),
-  // Admin/Moderator fields
+  // Admin/Moderator/Author fields
   status: z.enum(['DRAFT', 'PENDING_REVIEW', 'PUBLISHED', 'REJECTED', 'REMOVED']).optional(),
   isPinned: z.boolean().optional(),
   isLocked: z.boolean().optional(),
+  isDraft: z.boolean().optional(),
+}).superRefine((data, ctx) => {
+  if (!data.isDraft && data.status !== 'DRAFT') {
+    if (data.title !== undefined && data.title.trim().length < 5) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Title must be at least 5 characters', path: ['title'] });
+    }
+    if (data.content !== undefined && data.content.trim().length < 20) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Content must be at least 20 characters', path: ['content'] });
+    }
+  }
 });
 
 // ============= Comment Schemas =============

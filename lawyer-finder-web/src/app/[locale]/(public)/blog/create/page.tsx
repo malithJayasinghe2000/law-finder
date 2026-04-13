@@ -125,18 +125,25 @@ export default function CreatePostPage({
     input.click();
   };
 
-  const handleSubmit = async () => {
-    if (!selectedCommunity || !title.trim() || !content.trim()) {
-      toast.error('Please fill in all required fields.');
+  const handleSubmit = async (isDraft: boolean = false) => {
+    if (!selectedCommunity) {
+      toast.error('Please select a Community before saving.');
       return;
     }
-    if (title.length < 5) {
-      toast.error('Title must be at least 5 characters.');
-      return;
-    }
-    if (content.length < 20) {
-      toast.error('Content must be at least 20 characters.');
-      return;
+    
+    if (!isDraft) {
+      if (!title.trim() || !content.trim()) {
+        toast.error('Please fill in all required fields.');
+        return;
+      }
+      if (title.length < 5) {
+        toast.error('Title must be at least 5 characters.');
+        return;
+      }
+      if (content.length < 20) {
+        toast.error('Content must be at least 20 characters.');
+        return;
+      }
     }
 
     setSubmitting(true);
@@ -151,6 +158,7 @@ export default function CreatePostPage({
           language,
           coverImage: coverImage || null,
           isAnonymous,
+          isDraft,
         }),
       });
 
@@ -322,22 +330,33 @@ export default function CreatePostPage({
             <p className="text-xs text-muted-foreground max-w-sm">
               By posting, you agree to our community guidelines. Posts may be reviewed before publishing.
             </p>
-            <Button
-              onClick={handleSubmit}
-              disabled={submitting || !selectedCommunity || !title.trim() || content.length < 20}
-              size="lg"
-              className="gap-2 font-semibold"
-            >
-              {submitting ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" /> Submitting...
-                </>
-              ) : (
-                <>
-                  <Send className="h-4 w-4" /> Publish Post
-                </>
-              )}
-            </Button>
+            <div className="flex items-center gap-3">
+              <Button
+                variant="outline"
+                onClick={() => handleSubmit(true)}
+                disabled={submitting || !selectedCommunity}
+                size="lg"
+                className="font-semibold text-neutral-600"
+              >
+                Save as Draft
+              </Button>
+              <Button
+                onClick={() => handleSubmit(false)}
+                disabled={submitting || !selectedCommunity || !title.trim() || content.length < 20}
+                size="lg"
+                className="gap-2 font-semibold"
+              >
+                {submitting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" /> Submitting...
+                  </>
+                ) : (
+                  <>
+                    <Send className="h-4 w-4" /> Publish Post
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
         </div>
       </div>
