@@ -5,10 +5,11 @@ import { useRouter, useParams } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, ImagePlus, Loader2, Send, Trash2 } from 'lucide-react';
+import { ArrowLeft, ImagePlus, Loader2, Send, Trash2, RefreshCcw } from 'lucide-react';
 import Link from 'next/link';
 import RichTextEditor from '@/components/community/RichTextEditor';
 import { toast } from 'sonner';
+import { STATUS_COLORS, STATUS_LABELS } from '@/schemas/community.schema';
 
 interface Community {
   id: string;
@@ -31,6 +32,7 @@ export default function EditPostPage() {
   const [coverImage, setCoverImage] = useState('');
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [slug, setSlug] = useState('');
+  const [currentStatus, setCurrentStatus] = useState<string>('');
   
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -58,6 +60,7 @@ export default function EditPostPage() {
           setCoverImage(post.coverImage || '');
           setIsAnonymous(post.isAnonymous || false);
           setSlug(post.slug);
+          setCurrentStatus(post.status);
         } else {
           toast.error('Failed to load post data.');
           router.push(`/${locale}/blog`);
@@ -206,16 +209,36 @@ export default function EditPostPage() {
           >
             <ArrowLeft className="h-4 w-4" /> Cancel
           </Link>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleDelete}
-            className="text-red-500 hover:bg-red-50 hover:text-red-600 font-semibold"
-            disabled={deleting}
-          >
-            {deleting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Trash2 className="h-4 w-4 mr-2" />}
-            Delete Post
-          </Button>
+          <div className="flex items-center gap-3">
+            {currentStatus && currentStatus !== 'PUBLISHED' && (
+              <Badge className={`text-[10px] px-2 py-0.5 font-bold uppercase ${STATUS_COLORS[currentStatus as any]}`}>
+                {STATUS_LABELS[currentStatus as any]}
+              </Badge>
+            )}
+            {currentStatus === 'REMOVED' || currentStatus === 'REJECTED' ? (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleSubmit}
+                className="text-green-600 hover:bg-green-50 hover:text-green-700 font-semibold border-green-200"
+                disabled={submitting}
+              >
+                {submitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <RefreshCcw className="h-4 w-4 mr-2" />}
+                Restore Post
+              </Button>
+            ) : (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleDelete}
+                className="text-red-500 hover:bg-red-50 hover:text-red-600 font-semibold"
+                disabled={deleting}
+              >
+                {deleting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Trash2 className="h-4 w-4 mr-2" />}
+                Delete Post
+              </Button>
+            )}
+          </div>
         </div>
 
         <h1 className="text-2xl font-bold tracking-tight mb-6">Edit Post</h1>
@@ -323,7 +346,8 @@ export default function EditPostPage() {
                   </>
                 ) : (
                   <>
-                    <Send className="h-4 w-4" /> Save Changes
+                    <Send className="h-4 w-4" /> 
+                    {currentStatus === 'REMOVED' || currentStatus === 'REJECTED' ? 'Restore & Publish' : 'Save Changes'}
                   </>
                 )}
               </Button>

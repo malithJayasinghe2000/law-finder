@@ -19,7 +19,6 @@ export default async function PostDetailPage({
   const post = await prisma.post.findFirst({
     where: {
       slug,
-      status: { in: ['PUBLISHED', 'PENDING_REVIEW'] },
     },
     include: {
       author: {
@@ -42,8 +41,8 @@ export default async function PostDetailPage({
 
   if (!post) notFound();
 
-  // Only show pending posts to author or admin
-  if (post.status === 'PENDING_REVIEW') {
+  // Only show non-published posts to author or admin
+  if (post.status !== 'PUBLISHED') {
     if (!session || (session.userId !== post.authorId && session.role !== 'ADMIN')) {
       notFound();
     }

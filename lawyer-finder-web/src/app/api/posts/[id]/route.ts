@@ -15,7 +15,6 @@ export async function GET(
     const post = await prisma.post.findFirst({
       where: {
         OR: [{ id }, { slug: id }],
-        status: { in: ['PUBLISHED', 'PENDING_REVIEW'] },
       },
       include: {
         author: {
@@ -39,9 +38,9 @@ export async function GET(
       return NextResponse.json({ error: 'Post not found.' }, { status: 404 });
     }
 
-    // Only show pending posts to the author or admins
+    // Only show non-published posts to the author or admins
     const session = await getSession();
-    if (post.status === 'PENDING_REVIEW') {
+    if (post.status !== 'PUBLISHED') {
       if (!session || (session.userId !== post.authorId && session.role !== 'ADMIN')) {
         return NextResponse.json({ error: 'Post not found.' }, { status: 404 });
       }
@@ -118,8 +117,9 @@ export async function PATCH(
       return NextResponse.json({ error: 'Insufficient permissions.' }, { status: 403 });
     }
 
-    // Authors can only update content fields
-    const updateData: Record<string, unknown> = {};
+    const updateData: Record<string, any> = {};
+
+    // Authors can update content fields
     if (isAuthor) {
       if (parsed.data.title) updateData.title = parsed.data.title;
       if (parsed.data.content) {
@@ -129,29 +129,39 @@ export async function PATCH(
       if (parsed.data.coverImage !== undefined) updateData.coverImage = parsed.data.coverImage;
       if (parsed.data.images) updateData.images = parsed.data.images;
       if (parsed.data.language) updateData.language = parsed.data.language;
+      
+      // Authors can restore removed/pending posts to PUBLISHED
+      if (parsed.data.status === 'PUBLISHED' && post.status !== 'PUBLISHED') {
+        updateData.status = 'PUBLISHED';
+      }
+      
+      // Authors can remove their own posts
+      if (parsed.data.status === 'REMOVED' && post.status === 'PUBLISHED') {
+        updateData.status = 'REMOVED';
+      }
     }
 
     // Admin/Mod can update moderation fields
     if (isAdmin || isMod) {
       if (parsed.data.status) {
         updateData.status = parsed.data.status;
-        // If publishing a pending post, increment community counter
-        if (parsed.data.status === 'PUBLISHED' && post.status === 'PENDING_REVIEW') {
-          await prisma.community.update({
-            where: { id: post.communityId },
-            data: { postCount: { increment: 1 } },
-          });
-        }
-        // If removing a published post, decrement community counter
-        if ((parsed.data.status === 'REMOVED' || parsed.data.status === 'REJECTED') && post.status === 'PUBLISHED') {
-          await prisma.community.update({
-            where: { id: post.communityId },
-            data: { postCount: { decrement: 1 } },
-          });
-        }
       }
       if (parsed.data.isPinned !== undefined) updateData.isPinned = parsed.data.isPinned;
       if (parsed.data.isLocked !== undefined) updateData.isLocked = parsed.data.isLocked;
+    }
+
+    // Handle community postCount adjustments
+    const finalStatus = (updateData.status as string) || (post.status as string);
+    if (finalStatus === 'PUBLISHED' && post.status !== 'PUBLISHED') {
+      await prisma.community.update({
+        where: { id: post.communityId },
+        data: { postCount: { increment: 1 } },
+      });
+    } else if (finalStatus !== 'PUBLISHED' && post.status === 'PUBLISHED') {
+      await prisma.community.update({
+        where: { id: post.communityId },
+        data: { postCount: { decrement: 1 } },
+      });
     }
 
     const updated = await prisma.post.update({

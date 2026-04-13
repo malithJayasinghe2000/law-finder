@@ -48,6 +48,10 @@ export default function ContentModerationClient({
   const [processing, setProcessing] = useState<string | null>(null);
   const [expandedPost, setExpandedPost] = useState<string | null>(null);
 
+  const stripHtml = (html: string) => {
+    return html.replace(/<[^>]*>?/gm, '');
+  };
+
   const fetchAllPosts = async () => {
     setLoadingAll(true);
     try {
@@ -154,10 +158,12 @@ export default function ContentModerationClient({
                     
                     {expandedPost === post.id ? (
                       <div className="text-sm text-muted-foreground whitespace-pre-wrap border rounded-lg p-3 bg-muted/30 max-h-[300px] overflow-y-auto my-2">
-                        {post.content}
+                        {stripHtml(post.content)}
                       </div>
                     ) : (
-                      <p className="text-sm text-muted-foreground line-clamp-2">{post.content.substring(0, 200)}...</p>
+                      <p className="text-sm text-muted-foreground line-clamp-2">
+                        {stripHtml(post.content).substring(0, 200)}...
+                      </p>
                     )}
                     
                     <div className="flex items-center gap-3 mt-1">
@@ -311,7 +317,10 @@ export default function ContentModerationClient({
                         <span>{new Date(post.createdAt).toLocaleDateString()}</span>
                       </div>
                       <h3 className="font-semibold tracking-tight truncate">{post.title}</h3>
-                      <div className="mt-2">
+                      <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5 italic">
+                        {stripHtml(post.content).substring(0, 150)}...
+                      </p>
+                      <div className="mt-2 text-xs">
                         <Link 
                           href={`/${locale}/blog/${post.slug}`}
                           className="text-xs text-primary hover:underline flex items-center gap-1 font-semibold"
