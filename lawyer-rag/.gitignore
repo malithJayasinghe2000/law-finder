@@ -1,0 +1,12 @@
+# Env
+.env
+
+# Python cache
+__pycache__/
+*.pyc
+
+# RAG / Vector DB
+# data/
+# *.bin
+# *.sqlite3
+# *.pickle
