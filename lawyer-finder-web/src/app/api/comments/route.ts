@@ -41,7 +41,7 @@ export async function GET(req: Request) {
             fullName: true,
             profileImageUrl: true,
             role: true,
-            profile: { select: { isVerified: true } },
+            profile: { select: { isVerified: true, fullName: true } },
           },
         },
       },
@@ -64,7 +64,26 @@ export async function GET(req: Request) {
     allComments.forEach((c) => {
       // If deleted, scrub content but keep the node to anchor its replies
       const content = c.isDeleted ? '' : c.content;
-      commentMap.set(c.id, { ...c, content, replies: [], replyCount: 0, userVote: userVotes[c.id] || null });
+      
+      let author = c.author;
+      if (c.isAnonymous) {
+        author = {
+          id: 'anonymous',
+          fullName: 'Anonymous',
+          profileImageUrl: null,
+          role: 'CLIENT',
+          profile: null,
+        } as any;
+      }
+
+      commentMap.set(c.id, { 
+        ...c, 
+        content, 
+        author,
+        replies: [], 
+        replyCount: 0, 
+        userVote: userVotes[c.id] || null 
+      });
     });
 
     const rootComments: any[] = [];
@@ -157,6 +176,7 @@ export async function POST(req: Request) {
         content: parsed.data.content,
         parentId: parsed.data.parentId || null,
         language: parsed.data.language,
+        isAnonymous: parsed.data.isAnonymous,
       },
       include: {
         author: {
@@ -165,7 +185,7 @@ export async function POST(req: Request) {
             fullName: true,
             profileImageUrl: true,
             role: true,
-            profile: { select: { isVerified: true } },
+            profile: { select: { isVerified: true, fullName: true } },
           },
         },
       },

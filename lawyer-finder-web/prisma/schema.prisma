@@ -568,6 +568,7 @@ model Comment {
   content   String
   language  String  @default("en")
   isDeleted Boolean @default(false)
+  isAnonymous Boolean @default(false)
 
   upvotes   Int @default(0)
   downvotes Int @default(0)

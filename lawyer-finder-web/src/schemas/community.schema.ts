@@ -91,6 +91,7 @@ export const createCommentSchema = z.object({
     .max(5000, 'Comment cannot exceed 5,000 characters'),
   parentId: z.string().uuid().optional().nullable(),
   language: z.enum(['en', 'si', 'ta']).default('en'),
+  isAnonymous: z.boolean().optional().default(false),
 });
 
 export const updateCommentSchema = z.object({

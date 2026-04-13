@@ -12,7 +12,7 @@ interface Author {
   fullName: string | null;
   profileImageUrl: string | null;
   role: string;
-  profile?: { isVerified: boolean } | null;
+  profile?: { isVerified: boolean; fullName?: string | null } | null;
 }
 
 interface CommentData {
@@ -37,7 +37,7 @@ interface CommentThreadProps {
   currentUserId?: string | null;
   currentUserRole?: string | null;
   locale: string;
-  onReply: (parentId: string, content: string) => Promise<void>;
+  onReply: (parentId: string, content: string, isAnonymous: boolean) => Promise<void>;
   onVote: (commentId: string, type: 'UPVOTE' | 'DOWNVOTE') => Promise<void>;
   onDelete: (commentId: string) => Promise<void>;
   onReport: (commentId: string) => void;
@@ -98,7 +98,7 @@ function SingleComment({
   currentUserId?: string | null;
   currentUserRole?: string | null;
   locale: string;
-  onReply: (parentId: string, content: string) => Promise<void>;
+  onReply: (parentId: string, content: string, isAnonymous: boolean) => Promise<void>;
   onVote: (commentId: string, type: 'UPVOTE' | 'DOWNVOTE') => Promise<void>;
   onDelete: (commentId: string) => Promise<void>;
   onReport: (commentId: string) => void;
@@ -106,6 +106,7 @@ function SingleComment({
 }) {
   const [showReply, setShowReply] = useState(false);
   const [replyContent, setReplyContent] = useState('');
+  const [isAnonymous, setIsAnonymous] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [showActions, setShowActions] = useState(false);
 
@@ -117,9 +118,10 @@ function SingleComment({
     if (!replyContent.trim()) return;
     setSubmitting(true);
     try {
-      await onReply(comment.id, replyContent.trim());
+      await onReply(comment.id, replyContent.trim(), isAnonymous);
       setReplyContent('');
       setShowReply(false);
+      setIsAnonymous(false);
     } catch {
       // Error handled by parent
     } finally {
@@ -162,7 +164,7 @@ function SingleComment({
           )}
         </div>
         <span className="font-semibold text-foreground">
-          {comment.author.fullName || 'Anonymous'}
+          {comment.author.profile?.fullName || comment.author.fullName || 'Anonymous'}
         </span>
         {comment.author.profile?.isVerified && (
           <ShieldCheck className="h-3.5 w-3.5 text-primary" />
@@ -240,21 +242,32 @@ function SingleComment({
             className="w-full p-3 text-sm border rounded-lg bg-background resize-none focus:outline-none focus:ring-2 focus:ring-primary/50 min-h-[80px]"
             rows={3}
           />
-          <div className="flex justify-end gap-2 mt-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => { setShowReply(false); setReplyContent(''); }}
-            >
-              Cancel
-            </Button>
-            <Button
-              size="sm"
-              onClick={handleSubmitReply}
-              disabled={!replyContent.trim() || submitting}
-            >
-              {submitting ? 'Posting...' : 'Reply'}
-            </Button>
+          <div className="flex items-center justify-between gap-2 mt-2">
+            <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer hover:text-foreground transition-colors">
+              <input
+                type="checkbox"
+                checked={isAnonymous}
+                onChange={(e) => setIsAnonymous(e.target.checked)}
+                className="rounded border-muted text-primary focus:ring-primary/50"
+              />
+              Post anonymously
+            </label>
+            <div className="flex gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => { setShowReply(false); setReplyContent(''); setIsAnonymous(false); }}
+              >
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleSubmitReply}
+                disabled={!replyContent.trim() || submitting}
+              >
+                {submitting ? 'Posting...' : 'Reply'}
+              </Button>
+            </div>
           </div>
         </div>
       )}

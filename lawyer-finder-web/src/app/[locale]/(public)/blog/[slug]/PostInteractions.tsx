@@ -53,6 +53,7 @@ export default function PostInteractions({
   const [comments, setComments] = useState<any[]>([]);
   const [commentsLoading, setCommentsLoading] = useState(true);
   const [commentText, setCommentText] = useState('');
+  const [commentAnonymous, setCommentAnonymous] = useState(false);
   const [commentSubmitting, setCommentSubmitting] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [reportTarget, setReportTarget] = useState<{ postId?: string; commentId?: string }>({});
@@ -136,10 +137,16 @@ export default function PostInteractions({
       const res = await fetch('/api/comments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ postId: post.id, content: commentText.trim(), language: locale }),
+        body: JSON.stringify({ 
+          postId: post.id, 
+          content: commentText.trim(), 
+          language: locale,
+          isAnonymous: commentAnonymous,
+        }),
       });
       if (res.ok) {
         setCommentText('');
+        setCommentAnonymous(false);
         fetchComments(); // Refresh comments
         toast.success('Comment posted!');
       } else {
@@ -153,11 +160,11 @@ export default function PostInteractions({
     }
   };
 
-  const handleCommentReply = async (parentId: string, content: string) => {
+  const handleCommentReply = async (parentId: string, content: string, isAnonymous: boolean) => {
     const res = await fetch('/api/comments', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ postId: post.id, content, parentId, language: locale }),
+      body: JSON.stringify({ postId: post.id, content, parentId, language: locale, isAnonymous }),
     });
     if (res.ok) {
       fetchComments();
@@ -285,7 +292,16 @@ export default function PostInteractions({
                 className="w-full p-4 text-sm border rounded-xl bg-background resize-none focus:outline-none focus:ring-2 focus:ring-primary/50 min-h-[100px]"
                 rows={4}
               />
-              <div className="flex justify-end mt-2">
+              <div className="flex items-center justify-between mt-2">
+                <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer hover:text-foreground transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={commentAnonymous}
+                    onChange={(e) => setCommentAnonymous(e.target.checked)}
+                    className="rounded border-muted text-primary focus:ring-primary/50"
+                  />
+                  Post anonymously
+                </label>
                 <Button
                   onClick={handleCommentSubmit}
                   disabled={!commentText.trim() || commentSubmitting}
