@@ -47,7 +47,13 @@ export function AppSidebar({ locale, role, userId }: { locale: string; role: str
     { href: `/${locale}/profile`, icon: Settings, label: 'Profile Settings' },
   ];
 
-  const links = role === 'ADMIN' ? adminLinks : lawyerLinks;
+  const clientLinks = [
+    { href: `/${locale}/dashboard/client`, icon: LayoutDashboard, label: 'Overview', exact: true },
+    { href: `/${locale}/blog/my-posts`, icon: PenSquare, label: 'Community Posts' },
+    { href: `/${locale}/profile`, icon: Settings, label: 'Profile Settings' },
+  ];
+
+  const links = role === 'ADMIN' ? adminLinks : (role === 'LAWYER' ? lawyerLinks : clientLinks);
 
   const isLinkActive = (link: any) => {
     if (link.exact) {
@@ -68,8 +74,8 @@ export function AppSidebar({ locale, role, userId }: { locale: string; role: str
     <Sidebar className="border-r border-neutral-200 bg-white">
       <SidebarHeader className="px-6 py-5 border-b border-neutral-200 bg-[#0a0a0a]">
         <div className="flex flex-col gap-0.5">
-          <h2 className="text-lg font-bold tracking-tight text-white">{role === 'ADMIN' ? 'Control Panel' : 'Lawyer Portal'}</h2>
-          <p className="text-[11px] text-neutral-400 font-medium tracking-wide uppercase">{role === 'ADMIN' ? 'Platform Administration' : 'Manage your practice'}</p>
+          <h2 className="text-lg font-bold tracking-tight text-white">{role === 'ADMIN' ? 'Control Panel' : (role === 'LAWYER' ? 'Lawyer Portal' : 'Client Portal')}</h2>
+          <p className="text-[11px] text-neutral-400 font-medium tracking-wide uppercase">{role === 'ADMIN' ? 'Platform Administration' : (role === 'LAWYER' ? 'Manage your practice' : 'Manage your account')}</p>
         </div>
       </SidebarHeader>
       <SidebarContent className="px-3 py-4">

@@ -20,7 +20,7 @@ export default async function DashboardLayout({ children, params }: { children: 
 
   const liveRole = user?.role || session.role;
 
-  if (liveRole !== 'ADMIN' && liveRole !== 'LAWYER') {
+  if (liveRole !== 'ADMIN' && liveRole !== 'LAWYER' && liveRole !== 'CLIENT') {
     redirect(`/${locale}/login`);
   }
 
@@ -35,7 +35,7 @@ export default async function DashboardLayout({ children, params }: { children: 
               <div className="md:hidden">
                 <SidebarTrigger />
               </div>
-              <span className="text-[13px] font-semibold text-neutral-900 tracking-tight">{liveRole === 'ADMIN' ? 'Admin Dashboard' : 'Lawyer Portal'}</span>
+              <span className="text-[13px] font-semibold text-neutral-900 tracking-tight">{liveRole === 'ADMIN' ? 'Admin Dashboard' : (liveRole === 'LAWYER' ? 'Lawyer Portal' : 'Client Portal')}</span>
             </div>
             <div className="flex items-center gap-3">
               <div className="text-xs font-bold rounded-none cursor-pointer hover:text-neutral-500 border border-neutral-200 px-2 py-2">

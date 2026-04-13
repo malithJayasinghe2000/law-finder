@@ -180,6 +180,11 @@ export default function Header({ locale, userRole = null, appStatus = null, user
 
             {userRole === 'CLIENT' && (
               <>
+                <Link href={`/${locale}/dashboard/client`}>
+                  <DropdownMenuItem className="cursor-pointer font-medium py-3 px-6 rounded-none focus:bg-neutral-50 group">
+                    <LayoutDashboard className="mr-3 h-4 w-4 text-neutral-400 group-hover:text-neutral-900 transition-colors" /> My Dashboard
+                  </DropdownMenuItem>
+                </Link>
                 <Link href={`/${locale}/messages`}>
                   <DropdownMenuItem className="cursor-pointer font-medium py-3 px-6 rounded-none focus:bg-neutral-50 group">
                     <div className="flex items-center w-full">
