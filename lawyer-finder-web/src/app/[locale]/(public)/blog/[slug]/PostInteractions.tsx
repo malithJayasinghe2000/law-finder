@@ -1,14 +1,16 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { MessageCircle, Share2, Flag, Loader2 } from 'lucide-react';
+import { MessageCircle, Share2, Flag, Loader2, PenSquare, Trash2, ShieldAlert } from 'lucide-react';
 import VoteButtons from '@/components/community/VoteButtons';
 import CommentThread from '@/components/community/CommentThread';
 import TranslationBadge from '@/components/community/TranslationBadge';
 import ReportDialog from '@/components/community/ReportDialog';
 import { toast } from 'sonner';
+import Link from 'next/link';
 
 interface PostData {
   id: string;
@@ -174,6 +176,32 @@ export default function PostInteractions({
       throw new Error('Failed');
     }
   };
+ 
+  const handleCommentEdit = async (commentId: string, content: string) => {
+    const res = await fetch(`/api/comments/${commentId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content }),
+    });
+    if (res.ok) {
+      fetchComments();
+      toast.success('Comment updated!');
+    } else {
+      toast.error('Failed to update comment.');
+      throw new Error('Failed');
+    }
+  };
+
+  const handlePostDelete = async () => {
+    if (!confirm('Are you sure you want to delete this post? This action cannot be undone.')) return;
+    const res = await fetch(`/api/posts/${post.id}`, { method: 'DELETE' });
+    if (res.ok) {
+      toast.success('Post deleted.');
+      router.push(`/${locale}/blog`);
+    } else {
+      toast.error('Failed to delete post.');
+    }
+  };
 
   const handleCommentVote = async (commentId: string, type: 'UPVOTE' | 'DOWNVOTE') => {
     if (!currentUserId) {
@@ -237,6 +265,25 @@ export default function PostInteractions({
       )}
 
       {/* Post content */}
+      {(currentUserId === post.authorId || currentUserRole === 'ADMIN') && (
+        <div className="mb-6 p-4 bg-muted/30 border-2 border-dashed rounded-xl flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2 text-sm font-medium">
+            <ShieldAlert className="h-4 w-4 text-primary" />
+            <span>You have management access to this post</span>
+          </div>
+          <div className="flex gap-2">
+            <Link href={`/${locale}/blog/edit/${post.id}`}>
+              <Button size="sm" variant="outline" className="gap-2">
+                <PenSquare className="h-4 w-4" /> Edit
+              </Button>
+            </Link>
+            <Button size="sm" variant="ghost" className="gap-2 text-red-500 hover:bg-red-50 hover:text-red-600" onClick={handlePostDelete}>
+                <Trash2 className="h-4 w-4" /> Delete
+            </Button>
+          </div>
+        </div>
+      )}
+
       <div 
         className="prose prose-neutral max-w-none text-foreground leading-relaxed mb-6 tiptap-content"
         dangerouslySetInnerHTML={{ __html: displayContent }}
@@ -344,6 +391,7 @@ export default function PostInteractions({
             currentUserRole={currentUserRole}
             locale={locale}
             onReply={handleCommentReply}
+            onEdit={handleCommentEdit}
             onVote={handleCommentVote}
             onDelete={handleCommentDelete}
             onReport={(commentId) => { setReportTarget({ commentId }); setReportOpen(true); }}

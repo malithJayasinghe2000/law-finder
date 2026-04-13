@@ -4,24 +4,11 @@ import { redirect } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { PenSquare, Eye, Clock, MessageCircle, ArrowBigUp, ArrowLeft, FileText } from 'lucide-react';
+import { PenSquare, Eye, Clock, MessageCircle, ArrowBigUp, ArrowLeft, FileText, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 
-const STATUS_COLORS: Record<string, string> = {
-  PUBLISHED: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300',
-  PENDING_REVIEW: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
-  DRAFT: 'bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-300',
-  REJECTED: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300',
-  REMOVED: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300',
-};
-
-const STATUS_LABELS: Record<string, string> = {
-  PUBLISHED: 'Published',
-  PENDING_REVIEW: 'Pending Review',
-  DRAFT: 'Draft',
-  REJECTED: 'Rejected',
-  REMOVED: 'Removed',
-};
+import { STATUS_COLORS, STATUS_LABELS } from '@/schemas/community.schema';
+import PostActionButtons from '@/components/community/PostActionButtons';
 
 export default async function MyPostsPage({
   params,
@@ -158,6 +145,11 @@ export default async function MyPostsPage({
                         className="w-20 h-14 object-cover rounded-md flex-shrink-0 hidden sm:block"
                       />
                     )}
+                  </div>
+                  
+                  {/* Actions Bar */}
+                  <div className="flex items-center justify-end gap-2 mt-4 pt-3 border-t">
+                    <PostActionButtons postId={post.id} locale={locale} />
                   </div>
                 </CardContent>
               </Card>

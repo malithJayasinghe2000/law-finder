@@ -136,6 +136,24 @@ export const reviewCommunityRequestSchema = z.object({
   adminNotes: z.string().max(1000).optional(),
 });
 
+// ============= UI Constants =============
+
+export const STATUS_COLORS: Record<string, string> = {
+  PUBLISHED: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300',
+  PENDING_REVIEW: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
+  DRAFT: 'bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-300',
+  REJECTED: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300',
+  REMOVED: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300',
+};
+
+export const STATUS_LABELS: Record<string, string> = {
+  PUBLISHED: 'Published',
+  PENDING_REVIEW: 'Pending Review',
+  DRAFT: 'Draft',
+  REJECTED: 'Rejected',
+  REMOVED: 'Removed',
+};
+
 // ============= Types =============
 
 export type CreateCommunityInput = z.infer<typeof createCommunitySchema>;

@@ -5,8 +5,9 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Check, X, Eye, AlertTriangle, FileText, Flag } from 'lucide-react';
+import { Check, X, Eye, AlertTriangle, FileText, Flag, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
+import Link from 'next/link';
 
 interface PendingPost {
   id: string;
@@ -128,12 +129,21 @@ export default function ContentModerationClient({
                       <p className="text-sm text-muted-foreground line-clamp-2">{post.content.substring(0, 200)}...</p>
                     )}
                     
-                    <button
-                      onClick={() => setExpandedPost(expandedPost === post.id ? null : post.id)}
-                      className="text-xs text-primary hover:underline mt-1"
-                    >
-                      {expandedPost === post.id ? 'Collapse' : 'Read full post'}
-                    </button>
+                    <div className="flex items-center gap-3 mt-1">
+                      <button
+                        onClick={() => setExpandedPost(expandedPost === post.id ? null : post.id)}
+                        className="text-xs text-primary hover:underline"
+                      >
+                        {expandedPost === post.id ? 'Collapse' : 'Read preview'}
+                      </button>
+                      <Link 
+                        href={`/${locale}/blog/${post.slug}`}
+                        className="text-xs text-muted-foreground hover:text-primary flex items-center gap-1 transition-colors"
+                        target="_blank"
+                      >
+                        <ExternalLink className="h-3 w-3" /> Manage full post
+                      </Link>
+                    </div>
                   </div>
                   <div className="flex gap-2 flex-shrink-0">
                     <Button

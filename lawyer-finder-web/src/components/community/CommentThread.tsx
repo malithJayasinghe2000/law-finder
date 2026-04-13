@@ -24,6 +24,7 @@ interface CommentData {
   upvotes: number;
   downvotes: number;
   createdAt: string;
+  updatedAt: string;
   userVote: 'UPVOTE' | 'DOWNVOTE' | null;
   author: Author;
   replyCount: number;
@@ -38,6 +39,7 @@ interface CommentThreadProps {
   currentUserRole?: string | null;
   locale: string;
   onReply: (parentId: string, content: string, isAnonymous: boolean) => Promise<void>;
+  onEdit: (commentId: string, content: string) => Promise<void>;
   onVote: (commentId: string, type: 'UPVOTE' | 'DOWNVOTE') => Promise<void>;
   onDelete: (commentId: string) => Promise<void>;
   onReport: (commentId: string) => void;
@@ -52,6 +54,7 @@ export default function CommentThread({
   currentUserRole,
   locale,
   onReply,
+  onEdit,
   onVote,
   onDelete,
   onReport,
@@ -69,6 +72,7 @@ export default function CommentThread({
           currentUserRole={currentUserRole}
           locale={locale}
           onReply={onReply}
+          onEdit={onEdit}
           onVote={onVote}
           onDelete={onDelete}
           onReport={onReport}
@@ -87,6 +91,7 @@ function SingleComment({
   currentUserRole,
   locale,
   onReply,
+  onEdit,
   onVote,
   onDelete,
   onReport,
@@ -99,6 +104,7 @@ function SingleComment({
   currentUserRole?: string | null;
   locale: string;
   onReply: (parentId: string, content: string, isAnonymous: boolean) => Promise<void>;
+  onEdit: (commentId: string, content: string) => Promise<void>;
   onVote: (commentId: string, type: 'UPVOTE' | 'DOWNVOTE') => Promise<void>;
   onDelete: (commentId: string) => Promise<void>;
   onReport: (commentId: string) => void;
@@ -107,6 +113,8 @@ function SingleComment({
   const [showReply, setShowReply] = useState(false);
   const [replyContent, setReplyContent] = useState('');
   const [isAnonymous, setIsAnonymous] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedContent, setEditedContent] = useState(comment.content);
   const [submitting, setSubmitting] = useState(false);
   const [showActions, setShowActions] = useState(false);
 
@@ -122,6 +130,22 @@ function SingleComment({
       setReplyContent('');
       setShowReply(false);
       setIsAnonymous(false);
+    } catch {
+      // Error handled by parent
+    } finally {
+      setSubmitting(false);
+    }
+  };
+  
+  const handleSaveEdit = async () => {
+    if (!editedContent.trim() || editedContent === comment.content) {
+      setIsEditing(false);
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await onEdit(comment.id, editedContent.trim());
+      setIsEditing(false);
     } catch {
       // Error handled by parent
     } finally {
@@ -175,13 +199,37 @@ function SingleComment({
         <span>•</span>
         <span className="flex items-center gap-1">
           <Clock className="h-3 w-3" /> {timeAgo}
+          {new Date(comment.updatedAt).getTime() - new Date(comment.createdAt).getTime() > 2000 && (
+            <span className="text-[10px] bg-muted px-1 rounded-sm text-muted-foreground ml-1">
+              (edited)
+            </span>
+          )}
         </span>
       </div>
 
       {/* Comment body */}
-      <div className="text-sm leading-relaxed text-foreground/90 whitespace-pre-wrap mb-2">
-        {comment.content}
-      </div>
+      {isEditing ? (
+        <div className="mt-2 mb-3">
+          <textarea
+            value={editedContent}
+            onChange={(e) => setEditedContent(e.target.value)}
+            className="w-full p-3 text-sm border rounded-lg bg-background resize-none focus:outline-none focus:ring-2 focus:ring-primary/50"
+            rows={3}
+          />
+          <div className="flex gap-2 mt-2">
+            <Button size="sm" onClick={handleSaveEdit} disabled={submitting}>
+              {submitting ? 'Saving...' : 'Save'}
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => { setIsEditing(false); setEditedContent(comment.content); }}>
+              Cancel
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="text-sm leading-relaxed text-foreground/90 whitespace-pre-wrap mb-2">
+          {comment.content}
+        </div>
+      )}
 
       {/* Comment actions */}
       <div className="flex items-center gap-1 text-xs">
@@ -217,6 +265,14 @@ function SingleComment({
                   className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-muted transition-colors"
                 >
                   <Flag className="h-3.5 w-3.5" /> Report
+                </button>
+              )}
+              {isAuthor && (
+                <button
+                  onClick={() => { setIsEditing(true); setShowActions(false); }}
+                  className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-muted transition-colors"
+                >
+                  <Edit className="h-3.5 w-3.5" /> Edit
                 </button>
               )}
               {(isAuthor || isAdmin) && (
@@ -282,6 +338,7 @@ function SingleComment({
           currentUserRole={currentUserRole}
           locale={locale}
           onReply={onReply}
+          onEdit={onEdit}
           onVote={onVote}
           onDelete={onDelete}
           onReport={onReport}

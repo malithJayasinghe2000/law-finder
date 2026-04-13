@@ -118,6 +118,16 @@ export default async function PostDetailPage({
                   month: 'long', day: 'numeric', year: 'numeric',
                 })}
               </span>
+              {new Date(post.updatedAt).getTime() - new Date(post.createdAt).getTime() > 60000 && (
+                <>
+                  <span>•</span>
+                  <span className="flex items-center gap-1 italic">
+                    Last updated: {new Date(post.updatedAt).toLocaleDateString('en-US', {
+                      month: 'short', day: 'numeric', year: 'numeric',
+                    })}
+                  </span>
+                </>
+              )}
               <span>•</span>
               <span className="flex items-center gap-1">
                 <Eye className="h-3 w-3" /> {post.viewCount} views
