@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter, useParams } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -24,6 +25,8 @@ interface ProfileData {
 }
 
 export default function LawyerDashboard() {
+  const params = useParams();
+  const locale = params.locale as string;
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
   const [subscriptionData, setSubscriptionData] = useState<any>(null);
@@ -195,6 +198,9 @@ export default function LawyerDashboard() {
             <div>
               <p className="text-2xl font-bold">{publishedArticles}</p>
               <p className="text-xs text-muted-foreground font-medium">Published Articles</p>
+              <Link href={`/${locale}/blog/my-posts`} className="text-[10px] text-primary hover:underline mt-2 block font-semibold">
+                Manage articles →
+              </Link>
             </div>
           </CardContent>
         </Card>

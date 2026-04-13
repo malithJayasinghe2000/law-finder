@@ -1,13 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Check, X, Eye, AlertTriangle, FileText, Flag, ExternalLink } from 'lucide-react';
+import { Check, X, Eye, AlertTriangle, FileText, Flag, ExternalLink, Search, RefreshCcw } from 'lucide-react';
 import { toast } from 'sonner';
 import Link from 'next/link';
+import { STATUS_COLORS, STATUS_LABELS } from '@/schemas/community.schema';
 
 interface PendingPost {
   id: string;
@@ -41,8 +42,35 @@ export default function ContentModerationClient({
 }) {
   const [posts, setPosts] = useState(initialPosts);
   const [reports, setReports] = useState(initialReports);
+  const [allPosts, setAllPosts] = useState<PendingPost[]>([]);
+  const [loadingAll, setLoadingAll] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const [processing, setProcessing] = useState<string | null>(null);
   const [expandedPost, setExpandedPost] = useState<string | null>(null);
+
+  const fetchAllPosts = async () => {
+    setLoadingAll(true);
+    try {
+      const res = await fetch('/api/admin/posts?status=all&limit=100');
+      const data = await res.json();
+      if (res.ok) {
+        setAllPosts(data.posts);
+      }
+    } catch {
+      toast.error('Failed to fetch all content.');
+    } finally {
+      setLoadingAll(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchAllPosts();
+  }, []);
+
+  const filteredAllPosts = allPosts.filter(p => 
+    p.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    p.author.fullName?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   const handleModeratePost = async (postId: string, status: 'PUBLISHED' | 'REJECTED') => {
     setProcessing(postId);
@@ -92,6 +120,9 @@ export default function ContentModerationClient({
         </TabsTrigger>
         <TabsTrigger value="reports" className="gap-1.5">
           <Flag className="h-4 w-4" /> Reports ({reports.length})
+        </TabsTrigger>
+        <TabsTrigger value="all" className="gap-1.5">
+          <Search className="h-4 w-4" /> All Content ({allPosts.length})
         </TabsTrigger>
       </TabsList>
 
@@ -228,6 +259,73 @@ export default function ContentModerationClient({
               </CardContent>
             </Card>
           ))
+        )}
+      </TabsContent>
+
+      {/* All Content Management */}
+      <TabsContent value="all" className="space-y-4">
+        <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
+          <div className="relative w-full max-w-sm">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <input
+              type="text"
+              placeholder="Search by title or author..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-9 pr-4 py-2 text-sm border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary/50"
+            />
+          </div>
+          <Button variant="outline" size="sm" onClick={fetchAllPosts} disabled={loadingAll} className="gap-2">
+            <RefreshCcw className={`h-4 w-4 ${loadingAll ? 'animate-spin' : ''}`} />
+            Refresh List
+          </Button>
+        </div>
+
+        {loadingAll ? (
+          <div className="py-12 text-center text-muted-foreground">
+            <RefreshCcw className="h-8 w-8 mx-auto mb-2 animate-spin text-primary/50" />
+            <p>Loading all community content...</p>
+          </div>
+        ) : filteredAllPosts.length === 0 ? (
+          <Card>
+            <CardContent className="py-12 text-center text-muted-foreground">
+              <p className="font-medium">No results found.</p>
+              <p className="text-sm">Try adjusting your search criteria.</p>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="space-y-3">
+            {filteredAllPosts.map((post) => (
+              <Card key={post.id}>
+                <CardContent className="p-4">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1 text-xs text-muted-foreground flex-wrap">
+                        <Badge className={`text-[10px] px-1.5 py-0 ${STATUS_COLORS[post.status as any]}`}>
+                          {STATUS_LABELS[post.status as any]}
+                        </Badge>
+                        <span>{post.community.displayName}</span>
+                        <span>•</span>
+                        <span>by {post.author.fullName}</span>
+                        <span>•</span>
+                        <span>{new Date(post.createdAt).toLocaleDateString()}</span>
+                      </div>
+                      <h3 className="font-semibold tracking-tight truncate">{post.title}</h3>
+                      <div className="mt-2">
+                        <Link 
+                          href={`/${locale}/blog/${post.slug}`}
+                          className="text-xs text-primary hover:underline flex items-center gap-1 font-semibold"
+                          target="_blank"
+                        >
+                          <ExternalLink className="h-3 w-3" /> Manage full post
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         )}
       </TabsContent>
     </Tabs>
