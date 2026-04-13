@@ -230,16 +230,10 @@ export default function PostInteractions({
       )}
 
       {/* Post content */}
-      <div className="prose prose-neutral max-w-none text-foreground leading-relaxed mb-6">
-        {displayContent.split('\n').map((paragraph, i) => {
-          if (!paragraph.trim()) return <br key={i} />;
-          if (paragraph.startsWith('## ')) return <h2 key={i} className="text-xl font-bold mt-6 mb-3">{paragraph.slice(3)}</h2>;
-          if (paragraph.startsWith('### ')) return <h3 key={i} className="text-lg font-semibold mt-4 mb-2">{paragraph.slice(4)}</h3>;
-          if (paragraph.startsWith('- ')) return <li key={i} className="ml-4 text-muted-foreground">{paragraph.slice(2)}</li>;
-          if (paragraph.startsWith('> ')) return <blockquote key={i} className="border-l-4 border-primary/30 pl-4 italic text-muted-foreground">{paragraph.slice(2)}</blockquote>;
-          return <p key={i} className="mb-3 text-muted-foreground">{paragraph}</p>;
-        })}
-      </div>
+      <div 
+        className="prose prose-neutral max-w-none text-foreground leading-relaxed mb-6 tiptap-content"
+        dangerouslySetInnerHTML={{ __html: displayContent }}
+      />
 
       {/* Engagement bar */}
       <div className="flex items-center gap-2 py-3 border-y">

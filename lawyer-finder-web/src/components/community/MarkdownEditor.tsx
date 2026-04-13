@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Bold, Italic, Heading2, List, Link as LinkIcon, ImagePlus, Eye, Edit3 } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 interface MarkdownEditorProps {
   value: string;
@@ -102,7 +104,7 @@ export default function MarkdownEditor({
           style={{ minHeight }}
         >
           {value ? (
-            <div className="whitespace-pre-wrap">{value}</div>
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>{value}</ReactMarkdown>
           ) : (
             <p className="text-muted-foreground italic">Nothing to preview</p>
           )}

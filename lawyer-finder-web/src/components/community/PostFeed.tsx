@@ -17,6 +17,7 @@ interface Post {
   title: string;
   slug: string;
   excerpt: string | null;
+  content: string;
   coverImage: string | null;
   language: string;
   status: string;

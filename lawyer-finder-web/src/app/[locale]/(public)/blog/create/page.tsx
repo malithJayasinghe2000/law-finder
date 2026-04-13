@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, ImagePlus, Loader2, Send } from 'lucide-react';
 import Link from 'next/link';
-import MarkdownEditor from '@/components/community/MarkdownEditor';
+import RichTextEditor from '@/components/community/RichTextEditor';
 import { toast } from 'sonner';
 
 interface Community {
@@ -97,7 +97,7 @@ export default function CreatePostPage({
     input.click();
   };
 
-  const handleContentImageUpload = async () => {
+  const handleContentImageUpload = async (insertImage: (url: string) => void) => {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/jpeg,image/png,image/webp';
@@ -113,7 +113,7 @@ export default function CreatePostPage({
         const res = await fetch('/api/upload', { method: 'POST', body: formData });
         const data = await res.json();
         if (data.url) {
-          setContent((prev) => prev + `\n![image](${data.url})\n`);
+          insertImage(data.url);
           toast.success('Image inserted!');
         }
       } catch {
@@ -291,7 +291,7 @@ export default function CreatePostPage({
             <label className="block text-sm font-medium mb-2">
               Content <span className="text-red-500">*</span>
             </label>
-            <MarkdownEditor
+            <RichTextEditor
               value={content}
               onChange={setContent}
               placeholder="Share your knowledge, experience, or question..."

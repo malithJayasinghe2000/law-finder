@@ -17,7 +17,8 @@ function generateSlug(title: string): string {
 }
 
 function generateExcerpt(content: string): string {
-  return content.replace(/[#*_~`>\[\]()!]/g, '').substring(0, 200).trim();
+  const plainText = content.replace(/<[^>]+>/g, ' ').replace(/[#*_~`>\[\]()!]/g, '');
+  return plainText.replace(/\s+/g, ' ').substring(0, 200).trim();
 }
 
 // GET /api/posts — Feed with filtering and sorting

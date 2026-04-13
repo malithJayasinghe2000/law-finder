@@ -12,6 +12,7 @@ interface PostCardProps {
     title: string;
     slug: string;
     excerpt: string | null;
+    content: string;
     coverImage: string | null;
     language: string;
     status: string;
@@ -107,21 +108,32 @@ export default function PostCard({ post, locale, onVote, showCommunity = true }:
             </h3>
           </Link>
 
-          {/* Excerpt + Cover */}
-          <div className="flex gap-4">
+          {/* Rich Content + Cover */}
+          <div className="flex flex-col md:flex-row gap-4 mt-2 mb-3">
             <div className="flex-1 min-w-0">
-              {post.excerpt && (
-                <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
-                  {post.excerpt}
-                </p>
+              {post.content && (
+                <div className="relative">
+                  <div 
+                    className="prose prose-sm prose-neutral max-w-none text-muted-foreground leading-relaxed tiptap-content max-h-[180px] overflow-hidden"
+                    dangerouslySetInnerHTML={{ __html: post.content }}
+                  />
+                  {post.content.length > 250 && (
+                    <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-card to-transparent pointer-events-none" />
+                  )}
+                </div>
+              )}
+              {post.content && post.content.length > 250 && (
+                <Link href={`/${locale}/blog/${post.slug}`} className="text-primary text-sm font-medium hover:underline inline-flex mt-1">
+                  Read more
+                </Link>
               )}
             </div>
             {post.coverImage && (
-              <div className="hidden md:block flex-shrink-0">
+              <div className="flex-shrink-0 mb-2 md:mb-0">
                 <img
                   src={post.coverImage}
                   alt=""
-                  className="w-28 h-20 object-cover rounded-md"
+                  className="w-full md:w-32 h-32 md:h-24 object-cover rounded-md border"
                 />
               </div>
             )}
