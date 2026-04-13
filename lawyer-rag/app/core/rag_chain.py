@@ -47,21 +47,20 @@ PRACTICE_AREA_KEYWORDS = {
 # ---------------------------------------------------------------------------
 # System Prompt — Designed for Sri Lankan Legal Context
 # ---------------------------------------------------------------------------
-SYSTEM_PROMPT = """You are LawyerAI, an expert legal assistant specialized in Sri Lankan law. 
-You help users understand Sri Lankan legislation, legal procedures, and their rights.
+SYSTEM_PROMPT = """You are LawyerAI, a highly intelligent and helpful expert legal assistant specialized in Sri Lankan law. 
+You help users understand Sri Lankan legislation, legal procedures, and their rights in detail.
+** IMPORTANT: If user ask quections out of Sri Lankan law, respond that you can only answer questions related to Sri Lankan law.**
 
 CRITICAL RULES YOU MUST FOLLOW:
-1. Base your answers primarily on the provided LEGAL CONTEXT below. If the context is insufficient, you may use WEB SEARCH RESULTS for supplementary information.
-2. ALWAYS cite the specific Act name, Section number, and Part/Chapter when referencing a law.
-3. If neither the legal context nor web results contain enough information, clearly state:
-   "I don't have enough information in my Knowledge Base to answer this question accurately. 
-   Please consult a qualified lawyer for specific legal advice."
-4. Distinguish between Consolidated Acts (full compiled laws) and Amendment Acts (changes to existing laws).
-5. When multiple sections are relevant, reference all of them.
-6. Use clear, simple language that non-lawyers can understand, but maintain legal accuracy.
-7. NEVER provide specific legal advice — always recommend consulting a professional lawyer for specific cases.
-8. Format your response clearly with proper paragraph breaks and section references.
-9. When using information from web search results, mention that the information was found online and may need verification.
+1. Provide comprehensive, helpful, and direct answers to the user's legal questions. Do NOT simply tell the user to consult a lawyer without providing detailed legal step-by-step procedures or concepts first.
+2. Base your answers on the provided LEGAL CONTEXT and WEB SEARCH RESULTS. Synthesize the information to give the best possible explanation, breaking down complex procedures into easy-to-understand steps.
+3. ALWAYS cite the specific Act name, Section number, and Part/Chapter when referencing a law.
+4. Distinguish between Consolidated Acts and Amendment Acts.
+5. If the exact answer isn't in the legal context, explain the general Sri Lankan legal procedure or concept as best as you can based on the web context and your knowledge.
+6. You may include a brief disclaimer at the very end of your response (e.g., "Consult a lawyer for specific advice"), but the bulk of your response MUST be a detailed, actionable explanation of the law and legal processes.
+7. Format your response clearly with proper paragraph breaks and section references.
+8. When using information from web search results, mention that the information was found online and may need verification.
+9. IMPORTANT: You MUST respond in the {target_language} language. No exceptions.
 
 LEGAL CONTEXT FROM SRI LANKAN LEGISLATION:
 {context}
@@ -145,21 +144,67 @@ def convert_chat_history(history: list[dict]) -> list:
     return messages
 
 
-def detect_practice_areas(question: str, context: str) -> list[str]:
+def agentic_routing(question: str, language: str) -> dict:
     """
-    Detect relevant practice areas from the question and retrieved context.
-    Returns a list of matching practice area names.
+    Agentic pre-processing:
+    - Translate query to English if necessary.
+    - Check if web search is needed.
+    - Detect actual legal practice areas.
     """
-    combined_text = f"{question} {context}".lower()
-    detected = []
+    prompt = f"""You are an intelligent legal routing assistant.
+User input: "{question}"
+Input locale: {language}
 
-    for area, keywords in PRACTICE_AREA_KEYWORDS.items():
-        for keyword in keywords:
-            if keyword in combined_text:
-                detected.append(area)
-                break  # One match per area is enough
+TASK 1: If the input is in Sinhala or Tamil, translate it into English. If already in English, output it exactly. This will be used for Vector Database search.
+TASK 2: Check if this question requires live internet search (recent events, general definitions not in Sri Lankan core law). Answer YES or NO.
+TASK 3: Formulate a highly concise, keyword-rich search query in English based on the user's input, optimized exclusively for Web Search engines. Strip out conversational filler.
+TASK 4: Determine if this query specifically relates to any of these legal practice areas:
+[Criminal Law, Civil Litigation, Corporate Law, Family Law, Property Law, Labour Law, Tax Law, Constitutional Law, Environmental Law, Intellectual Property, Motor Traffic Law, Banking Law, Immigration Law, Insurance Law, Real Estate, Notary Services]
+IMPORTANT: If the user is just saying a casual greeting (like "hi", "testing") or asking a non-legal question, output NONE.
 
-    return detected[:5]  # Limit to top 5 areas
+Respond EXACTLY in the following format (no other text):
+SEARCH_QUERY_ENGLISH: <english query>
+WEB_SEARCH_QUERY_ENGLISH: <optimized query for web>
+NEEDS_WEB_SEARCH: <YES or NO>
+PRACTICE_AREAS: <comma-separated list, or NONE>
+"""
+    try:
+        llm = get_llm()
+        response = llm.invoke(prompt).content
+        
+        search_query = question
+        web_search_query = question
+        needs_web_search = False
+        practice_areas = []
+        
+        for line in response.split('\n'):
+            line = line.strip()
+            if line.startswith("SEARCH_QUERY_ENGLISH:"):
+                val = line.replace("SEARCH_QUERY_ENGLISH:", "").strip()
+                if val and val.upper() != "NONE":
+                    search_query = val
+            elif line.startswith("WEB_SEARCH_QUERY_ENGLISH:"):
+                val = line.replace("WEB_SEARCH_QUERY_ENGLISH:", "").strip()
+                if val and val.upper() != "NONE":
+                    web_search_query = val
+            elif line.startswith("NEEDS_WEB_SEARCH:"):
+                val = line.replace("NEEDS_WEB_SEARCH:", "").strip().upper()
+                if "YES" in val or "TRUE" in val:
+                    needs_web_search = True
+            elif line.startswith("PRACTICE_AREAS:"):
+                val = line.replace("PRACTICE_AREAS:", "").strip()
+                if val and val.upper() != "NONE":
+                    practice_areas = [a.strip() for a in val.split(",") if a.strip()]
+                    
+        return {
+            "search_query": search_query,
+            "web_search_query": web_search_query,
+            "needs_web_search": needs_web_search,
+            "practice_areas": practice_areas,
+        }
+    except Exception as e:
+        logger.error(f"Agentic routing failed: {e}")
+        return {"search_query": question, "web_search_query": question, "needs_web_search": False, "practice_areas": []}
 
 
 def query_rag(
@@ -167,6 +212,7 @@ def query_rag(
     chat_history: Optional[list[dict]] = None,
     top_k: int = None,
     filter_metadata: Optional[dict] = None,
+    language: str = "en",
 ) -> dict:
     """
     Execute the full RAG pipeline:
@@ -181,6 +227,7 @@ def query_rag(
         chat_history: Previous conversation messages
         top_k: Number of chunks to retrieve
         filter_metadata: Additional metadata filters
+        language: Language for the answer
 
     Returns:
         Dict with 'answer', 'sources', 'chunks_retrieved', 'web_sources', 'detected_practice_areas'
@@ -191,11 +238,22 @@ def query_rag(
     if chat_history is None:
         chat_history = []
 
-    logger.info(f"RAG Query: '{question[:100]}...' (top_k={top_k})")
+    target_language_name = {"en": "English", "si": "Sinhala", "ta": "Tamil"}.get(language, "English")
 
-    # Step 1: Retrieve relevant documents
+    logger.info(f"RAG Query: '{question[:100]}...' (lang={language}, top_k={top_k})")
+
+    # Step Agentic: Plan routing, translation, and intent
+    route_details = agentic_routing(question, language)
+    search_query = route_details["search_query"]
+    web_search_query = route_details["web_search_query"]
+    needs_web_search = route_details["needs_web_search"]
+    detected_areas = route_details["practice_areas"]
+
+    logger.info(f"Agent Route -> query: {search_query}, web_query: {web_search_query}, web: {needs_web_search}, areas: {detected_areas}")
+
+    # Step 1: Retrieve relevant documents using English translated query
     docs_with_scores = search_documents(
-        query=question,
+        query=search_query,
         top_k=top_k,
         filter_metadata=filter_metadata,
     )
@@ -205,15 +263,15 @@ def query_rag(
     # Step 2: Format context
     context = format_context(docs_with_scores)
 
-    # Step 3: Web search for additional context
-    web_results = web_search(question, max_results=3)
-    web_context = format_web_results(web_results) if web_results else ""
+    # Step 3: Web search if agent decided it's needed
+    if needs_web_search:
+        web_results = web_search(web_search_query, max_results=3)
+        web_context = format_web_results(web_results) if web_results else ""
+    else:
+        web_results = []
+        web_context = ""
 
-    # Step 4: Detect practice areas for lawyer suggestions
-    detected_areas = detect_practice_areas(question, context)
-    logger.info(f"Detected practice areas: {detected_areas}")
-
-    # Step 5: Build prompt and invoke LLM
+    # Step 4: Build prompt and invoke LLM
     llm = get_llm()
     langchain_history = convert_chat_history(chat_history)
 
@@ -222,6 +280,7 @@ def query_rag(
         "web_context": web_context,
         "chat_history": langchain_history,
         "question": question,
+        "target_language": target_language_name,
     })
 
     response = llm.invoke(prompt)

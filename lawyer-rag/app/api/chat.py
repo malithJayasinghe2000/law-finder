@@ -51,10 +51,13 @@ def chat():
 
         logger.info(f"Chat request: '{message[:80]}...'")
 
+        language = data.get("language", "en")
+
         # Execute RAG pipeline
         result = query_rag(
             question=message,
             chat_history=conversation_history,
+            language=language
         )
 
         return jsonify(result), 200

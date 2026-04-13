@@ -253,6 +253,7 @@ export default function ChatClient({
         body: JSON.stringify({
           message: text,
           conversation_history: conversationHistory,
+          language: locale,
         }),
       });
 
@@ -621,7 +622,7 @@ export default function ChatClient({
                   </div>
                   <div className="flex items-center gap-3 p-4 bg-white border border-neutral-200 shadow-sm">
                     <Loader2 className="h-5 w-5 animate-spin text-neutral-400" />
-                    <span className="text-xs text-neutral-400 font-light">Searching legal database & web...</span>
+                    <span className="text-xs text-neutral-400 font-light">Thinking...</span>
                   </div>
                 </div>
               </div>
@@ -697,7 +698,7 @@ export default function ChatClient({
               </button>
             </form>
             <div className="mt-2 text-center text-[10px] text-neutral-400 font-medium uppercase tracking-widest">
-              Powered by Sri Lankan Legal Database & Web Search • AI can make mistakes — verify important information
+              Powered by <b>FiveNeural AI</b> • AI can make mistakes — verify important information
             </div>
           </div>
         </div>
