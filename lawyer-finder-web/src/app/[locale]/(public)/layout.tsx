@@ -1,4 +1,4 @@
-import Footer from '@/components/layout/Footer';
+import FooterWrapper from '@/components/layout/FooterWrapper';
 
 export default async function PublicLayout({
   children,
@@ -14,9 +14,7 @@ export default async function PublicLayout({
       <main className="flex-1 w-full relative z-10">
         {children}
       </main>
-      <div className="border-t">
-        <Footer locale={locale} />
-      </div>
+      <FooterWrapper locale={locale} />
     </div>
   );
 }
