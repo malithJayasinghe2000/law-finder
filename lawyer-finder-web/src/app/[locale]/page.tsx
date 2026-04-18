@@ -86,6 +86,8 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
             {serializedReviews.length > 0 && (
               <HeroReviewsMarquee reviews={serializedReviews} />
             )}
+
+            <AdBanner placement="HOMEPAGE_HERO" locale={locale} className="w-full max-w-4xl mx-auto mt-8 rounded-lg overflow-hidden shadow-2xl" />
           </div>
         </section>
 
