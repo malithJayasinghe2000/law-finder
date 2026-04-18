@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 
 interface Ad {
@@ -54,6 +54,7 @@ export function AdBanner({
   className?: string;
 }) {
   const [ad, setAd] = useState<Ad | null>(null);
+  const trackedRef = useRef(new Set<string>());
 
   useEffect(() => {
     fetch(`/api/ads/serve?placement=${placement}&limit=1`)
@@ -61,7 +62,10 @@ export function AdBanner({
       .then((d) => {
         if (d.ads && d.ads.length > 0) {
           setAd(d.ads[0]);
-          trackImpression(d.ads[0].id);
+          if (!trackedRef.current.has(d.ads[0].id)) {
+            trackImpression(d.ads[0].id);
+            trackedRef.current.add(d.ads[0].id);
+          }
         }
       })
       .catch(() => {});
@@ -121,6 +125,7 @@ export function SponsoredListing({
   locale: string;
 }) {
   const [ads, setAds] = useState<Ad[]>([]);
+  const trackedRef = useRef(new Set<string>());
 
   useEffect(() => {
     fetch(`/api/ads/serve?placement=${placement}&limit=2`)
@@ -128,7 +133,12 @@ export function SponsoredListing({
       .then((d) => {
         if (d.ads && d.ads.length > 0) {
           setAds(d.ads);
-          d.ads.forEach((a: Ad) => trackImpression(a.id));
+          d.ads.forEach((a: Ad) => {
+            if (!trackedRef.current.has(a.id)) {
+              trackImpression(a.id);
+              trackedRef.current.add(a.id);
+            }
+          });
         }
       })
       .catch(() => {});
@@ -212,6 +222,7 @@ export function SidebarAd({
   className?: string;
 }) {
   const [ads, setAds] = useState<Ad[]>([]);
+  const trackedRef = useRef(new Set<string>());
 
   useEffect(() => {
     const params = new URLSearchParams({ placement, limit: '2' });
@@ -221,7 +232,12 @@ export function SidebarAd({
       .then((d) => {
         if (d.ads && d.ads.length > 0) {
           setAds(d.ads);
-          d.ads.forEach((a: Ad) => trackImpression(a.id));
+          d.ads.forEach((a: Ad) => {
+            if (!trackedRef.current.has(a.id)) {
+              trackImpression(a.id);
+              trackedRef.current.add(a.id);
+            }
+          });
         }
       })
       .catch(() => {});
@@ -287,6 +303,7 @@ export function InFeedAd({
   locale: string;
 }) {
   const [ad, setAd] = useState<Ad | null>(null);
+  const trackedRef = useRef(new Set<string>());
 
   useEffect(() => {
     fetch(`/api/ads/serve?placement=${placement}&limit=1`)
@@ -294,7 +311,10 @@ export function InFeedAd({
       .then((d) => {
         if (d.ads && d.ads.length > 0) {
           setAd(d.ads[0]);
-          trackImpression(d.ads[0].id);
+          if (!trackedRef.current.has(d.ads[0].id)) {
+            trackImpression(d.ads[0].id);
+            trackedRef.current.add(d.ads[0].id);
+          }
         }
       })
       .catch(() => {});
