@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Users, FileText, TrendingUp, PenSquare, Search } from 'lucide-react';
 import Link from 'next/link';
 import PostFeed from '@/components/community/PostFeed';
+import { SidebarAd } from '@/components/ads/AdComponents';
 
 export const metadata = {
   title: 'Legal Community Hub — Sri Lanka',
@@ -129,6 +130,9 @@ export default async function CommunityHubPage({
                 </div>
               </CardContent>
             </Card>
+
+            {/* Sponsored Lawyers */}
+            <SidebarAd placement="BLOG_FEED" locale={locale} />
 
             {/* Community Guidelines */}
             <Card>

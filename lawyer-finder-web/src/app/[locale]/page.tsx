@@ -19,6 +19,7 @@ import {
 import ChatWidget from '@/components/home/ChatWidget';
 import HeroChatInput from '@/components/home/HeroChatInput';
 import HeroReviewsMarquee from '@/components/home/HeroReviewsMarquee';
+import { AdBanner, SponsoredListing } from '@/components/ads/AdComponents';
 import prisma from '@/lib/db';
 
 export default async function HomePage({ params }: { params: Promise<{ locale: string }> }) {
@@ -88,6 +89,9 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
           </div>
         </section>
 
+        {/* Mid-Page Ad Banner */}
+        <AdBanner placement="HOMEPAGE_MID" locale={locale} className="mx-auto max-w-[1400px] px-6 lg:px-12 xl:px-24 py-6" />
+
         {/* Top Lawyers Section (White Space) */}
         <section className="bg-white py-20 px-6 lg:px-12 xl:px-24">
           <div className="mx-auto max-w-[1400px]">
@@ -109,6 +113,9 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {/* Sponsored Listings injected at the top */}
+              <SponsoredListing placement="DIRECTORY_TOP" locale={locale} />
+
               {topLawyers.map((lawyer) => {
                 const avgRating = lawyer.reviews.length > 0 
                   ? lawyer.reviews.reduce((s, r) => s + r.rating, 0) / lawyer.reviews.length : 0;

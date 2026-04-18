@@ -155,10 +155,11 @@ model LawyerProfile {
   Subscription      Subscription[]
   invoices          Invoice[]      @relation("InvoiceLawyer")
 
-  inquiries  Inquiry[]
-  articles   Article[]
-  reviews    Review[]
-  paidPromos PaidPromo[]
+  inquiries    Inquiry[]
+  articles     Article[]
+  reviews      Review[]
+  paidPromos   PaidPromo[]
+  adCampaigns  AdCampaign[]
 }
 
 model SubscriptionPlan {
@@ -230,8 +231,8 @@ model Invoice {
   subscriptionCycle   SubscriptionCycle? @relation(fields: [subscriptionCycleId], references: [id], onDelete: SetNull)
 
   subscriptionId String?
-  planId         String
-  plan           SubscriptionPlan @relation(fields: [planId], references: [id])
+  planId         String?
+  plan           SubscriptionPlan? @relation(fields: [planId], references: [id])
 
   amount          Int
   status          PaymentStatus @default(PENDING)
@@ -325,6 +326,101 @@ model PaidPromo {
   invoiceId     String?
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
+}
+
+// ============= Advertisement Management System =============
+
+enum AdType {
+  BANNER
+  SPONSORED_LISTING
+  FEATURED_PROFILE
+  IN_FEED
+  SIDEBAR
+}
+
+enum AdStatus {
+  DRAFT
+  PENDING_REVIEW
+  APPROVED
+  ACTIVE
+  PAUSED
+  EXPIRED
+  REJECTED
+}
+
+enum AdPlacement {
+  HOMEPAGE_HERO
+  HOMEPAGE_MID
+  DIRECTORY_TOP
+  DIRECTORY_INLINE
+  BLOG_SIDEBAR
+  BLOG_FEED
+  BLOG_POST_BOTTOM
+}
+
+model AdCampaign {
+  id          String      @id @default(uuid())
+
+  // Who owns this campaign
+  lawyerId    String
+  lawyer      LawyerProfile @relation(fields: [lawyerId], references: [id], onDelete: Cascade)
+
+  // Campaign details
+  name        String
+  type        AdType
+  placement   AdPlacement
+  status      AdStatus    @default(DRAFT)
+
+  // Creative assets
+  title       String?
+  description String?
+  imageUrl    String?
+  targetUrl   String?
+  ctaText     String?     @default("View Profile")
+
+  // Targeting
+  targetDistricts     String[]
+  targetPracticeAreas String[]
+
+  // Schedule
+  startDate   DateTime
+  endDate     DateTime
+
+  // Budget & Pricing (in LKR cents)
+  totalBudget   Int?
+  dailyBudget   Int?
+  pricePerDay   Int?
+
+  // Performance metrics (denormalized for speed)
+  impressions   Int       @default(0)
+  clicks        Int       @default(0)
+
+  // Admin
+  adminNotes      String?
+  rejectionReason String?
+
+  // Billing
+  invoiceId   String?
+
+  // Relations
+  analytics   AdAnalytics[]
+
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+model AdAnalytics {
+  id          String      @id @default(uuid())
+  campaignId  String
+  campaign    AdCampaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  date        DateTime    @db.Date
+  impressions Int         @default(0)
+  clicks      Int         @default(0)
+
+  createdAt   DateTime    @default(now())
+
+  @@unique([campaignId, date])
 }
 
 // ============= Subscription RBAC System =============

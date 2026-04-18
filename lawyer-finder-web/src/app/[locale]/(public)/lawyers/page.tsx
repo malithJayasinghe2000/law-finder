@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import Link from 'next/link';
 import { Search, MapPin, Languages, ShieldCheck, Star, Briefcase } from 'lucide-react';
+import { SponsoredListing, AdBanner } from '@/components/ads/AdComponents';
 
 export const metadata = { title: 'Lawyer Directory' };
 
@@ -109,7 +110,10 @@ export default async function LawyerDirectory({
           </Card>
         ) : (
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {lawyers.map((lawyer) => {
+              {/* Sponsored Listings at the top */}
+              <SponsoredListing placement="DIRECTORY_INLINE" locale={locale} />
+
+              {lawyers.map((lawyer) => {
               const avgRating =
                 lawyer.reviews.length > 0
                   ? lawyer.reviews.reduce((sum, r) => sum + r.rating, 0) / lawyer.reviews.length

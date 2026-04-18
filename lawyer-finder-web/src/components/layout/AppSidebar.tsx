@@ -18,7 +18,7 @@ export function AppSidebar({ locale, role, userId }: { locale: string; role: str
     { href: `/${locale}/dashboard/admin/invoices`, icon: FileText, label: 'Invoices' },
     { href: `/${locale}/dashboard/admin/paymentTemplate`, icon: ShieldCheck, label: 'Payment Templates' },
     { href: `/${locale}/dashboard/admin/paid-promo`, icon: Megaphone, label: 'Paid Promo' },
-    { href: `/${locale}/dashboard/admin/advertisements`, icon: Image, label: 'Advertisements' },
+    { href: `/${locale}/dashboard/admin/advertisements`, icon: Image, label: 'Ad Campaigns' },
     { href: `/${locale}/dashboard/admin/users`, icon: Users, label: 'User Management' },
     { href: `/${locale}/dashboard/admin/reviews`, icon: Star, label: 'Reviews' },
     { href: `/${locale}/dashboard/admin/communities`, icon: Globe, label: 'Communities' },
@@ -32,6 +32,7 @@ export function AppSidebar({ locale, role, userId }: { locale: string; role: str
     { href: `/${locale}/dashboard/lawyer/chat`, icon: MessageCircle, label: 'Messages', hasBadge: true },
     { href: `/${locale}/dashboard/lawyer/schedule`, icon: History, label: 'Schedule' },
     {href: `/${locale}/dashboard/lawyer/Promotion`, icon: Megaphone, label: 'Promotion' },
+    { href: `/${locale}/dashboard/lawyer/ads`, icon: Image, label: 'My Ads' },
     { 
       href: `/${locale}/dashboard/lawyer/payments`, 
       icon: CreditCard, 

@@ -7,6 +7,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { ShieldCheck, Clock, Eye, Pin, Lock, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import PostInteractions from './PostInteractions';
+import { SidebarAd, AdBanner } from '@/components/ads/AdComponents';
 
 export default async function PostDetailPage({
   params,
@@ -70,7 +71,7 @@ export default async function PostDetailPage({
 
   return (
     <div className="py-8 sm:py-12">
-      <div className="mx-auto max-w-4xl px-4 sm:px-6">
+      <div className="mx-auto max-w-6xl px-4 sm:px-6">
         {/* Back navigation */}
         <div className="flex items-center gap-3 mb-6 text-sm text-muted-foreground">
           <Link
@@ -95,6 +96,8 @@ export default async function PostDetailPage({
           </div>
         )}
 
+        <div className="flex flex-col lg:flex-row gap-8">
+        <div className="flex-1 min-w-0">
         <article>
           {/* Post header */}
           <header className="mb-8">
@@ -230,6 +233,19 @@ export default async function PostDetailPage({
             </CardContent>
           </Card>
         </article>
+        </div>
+
+        {/* Sidebar Ad Zone */}
+        <SidebarAd 
+          placement="BLOG_SIDEBAR" 
+          locale={locale} 
+          practiceArea={post.community.category} 
+          className="hidden lg:block w-[280px] shrink-0 sticky top-24"
+        />
+        </div>
+
+        {/* Bottom Banner Ad */}
+        <AdBanner placement="BLOG_POST_BOTTOM" locale={locale} className="mt-8" />
       </div>
     </div>
   );
