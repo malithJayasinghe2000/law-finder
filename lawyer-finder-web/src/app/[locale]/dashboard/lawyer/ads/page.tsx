@@ -6,7 +6,7 @@ import {
   Image, Plus, Loader2, Eye, EyeOff, Pause, Play,
   Calendar, CheckCircle2, XCircle, Clock, Send,
   BarChart3, MousePointerClick, TrendingUp,
-  ChevronDown, ChevronUp, ArrowRight, Megaphone
+  ChevronDown, ChevronUp, ArrowRight, Megaphone, ImagePlus
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -74,6 +74,7 @@ export default function LawyerAdsPage() {
   const [createLoading, setCreateLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   const [form, setForm] = useState({
     name: '',
@@ -109,6 +110,40 @@ export default function LawyerAdsPage() {
   useEffect(() => {
     fetchCampaigns();
   }, []);
+
+  const handleImageUpload = async () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/jpeg,image/png,image/webp';
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('Image must be under 5MB.');
+        return;
+      }
+
+      setUploadingImage(true);
+      const formData = new FormData();
+      formData.append('file', file);
+
+      try {
+        const res = await fetch('/api/upload', { method: 'POST', body: formData });
+        const data = await res.json();
+        if (data.url) {
+          setForm(prev => ({ ...prev, imageUrl: data.url }));
+          toast.success('Banner image uploaded!');
+        } else {
+          toast.error(data.error || 'Upload failed.');
+        }
+      } catch {
+        toast.error('Upload failed.');
+      } finally {
+        setUploadingImage(false);
+      }
+    };
+    input.click();
+  };
 
   const handleCreate = async () => {
     if (!form.name || !form.startDate || !form.endDate) {
@@ -265,8 +300,33 @@ export default function LawyerAdsPage() {
             </div>
 
             <div>
-              <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5">Banner Image URL</label>
-              <input type="text" placeholder="https://..." value={form.imageUrl} onChange={(e) => setForm({ ...form, imageUrl: e.target.value })} className="w-full py-2.5 px-3 bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-900 outline-none focus:border-[#0a0a0a]" />
+              <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5">Banner Image</label>
+              {form.imageUrl ? (
+                <div className="relative rounded overflow-hidden border border-neutral-200 h-[42px]">
+                  <img src={form.imageUrl} alt="Banner" className="w-full h-full object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => setForm({ ...form, imageUrl: '' })}
+                    className="absolute top-1 right-1 bg-black/60 text-white px-2 py-0.5 rounded-sm text-[10px] hover:bg-black/80 transition-colors"
+                  >
+                    Remove
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleImageUpload}
+                  disabled={uploadingImage}
+                  className="flex items-center justify-center gap-2 w-full h-[42px] bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-500 hover:border-[#0a0a0a] hover:text-neutral-900 transition-colors rounded-sm"
+                >
+                  {uploadingImage ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <ImagePlus className="w-4 h-4" />
+                  )}
+                  {uploadingImage ? 'Uploading...' : 'Upload Image'}
+                </button>
+              )}
             </div>
 
             <div className="md:col-span-3">
