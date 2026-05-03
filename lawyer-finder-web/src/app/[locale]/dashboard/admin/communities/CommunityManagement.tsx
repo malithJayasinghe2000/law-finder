@@ -1,10 +1,11 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Check, X, Users, FileText, Plus } from 'lucide-react';
+import { Check, X, Users, FileText, Plus, Pencil, Archive } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Community {
@@ -36,12 +37,61 @@ interface Props {
 }
 
 export default function CommunityManagement({ communities, pendingRequests, locale }: Props) {
+  const router = useRouter();
   const [requests, setRequests] = useState(pendingRequests);
   const [processing, setProcessing] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [newCommunity, setNewCommunity] = useState({
     name: '', displayName: '', description: '', category: 'general', icon: '📋',
   });
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState({
+    displayName: '', description: '', category: '', icon: ''
+  });
+
+  const startEditing = (community: Community) => {
+    setEditingId(community.id);
+    setEditForm({
+      displayName: community.displayName,
+      description: community.description,
+      category: community.category,
+      icon: community.icon || '📋'
+    });
+  };
+
+  const handleEdit = async (id: string) => {
+    try {
+      const res = await fetch(`/api/communities/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editForm),
+      });
+      if (res.ok) {
+        toast.success('Community updated!');
+        setEditingId(null);
+        router.refresh();
+      } else {
+        toast.error('Failed to update.');
+      }
+    } catch {
+      toast.error('Error updating.');
+    }
+  };
+
+  const handleArchive = async (id: string) => {
+    if (!confirm('Are you sure you want to archive/disable this community?')) return;
+    try {
+      const res = await fetch(`/api/communities/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        toast.success('Community archived.');
+        router.refresh();
+      } else {
+        toast.error('Failed to archive.');
+      }
+    } catch {
+      toast.error('Error archiving.');
+    }
+  };
 
   const handleReviewRequest = async (id: string, status: 'APPROVED' | 'REJECTED') => {
     setProcessing(id);
@@ -79,7 +129,7 @@ export default function CommunityManagement({ communities, pendingRequests, loca
         toast.success('Community created!');
         setShowCreate(false);
         setNewCommunity({ name: '', displayName: '', description: '', category: 'general', icon: '📋' });
-        window.location.reload();
+        router.refresh();
       } else {
         const data = await res.json();
         toast.error(typeof data.error === 'string' ? data.error : 'Failed to create.');
@@ -202,24 +252,79 @@ export default function CommunityManagement({ communities, pendingRequests, loca
           {communities.map((community) => (
             <Card key={community.id} className="hover:shadow-sm transition-shadow">
               <CardContent className="p-4">
-                <div className="flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-3 min-w-0 flex-1">
-                    <span className="text-2xl">{community.icon || '📋'}</span>
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold">{community.displayName}</span>
-                        <Badge variant={community.status === 'ACTIVE' ? 'secondary' : 'outline'} className="text-xs">
-                          {community.status}
-                        </Badge>
-                      </div>
-                      <div className="text-xs text-muted-foreground">c/{community.name}</div>
+                {editingId === community.id ? (
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <input
+                        placeholder="Display Name"
+                        value={editForm.displayName}
+                        onChange={(e) => setEditForm({ ...editForm, displayName: e.target.value })}
+                        className="p-2 text-sm border rounded-lg"
+                      />
+                      <select
+                        value={editForm.category}
+                        onChange={(e) => setEditForm({ ...editForm, category: e.target.value })}
+                        className="p-2 text-sm border rounded-lg"
+                      >
+                        <option value="civil">Civil</option>
+                        <option value="criminal">Criminal</option>
+                        <option value="commercial">Commercial</option>
+                        <option value="advisory">Advisory</option>
+                        <option value="general">General</option>
+                      </select>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                      <input
+                        placeholder="Icon (emoji)"
+                        value={editForm.icon}
+                        onChange={(e) => setEditForm({ ...editForm, icon: e.target.value })}
+                        className="p-2 text-sm border rounded-lg"
+                      />
+                      <input
+                        placeholder="Description"
+                        value={editForm.description}
+                        onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                        className="sm:col-span-3 p-2 text-sm border rounded-lg"
+                      />
+                    </div>
+                    <div className="flex gap-2 justify-end mt-2">
+                      <Button variant="ghost" size="sm" onClick={() => setEditingId(null)}>Cancel</Button>
+                      <Button size="sm" onClick={() => handleEdit(community.id)}>Save Changes</Button>
                     </div>
                   </div>
-                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                    <span className="flex items-center gap-1"><Users className="h-4 w-4" /> {community.memberCount}</span>
-                    <span className="flex items-center gap-1"><FileText className="h-4 w-4" /> {community.postCount}</span>
+                ) : (
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                      <span className="text-2xl">{community.icon || '📋'}</span>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold">{community.displayName}</span>
+                          <Badge variant={community.status === 'ACTIVE' ? 'secondary' : 'outline'} className="text-xs">
+                            {community.status}
+                          </Badge>
+                        </div>
+                        <div className="text-xs text-muted-foreground truncate max-w-[300px]">
+                          c/{community.name} • {community.description}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-4 text-sm text-muted-foreground justify-between sm:justify-end border-t sm:border-t-0 pt-3 sm:pt-0">
+                      <div className="flex items-center gap-4">
+                        <span className="flex items-center gap-1"><Users className="h-4 w-4" /> {community.memberCount}</span>
+                        <span className="flex items-center gap-1"><FileText className="h-4 w-4" /> {community.postCount}</span>
+                      </div>
+                      
+                      <div className="flex gap-1 sm:ml-2 sm:border-l sm:pl-4">
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600 hover:bg-blue-50" onClick={() => startEditing(community)} title="Edit Community">
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-red-600 hover:bg-red-50" onClick={() => handleArchive(community.id)} title="Archive Community">
+                          <Archive className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
                   </div>
-                </div>
+                )}
               </CardContent>
             </Card>
           ))}
