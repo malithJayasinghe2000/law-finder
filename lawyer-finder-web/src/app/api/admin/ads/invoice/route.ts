@@ -36,7 +36,7 @@ export async function POST(req: Request) {
     } else if (campaign.pricePerDay && campaign.startDate && campaign.endDate) {
       const days = Math.ceil(
         (new Date(campaign.endDate).getTime() - new Date(campaign.startDate).getTime()) / (1000 * 60 * 60 * 24)
-      );
+      ) + 1; // +1 to make the billing inclusive of both start and end dates
       amount = campaign.pricePerDay * Math.max(1, days);
     } else {
       return NextResponse.json({ error: 'Cannot calculate invoice amount. Budget or price per day required.' }, { status: 400 });

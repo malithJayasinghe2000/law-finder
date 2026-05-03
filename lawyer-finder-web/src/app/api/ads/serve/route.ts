@@ -16,6 +16,7 @@ export async function GET(req: Request) {
     }
 
     const now = new Date();
+    const todayUTCMidnight = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
 
     // Fetch active campaigns for the requested placement
     const campaigns = await prisma.adCampaign.findMany({
@@ -23,7 +24,7 @@ export async function GET(req: Request) {
         placement: placement as any,
         status: 'ACTIVE',
         startDate: { lte: now },
-        endDate: { gte: now },
+        endDate: { gte: todayUTCMidnight }, // Inclusive of the final day
       },
       include: {
         lawyer: {

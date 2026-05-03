@@ -53,7 +53,7 @@ export async function GET(req: NextRequest) {
       lawyerId: invoice.lawyerId,
       lawyerName: invoice.lawyer?.fullName || 'N/A',
       lawyerEmail: invoice.lawyer?.user?.email || 'N/A',
-      planName: invoice.plan.name,
+      planName: invoice.plan?.name || 'N/A',
       amount: invoice.amount,
       status: invoice.status,
       paymentReason: invoice.paymentReason,

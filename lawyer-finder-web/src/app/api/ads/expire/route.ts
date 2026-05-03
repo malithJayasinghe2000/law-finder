@@ -15,12 +15,13 @@ export async function POST(req: Request) {
     }
 
     const now = new Date();
+    const todayUTCMidnight = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
 
     // Find all active/approved campaigns that have passed their end date
     const expiredCampaigns = await prisma.adCampaign.updateMany({
       where: {
         status: { in: ['ACTIVE', 'APPROVED'] },
-        endDate: { lt: now },
+        endDate: { lt: todayUTCMidnight }, // Expire only when the day has completely passed
       },
       data: {
         status: 'EXPIRED',
@@ -32,7 +33,7 @@ export async function POST(req: Request) {
       where: {
         status: 'APPROVED',
         startDate: { lte: now },
-        endDate: { gte: now },
+        endDate: { gte: todayUTCMidnight }, // Ensure it activates even on the final day
       },
       data: {
         status: 'ACTIVE',

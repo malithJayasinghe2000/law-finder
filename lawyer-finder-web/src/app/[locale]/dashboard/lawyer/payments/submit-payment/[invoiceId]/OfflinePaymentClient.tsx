@@ -180,8 +180,10 @@ export default function OfflinePaymentClient({ locale, invoice }: OfflinePayment
           <CardHeader>
             <div className="flex justify-between items-start">
               <div>
-                <CardTitle>{invoice.plan.name}</CardTitle>
-                <CardDescription>Payment Submission for Plan Subscription</CardDescription>
+                <CardTitle>{invoice.plan?.name || invoice.paymentReason || 'Invoice Payment'}</CardTitle>
+                <CardDescription>
+                  {invoice.plan ? 'Payment Submission for Plan Subscription' : 'Payment Submission for Invoice'}
+                </CardDescription>
               </div>
               <Badge variant="outline" className="bg-yellow-50 text-yellow-800 border-yellow-200">
                 {invoice.status}

@@ -516,21 +516,21 @@ export default function OfflinePaymentClient({ locale, invoice }: OfflinePayment
 
             {/* Subscription Detail Sidebar */}
             <Card className="rounded-none border-none shadow-lg bg-white p-6">
-              <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-neutral-400 mb-4">Subscription Plan</h4>
+              <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-neutral-400 mb-4">{invoice.plan ? 'Subscription Plan' : 'Invoice Details'}</h4>
               <div className="bg-neutral-50 p-4 border border-neutral-100 text-center">
-                <div className="text-black font-black text-xl uppercase tracking-tighter">{invoice.plan.name}</div>
+                <div className="text-black font-black text-xl uppercase tracking-tighter">{invoice.plan?.name || invoice.paymentReason || 'Invoice Payment'}</div>
                 <Badge variant="outline" className="mt-2 bg-white text-[10px] font-black uppercase tracking-widest border-black/5">
-                  Professional Subscription
+                  {invoice.plan ? 'Professional Subscription' : 'Ad Campaign'}
                 </Badge>
               </div>
               <div className="mt-6 space-y-3">
                  <div className="flex justify-between text-[11px] text-neutral-500 uppercase font-black">
                     <span>Duration</span>
-                    <span className="text-black">30 Days</span>
+                    <span className="text-black">{invoice.plan ? '30 Days' : 'Custom'}</span>
                  </div>
                  <div className="flex justify-between text-[11px] text-neutral-500 uppercase font-black">
                     <span>Billing cycle</span>
-                    <span className="text-black">Monthly</span>
+                    <span className="text-black">{invoice.plan ? 'Monthly' : 'One-time'}</span>
                  </div>
                  <Separator className="bg-neutral-100 my-2" />
                  <div className="flex justify-between text-sm font-black text-black">

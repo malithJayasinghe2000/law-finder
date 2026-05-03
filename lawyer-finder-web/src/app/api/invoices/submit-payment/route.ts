@@ -97,7 +97,7 @@ export async function POST(req: NextRequest) {
           id: updatedInvoice.id,
           status: updatedInvoice.status,
           amount: updatedInvoice.amount,
-          planName: updatedInvoice.plan.name,
+          planName: updatedInvoice.plan?.name || 'N/A',
           paymentDetails: updatedInvoice.paymentDetails,
           updatedAt: updatedInvoice.updatedAt,
         },

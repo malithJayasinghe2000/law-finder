@@ -55,7 +55,7 @@ export async function GET(req: NextRequest) {
     const formattedInvoices = invoices.map((invoice) => ({
       id: invoice.id,
       planId: invoice.planId,
-      planName: invoice.plan.name,
+      planName: invoice.plan?.name || 'N/A',
       amount: invoice.amount,
       status: invoice.status,
       paymentReason: invoice.paymentReason,
