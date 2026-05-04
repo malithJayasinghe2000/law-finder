@@ -87,6 +87,45 @@ enum BillingCycle {
   YEARLY
 }
 
+// ============= Consultation & Booking System =============
+
+enum DayOfWeek {
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+  SUNDAY
+}
+
+enum ConsultationMode {
+  PHYSICAL
+  ONLINE
+  BOTH
+}
+
+enum BookingStatus {
+  PENDING_PAYMENT
+  CONFIRMED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED_BY_CLIENT
+  CANCELLED_BY_LAWYER
+  NO_SHOW
+  DISPUTED
+}
+
+enum ConsultationPricingType {
+  HOURLY
+  PER_SESSION
+}
+
+enum BookingPaymentMethod {
+  BANK_TRANSFER
+  PAYHERE
+}
+
 model User {
   id              String             @id @default(uuid())
   email           String             @unique
@@ -110,6 +149,9 @@ model User {
   votes              Vote[]             @relation("UserVotes")
   reports            Report[]           @relation("UserReports")
   aiConversations AiConversation[]
+
+  // Consultation Booking relations
+  bookings           Booking[]          @relation("ClientBookings")
 }
 
 model LawyerApplication {
@@ -160,6 +202,12 @@ model LawyerProfile {
   reviews      Review[]
   paidPromos   PaidPromo[]
   adCampaigns  AdCampaign[]
+
+  // Consultation & Booking relations
+  availability          LawyerAvailability[]
+  availabilityOverrides AvailabilityOverride[]
+  consultationPricing   ConsultationPricing?
+  bookings              Booking[]
 }
 
 model SubscriptionPlan {
@@ -747,4 +795,153 @@ model AiMessage {
   sources          Json?          // Legal source citations
   lawyerSuggestions Json?         // Suggested lawyers
   createdAt        DateTime       @default(now())
+}
+
+// ============= Consultation & Booking System =============
+
+// Lawyer's recurring weekly availability (e.g., "Every Monday 9AM-5PM")
+model LawyerAvailability {
+  id              String           @id @default(uuid())
+  lawyerId        String
+  lawyer          LawyerProfile    @relation(fields: [lawyerId], references: [id], onDelete: Cascade)
+
+  dayOfWeek       DayOfWeek
+  startTime       String           // "09:00" (HH:mm 24hr, SLST)
+  endTime         String           // "17:00"
+  slotDuration    Int              @default(60)  // minutes per slot
+  bufferTime      Int              @default(15)  // minutes gap between slots
+  mode            ConsultationMode @default(BOTH)
+  isActive        Boolean          @default(true)
+
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@unique([lawyerId, dayOfWeek, startTime])
+}
+
+// Date-specific overrides (e.g., "May 10th available 2PM-4PM only" or blocked)
+model AvailabilityOverride {
+  id              String           @id @default(uuid())
+  lawyerId        String
+  lawyer          LawyerProfile    @relation(fields: [lawyerId], references: [id], onDelete: Cascade)
+
+  date            DateTime         @db.Date
+  isBlocked       Boolean          @default(false)
+  startTime       String?          // null if blocked
+  endTime         String?          // null if blocked
+  reason          String?
+
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@unique([lawyerId, date])
+}
+
+// Lawyer's consultation pricing configuration
+model ConsultationPricing {
+  id                        String                  @id @default(uuid())
+  lawyerId                  String                  @unique
+  lawyer                    LawyerProfile           @relation(fields: [lawyerId], references: [id], onDelete: Cascade)
+
+  pricingType               ConsultationPricingType @default(PER_SESSION)
+  physicalPrice             Int                     // LKR (e.g., 5000)
+  onlinePrice               Int                     // LKR (usually lower)
+  currency                  String                  @default("LKR")
+
+  commissionRate            Float                   @default(0.15) // 15%
+
+  freeInitialConsultation   Boolean                 @default(false)
+  freeConsultationDuration  Int?                    // minutes
+
+  createdAt                 DateTime                @default(now())
+  updatedAt                 DateTime                @updatedAt
+}
+
+// Core booking record
+model Booking {
+  id              String           @id @default(uuid())
+  bookingNumber   String           @unique // "BK-2026-0001"
+
+  clientId        String
+  client          User             @relation("ClientBookings", fields: [clientId], references: [id])
+  lawyerId        String
+  lawyer          LawyerProfile    @relation(fields: [lawyerId], references: [id])
+
+  // Schedule
+  date            DateTime         @db.Date
+  startTime       String           // "10:00"
+  endTime         String           // "11:00"
+  duration        Int              // minutes
+
+  // Mode
+  mode            ConsultationMode
+  meetingLink     String?          // Google Meet URL
+  officeAddress   String?          // For PHYSICAL
+
+  // Pricing (snapshot at booking time)
+  lawyerFee       Int              // What lawyer charges (LKR)
+  platformFee     Int              // Commission amount (LKR)
+  totalAmount     Int              // Client pays this
+  commissionRate  Float            // Rate snapshot
+
+  // Client's issue
+  subject         String
+  description     String
+  practiceArea    String?
+
+  // Status
+  status          BookingStatus    @default(PENDING_PAYMENT)
+
+  // Payment
+  payment         BookingPayment?
+  paidAt          DateTime?
+
+  // Post-consultation
+  lawyerNotes     String?
+  clientRating    Int?
+  clientFeedback  String?
+
+  // Cancellation
+  cancelledAt     DateTime?
+  cancelledBy     String?
+  cancelReason    String?
+  refundAmount    Int?
+
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@index([clientId, status])
+  @@index([lawyerId, date])
+  @@index([status])
+  @@index([bookingNumber])
+}
+
+// Payment record linked to a booking
+model BookingPayment {
+  id              String               @id @default(uuid())
+  bookingId       String               @unique
+  booking         Booking              @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  amount          Int
+  method          BookingPaymentMethod  @default(BANK_TRANSFER)
+  status          PaymentStatus         @default(PENDING)
+
+  // Bank transfer fields
+  bankName        String?
+  accountHolder   String?
+  transactionRef  String?
+  receiptImageUrl String?
+
+  // PayHere fields
+  payhereOrderId  String?
+  payherePaymentId String?
+  payhereStatus   String?
+
+  // Admin verification
+  verifiedBy      String?
+  verifiedAt      DateTime?
+  adminNotes      String?
+
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
 }

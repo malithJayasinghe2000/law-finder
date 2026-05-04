@@ -227,7 +227,10 @@ export default function LawyerProfileClient({
 
               {/* Action Buttons */}
               <div className="mt-0 flex gap-0">
-                <button className="flex-1 flex items-center justify-center gap-2 bg-[#0a0a0a] text-white py-4 text-[15px] font-semibold hover:bg-neutral-800 transition-colors">
+                <button 
+                  onClick={() => router.push(`/${locale}/lawyers/${lawyer.id}/book`)}
+                  className="flex-1 flex items-center justify-center gap-2 bg-[#0a0a0a] text-white py-4 text-[15px] font-semibold hover:bg-neutral-800 transition-colors"
+                >
                   <CalendarCheck className="h-5 w-5" /> Book Now
                 </button>
                 <button 

@@ -31,5 +31,24 @@ export const EmailService = {
   
   async sendApplicationRejected(email: string, fullName: string, reason: string) {
     console.log(`[EMAIL SIMULATION] Triggering 'Application Rejected' to ${email}`);
+  },
+
+  // Consultation Booking Emails
+  async sendBookingConfirmationClient(email: string, clientName: string, lawyerName: string, date: string, time: string, meetingLink?: string) {
+    console.log(`[EMAIL SIMULATION] Triggering 'Booking Confirmation' to Client ${email}`);
+    // await transporter.sendMail({
+    //   from: '"LawFinder SL" <noreply@lawfinder.lk>',
+    //   to: email,
+    //   subject: `Booking Confirmed: Consultation with ${lawyerName}`,
+    //   html: `<p>Dear ${clientName},</p><p>Your consultation is confirmed for ${date} at ${time}.</p>${meetingLink ? `<p>Join here: ${meetingLink}</p>` : ''}`
+    // });
+  },
+
+  async sendBookingConfirmationLawyer(email: string, lawyerName: string, clientName: string, date: string, time: string, mode: string) {
+    console.log(`[EMAIL SIMULATION] Triggering 'New Booking' to Lawyer ${email}`);
+  },
+
+  async sendBookingCancellation(email: string, name: string, bookingNumber: string, reason: string) {
+    console.log(`[EMAIL SIMULATION] Triggering 'Booking Cancelled' to ${email} for booking ${bookingNumber}`);
   }
 };

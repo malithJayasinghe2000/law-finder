@@ -230,7 +230,7 @@ export default function EditPostPage() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={handleSubmit}
+                onClick={() => handleSubmit()}
                 className="text-green-600 hover:bg-green-50 hover:text-green-700 font-semibold border-green-200"
                 disabled={submitting}
               >

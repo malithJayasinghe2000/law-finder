@@ -48,6 +48,7 @@ export default function PostInteractions({
   locale,
   translations,
 }: PostInteractionsProps) {
+  const router = useRouter();
   const [displayContent, setDisplayContent] = useState(post.content);
   const [showTranslation, setShowTranslation] = useState(false);
   const [translationLoading, setTranslationLoading] = useState(false);

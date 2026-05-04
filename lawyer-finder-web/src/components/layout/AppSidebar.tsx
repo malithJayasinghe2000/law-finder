@@ -3,7 +3,7 @@
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { Sidebar, SidebarContent, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarGroup, SidebarGroupLabel, SidebarFooter, SidebarMenuSub, SidebarMenuSubItem, SidebarMenuSubButton } from '@/components/ui/sidebar';
-import { LayoutDashboard, Users, FileText, Settings, Star, ShieldCheck, LogOut, Megaphone, Image, ShieldPlus, ChevronDown, History, CreditCard, MessageCircle, Globe, PenSquare, Flag } from 'lucide-react';
+import { LayoutDashboard, Users, FileText, Settings, Star, ShieldCheck, LogOut, Megaphone, Image, ShieldPlus, ChevronDown, History, CreditCard, MessageCircle, Globe, PenSquare, Flag, CalendarDays, DollarSign } from 'lucide-react';
 import ChatBadge from '@/components/chat/ChatBadge';
 import { toast } from 'sonner';
 import React, { useState } from 'react';
@@ -23,12 +23,31 @@ export function AppSidebar({ locale, role, userId }: { locale: string; role: str
     { href: `/${locale}/dashboard/admin/reviews`, icon: Star, label: 'Reviews' },
     { href: `/${locale}/dashboard/admin/communities`, icon: Globe, label: 'Communities' },
     { href: `/${locale}/dashboard/admin/content-moderation`, icon: Flag, label: 'Content Moderation' },
+    {
+      href: `/${locale}/dashboard/admin/consultations`,
+      icon: CalendarDays,
+      label: 'Consultations',
+      subLinks: [
+        { href: `/${locale}/dashboard/admin/consultations`, icon: CalendarDays, label: 'All Bookings' },
+        { href: `/${locale}/dashboard/admin/consultations/payments`, icon: DollarSign, label: 'Payments & Commission' },
+      ]
+    },
     { href: `/${locale}/dashboard/admin/settings`, icon: Settings, label: 'Settings' },
     { href: `/${locale}/dashboard/admin/subscriptions`, icon: ShieldPlus, label: 'Subscription Config' },
   ];
 
   const lawyerLinks = [
     { href: `/${locale}/dashboard/lawyer`, icon: LayoutDashboard, label: 'Overview' },
+    {
+      href: `/${locale}/dashboard/lawyer/consultations`,
+      icon: CalendarDays,
+      label: 'Consultations',
+      subLinks: [
+        { href: `/${locale}/dashboard/lawyer/consultations`, icon: CalendarDays, label: 'Bookings' },
+        { href: `/${locale}/dashboard/lawyer/consultations/availability`, icon: History, label: 'Availability' },
+        { href: `/${locale}/dashboard/lawyer/consultations/pricing`, icon: DollarSign, label: 'Pricing' },
+      ]
+    },
     { href: `/${locale}/dashboard/lawyer/chat`, icon: MessageCircle, label: 'Messages', hasBadge: true },
     { href: `/${locale}/dashboard/lawyer/schedule`, icon: History, label: 'Schedule' },
     {href: `/${locale}/dashboard/lawyer/Promotion`, icon: Megaphone, label: 'Promotion' },
@@ -50,6 +69,7 @@ export function AppSidebar({ locale, role, userId }: { locale: string; role: str
 
   const clientLinks = [
     { href: `/${locale}/dashboard/client`, icon: LayoutDashboard, label: 'Overview', exact: true },
+    { href: `/${locale}/dashboard/client/consultations`, icon: CalendarDays, label: 'My Consultations' },
     { href: `/${locale}/blog/my-posts`, icon: PenSquare, label: 'Community Posts' },
     { href: `/${locale}/profile`, icon: Settings, label: 'Profile Settings' },
   ];

@@ -48,7 +48,7 @@ export default async function ClientDashboardPage({ params }: { params: Promise<
           <LayoutDashboard className="h-5 w-5" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-neutral-900">Welcome, {session.email}</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-neutral-900">Welcome back</h1>
           <p className="text-sm text-neutral-500 font-medium">Manage your community posts and interactions</p>
         </div>
       </div>

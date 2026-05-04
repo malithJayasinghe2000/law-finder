@@ -17,6 +17,7 @@ interface PendingPost {
   slug: string;
   language: string;
   createdAt: string;
+  status: string;
   author: { id: string; fullName: string | null; role: string };
   community: { name: string; displayName: string };
 }

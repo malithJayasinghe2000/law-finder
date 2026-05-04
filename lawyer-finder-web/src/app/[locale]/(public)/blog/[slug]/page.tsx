@@ -239,7 +239,7 @@ export default async function PostDetailPage({
         <SidebarAd 
           placement="BLOG_SIDEBAR" 
           locale={locale} 
-          practiceArea={post.community.category} 
+          practiceArea={post.community.name} 
           className="hidden lg:block w-[280px] shrink-0 sticky top-24"
         />
         </div>

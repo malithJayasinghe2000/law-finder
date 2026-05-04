@@ -1,0 +1,223 @@
+import { NextResponse } from 'next/server';
+import prisma from '@/lib/db';
+import { getSession } from '@/lib/auth';
+import { CreateBookingSchema, BookingFilterSchema } from '@/schemas/consultation.schema';
+
+// GET: List bookings (filtered by role)
+export async function GET(req: Request) {
+  try {
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(req.url);
+    const filters = BookingFilterSchema.safeParse({
+      status: searchParams.get('status') || undefined,
+      dateFrom: searchParams.get('dateFrom') || undefined,
+      dateTo: searchParams.get('dateTo') || undefined,
+      page: searchParams.get('page') || 1,
+      limit: searchParams.get('limit') || 10,
+    });
+
+    if (!filters.success) {
+      return NextResponse.json({ error: filters.error.format() }, { status: 400 });
+    }
+
+    const { status, dateFrom, dateTo, page, limit } = filters.data;
+    const skip = (page - 1) * limit;
+
+    const where: any = {};
+
+    // Role-based filtering
+    if (session.role === 'CLIENT') {
+      where.clientId = session.userId;
+    } else if (session.role === 'LAWYER' && session.profileId) {
+      where.lawyerId = session.profileId;
+    }
+    // ADMIN sees all
+
+    if (status) where.status = status;
+    if (dateFrom || dateTo) {
+      where.date = {};
+      if (dateFrom) where.date.gte = new Date(dateFrom);
+      if (dateTo) where.date.lte = new Date(dateTo);
+    }
+
+    const [bookings, total] = await Promise.all([
+      prisma.booking.findMany({
+        where,
+        include: {
+          client: { select: { id: true, fullName: true, email: true, profileImageUrl: true } },
+          lawyer: { select: { id: true, fullName: true, profileImageUrl: true, district: true, address: true, contactPhone: true } },
+          payment: true,
+        },
+        orderBy: [{ date: 'desc' }, { startTime: 'desc' }],
+        skip,
+        take: limit,
+      }),
+      prisma.booking.count({ where }),
+    ]);
+
+    return NextResponse.json({
+      bookings: bookings.map((b) => ({
+        ...b,
+        date: b.date.toISOString().split('T')[0],
+        createdAt: b.createdAt.toISOString(),
+        updatedAt: b.updatedAt.toISOString(),
+        paidAt: b.paidAt?.toISOString() || null,
+        cancelledAt: b.cancelledAt?.toISOString() || null,
+      })),
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    });
+  } catch {
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
+
+// POST: Create a new booking (CLIENT only) with race-condition protection
+export async function POST(req: Request) {
+  try {
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const body = await req.json();
+    const validated = CreateBookingSchema.safeParse(body);
+
+    if (!validated.success) {
+      return NextResponse.json({ error: validated.error.format() }, { status: 400 });
+    }
+
+    const { lawyerId, date, startTime, endTime, mode, subject, description, practiceArea, paymentMethod } = validated.data;
+    const targetDate = new Date(date + 'T00:00:00+05:30');
+    const now = new Date();
+
+    // Enforce 24-hour notice period
+    const slotDateTime = new Date(`${date}T${startTime}:00+05:30`);
+    const minNotice = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+
+    if (slotDateTime < minNotice) {
+      return NextResponse.json(
+        { error: 'Bookings require at least 24 hours advance notice' },
+        { status: 400 }
+      );
+    }
+
+    // For bank transfer (offline), enforce 48-hour notice since admin verification takes time
+    if (paymentMethod === 'BANK_TRANSFER') {
+      const minOfflineNotice = new Date(now.getTime() + 48 * 60 * 60 * 1000);
+      if (slotDateTime < minOfflineNotice) {
+        return NextResponse.json(
+          { error: 'Offline payment bookings require at least 48 hours advance notice to allow payment verification' },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Verify lawyer exists and has pricing
+    const lawyer = await prisma.lawyerProfile.findUnique({
+      where: { id: lawyerId },
+      include: { consultationPricing: true },
+    });
+
+    if (!lawyer) {
+      return NextResponse.json({ error: 'Lawyer not found' }, { status: 404 });
+    }
+
+    if (!lawyer.consultationPricing) {
+      return NextResponse.json({ error: 'Lawyer has not configured consultation pricing' }, { status: 400 });
+    }
+
+    // Cannot book yourself
+    if (lawyer.userId === session.userId) {
+      return NextResponse.json({ error: 'Cannot book a consultation with yourself' }, { status: 400 });
+    }
+
+    // Calculate pricing
+    const pricing = lawyer.consultationPricing;
+    const lawyerFee = mode === 'PHYSICAL' ? pricing.physicalPrice : pricing.onlinePrice;
+    const platformFee = Math.round(lawyerFee * pricing.commissionRate);
+    const totalAmount = lawyerFee + platformFee;
+    const duration = calculateDuration(startTime, endTime);
+
+    // Race-condition-safe booking creation using serializable transaction
+    const booking = await prisma.$transaction(async (tx) => {
+      // Check for conflicting bookings (atomic check)
+      const conflict = await tx.booking.findFirst({
+        where: {
+          lawyerId,
+          date: targetDate,
+          status: { notIn: ['CANCELLED_BY_CLIENT', 'CANCELLED_BY_LAWYER'] },
+          OR: [
+            { startTime: { lt: endTime }, endTime: { gt: startTime } },
+          ],
+        },
+      });
+
+      if (conflict) {
+        throw new Error('SLOT_TAKEN');
+      }
+
+      // Generate booking number
+      const bookingCount = await tx.booking.count();
+      const year = new Date().getFullYear();
+      const bookingNumber = `BK-${year}-${String(bookingCount + 1).padStart(4, '0')}`;
+
+      // Create booking
+      return tx.booking.create({
+        data: {
+          bookingNumber,
+          clientId: session.userId,
+          lawyerId,
+          date: targetDate,
+          startTime,
+          endTime,
+          duration,
+          mode: mode as any,
+          officeAddress: mode === 'PHYSICAL' ? (lawyer.address || lawyer.district || 'Contact lawyer for address') : null,
+          lawyerFee,
+          platformFee,
+          totalAmount,
+          commissionRate: pricing.commissionRate,
+          subject,
+          description,
+          practiceArea,
+          status: 'PENDING_PAYMENT',
+        },
+      });
+    }, {
+      isolationLevel: 'Serializable',
+    });
+
+    return NextResponse.json({
+      success: true,
+      booking: {
+        ...booking,
+        date: booking.date.toISOString().split('T')[0],
+        createdAt: booking.createdAt.toISOString(),
+      },
+    }, { status: 201 });
+  } catch (error: any) {
+    if (error?.message === 'SLOT_TAKEN') {
+      return NextResponse.json(
+        { error: 'This time slot has already been booked. Please select a different time.' },
+        { status: 409 }
+      );
+    }
+    console.error('Booking creation error:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
+
+function calculateDuration(startTime: string, endTime: string): number {
+  const [sh, sm] = startTime.split(':').map(Number);
+  const [eh, em] = endTime.split(':').map(Number);
+  return (eh * 60 + em) - (sh * 60 + sm);
+}
