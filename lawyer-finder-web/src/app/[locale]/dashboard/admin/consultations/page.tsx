@@ -10,7 +10,11 @@ import { CalendarDays, ShieldCheck, ChevronLeft, ChevronRight, Eye } from 'lucid
 import { BOOKING_STATUS_COLORS, BOOKING_STATUS_LABELS } from '@/schemas/consultation.schema';
 import Link from 'next/link';
 
-export default function AdminConsultationsPage({ params }: { params: { locale: string } }) {
+import { useParams } from 'next/navigation';
+
+export default function AdminConsultationsPage() {
+  const params = useParams();
+  const locale = params.locale as string;
   const [bookings, setBookings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -45,7 +49,7 @@ export default function AdminConsultationsPage({ params }: { params: { locale: s
             <p className="text-sm text-neutral-500 font-medium">Platform-wide booking overview</p>
           </div>
         </div>
-        <Link href={`/${params.locale}/dashboard/admin/consultations/payments`}>
+        <Link href={`/${locale}/dashboard/admin/consultations/payments`}>
           <Button className="bg-amber-500 text-white hover:bg-amber-600 rounded-none h-10 px-6 text-xs font-bold uppercase tracking-wide">
             Manage Payments
           </Button>

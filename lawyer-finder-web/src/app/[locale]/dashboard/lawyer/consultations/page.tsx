@@ -169,6 +169,20 @@ export default function LawyerBookingsPage() {
                     <p className="text-[10px] text-neutral-400">Your fee</p>
 
                     <div className="flex gap-1.5 mt-3">
+                      {booking.status === 'PENDING_PAYMENT' && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            const reason = window.prompt("Reason for cancellation:", "Cancelled due to non-payment");
+                            if (reason) handleAction(booking.id, 'cancel', { reason });
+                          }}
+                          disabled={actionLoading}
+                          className="rounded-none h-7 text-[10px] px-2.5 font-bold text-red-600 border-red-300"
+                        >
+                          <XCircle className="w-3 h-3 mr-1" /> Cancel
+                        </Button>
+                      )}
                       {booking.status === 'CONFIRMED' && (
                         <>
                           <Button
