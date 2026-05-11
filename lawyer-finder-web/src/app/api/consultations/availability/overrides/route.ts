@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { AvailabilityOverrideSchema } from '@/schemas/consultation.schema';
+import { parseDateOnlyToUtc } from '@/lib/utils';
 
 // GET: Fetch lawyer's date overrides for a month
 export async function GET(req: Request) {
@@ -52,11 +53,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: validated.error.format() }, { status: 400 });
     }
 
-    const targetDate = new Date(validated.data.date + 'T00:00:00+05:30');
+    const targetDate = parseDateOnlyToUtc(validated.data.date);
     const now = new Date();
 
     // Cannot override past dates
-    if (targetDate < new Date(now.toISOString().split('T')[0] + 'T00:00:00+05:30')) {
+    if (targetDate < parseDateOnlyToUtc(now.toISOString().split('T')[0])) {
       return NextResponse.json({ error: 'Cannot modify past dates' }, { status: 400 });
     }
 

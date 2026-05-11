@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { CreateBookingSchema, BookingFilterSchema } from '@/schemas/consultation.schema';
+import { formatSriLankaDateIso, parseDateOnlyToUtc } from '@/lib/utils';
 
 // GET: List bookings (filtered by role)
 export async function GET(req: Request) {
@@ -62,7 +63,7 @@ export async function GET(req: Request) {
     return NextResponse.json({
       bookings: bookings.map((b) => ({
         ...b,
-        date: b.date.toISOString().split('T')[0],
+        date: formatSriLankaDateIso(b.date),
         createdAt: b.createdAt.toISOString(),
         updatedAt: b.updatedAt.toISOString(),
         paidAt: b.paidAt?.toISOString() || null,
@@ -96,7 +97,7 @@ export async function POST(req: Request) {
     }
 
     const { lawyerId, date, startTime, endTime, mode, subject, description, practiceArea, paymentMethod } = validated.data;
-    const targetDate = new Date(date + 'T00:00:00+05:30');
+    const targetDate = parseDateOnlyToUtc(date);
     const now = new Date();
 
     // Enforce 24-hour notice period
@@ -200,7 +201,7 @@ export async function POST(req: Request) {
       success: true,
       booking: {
         ...booking,
-        date: booking.date.toISOString().split('T')[0],
+        date: formatSriLankaDateIso(booking.date),
         createdAt: booking.createdAt.toISOString(),
       },
     }, { status: 201 });

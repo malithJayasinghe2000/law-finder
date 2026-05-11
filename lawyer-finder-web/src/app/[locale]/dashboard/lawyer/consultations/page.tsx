@@ -12,6 +12,7 @@ import {
   ChevronLeft, ChevronRight, Eye, FileText,
 } from 'lucide-react';
 import { BOOKING_STATUS_COLORS, BOOKING_STATUS_LABELS } from '@/schemas/consultation.schema';
+import { formatDateOnlyString } from '@/lib/utils';
 
 interface Booking {
   id: string;
@@ -173,7 +174,7 @@ export default function LawyerBookingsPage() {
                       </span>
                       <span className="flex items-center gap-1">
                         <CalendarDays className="w-3 h-3" />
-                        {new Date(booking.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                        {formatDateOnlyString(booking.date, 'en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
                       </span>
                       <span className="flex items-center gap-1">
                         <Clock className="w-3 h-3" />
@@ -271,7 +272,7 @@ export default function LawyerBookingsPage() {
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div><p className="text-neutral-500 text-xs">Client</p><p className="font-semibold">{selectedBooking.client?.fullName || selectedBooking.client?.email}</p></div>
                 <div><p className="text-neutral-500 text-xs">Status</p><Badge className={`text-[10px] ${BOOKING_STATUS_COLORS[selectedBooking.status]}`}>{BOOKING_STATUS_LABELS[selectedBooking.status]}</Badge></div>
-                <div><p className="text-neutral-500 text-xs">Date</p><p className="font-semibold">{new Date(selectedBooking.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</p></div>
+                <div><p className="text-neutral-500 text-xs">Date</p><p className="font-semibold">{formatDateOnlyString(selectedBooking.date, 'en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</p></div>
                 <div><p className="text-neutral-500 text-xs">Time</p><p className="font-semibold">{selectedBooking.startTime} – {selectedBooking.endTime} ({selectedBooking.duration} min)</p></div>
                 <div><p className="text-neutral-500 text-xs">Mode</p><p className="font-semibold">{selectedBooking.mode}</p></div>
                 <div><p className="text-neutral-500 text-xs">Your Fee</p><p className="font-semibold">Rs. {selectedBooking.lawyerFee.toLocaleString()}</p></div>
@@ -313,7 +314,7 @@ export default function LawyerBookingsPage() {
               <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-700">
                 <p className="font-semibold">Booking</p>
                 <p>{cancelBookingTarget.bookingNumber} • {cancelBookingTarget.subject}</p>
-                <p>{new Date(cancelBookingTarget.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })} • {cancelBookingTarget.startTime} – {cancelBookingTarget.endTime}</p>
+                <p>{formatDateOnlyString(cancelBookingTarget.date, 'en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })} • {cancelBookingTarget.startTime} – {cancelBookingTarget.endTime}</p>
                 <p className="text-xs text-neutral-500 mt-1">Client: {cancelBookingTarget.client?.fullName || cancelBookingTarget.client?.email}</p>
               </div>
 

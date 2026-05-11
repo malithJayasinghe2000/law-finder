@@ -8,6 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import { CalendarDays, ShieldCheck, ChevronLeft, ChevronRight, Eye } from 'lucide-react';
 import { BOOKING_STATUS_COLORS, BOOKING_STATUS_LABELS } from '@/schemas/consultation.schema';
+import { formatDateOnlyString } from '@/lib/utils';
 import Link from 'next/link';
 
 import { useParams } from 'next/navigation';
@@ -102,7 +103,7 @@ export default function AdminConsultationsPage() {
                     <tr key={b.id} className="hover:bg-neutral-50 transition-colors">
                       <td className="px-6 py-4 font-mono text-xs">{b.bookingNumber}</td>
                       <td className="px-6 py-4">
-                        <p className="font-semibold text-neutral-900">{new Date(b.date + 'T00:00:00').toLocaleDateString()}</p>
+                        <p className="font-semibold text-neutral-900">{formatDateOnlyString(b.date, 'en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</p>
                         <p className="text-xs text-neutral-500">{b.startTime}</p>
                       </td>
                       <td className="px-6 py-4">

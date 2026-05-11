@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { CancelBookingSchema, CompleteBookingSchema, BookingRatingSchema } from '@/schemas/consultation.schema';
+import { formatSriLankaDateIso } from '@/lib/utils';
 
 // GET: Get single booking details
 export async function GET(
@@ -41,7 +42,7 @@ export async function GET(
     return NextResponse.json({
       booking: {
         ...booking,
-        date: booking.date.toISOString().split('T')[0],
+        date: formatSriLankaDateIso(booking.date),
         createdAt: booking.createdAt.toISOString(),
         updatedAt: booking.updatedAt.toISOString(),
         paidAt: booking.paidAt?.toISOString() || null,
@@ -102,7 +103,7 @@ export async function PATCH(
         // Calculate refund based on cancellation policy
         let refundAmount = 0;
         if (booking.status === 'CONFIRMED') {
-          const bookingDateTime = new Date(`${booking.date.toISOString().split('T')[0]}T${booking.startTime}:00+05:30`);
+          const bookingDateTime = new Date(`${formatSriLankaDateIso(booking.date)}T${booking.startTime}:00+05:30`);
           const hoursUntilBooking = (bookingDateTime.getTime() - Date.now()) / (1000 * 60 * 60);
 
           if (isLawyer || isAdmin) {
@@ -136,7 +137,7 @@ export async function PATCH(
 
         return NextResponse.json({
           success: true,
-          booking: { ...updated, date: updated.date.toISOString().split('T')[0] },
+          booking: { ...updated, date: formatSriLankaDateIso(updated.date) },
           refundAmount,
         });
       }
@@ -165,7 +166,7 @@ export async function PATCH(
 
         return NextResponse.json({
           success: true,
-          booking: { ...updated, date: updated.date.toISOString().split('T')[0] },
+          booking: { ...updated, date: formatSriLankaDateIso(updated.date) },
         });
       }
 
@@ -193,7 +194,7 @@ export async function PATCH(
 
         return NextResponse.json({
           success: true,
-          booking: { ...updated, date: updated.date.toISOString().split('T')[0] },
+          booking: { ...updated, date: formatSriLankaDateIso(updated.date) },
         });
       }
 

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { formatSriLankaDateIso } from '@/lib/utils';
 
 // GET: List bookings with pending refunds (Admin only)
 export async function GET(req: Request) {
@@ -37,7 +38,7 @@ export async function GET(req: Request) {
         clientName: b.client.fullName || b.client.email,
         clientEmail: b.client.email,
         lawyerName: b.lawyer.fullName,
-        date: b.date.toISOString().split('T')[0],
+        date: formatSriLankaDateIso(b.date),
         startTime: b.startTime,
         endTime: b.endTime,
         mode: b.mode,

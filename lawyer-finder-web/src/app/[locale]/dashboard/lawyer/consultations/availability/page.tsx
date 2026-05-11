@@ -8,6 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import { Clock, Plus, Trash2, Save, CalendarDays, Ban, CheckCircle } from 'lucide-react';
 import { DAY_ORDER, DAY_LABELS } from '@/schemas/consultation.schema';
+import { formatDateOnlyString } from '@/lib/utils';
 
 interface AvailabilitySlot {
   id?: string;
@@ -375,7 +376,7 @@ export default function AvailabilityPage() {
                   )}
                   <div>
                     <p className="text-sm font-semibold text-neutral-900">
-                      {new Date(o.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+                      {formatDateOnlyString(o.date, 'en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
                     </p>
                     <p className="text-xs text-neutral-500">
                       {o.isBlocked ? 'Blocked — Day off' : `Custom hours: ${o.startTime} – ${o.endTime}`}

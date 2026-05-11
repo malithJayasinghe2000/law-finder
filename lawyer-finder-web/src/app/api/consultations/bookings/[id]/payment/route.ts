@@ -3,6 +3,7 @@ import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { BankTransferPaymentSchema, AdminVerifyPaymentSchema } from '@/schemas/consultation.schema';
 import { EmailService } from '@/lib/email/EmailService';
+import { formatSriLankaDateIso } from '@/lib/utils';
 
 // POST: Submit payment for a booking
 export async function POST(
@@ -171,7 +172,7 @@ export async function PATCH(
         booking.client.email,
         booking.client.fullName || 'Client',
         booking.lawyer.fullName,
-        booking.date.toISOString().split('T')[0],
+        formatSriLankaDateIso(booking.date),
         booking.startTime,
         meetingLink || undefined
       );
@@ -181,7 +182,7 @@ export async function PATCH(
           booking.lawyer.user.email,
           booking.lawyer.fullName,
           booking.client.fullName || 'Client',
-          booking.date.toISOString().split('T')[0],
+          formatSriLankaDateIso(booking.date),
           booking.startTime,
           booking.mode
         );

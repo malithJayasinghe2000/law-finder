@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { LawyerAvailabilitySchema, WeeklyScheduleSchema, AvailableSlotsQuerySchema } from '@/schemas/consultation.schema';
+import { parseDateOnlyToUtc } from '@/lib/utils';
 
 // GET: Fetch lawyer's weekly availability schedule OR available slots for a date
 export async function GET(req: Request) {
@@ -169,7 +170,7 @@ const REVERSE_DAY_MAP: Record<number, string> = {
 };
 
 async function getAvailableSlots(lawyerId: string, dateStr: string) {
-  const targetDate = new Date(dateStr + 'T00:00:00+05:30');
+  const targetDate = parseDateOnlyToUtc(dateStr);
   const dayOfWeek = REVERSE_DAY_MAP[targetDate.getDay()];
   const now = new Date();
 
@@ -183,7 +184,7 @@ async function getAvailableSlots(lawyerId: string, dateStr: string) {
     return { slots: [], message: 'Cannot book more than 30 days in advance' };
   }
 
-  if (targetDate < new Date(now.toISOString().split('T')[0] + 'T00:00:00+05:30')) {
+  if (targetDate < parseDateOnlyToUtc(now.toISOString().split('T')[0])) {
     return { slots: [], message: 'Cannot book past dates' };
   }
 

@@ -11,6 +11,7 @@ import {
   CalendarDays, Clock, MapPin, Video, Star, XCircle, ChevronLeft, ChevronRight, AlertTriangle,
 } from 'lucide-react';
 import { BOOKING_STATUS_COLORS, BOOKING_STATUS_LABELS } from '@/schemas/consultation.schema';
+import { formatDateOnlyString } from '@/lib/utils';
 import Link from 'next/link';
 
 interface Booking {
@@ -165,7 +166,7 @@ export default function ClientConsultationsPage() {
                     <h3 className="text-sm font-bold text-neutral-900">{b.subject}</h3>
                     <div className="flex items-center gap-4 mt-2 text-xs text-neutral-500">
                       <span>Lawyer: <strong className="text-neutral-700">{b.lawyer?.fullName}</strong></span>
-                      <span className="flex items-center gap-1"><CalendarDays className="w-3 h-3" />{new Date(b.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
+                      <span className="flex items-center gap-1"><CalendarDays className="w-3 h-3" />{formatDateOnlyString(b.date, 'en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
                       <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{b.startTime} – {b.endTime}</span>
                     </div>
                     {/* Meeting link for confirmed online bookings */}

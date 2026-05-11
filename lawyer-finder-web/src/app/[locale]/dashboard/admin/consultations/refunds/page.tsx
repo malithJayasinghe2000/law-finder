@@ -10,6 +10,7 @@ import {
   RefreshCcw, CheckCircle, XCircle, DollarSign, Clock, AlertTriangle,
   User, CalendarDays, Banknote, CreditCard, ArrowRight,
 } from 'lucide-react';
+import { formatDateOnlyString } from '@/lib/utils';
 
 interface RefundItem {
   id: string;
@@ -249,7 +250,7 @@ export default function AdminRefundsPage() {
                       <div className="flex items-center gap-4 text-xs text-neutral-500">
                         <span className="flex items-center gap-1">
                           <CalendarDays className="w-3 h-3" />
-                          {new Date(refund.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                          {formatDateOnlyString(refund.date, 'en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
                         </span>
                         <span className="flex items-center gap-1">
                           <Clock className="w-3 h-3" />
