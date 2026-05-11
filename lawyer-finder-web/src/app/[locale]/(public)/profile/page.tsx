@@ -49,6 +49,7 @@ export default function ProfileSettingsPage() {
   const [courts, setCourts] = useState<string[]>([]);
   const [isNotary, setIsNotary] = useState(false);
   const [nic, setNic] = useState('');
+  const [googleMeetLink, setGoogleMeetLink] = useState('');
   const [lawyerProfileImageUrl, setLawyerProfileImageUrl] = useState('');
 
   // Subscription state
@@ -161,6 +162,7 @@ export default function ProfileSettingsPage() {
         setCourts(lp.courts || []);
         setIsNotary(lp.isNotary || false);
         setNic(lp.nic || '');
+        setGoogleMeetLink(lp.onlineMeetingLink || '');
         setLawyerProfileImageUrl(lp.profileImageUrl || '');
       }
     } catch {
@@ -243,6 +245,7 @@ export default function ProfileSettingsPage() {
           courts,
           isNotary,
           nic,
+          onlineMeetingLink: googleMeetLink || null,
           profileImageUrl: lawyerProfileImageUrl || null,
         };
       }
@@ -254,7 +257,7 @@ export default function ProfileSettingsPage() {
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
+      if (!res.ok) throw new Error(data.error || 'Failed to update profile.');
 
       toast.success('Profile updated successfully!');
       router.refresh();
@@ -480,6 +483,17 @@ export default function ProfileSettingsPage() {
                       onChange={(e) => setContactPhone(e.target.value)}
                       className="w-full bg-neutral-50 border border-neutral-200 text-[#0a0a0a] px-4 py-3 outline-none focus:border-[#0a0a0a] focus:bg-white transition-all text-sm"
                     />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[11px] font-bold text-neutral-900 uppercase tracking-widest">Google Meet URL</label>
+                    <input
+                      type="url"
+                      value={googleMeetLink}
+                      onChange={(e) => setGoogleMeetLink(e.target.value)}
+                      placeholder="https://meet.google.com/abc-defg-hij"
+                      className="w-full bg-neutral-50 border border-neutral-200 text-[#0a0a0a] px-4 py-3 outline-none focus:border-[#0a0a0a] focus:bg-white transition-all text-sm"
+                    />
+                    <p className="text-xs text-neutral-400">Your clients will use this link for online consultations. Leave blank for physical-only sessions.</p>
                   </div>
                   <div className="space-y-2">
                     <label className="text-[11px] font-bold text-neutral-900 uppercase tracking-widest">Gender</label>

@@ -127,10 +127,10 @@ export async function PATCH(
 
     const booking = await prisma.booking.findUnique({
       where: { id },
-      include: { 
+      include: {
         payment: true,
         client: { select: { fullName: true, email: true } },
-        lawyer: { select: { fullName: true, user: { select: { email: true } } } }
+        lawyer: { select: { fullName: true, onlineMeetingLink: true, user: { select: { email: true } } } },
       },
     });
 
@@ -154,12 +154,7 @@ export async function PATCH(
       let meetingLink = booking.meetingLink;
       
       if (!meetingLink && (booking.mode === 'ONLINE' || booking.mode === 'BOTH')) {
-        const { createMeetingLink } = await import('@/lib/meetings/googleMeet');
-        meetingLink = createMeetingLink(
-          booking.bookingNumber,
-          booking.lawyer.fullName,
-          booking.client.fullName || 'Client'
-        );
+        meetingLink = booking.lawyer.onlineMeetingLink || null;
       }
 
       await prisma.booking.update({

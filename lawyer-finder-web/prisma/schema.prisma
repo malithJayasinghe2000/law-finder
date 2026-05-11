@@ -186,6 +186,7 @@ model LawyerProfile {
   nic               String?
   address           String?
   contactPhone      String?
+  onlineMeetingLink String?
   profileImageUrl   String?
   bio               String?
   practiceAreas     String[]

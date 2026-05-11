@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import bcrypt from 'bcryptjs';
+import { isGoogleMeetLink } from '@/lib/meetings/googleMeet';
 
 // GET: Fetch the logged-in user's profile data
 export async function GET(req: NextRequest) {
@@ -41,6 +42,7 @@ export async function GET(req: NextRequest) {
           nic: true,
           address: true,
           contactPhone: true,
+          onlineMeetingLink: true,
           profileImageUrl: true,
           bio: true,
           practiceAreas: true,
@@ -152,10 +154,19 @@ export async function PUT(req: NextRequest) {
           'fullName', 'bio', 'practiceAreas', 'languages', 'district',
           'baseFeeRange', 'contactPhone', 'address', 'gender',
           'yearsOfExperience', 'practiceType', 'courts', 'isNotary',
-          'profileImageUrl', 'nic',
+          'onlineMeetingLink', 'profileImageUrl', 'nic',
         ];
 
         for (const field of allowedFields) {
+          if (field === 'onlineMeetingLink' && lawyerProfile[field] !== undefined) {
+            const link = lawyerProfile[field] as string | null;
+            if (link && !isGoogleMeetLink(link)) {
+              return NextResponse.json({ error: 'Please enter a valid Google Meet URL.' }, { status: 400 });
+            }
+            lawyerUpdateData.onlineMeetingLink = link || null;
+            continue;
+          }
+
           if (lawyerProfile[field] !== undefined) {
             lawyerUpdateData[field] = lawyerProfile[field];
           }
