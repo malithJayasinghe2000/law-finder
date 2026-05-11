@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { BankTransferPaymentSchema, AdminVerifyPaymentSchema } from '@/schemas/consultation.schema';
-import { createGoogleMeet } from '@/lib/meetings/googleMeet';
 import { EmailService } from '@/lib/email/EmailService';
 
 // POST: Submit payment for a booking
@@ -155,14 +154,11 @@ export async function PATCH(
       let meetingLink = booking.meetingLink;
       
       if (!meetingLink && (booking.mode === 'ONLINE' || booking.mode === 'BOTH')) {
-        const endTimeStr = new Date(`${booking.date.toISOString().split('T')[0]}T${booking.endTime}:00+05:30`).toISOString();
-        const startTimeStr = new Date(`${booking.date.toISOString().split('T')[0]}T${booking.startTime}:00+05:30`).toISOString();
-        
-        meetingLink = await createGoogleMeet(
-          `Consultation: ${booking.client.fullName || 'Client'} & ${booking.lawyer.fullName}`,
-          `Subject: ${booking.subject}\nDescription: ${booking.description}`,
-          startTimeStr,
-          endTimeStr
+        const { createMeetingLink } = await import('@/lib/meetings/googleMeet');
+        meetingLink = createMeetingLink(
+          booking.bookingNumber,
+          booking.lawyer.fullName,
+          booking.client.fullName || 'Client'
         );
       }
 

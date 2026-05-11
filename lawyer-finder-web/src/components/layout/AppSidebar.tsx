@@ -3,7 +3,7 @@
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { Sidebar, SidebarContent, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarGroup, SidebarGroupLabel, SidebarFooter, SidebarMenuSub, SidebarMenuSubItem, SidebarMenuSubButton } from '@/components/ui/sidebar';
-import { LayoutDashboard, Users, FileText, Settings, Star, ShieldCheck, LogOut, Megaphone, Image, ShieldPlus, ChevronDown, History, CreditCard, MessageCircle, Globe, PenSquare, Flag, CalendarDays, DollarSign } from 'lucide-react';
+import { LayoutDashboard, Users, FileText, Settings, Star, ShieldCheck, LogOut, Megaphone, Image, ShieldPlus, ChevronDown, History, CreditCard, MessageCircle, Globe, PenSquare, Flag, CalendarDays, DollarSign, Banknote } from 'lucide-react';
 import ChatBadge from '@/components/chat/ChatBadge';
 import { toast } from 'sonner';
 import React, { useState } from 'react';
@@ -30,6 +30,7 @@ export function AppSidebar({ locale, role, userId }: { locale: string; role: str
       subLinks: [
         { href: `/${locale}/dashboard/admin/consultations`, icon: CalendarDays, label: 'All Bookings' },
         { href: `/${locale}/dashboard/admin/consultations/payments`, icon: DollarSign, label: 'Payments & Commission' },
+        { href: `/${locale}/dashboard/admin/consultations/refunds`, icon: Banknote, label: 'Refunds' },
       ]
     },
     { href: `/${locale}/dashboard/admin/settings`, icon: Settings, label: 'Settings' },

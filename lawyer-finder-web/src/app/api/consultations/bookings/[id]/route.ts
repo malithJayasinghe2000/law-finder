@@ -54,7 +54,7 @@ export async function GET(
   }
 }
 
-// PATCH: Update booking status (cancel, complete, no-show, rate)
+// PATCH: Update booking status (cancel, complete, rate)
 export async function PATCH(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -130,6 +130,7 @@ export async function PATCH(
             cancelledBy: session.userId,
             cancelReason: validated.data.reason,
             refundAmount,
+            refundStatus: refundAmount > 0 ? 'PENDING' : 'NONE',
           },
         });
 
@@ -160,26 +161,6 @@ export async function PATCH(
             status: 'COMPLETED',
             lawyerNotes: validated.data.lawyerNotes,
           },
-        });
-
-        return NextResponse.json({
-          success: true,
-          booking: { ...updated, date: updated.date.toISOString().split('T')[0] },
-        });
-      }
-
-      case 'no-show': {
-        if (!isLawyer && !isAdmin) {
-          return NextResponse.json({ error: 'Only the lawyer can mark no-show' }, { status: 403 });
-        }
-
-        if (booking.status !== 'CONFIRMED') {
-          return NextResponse.json({ error: 'Only confirmed bookings can be marked as no-show' }, { status: 400 });
-        }
-
-        const updated = await prisma.booking.update({
-          where: { id },
-          data: { status: 'NO_SHOW' },
         });
 
         return NextResponse.json({

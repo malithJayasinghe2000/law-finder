@@ -126,6 +126,13 @@ enum BookingPaymentMethod {
   PAYHERE
 }
 
+enum RefundStatus {
+  NONE            // No refund needed
+  PENDING         // Refund calculated, awaiting admin action
+  PROCESSED       // Admin has sent the refund
+  DECLINED        // Refund was declined (e.g., policy violation)
+}
+
 model User {
   id              String             @id @default(uuid())
   email           String             @unique
@@ -906,6 +913,9 @@ model Booking {
   cancelledBy     String?
   cancelReason    String?
   refundAmount    Int?
+  refundStatus    RefundStatus     @default(NONE)
+  refundProcessedAt DateTime?
+  refundNotes     String?
 
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt

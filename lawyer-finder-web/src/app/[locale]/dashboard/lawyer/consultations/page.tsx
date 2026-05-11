@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import {
-  CalendarDays, Clock, MapPin, Video, User, CheckCircle, XCircle, AlertTriangle,
+  CalendarDays, Clock, MapPin, Video, User, CheckCircle, XCircle,
   ChevronLeft, ChevronRight, Eye, FileText,
 } from 'lucide-react';
 import { BOOKING_STATUS_COLORS, BOOKING_STATUS_LABELS } from '@/schemas/consultation.schema';
@@ -73,7 +73,7 @@ export default function LawyerBookingsPage() {
       });
       const data = await res.json();
       if (data.success) {
-        toast.success(`Booking ${action === 'complete' ? 'completed' : action === 'no-show' ? 'marked as no-show' : 'updated'}`);
+        toast.success('Booking updated successfully');
         setSelectedBooking(null);
         loadBookings();
       } else {
@@ -192,15 +192,6 @@ export default function LawyerBookingsPage() {
                             className="bg-green-600 text-white hover:bg-green-700 rounded-none h-7 text-[10px] px-2.5 font-bold"
                           >
                             <CheckCircle className="w-3 h-3 mr-1" /> Complete
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleAction(booking.id, 'no-show')}
-                            disabled={actionLoading}
-                            className="rounded-none h-7 text-[10px] px-2.5 font-bold text-amber-600 border-amber-300"
-                          >
-                            <AlertTriangle className="w-3 h-3 mr-1" /> No-Show
                           </Button>
                         </>
                       )}
