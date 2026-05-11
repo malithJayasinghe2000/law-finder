@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import {
@@ -43,6 +44,8 @@ export default function LawyerBookingsPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [statusFilter, setStatusFilter] = useState('');
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
+  const [cancelBookingTarget, setCancelBookingTarget] = useState<Booking | null>(null);
+  const [cancelReason, setCancelReason] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
 
   useEffect(() => { loadBookings(); }, [page, statusFilter]);
@@ -75,6 +78,10 @@ export default function LawyerBookingsPage() {
       if (data.success) {
         toast.success('Booking updated successfully');
         setSelectedBooking(null);
+        if (action === 'cancel') {
+          setCancelBookingTarget(null);
+          setCancelReason('');
+        }
         loadBookings();
       } else {
         toast.error(data.error || 'Action failed');
@@ -86,12 +93,23 @@ export default function LawyerBookingsPage() {
     }
   }
 
+  async function handleCancelBooking() {
+    if (!cancelBookingTarget) return;
+    if (cancelReason.trim().length < 5) {
+      toast.error('Please provide a cancellation reason of at least 5 characters.');
+      return;
+    }
+
+    await handleAction(cancelBookingTarget.id, 'cancel', { reason: cancelReason });
+  }
+
   const statusTabs = [
     { value: '', label: 'All' },
     { value: 'CONFIRMED', label: 'Upcoming' },
     { value: 'PENDING_PAYMENT', label: 'Pending' },
     { value: 'COMPLETED', label: 'Completed' },
-    { value: 'CANCELLED_BY_CLIENT', label: 'Cancelled' },
+    { value: 'CANCELLED_BY_CLIENT', label: 'Cancelled by Client' },
+    { value: 'CANCELLED_BY_LAWYER', label: 'Cancelled by Me' },
   ];
 
   return (
@@ -174,8 +192,8 @@ export default function LawyerBookingsPage() {
                           size="sm"
                           variant="outline"
                           onClick={() => {
-                            const reason = window.prompt("Reason for cancellation:", "Cancelled due to non-payment");
-                            if (reason) handleAction(booking.id, 'cancel', { reason });
+                            setCancelBookingTarget(booking);
+                            setCancelReason('Cancelled due to non-payment');
                           }}
                           disabled={actionLoading}
                           className="rounded-none h-7 text-[10px] px-2.5 font-bold text-red-600 border-red-300"
@@ -192,6 +210,18 @@ export default function LawyerBookingsPage() {
                             className="bg-green-600 text-white hover:bg-green-700 rounded-none h-7 text-[10px] px-2.5 font-bold"
                           >
                             <CheckCircle className="w-3 h-3 mr-1" /> Complete
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setCancelBookingTarget(booking);
+                              setCancelReason('Unavailable');
+                            }}
+                            disabled={actionLoading}
+                            className="rounded-none h-7 text-[10px] px-2.5 font-bold text-red-600 border-red-300"
+                          >
+                            <XCircle className="w-3 h-3 mr-1" /> Cancel
                           </Button>
                         </>
                       )}
@@ -270,6 +300,50 @@ export default function LawyerBookingsPage() {
           </div>
         </div>
       )}
+
+      <Dialog open={Boolean(cancelBookingTarget)} onOpenChange={(open) => { if (!open) { setCancelBookingTarget(null); setCancelReason(''); } }}>
+        <DialogContent>
+          <DialogTitle>Cancel Booking</DialogTitle>
+          <DialogDescription>
+            Provide a clear cancellation reason for this booking. The client will be notified and the refund policy will be applied if the booking has already been paid.
+          </DialogDescription>
+
+          {cancelBookingTarget && (
+            <div className="space-y-4 mt-4">
+              <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-700">
+                <p className="font-semibold">Booking</p>
+                <p>{cancelBookingTarget.bookingNumber} • {cancelBookingTarget.subject}</p>
+                <p>{new Date(cancelBookingTarget.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })} • {cancelBookingTarget.startTime} – {cancelBookingTarget.endTime}</p>
+                <p className="text-xs text-neutral-500 mt-1">Client: {cancelBookingTarget.client?.fullName || cancelBookingTarget.client?.email}</p>
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-neutral-700 uppercase tracking-[0.2em]">Reason for cancellation</label>
+                <textarea
+                  value={cancelReason}
+                  onChange={(e) => setCancelReason(e.target.value)}
+                  rows={4}
+                  className="w-full mt-2 rounded-md border border-neutral-200 bg-white px-3 py-2 text-sm text-[#0a0a0a] outline-none focus:border-[#0a0a0a] focus:ring-1 focus:ring-[#0a0a0a]"
+                  placeholder="Tell the client why this appointment is being cancelled"
+                />
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" className="rounded-none h-10 text-xs font-bold" onClick={() => { setCancelBookingTarget(null); setCancelReason(''); }}>
+              Close
+            </Button>
+            <Button
+              className="rounded-none h-10 text-xs font-bold bg-red-600 text-white hover:bg-red-700"
+              onClick={handleCancelBooking}
+              disabled={actionLoading || !cancelReason.trim()}
+            >
+              {actionLoading ? 'Cancelling...' : 'Confirm Cancel'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
