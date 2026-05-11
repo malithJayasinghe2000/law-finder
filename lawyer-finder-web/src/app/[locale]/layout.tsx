@@ -59,7 +59,7 @@ export default async function RootLayout({
             {children}
           </div>
         </NextIntlClientProvider>
-        <Toaster position="top-center" richColors />
+        <Toaster position="top-right" richColors />
       </body>
     </html>
   );
