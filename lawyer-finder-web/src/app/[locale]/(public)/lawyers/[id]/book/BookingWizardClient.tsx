@@ -92,9 +92,43 @@ export default function BookingWizardClient({ lawyerId, lawyerName, lawyerImage,
   }
 
   // Next step validation
-  const nextStep = () => {
+  const nextStep = async () => {
     if (step === 1 && !mode) { toast.error('Please select consultation mode'); return; }
-    if (step === 2 && !selectedSlot) { toast.error('Please select a time slot'); return; }
+    
+    if (step === 2) {
+      if (!selectedSlot) { toast.error('Please select a time slot'); return; }
+      
+      // Try to hold the slot
+      setLoading(true);
+      try {
+        const res = await fetch('/api/consultations/holds', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            lawyerId,
+            date: selectedDate,
+            startTime: selectedSlot.startTime,
+            endTime: selectedSlot.endTime,
+          }),
+        });
+        
+        const data = await res.json();
+        if (!res.ok) {
+          toast.error(data.error || 'This slot is no longer available');
+          setLoading(false);
+          // Reload slots to refresh availability
+          loadSlots(selectedDate);
+          return;
+        }
+        // Success: Slot held for 10 minutes
+      } catch (err) {
+        toast.error('Failed to reserve slot');
+        setLoading(false);
+        return;
+      }
+      setLoading(false);
+    }
+
     if (step === 3) {
       if (subject.length < 3) { toast.error('Subject is required'); return; }
       if (description.length < 10) { toast.error('Please provide more detail in description'); return; }

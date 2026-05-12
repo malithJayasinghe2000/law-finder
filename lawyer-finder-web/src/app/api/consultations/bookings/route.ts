@@ -166,6 +166,34 @@ export async function POST(req: Request) {
         throw new Error('SLOT_TAKEN');
       }
 
+      // Check for conflicting holds by OTHER clients
+      const conflictingHold = await tx.slotHold.findFirst({
+        where: {
+          lawyerId,
+          date: targetDate,
+          expiresAt: { gt: new Date() },
+          clientId: { not: session.userId },
+          OR: [
+            { startTime: { lt: endTime }, endTime: { gt: startTime } },
+          ],
+        },
+      });
+
+      if (conflictingHold) {
+        throw new Error('SLOT_HELD');
+      }
+
+      // Clean up the client's own hold if it exists
+      await tx.slotHold.deleteMany({
+        where: {
+          lawyerId,
+          date: targetDate,
+          clientId: session.userId,
+          startTime,
+          endTime,
+        },
+      });
+
       // Generate booking number
       const bookingCount = await tx.booking.count();
       const year = new Date().getFullYear();
@@ -206,9 +234,9 @@ export async function POST(req: Request) {
       },
     }, { status: 201 });
   } catch (error: any) {
-    if (error?.message === 'SLOT_TAKEN') {
+    if (error?.message === 'SLOT_TAKEN' || error?.message === 'SLOT_HELD') {
       return NextResponse.json(
-        { error: 'This time slot has already been booked. Please select a different time.' },
+        { error: 'This time slot has already been booked or is currently being reserved by another client.' },
         { status: 409 }
       );
     }

@@ -18,7 +18,8 @@ export async function GET(req: Request) {
         return NextResponse.json({ error: validated.error.format() }, { status: 400 });
       }
 
-      const slots = await getAvailableSlots(validated.data.lawyerId, validated.data.date);
+      const session = await getSession();
+      const slots = await getAvailableSlots(validated.data.lawyerId, validated.data.date, session?.userId);
       return NextResponse.json(slots);
     }
 
@@ -169,7 +170,7 @@ const REVERSE_DAY_MAP: Record<number, string> = {
   4: 'THURSDAY', 5: 'FRIDAY', 6: 'SATURDAY',
 };
 
-async function getAvailableSlots(lawyerId: string, dateStr: string) {
+async function getAvailableSlots(lawyerId: string, dateStr: string, currentUserId?: string) {
   const targetDate = parseDateOnlyToUtc(dateStr);
   const dayOfWeek = REVERSE_DAY_MAP[targetDate.getDay()];
   const now = new Date();
@@ -241,6 +242,16 @@ async function getAvailableSlots(lawyerId: string, dateStr: string) {
     select: { startTime: true, endTime: true },
   });
 
+  // Get active slot holds for this date
+  const activeHolds = await prisma.slotHold.findMany({
+    where: {
+      lawyerId,
+      date: targetDate,
+      expiresAt: { gt: now },
+    },
+    select: { startTime: true, endTime: true, clientId: true },
+  });
+
   // Get pricing info
   const pricing = await prisma.consultationPricing.findUnique({
     where: { lawyerId },
@@ -267,10 +278,16 @@ async function getAvailableSlots(lawyerId: string, dateStr: string) {
     );
 
     for (const slot of slots) {
-      // Check if slot is already booked
+      // Check if slot is already booked or held
       const isBooked = existingBookings.some(
         (b) => b.startTime === slot.start || 
                (b.startTime < slot.end && b.endTime > slot.start)
+      );
+
+      const isHeld = activeHolds.some(
+        (h) => (h.startTime === slot.start ||
+               (h.startTime < slot.end && h.endTime > slot.start)) &&
+               h.clientId !== currentUserId
       );
 
       // Check notice period (24 hours minimum)
@@ -286,7 +303,7 @@ async function getAvailableSlots(lawyerId: string, dateStr: string) {
         endTime: slot.end,
         duration: window.slotDuration,
         mode: window.mode,
-        isAvailable: !isBooked && meetsNotice,
+        isAvailable: !isBooked && !isHeld && meetsNotice,
         physicalPrice,
         onlinePrice,
         platformFee: physicalPrice ? Math.round(physicalPrice * commissionRate) : null,

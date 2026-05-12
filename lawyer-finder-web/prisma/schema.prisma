@@ -927,6 +927,21 @@ model Booking {
   @@index([bookingNumber])
 }
 
+// Temporary hold on a slot during checkout
+model SlotHold {
+  id        String   @id @default(uuid())
+  clientId  String
+  lawyerId  String
+  date      DateTime @db.Date
+  startTime String
+  endTime   String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([lawyerId, date])
+  @@index([expiresAt])
+}
+
 // Payment record linked to a booking
 model BookingPayment {
   id              String               @id @default(uuid())
