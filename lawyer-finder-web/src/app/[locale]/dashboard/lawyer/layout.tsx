@@ -17,10 +17,8 @@ export default async function LawyerDashboardLayout({ children, params }: { chil
 
   const liveRole = user?.role || session.role;
 
-  if (liveRole !== 'LAWYER' && liveRole !== 'ADMIN') { // Admin might need access or not, but typically LAWYER
-    if (liveRole !== 'LAWYER') {
-      redirect(`/${locale}/dashboard`);
-    }
+  if (liveRole !== 'LAWYER' && liveRole !== 'ADMIN') {
+    redirect(`/${locale}/dashboard`);
   }
 
   return <>{children}</>;

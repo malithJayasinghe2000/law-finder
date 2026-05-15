@@ -28,7 +28,7 @@ interface PostCardProps {
       fullName: string | null;
       profileImageUrl: string | null;
       role: string;
-      profile?: { isVerified: boolean } | null;
+      profile?: { isVerified: boolean; fullName?: string | null } | null;
     };
     community: {
       id: string;

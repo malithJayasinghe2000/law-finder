@@ -129,7 +129,7 @@ export async function POST(req: NextRequest) {
           id: invoice.id,
           amount: invoice.amount,
           status: invoice.status,
-          planName: invoice.plan.name,
+          planName: invoice.plan?.name || plan.name,
           createdAt: invoice.createdAt,
         },
         subscription: {
