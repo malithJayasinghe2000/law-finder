@@ -1,0 +1,38 @@
+# Pay Later & Booking Expiration Implementation Plan
+
+You are absolutely correct! We must ensure that clients are not penalized if they have already submitted payment details and the admin is slow to review them. To handle this, we will clearly separate "Pending Payment" from "Awaiting Admin Verification".
+
+## Proposed Changes
+
+### 1. Database Schema Status Updates
+#### [MODIFY] `schema.prisma`
+We will ensure the `BookingStatus` enum has distinct states:
+- `PENDING_PAYMENT`: Client has NOT submitted any payment details yet. (Subject to 24h expiration).
+- `AWAITING_BANK_TRANSFER_VERIFICATION`: Client HAS submitted the details, waiting for Admin. (NOT subject to expiration).
+
+### 2. Booking Wizard Checkout Options
+#### [MODIFY] `BookingWizardClient.tsx`
+Update Step 4 (Payment) to show three options:
+1. **Pay Online (Instant)** - Credit/Debit Card via PayHere.
+2. **Bank Transfer (Submit Details Now)** - Creates booking with status `AWAITING_BANK_TRANSFER_VERIFICATION`.
+3. **Bank Transfer (Submit Details Later)** - Creates booking with status `PENDING_PAYMENT` and redirects client to dashboard.
+
+### 3. 24-Hour Expiration Logic
+#### [MODIFY] `src/app/api/consultations/availability/route.ts` & `src/app/api/consultations/bookings/route.ts`
+When generating available time slots and checking for conflicts, the system will ignore any bookings that are `PENDING_PAYMENT` and older than 24 hours.
+Bookings that are `AWAITING_BANK_TRANSFER_VERIFICATION` will continue to securely hold the slot indefinitely until the Admin approves or rejects them.
+
+### 4. Client Dashboard Payment Submission
+#### [MODIFY] `src/app/[locale]/dashboard/client/consultations/page.tsx`
+For any booking in the `PENDING_PAYMENT` state, we will add a **"Submit Payment"** button. This will open a modal for the client to enter their Bank Name, Account Holder, and Reference Number. Submitting this will call the API to upgrade the booking to `AWAITING_BANK_TRANSFER_VERIFICATION`.
+
+## User Review Required
+> [!IMPORTANT]
+> This ensures that once the client submits the bank reference, the 24-hour timer stops, and the slot is securely theirs while the Admin reviews it. Does this perfectly align with the business logic you want?
+
+## Verification Plan
+1. Schema update and prisma client generation.
+2. Test "Pay Later" -> Creates `PENDING_PAYMENT`.
+3. Test "Pay Now" -> Creates `AWAITING_BANK_TRANSFER_VERIFICATION`.
+4. Test Client Dashboard "Submit Payment" -> Upgrades `PENDING` to `AWAITING_VERIFICATION`.
+5. Verify Availability Engine ignores 24h old `PENDING_PAYMENT` but respects `AWAITING_VERIFICATION`.
