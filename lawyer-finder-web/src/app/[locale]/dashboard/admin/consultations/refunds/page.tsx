@@ -26,6 +26,8 @@ interface RefundItem {
   lawyerFee: number;
   platformFee: number;
   refundAmount: number;
+  retainedLawyerFee: number;
+  retainedPlatformFee: number;
   refundStatus: string;
   refundProcessedAt: string | null;
   refundNotes: string | null;
@@ -288,10 +290,16 @@ export default function AdminRefundsPage() {
                       <div className="space-y-1 mb-3">
                         <p className="text-[10px] text-neutral-400 uppercase tracking-wider font-bold">Refund Amount</p>
                         <p className="text-2xl font-bold text-red-600">Rs. {refund.refundAmount.toLocaleString()}</p>
-                        <div className="text-[10px] text-neutral-400 space-y-0.5">
-                          <p>Original: Rs. {refund.totalAmount.toLocaleString()}</p>
-                          <p>Lawyer Fee: Rs. {refund.lawyerFee.toLocaleString()}</p>
-                          <p>Platform Fee: Rs. {refund.platformFee.toLocaleString()}</p>
+                        <div className="text-[10px] text-neutral-400 space-y-0.5 mt-2">
+                          <p>Original Total: Rs. {refund.totalAmount.toLocaleString()}</p>
+                          <p>Original Lawyer Fee: Rs. {refund.lawyerFee.toLocaleString()}</p>
+                          <p>Original Platform Fee: Rs. {refund.platformFee.toLocaleString()}</p>
+                          {refund.retainedLawyerFee > 0 && (
+                            <div className="mt-2 pt-2 border-t border-neutral-100 space-y-0.5 text-amber-600 font-medium">
+                              <p>Retained by Lawyer: Rs. {refund.retainedLawyerFee.toLocaleString()}</p>
+                              <p>Retained by Platform: Rs. {refund.retainedPlatformFee.toLocaleString()}</p>
+                            </div>
+                          )}
                         </div>
                       </div>
 

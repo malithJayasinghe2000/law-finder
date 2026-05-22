@@ -224,7 +224,15 @@ export default function ClientConsultationsPage() {
                   </div>
                   <div className="text-right shrink-0">
                     <p className="text-lg font-bold text-neutral-900">Rs. {b.totalAmount.toLocaleString()}</p>
-                    <p className="text-[10px] text-neutral-400">Total paid</p>
+                    <p className="text-[10px] text-neutral-400">Total amount</p>
+                    {b.status === 'CANCELLED_BY_CLIENT' && b.refundAmount !== null && (
+                      <div className="mt-2 text-right bg-red-50 p-1.5 border border-red-100">
+                        {b.refundAmount < b.totalAmount && (
+                          <p className="text-[10px] text-red-600 font-bold">- Rs. {(b.totalAmount - b.refundAmount).toLocaleString()} (Late Cancel Penalty)</p>
+                        )}
+                        <p className="text-xs text-green-600 font-bold">Refund: Rs. {b.refundAmount.toLocaleString()}</p>
+                      </div>
+                    )}
                     <div className="flex gap-1.5 mt-3 justify-end flex-wrap">
                       {b.status === 'PENDING_PAYMENT' && (
                         <Button size="sm" onClick={() => setPaymentModal(b.id)} className="bg-blue-600 text-white hover:bg-blue-700 rounded-none h-7 text-[10px] px-2.5 font-bold border-none">

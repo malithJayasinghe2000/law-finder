@@ -46,6 +46,8 @@ export async function GET(req: Request) {
         lawyerFee: b.lawyerFee,
         platformFee: b.platformFee,
         refundAmount: b.refundAmount || 0,
+        retainedLawyerFee: b.retainedLawyerFee || 0,
+        retainedPlatformFee: b.retainedPlatformFee || 0,
         refundStatus: b.refundStatus,
         refundProcessedAt: b.refundProcessedAt?.toISOString() || null,
         refundNotes: b.refundNotes,

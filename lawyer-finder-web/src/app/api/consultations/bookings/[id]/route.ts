@@ -100,8 +100,11 @@ export async function PATCH(
           return NextResponse.json({ error: validated.error.format() }, { status: 400 });
         }
 
-        // Calculate refund based on cancellation policy
+        // Calculate refund and retained fees based on cancellation policy
         let refundAmount = 0;
+        let retainedLawyerFee = 0;
+        let retainedPlatformFee = 0;
+
         if (booking.status === 'CONFIRMED') {
           const bookingDateTime = new Date(`${formatSriLankaDateIso(booking.date)}T${booking.startTime}:00+05:30`);
           const hoursUntilBooking = (bookingDateTime.getTime() - Date.now()) / (1000 * 60 * 60);
@@ -113,12 +116,11 @@ export async function PATCH(
             // Client cancels 24+ hrs before = full refund
             refundAmount = booking.totalAmount;
           } else {
-            // Client cancels <24 hrs = 50% refund
+            // Client cancels <24 hrs = 50% refund, 50% retained split evenly between lawyer & platform
             refundAmount = Math.round(booking.totalAmount * 0.5);
+            retainedLawyerFee = Math.round(booking.lawyerFee * 0.5);
+            retainedPlatformFee = Math.round(booking.platformFee * 0.5);
           }
-        } else {
-          // PENDING_PAYMENT - no charge
-          refundAmount = 0;
         }
 
         const cancelStatus = isLawyer ? 'CANCELLED_BY_LAWYER' : 'CANCELLED_BY_CLIENT';
@@ -131,6 +133,8 @@ export async function PATCH(
             cancelledBy: session.userId,
             cancelReason: validated.data.reason,
             refundAmount,
+            retainedLawyerFee,
+            retainedPlatformFee,
             refundStatus: refundAmount > 0 ? 'PENDING' : 'NONE',
           },
         });

@@ -917,6 +917,8 @@ model Booking {
   cancelledBy     String?
   cancelReason    String?
   refundAmount    Int?
+  retainedLawyerFee Int?
+  retainedPlatformFee Int?
   refundStatus    RefundStatus     @default(NONE)
   refundProcessedAt DateTime?
   refundNotes     String?
