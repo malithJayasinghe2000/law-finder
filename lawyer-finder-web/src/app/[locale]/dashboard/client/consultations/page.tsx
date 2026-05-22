@@ -27,6 +27,7 @@ interface Booking {
   lawyerFee: number;
   platformFee: number;
   totalAmount: number;
+  refundAmount: number | null;
   subject: string;
   description: string;
   status: string;
