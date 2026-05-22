@@ -44,18 +44,25 @@ export async function POST(
         return NextResponse.json({ error: validated.error.format() }, { status: 400 });
       }
 
-      const payment = await prisma.bookingPayment.create({
-        data: {
-          bookingId: id,
-          amount: booking.totalAmount,
-          method: 'BANK_TRANSFER',
-          status: 'PENDING',
-          bankName: validated.data.bankName,
-          accountHolder: validated.data.accountHolder,
-          transactionRef: validated.data.transactionRef,
-          receiptImageUrl: validated.data.receiptImageUrl,
-        },
-      });
+      // Use transaction to create payment and update booking status
+      const [payment] = await prisma.$transaction([
+        prisma.bookingPayment.create({
+          data: {
+            bookingId: id,
+            amount: booking.totalAmount,
+            method: 'BANK_TRANSFER',
+            status: 'PENDING',
+            bankName: validated.data.bankName,
+            accountHolder: validated.data.accountHolder,
+            transactionRef: validated.data.transactionRef,
+            receiptImageUrl: validated.data.receiptImageUrl,
+          },
+        }),
+        prisma.booking.update({
+          where: { id },
+          data: { status: 'AWAITING_BANK_TRANSFER_VERIFICATION' },
+        })
+      ]);
 
       return NextResponse.json({
         success: true,
@@ -206,6 +213,14 @@ export async function PATCH(
         booking.bookingNumber,
         'Payment rejected by admin'
       );
+    } else if (validated.data.status === 'RESUBMIT') {
+      await prisma.booking.update({
+        where: { id },
+        data: {
+          status: 'PENDING_PAYMENT',
+        },
+      });
+      // Optional: Send email notifying client to resubmit payment details
     }
 
     return NextResponse.json({ success: true });

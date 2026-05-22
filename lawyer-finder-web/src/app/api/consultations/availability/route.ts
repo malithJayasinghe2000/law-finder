@@ -233,13 +233,22 @@ async function getAvailableSlots(lawyerId: string, dateStr: string, currentUserI
   }
 
   // Get existing bookings for this date (exclude cancelled)
-  const existingBookings = await prisma.booking.findMany({
+  const rawBookings = await prisma.booking.findMany({
     where: {
       lawyerId,
       date: targetDate,
       status: { notIn: ['CANCELLED_BY_CLIENT', 'CANCELLED_BY_LAWYER'] },
     },
-    select: { startTime: true, endTime: true },
+    select: { startTime: true, endTime: true, status: true, createdAt: true },
+  });
+
+  // Filter out PENDING_PAYMENT bookings that are older than 24 hours
+  const existingBookings = rawBookings.filter((b) => {
+    if (b.status === 'PENDING_PAYMENT') {
+      const hoursSinceCreation = (now.getTime() - b.createdAt.getTime()) / (1000 * 60 * 60);
+      if (hoursSinceCreation > 24) return false;
+    }
+    return true;
   });
 
   // Get active slot holds for this date

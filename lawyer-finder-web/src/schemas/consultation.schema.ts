@@ -9,7 +9,7 @@ export const DayOfWeekEnum = z.enum([
 export const ConsultationModeEnum = z.enum(['PHYSICAL', 'ONLINE', 'BOTH']);
 
 export const BookingStatusEnum = z.enum([
-  'PENDING_PAYMENT', 'CONFIRMED', 'IN_PROGRESS', 'COMPLETED',
+  'PENDING_PAYMENT', 'AWAITING_BANK_TRANSFER_VERIFICATION', 'CONFIRMED', 'IN_PROGRESS', 'COMPLETED',
   'CANCELLED_BY_CLIENT', 'CANCELLED_BY_LAWYER', 'NO_SHOW', 'DISPUTED',
 ]);
 
@@ -178,6 +178,7 @@ export type AdminVerifyPaymentInput = z.infer<typeof AdminVerifyPaymentSchema>;
 
 export const BOOKING_STATUS_COLORS: Record<string, string> = {
   PENDING_PAYMENT: 'bg-amber-100 text-amber-800',
+  AWAITING_BANK_TRANSFER_VERIFICATION: 'bg-sky-100 text-sky-800',
   CONFIRMED: 'bg-blue-100 text-blue-800',
   IN_PROGRESS: 'bg-purple-100 text-purple-800',
   COMPLETED: 'bg-green-100 text-green-800',
@@ -189,6 +190,7 @@ export const BOOKING_STATUS_COLORS: Record<string, string> = {
 
 export const BOOKING_STATUS_LABELS: Record<string, string> = {
   PENDING_PAYMENT: 'Pending Payment',
+  AWAITING_BANK_TRANSFER_VERIFICATION: 'Pending Bank Transfer Verification',
   CONFIRMED: 'Confirmed',
   IN_PROGRESS: 'In Progress',
   COMPLETED: 'Completed',

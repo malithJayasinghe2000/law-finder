@@ -45,7 +45,7 @@ export default function BookingWizardClient({ lawyerId, lawyerName, lawyerImage,
   const [description, setDescription] = useState('');
 
   // Payment
-  const [paymentMethod, setPaymentMethod] = useState<'BANK_TRANSFER' | 'PAYHERE'>('PAYHERE');
+  const [paymentMethod, setPaymentMethod] = useState<'BANK_TRANSFER_NOW' | 'BANK_TRANSFER_LATER' | 'PAYHERE'>('PAYHERE');
   
   // Bank Transfer Form
   const [bankName, setBankName] = useState('');
@@ -137,7 +137,7 @@ export default function BookingWizardClient({ lawyerId, lawyerName, lawyerImage,
   };
 
   const submitBooking = async () => {
-    if (paymentMethod === 'BANK_TRANSFER') {
+    if (paymentMethod === 'BANK_TRANSFER_NOW') {
       if (!bankName || !accountHolder || !transactionRef) {
         toast.error('Please fill in all bank transfer details');
         return;
@@ -159,7 +159,7 @@ export default function BookingWizardClient({ lawyerId, lawyerName, lawyerImage,
           subject,
           description,
           practiceArea: practiceArea || undefined,
-          paymentMethod,
+          paymentMethod: paymentMethod === 'PAYHERE' ? 'PAYHERE' : 'BANK_TRANSFER',
         }),
       });
 
@@ -170,61 +170,68 @@ export default function BookingWizardClient({ lawyerId, lawyerName, lawyerImage,
 
       const bookingId = bookingData.booking.id;
 
-      // 2. Submit Payment
-      const paymentPayload = paymentMethod === 'BANK_TRANSFER' 
-        ? { method: 'BANK_TRANSFER', bankName, accountHolder, transactionRef, receiptImageUrl }
-        : { method: 'PAYHERE' };
+      // 2. Submit Payment (If not PAY LATER)
+      if (paymentMethod !== 'BANK_TRANSFER_LATER') {
+        const paymentPayload = paymentMethod === 'BANK_TRANSFER_NOW' 
+          ? { method: 'BANK_TRANSFER', bankName, accountHolder, transactionRef, receiptImageUrl }
+          : { method: 'PAYHERE' };
 
-      const paymentRes = await fetch(`/api/consultations/bookings/${bookingId}/payment`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(paymentPayload),
-      });
-
-      const paymentData = await paymentRes.json();
-      if (!paymentRes.ok) {
-        throw new Error(paymentData.error || 'Payment initialization failed');
-      }
-
-      if (paymentMethod === 'PAYHERE' && paymentData.payhere) {
-        // Redirect to PayHere Sandbox (for dev) or create a dynamic form and submit it
-        const p = paymentData.payhere;
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = 'https://sandbox.payhere.lk/pay/checkout'; // USE SANDBOX FOR TESTING
-        
-        const params: Record<string, string> = {
-          merchant_id: p.merchantId,
-          return_url: p.returnUrl,
-          cancel_url: p.cancelUrl,
-          notify_url: p.notifyUrl,
-          order_id: p.orderId,
-          items: p.items,
-          currency: p.currency,
-          amount: p.amount,
-          first_name: 'Client',
-          last_name: 'Name',
-          email: 'client@example.com',
-          phone: '0771234567',
-          address: 'Colombo',
-          city: 'Colombo',
-          country: 'Sri Lanka'
-        };
-
-        Object.entries(params).forEach(([key, value]) => {
-          const input = document.createElement('input');
-          input.type = 'hidden';
-          input.name = key;
-          input.value = value;
-          form.appendChild(input);
+        const paymentRes = await fetch(`/api/consultations/bookings/${bookingId}/payment`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(paymentPayload),
         });
 
-        document.body.appendChild(form);
-        form.submit();
-      } else {
-        toast.success('Booking submitted successfully! Awaiting admin verification.');
-        router.push(`/${locale}/dashboard/client/consultations`);
+        const paymentData = await paymentRes.json();
+        if (!paymentRes.ok) {
+          throw new Error(paymentData.error || 'Payment initialization failed');
+        }
+
+        if (paymentMethod === 'PAYHERE' && paymentData.payhere) {
+          // Redirect to PayHere Sandbox (for dev)
+          const p = paymentData.payhere;
+          const form = document.createElement('form');
+          form.method = 'POST';
+          form.action = 'https://sandbox.payhere.lk/pay/checkout'; // USE SANDBOX FOR TESTING
+          
+          const params: Record<string, string> = {
+            merchant_id: p.merchantId,
+            return_url: p.returnUrl,
+            cancel_url: p.cancelUrl,
+            notify_url: p.notifyUrl,
+            order_id: p.orderId,
+            items: p.items,
+            currency: p.currency,
+            amount: p.amount,
+            first_name: 'Client',
+            last_name: 'Name',
+            email: 'client@example.com',
+            phone: '0771234567',
+            address: 'Colombo',
+            city: 'Colombo',
+            country: 'Sri Lanka'
+          };
+
+          Object.entries(params).forEach(([key, value]) => {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = key;
+            input.value = value;
+            form.appendChild(input);
+          });
+
+          document.body.appendChild(form);
+          form.submit();
+          return;
+        }
       }
+
+      // Success fallback (for BANK_TRANSFER_NOW and BANK_TRANSFER_LATER)
+      toast.success(paymentMethod === 'BANK_TRANSFER_NOW' 
+        ? 'Booking submitted successfully! Awaiting admin verification.' 
+        : 'Booking created! Please submit your payment details within 24 hours.'
+      );
+      router.push(`/${locale}/dashboard/client/consultations`);
     } catch (err: any) {
       toast.error(err.message || 'An error occurred');
       setLoading(false);
@@ -420,32 +427,42 @@ export default function BookingWizardClient({ lawyerId, lawyerName, lawyerImage,
                 {/* Payment Method */}
                 <div className="space-y-4">
                   <label className="text-xs font-bold text-neutral-500 uppercase tracking-widest">Select Payment Method</label>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <button
                       onClick={() => setPaymentMethod('PAYHERE')}
                       className={`p-4 border-2 flex items-center gap-3 transition-all ${paymentMethod === 'PAYHERE' ? 'border-[#0a0a0a] bg-neutral-50' : 'border-neutral-200'}`}
                     >
                       <CreditCard className={`w-6 h-6 ${paymentMethod === 'PAYHERE' ? 'text-[#0a0a0a]' : 'text-neutral-400'}`} />
                       <div className="text-left">
-                        <p className="text-sm font-bold text-[#0a0a0a]">Pay Online (Instant)</p>
-                        <p className="text-[10px] text-neutral-500 uppercase tracking-wider">Credit/Debit Card via PayHere</p>
+                        <p className="text-sm font-bold text-[#0a0a0a]">Pay Online</p>
+                        <p className="text-[10px] text-neutral-500 uppercase tracking-wider">Instant</p>
                       </div>
                     </button>
                     <button
-                      onClick={() => setPaymentMethod('BANK_TRANSFER')}
-                      className={`p-4 border-2 flex items-center gap-3 transition-all ${paymentMethod === 'BANK_TRANSFER' ? 'border-[#0a0a0a] bg-neutral-50' : 'border-neutral-200'}`}
+                      onClick={() => setPaymentMethod('BANK_TRANSFER_NOW')}
+                      className={`p-4 border-2 flex items-center gap-3 transition-all ${paymentMethod === 'BANK_TRANSFER_NOW' ? 'border-[#0a0a0a] bg-neutral-50' : 'border-neutral-200'}`}
                     >
-                      <Building2 className={`w-6 h-6 ${paymentMethod === 'BANK_TRANSFER' ? 'text-[#0a0a0a]' : 'text-neutral-400'}`} />
+                      <Building2 className={`w-6 h-6 ${paymentMethod === 'BANK_TRANSFER_NOW' ? 'text-[#0a0a0a]' : 'text-neutral-400'}`} />
                       <div className="text-left">
                         <p className="text-sm font-bold text-[#0a0a0a]">Bank Transfer</p>
-                        <p className="text-[10px] text-neutral-500 uppercase tracking-wider">Manual Verification</p>
+                        <p className="text-[10px] text-neutral-500 uppercase tracking-wider">Submit Details Now</p>
+                      </div>
+                    </button>
+                    <button
+                      onClick={() => setPaymentMethod('BANK_TRANSFER_LATER')}
+                      className={`p-4 border-2 flex items-center gap-3 transition-all ${paymentMethod === 'BANK_TRANSFER_LATER' ? 'border-[#0a0a0a] bg-neutral-50' : 'border-neutral-200'}`}
+                    >
+                      <Clock className={`w-6 h-6 ${paymentMethod === 'BANK_TRANSFER_LATER' ? 'text-[#0a0a0a]' : 'text-neutral-400'}`} />
+                      <div className="text-left">
+                        <p className="text-sm font-bold text-[#0a0a0a]">Pay Later</p>
+                        <p className="text-[10px] text-neutral-500 uppercase tracking-wider">Within 24 Hours</p>
                       </div>
                     </button>
                   </div>
                 </div>
 
                 {/* Bank Transfer Details */}
-                {paymentMethod === 'BANK_TRANSFER' && (
+                {paymentMethod === 'BANK_TRANSFER_NOW' && (
                   <div className="p-6 bg-neutral-50 border border-neutral-200 space-y-4">
                     <div className="bg-amber-50 border border-amber-200 p-3 text-xs text-amber-800 mb-4">
                       <p className="font-bold mb-1">Bank Transfer Instructions:</p>
@@ -492,7 +509,7 @@ export default function BookingWizardClient({ lawyerId, lawyerName, lawyerImage,
                 </Button>
               ) : (
                 <Button onClick={submitBooking} disabled={loading} className="bg-green-600 text-white hover:bg-green-700 rounded-none h-12 px-8 uppercase tracking-widest text-xs font-bold w-full md:w-auto">
-                  {loading ? 'Processing...' : `Pay LKR ${totalAmount.toLocaleString()} & Book`}
+                  {loading ? 'Processing...' : (paymentMethod === 'BANK_TRANSFER_LATER' ? `Book Now & Pay Later` : `Pay LKR ${totalAmount.toLocaleString()} & Book`)}
                 </Button>
               )}
             </div>

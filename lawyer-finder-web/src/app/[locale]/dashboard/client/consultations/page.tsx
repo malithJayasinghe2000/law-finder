@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import {
-  CalendarDays, Clock, MapPin, Video, Star, XCircle, ChevronLeft, ChevronRight, AlertTriangle,
+  CalendarDays, Clock, MapPin, Video, Star, XCircle, ChevronLeft, ChevronRight, AlertTriangle, CreditCard, Building2
 } from 'lucide-react';
 import { BOOKING_STATUS_COLORS, BOOKING_STATUS_LABELS } from '@/schemas/consultation.schema';
 import { formatDateOnlyString } from '@/lib/utils';
@@ -49,6 +49,12 @@ export default function ClientConsultationsPage() {
   const [rateModal, setRateModal] = useState<string | null>(null);
   const [rating, setRating] = useState(5);
   const [feedback, setFeedback] = useState('');
+  
+  const [paymentModal, setPaymentModal] = useState<string | null>(null);
+  const [bankName, setBankName] = useState('');
+  const [accountHolder, setAccountHolder] = useState('');
+  const [transactionRef, setTransactionRef] = useState('');
+  
   const [actionLoading, setActionLoading] = useState(false);
 
   useEffect(() => { loadBookings(); }, [page, statusFilter]);
@@ -106,10 +112,43 @@ export default function ClientConsultationsPage() {
     finally { setActionLoading(false); }
   }
 
+  async function submitPaymentDetails() {
+    if (!bankName || !accountHolder || !transactionRef) {
+      toast.error('Please fill in all bank details');
+      return;
+    }
+    setActionLoading(true);
+    try {
+      const res = await fetch(`/api/consultations/bookings/${paymentModal}/payment`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          method: 'BANK_TRANSFER',
+          bankName,
+          accountHolder,
+          transactionRef
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast.success('Payment details submitted successfully! Awaiting admin verification.');
+        setPaymentModal(null);
+        setBankName('');
+        setAccountHolder('');
+        setTransactionRef('');
+        loadBookings();
+      } else {
+        toast.error(data.error || 'Failed to submit payment details');
+      }
+    } catch { toast.error('Failed to submit'); }
+    finally { setActionLoading(false); }
+  }
+
   const statusTabs = [
     { value: '', label: 'All' },
     { value: 'CONFIRMED', label: 'Upcoming' },
     { value: 'PENDING_PAYMENT', label: 'Pending Payment' },
+    { value: 'AWAITING_BANK_TRANSFER_VERIFICATION', label: 'Pending Bank Transfer Verification' },
     { value: 'COMPLETED', label: 'Completed' },
   ];
 
@@ -186,8 +225,13 @@ export default function ClientConsultationsPage() {
                   <div className="text-right shrink-0">
                     <p className="text-lg font-bold text-neutral-900">Rs. {b.totalAmount.toLocaleString()}</p>
                     <p className="text-[10px] text-neutral-400">Total paid</p>
-                    <div className="flex gap-1.5 mt-3">
-                      {['PENDING_PAYMENT', 'CONFIRMED'].includes(b.status) && (
+                    <div className="flex gap-1.5 mt-3 justify-end flex-wrap">
+                      {b.status === 'PENDING_PAYMENT' && (
+                        <Button size="sm" onClick={() => setPaymentModal(b.id)} className="bg-blue-600 text-white hover:bg-blue-700 rounded-none h-7 text-[10px] px-2.5 font-bold border-none">
+                          <CreditCard className="w-3 h-3 mr-1" /> Submit Payment
+                        </Button>
+                      )}
+                      {['PENDING_PAYMENT', 'CONFIRMED', 'AWAITING_BANK_TRANSFER_VERIFICATION'].includes(b.status) && (
                         <Button size="sm" variant="outline" onClick={() => setCancelModal(b.id)} className="rounded-none h-7 text-[10px] px-2.5 font-bold text-red-600 border-red-300">
                           <XCircle className="w-3 h-3 mr-1" /> Cancel
                         </Button>
@@ -252,6 +296,48 @@ export default function ClientConsultationsPage() {
               </div>
               <textarea value={feedback} onChange={(e) => setFeedback(e.target.value)} rows={3} placeholder="Share your experience (optional)" className="w-full border border-neutral-200 px-3 py-2 text-sm" />
               <Button onClick={submitRating} disabled={actionLoading} className="w-full bg-[#0a0a0a] text-white hover:bg-neutral-800 rounded-none h-10 font-bold text-xs uppercase tracking-wide">{actionLoading ? 'Submitting...' : 'Submit Rating'}</Button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Payment Modal */}
+      {paymentModal && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setPaymentModal(null)}>
+          <div className="bg-white max-w-md w-full shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <div className="p-6 border-b flex justify-between items-center">
+              <h2 className="text-lg font-bold flex items-center gap-2"><Building2 className="w-5 h-5 text-neutral-900" /> Submit Bank Transfer</h2>
+              <button onClick={() => setPaymentModal(null)} className="text-neutral-400 hover:text-neutral-600"><XCircle className="w-5 h-5" /></button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="bg-amber-50 border border-amber-200 p-3 text-xs text-amber-800">
+                <p className="font-bold mb-1">Bank Transfer Instructions:</p>
+                <p>Please transfer the exact amount to the account below, then enter the transaction reference.</p>
+                <ul className="mt-2 space-y-1 font-mono text-[11px]">
+                  <li>Bank: Commercial Bank</li>
+                  <li>Account Name: FindLawyer Platform</li>
+                  <li>Account No: 1234567890</li>
+                  <li>Branch: Colombo 01</li>
+                </ul>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-neutral-500 uppercase">Your Bank Name</label>
+                  <input value={bankName} onChange={e => setBankName(e.target.value)} className="w-full h-9 border border-neutral-300 px-3 text-sm focus:outline-none focus:border-black" placeholder="e.g. HNB" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-neutral-500 uppercase">Account Holder</label>
+                  <input value={accountHolder} onChange={e => setAccountHolder(e.target.value)} className="w-full h-9 border border-neutral-300 px-3 text-sm focus:outline-none focus:border-black" placeholder="e.g. John Doe" />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-neutral-500 uppercase">Transaction Reference Number</label>
+                <input value={transactionRef} onChange={e => setTransactionRef(e.target.value)} className="w-full h-9 border border-neutral-300 px-3 text-sm focus:outline-none focus:border-black" />
+              </div>
+
+              <Button onClick={submitPaymentDetails} disabled={actionLoading} className="w-full bg-[#0a0a0a] text-white hover:bg-neutral-800 rounded-none h-10 font-bold text-xs uppercase tracking-wide">
+                {actionLoading ? 'Submitting...' : 'Submit Payment Details'}
+              </Button>
             </div>
           </div>
         </div>
