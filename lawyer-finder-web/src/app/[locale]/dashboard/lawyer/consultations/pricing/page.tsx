@@ -191,7 +191,7 @@ export default function PricingPage() {
       </Card>
 
       {/* Free Consultation */}
-      <Card className="rounded-none shadow-sm">
+      {/* <Card className="rounded-none shadow-sm">
         <CardContent className="p-6">
           <h3 className="text-sm font-bold text-neutral-900 uppercase tracking-wide mb-4 flex items-center gap-2">
             <Gift className="w-4 h-4" /> Free Initial Consultation
@@ -224,7 +224,7 @@ export default function PricingPage() {
             </div>
           </div>
         </CardContent>
-      </Card>
+      </Card> */}
 
       {/* Advance Notice Setting */}
       <Card className="rounded-none shadow-sm">
