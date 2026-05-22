@@ -7,8 +7,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import {
-  CalendarDays, MapPin, Video, ChevronRight, ChevronLeft, Clock, Info, CheckCircle, CreditCard, Building2, Upload
+import { 
+  CalendarDays, Clock, MapPin, Video, CheckCircle, CreditCard, Loader2, ArrowRight, Info, Phone, XCircle, ChevronRight,
+  ChevronLeft,
+  Building2
 } from 'lucide-react';
 
 interface Props {
@@ -53,6 +55,9 @@ export default function BookingWizardClient({ lawyerId, lawyerName, lawyerImage,
   const [transactionRef, setTransactionRef] = useState('');
   const [receiptImageUrl, setReceiptImageUrl] = useState('');
 
+  // Call to Book Modal
+  const [callToBookSlot, setCallToBookSlot] = useState<any>(null);
+
   // Step 2: Load slots when date changes
   useEffect(() => {
     if (selectedDate && step === 2) {
@@ -60,11 +65,9 @@ export default function BookingWizardClient({ lawyerId, lawyerName, lawyerImage,
     }
   }, [selectedDate, step]);
 
-  // Set minimum date to tomorrow
+  // Allow booking from today (slots will filter based on notice period)
   const getMinDate = () => {
-    const d = new Date();
-    d.setDate(d.getDate() + 1);
-    return d.toISOString().split('T')[0];
+    return new Date().toISOString().split('T')[0];
   };
 
   async function loadSlots(dateStr: string) {
@@ -76,7 +79,7 @@ export default function BookingWizardClient({ lawyerId, lawyerName, lawyerImage,
       if (res.ok) {
         // Filter slots based on selected mode
         const filtered = data.slots.filter((s: any) => 
-          s.isAvailable && (s.mode === 'BOTH' || s.mode === mode)
+          (s.isAvailable || s.isCallToBook) && (s.mode === 'BOTH' || s.mode === mode)
         );
         setAvailableSlots(filtered);
       } else {
@@ -135,6 +138,12 @@ export default function BookingWizardClient({ lawyerId, lawyerName, lawyerImage,
     }
     setStep(s => s + 1);
   };
+
+  const prevStep = () => setStep(s => s - 1);
+
+  const handleSubmit = async () => {
+    await submitBooking();
+  }
 
   const submitBooking = async () => {
     if (paymentMethod === 'BANK_TRANSFER_NOW') {
@@ -305,7 +314,7 @@ export default function BookingWizardClient({ lawyerId, lawyerName, lawyerImage,
                 
                 <div className="bg-blue-50 border border-blue-200 p-4 flex gap-3 text-sm text-blue-800">
                   <Info className="w-5 h-5 shrink-0" />
-                  <p>Bookings require at least <strong>24 hours</strong> advance notice. If paying by Bank Transfer, <strong>48 hours</strong> notice is required to allow verification.</p>
+                  <p>Select an available slot. Slots marked with a phone icon require short notice and must be booked over the phone.</p>
                 </div>
 
                 <div className="space-y-2">
@@ -338,14 +347,27 @@ export default function BookingWizardClient({ lawyerId, lawyerName, lawyerImage,
                         {availableSlots.map((slot, idx) => (
                           <button
                             key={idx}
-                            onClick={() => setSelectedSlot(slot)}
-                            className={`px-4 py-3 text-sm font-semibold border-2 transition-all ${
+                            onClick={() => {
+                              if (slot.isCallToBook) {
+                                setCallToBookSlot(slot);
+                              } else {
+                                setSelectedSlot(slot);
+                              }
+                            }}
+                            className={`px-4 py-3 text-sm font-semibold border-2 transition-all flex flex-col items-center justify-center gap-1 ${
                               selectedSlot?.startTime === slot.startTime 
                               ? 'border-[#0a0a0a] bg-[#0a0a0a] text-white' 
-                              : 'border-neutral-200 text-neutral-700 hover:border-[#0a0a0a] hover:text-[#0a0a0a]'
+                              : slot.isCallToBook 
+                                ? 'border-neutral-200 bg-neutral-100 text-neutral-600 hover:border-neutral-300'
+                                : 'border-neutral-200 text-neutral-700 hover:border-[#0a0a0a] hover:text-[#0a0a0a]'
                             }`}
                           >
-                            {slot.startTime} - {slot.endTime}
+                            <span>{slot.startTime} - {slot.endTime}</span>
+                            {slot.isCallToBook && (
+                              <div className="flex items-center gap-1 text-[10px] uppercase font-bold text-neutral-500">
+                                <Phone className="w-3 h-3" /> Call to Book
+                              </div>
+                            )}
                           </button>
                         ))}
                       </div>
@@ -517,6 +539,35 @@ export default function BookingWizardClient({ lawyerId, lawyerName, lawyerImage,
           </CardContent>
         </Card>
       </div>
+
+      {/* Call to Book Modal */}
+      {callToBookSlot && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-white max-w-md w-full p-8 relative shadow-2xl animate-in zoom-in-95 duration-200">
+            <button onClick={() => setCallToBookSlot(null)} className="absolute top-4 right-4 text-neutral-400 hover:text-black">
+              <XCircle className="w-6 h-6" />
+            </button>
+            <div className="text-center mb-6">
+              <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Phone className="w-8 h-8" />
+              </div>
+              <h2 className="text-xl font-bold text-[#0a0a0a]">Short Notice Booking</h2>
+              <p className="text-sm text-neutral-500 mt-2">
+                This time slot ({callToBookSlot.startTime}) is available, but it falls within the lawyer's required advance notice period. We need to confirm it with the lawyer first.
+              </p>
+            </div>
+            
+            <div className="bg-neutral-50 p-6 border border-neutral-200 text-center mb-6">
+              <p className="text-xs font-bold text-neutral-500 uppercase tracking-widest mb-2">Please call our support line to arrange</p>
+              <p className="text-2xl font-bold text-[#0a0a0a] tracking-wider">011 234 5678</p>
+            </div>
+            
+            <Button onClick={() => setCallToBookSlot(null)} className="w-full h-12 rounded-none bg-[#0a0a0a] hover:bg-neutral-800 text-white font-bold uppercase text-xs tracking-widest">
+              Close
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

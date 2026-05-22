@@ -81,6 +81,7 @@ export const ConsultationPricingSchema = z.object({
   onlinePrice: z.number().int().min(0, 'Price cannot be negative'),
   freeInitialConsultation: z.boolean().default(false),
   freeConsultationDuration: z.number().int().min(10).max(60).optional(),
+  minAdvanceNoticeHours: z.number().int().min(1).default(24),
 }).refine(
   (data) => {
     if (data.freeInitialConsultation) {

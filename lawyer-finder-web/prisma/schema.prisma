@@ -862,6 +862,8 @@ model ConsultationPricing {
   freeInitialConsultation   Boolean                 @default(false)
   freeConsultationDuration  Int?                    // minutes
 
+  minAdvanceNoticeHours     Int                     @default(24) // How many hours in advance a booking must be made
+
   createdAt                 DateTime                @default(now())
   updatedAt                 DateTime                @updatedAt
 }

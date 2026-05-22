@@ -54,6 +54,7 @@ export async function POST(req: Request) {
         onlinePrice: validated.data.onlinePrice,
         freeInitialConsultation: validated.data.freeInitialConsultation,
         freeConsultationDuration: validated.data.freeConsultationDuration,
+        minAdvanceNoticeHours: validated.data.minAdvanceNoticeHours,
       },
       create: {
         lawyerId: session.profileId,
@@ -62,6 +63,7 @@ export async function POST(req: Request) {
         onlinePrice: validated.data.onlinePrice,
         freeInitialConsultation: validated.data.freeInitialConsultation,
         freeConsultationDuration: validated.data.freeConsultationDuration,
+        minAdvanceNoticeHours: validated.data.minAdvanceNoticeHours,
       },
     });
 

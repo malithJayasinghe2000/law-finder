@@ -110,41 +110,39 @@ export async function POST(req: Request) {
     const targetDate = parseDateOnlyToUtc(date);
     const now = new Date();
 
-    // Enforce 24-hour notice period
-    const slotDateTime = new Date(`${date}T${startTime}:00+05:30`);
-    const minNotice = new Date(now.getTime() + 24 * 60 * 60 * 1000);
-
-    if (slotDateTime < minNotice) {
-      return NextResponse.json(
-        { error: 'Bookings require at least 24 hours advance notice' },
-        { status: 400 }
-      );
-    }
-
-    // For bank transfer (offline), enforce 48-hour notice since admin verification takes time
-    if (paymentMethod === 'BANK_TRANSFER') {
-      const minOfflineNotice = new Date(now.getTime() + 48 * 60 * 60 * 1000);
-      if (slotDateTime < minOfflineNotice) {
-        return NextResponse.json(
-          { error: 'Offline payment bookings require at least 48 hours advance notice to allow payment verification' },
-          { status: 400 }
-        );
-      }
-    }
-
-    // Verify lawyer exists and has pricing
     const lawyer = await prisma.lawyerProfile.findUnique({
       where: { id: lawyerId },
       include: { consultationPricing: true },
     });
 
-    if (!lawyer) {
-      return NextResponse.json({ error: 'Lawyer not found' }, { status: 404 });
+    if (!lawyer || !lawyer.consultationPricing) {
+      return NextResponse.json({ error: 'Lawyer or pricing not found' }, { status: 404 });
     }
 
-    if (!lawyer.consultationPricing) {
-      return NextResponse.json({ error: 'Lawyer has not configured consultation pricing' }, { status: 400 });
+    const minAdvanceNoticeHours = lawyer.consultationPricing.minAdvanceNoticeHours || 24;
+
+    // Enforce dynamic notice period
+    const slotDateTime = new Date(`${date}T${startTime}:00+05:30`);
+    const minNotice = new Date(now.getTime() + minAdvanceNoticeHours * 60 * 60 * 1000);
+
+    if (slotDateTime < minNotice) {
+      return NextResponse.json(
+        { error: `Bookings require at least ${minAdvanceNoticeHours} hours advance notice` },
+        { status: 400 }
+      );
     }
+
+    // For bank transfer (offline), enforce notice + 24 hours (or whatever buffer is preferred, keeping it as max(minNotice, 48h) or just sticking to minNotice)
+    if (paymentMethod === 'BANK_TRANSFER') {
+      const minOfflineNotice = new Date(now.getTime() + Math.max(48, minAdvanceNoticeHours) * 60 * 60 * 1000);
+      if (slotDateTime < minOfflineNotice) {
+        return NextResponse.json(
+          { error: `Offline payment bookings require at least ${Math.max(48, minAdvanceNoticeHours)} hours advance notice to allow payment verification` },
+          { status: 400 }
+        );
+      }
+    }
+
 
     // Cannot book yourself
     if (lawyer.userId === session.userId) {

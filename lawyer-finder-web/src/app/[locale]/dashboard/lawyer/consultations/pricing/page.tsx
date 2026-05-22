@@ -5,7 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
-import { DollarSign, Save, Info, Percent, Gift } from 'lucide-react';
+import { DollarSign, Save, Info, Percent, Gift, Clock } from 'lucide-react';
 
 export default function PricingPage() {
   const [loading, setLoading] = useState(true);
@@ -15,6 +15,7 @@ export default function PricingPage() {
   const [onlinePrice, setOnlinePrice] = useState(3000);
   const [freeInitial, setFreeInitial] = useState(false);
   const [freeDuration, setFreeDuration] = useState(15);
+  const [minAdvanceNoticeHours, setMinAdvanceNoticeHours] = useState(24);
 
   const COMMISSION_RATE = 0.15;
 
@@ -32,6 +33,7 @@ export default function PricingPage() {
         setOnlinePrice(data.pricing.onlinePrice);
         setFreeInitial(data.pricing.freeInitialConsultation);
         setFreeDuration(data.pricing.freeConsultationDuration || 15);
+        setMinAdvanceNoticeHours(data.pricing.minAdvanceNoticeHours || 24);
       }
     } catch {
       toast.error('Failed to load pricing');
@@ -52,6 +54,7 @@ export default function PricingPage() {
           onlinePrice,
           freeInitialConsultation: freeInitial,
           freeConsultationDuration: freeInitial ? freeDuration : undefined,
+          minAdvanceNoticeHours,
         }),
       });
       const data = await res.json();
@@ -219,6 +222,31 @@ export default function PricingPage() {
                 </div>
               )}
             </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Advance Notice Setting */}
+      <Card className="rounded-none shadow-sm">
+        <CardContent className="p-6">
+          <h3 className="text-sm font-bold text-neutral-900 uppercase tracking-wide mb-4 flex items-center gap-2">
+            <Clock className="w-4 h-4" /> Minimum Advance Notice
+          </h3>
+          <div className="space-y-2">
+            <p className="text-xs text-neutral-500 mb-3">
+              How much notice do you need before a consultation? Slots within this timeframe will be shown as "Call to Book" rather than allowing instant booking.
+            </p>
+            <select
+              value={minAdvanceNoticeHours}
+              onChange={(e) => setMinAdvanceNoticeHours(parseInt(e.target.value))}
+              className="border border-neutral-200 px-4 py-3 w-full md:w-64 text-sm bg-white outline-none focus:border-[#0a0a0a]"
+            >
+              <option value={12}>12 Hours</option>
+              <option value={24}>24 Hours (1 Day)</option>
+              <option value={48}>48 Hours (2 Days)</option>
+              <option value={72}>72 Hours (3 Days)</option>
+              <option value={168}>168 Hours (1 Week)</option>
+            </select>
           </div>
         </CardContent>
       </Card>

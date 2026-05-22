@@ -19,8 +19,8 @@ export default function AdminConsultationPaymentsPage() {
   async function loadPendingPayments() {
     setLoading(true);
     try {
-      // Get bookings that are pending payment, ideally filtering by method BANK_TRANSFER
-      const res = await fetch(`/api/consultations/bookings?status=PENDING_PAYMENT&limit=50`);
+      // Get bookings that are awaiting bank transfer verification
+      const res = await fetch(`/api/consultations/bookings?status=AWAITING_BANK_TRANSFER_VERIFICATION&limit=50`);
       const data = await res.json();
       
       // Filter for those with pending bank transfers
