@@ -7,11 +7,9 @@ import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Scale, LogIn, Loader2, ArrowLeft } from 'lucide-react';
+import { Scale, LogIn, Loader2 } from 'lucide-react';
 import { FieldError } from '@/components/ui/FieldError';
 
 export default function LoginPage() {
@@ -59,63 +57,94 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-[85vh] items-center justify-center px-4 bg-background">
-      <div className="w-full max-w-[420px]">
+    <div className="flex min-h-screen items-center justify-center px-4 bg-gradient-to-br from-white via-white to-[#fafafa]">
+      <div className="w-full max-w-[480px]">
+        
         {/* Logo */}
-        <div className="mb-10 flex flex-col items-center gap-3">
-          <Link href={`/${locale}`} className="flex items-center gap-2 group">
-            <div className="flex h-12 w-12 items-center justify-center rounded-none bg-[#0a0a0a] text-white shadow-md transition-transform group-hover:scale-105">
-              <Scale className="h-6 w-6" />
-            </div>
-            <span className="text-2xl font-semibold tracking-tight text-[#0a0a0a]">
-              LawFinder<span className="font-light opacity-60 ml-0.5">SL</span>
+        <div className="mb-12 flex flex-col items-center gap-4">
+          <Link href={`/${locale}`} className="flex items-center gap-3 group">
+            <Scale className="h-8 w-8 text-[#ffb84f]" />
+            <span className="text-xl font-bold tracking-[0.1em] uppercase text-[#ffb84f]">
+              Lawyer.ai
             </span>
           </Link>
+          <h2 className="text-3xl font-medium text-[#0a0d14] text-center">Welcome Back</h2>
+          <p className="text-center text-neutral-500 font-light">Sign in to access your legal workspace</p>
         </div>
 
-        <div className="bg-white p-10 rounded-none shadow-md border border-neutral-200">
-          <div className="mb-8 text-center">
-            <h1 className="text-[26px] font-semibold tracking-tight text-[#0a0a0a] mb-2">Welcome Back</h1>
-            <p className="text-[15px] font-light text-neutral-500">Sign in to your account</p>
-          </div>
-
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+        {/* Form Card */}
+        <div className="bg-white p-10 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-neutral-100">
+          
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+            {/* Email Field */}
             <div className="space-y-2">
-              <label className="text-[13px] font-semibold text-neutral-900 uppercase tracking-wide">Email</label>
+              <label className="block text-sm font-semibold text-[#0a0d14] mb-3">Email Address</label>
               <input
                 type="email"
                 placeholder="hello@example.com"
                 {...register('email')}
-                className="w-full bg-neutral-50 border border-neutral-200 text-[#0a0a0a] px-4 py-3.5 rounded-none outline-none focus:border-[#0a0a0a] focus:bg-white transition-all shadow-sm"
+                className="w-full bg-neutral-50 border border-neutral-200 text-[#0a0d14] px-4 py-3.5 rounded-xl outline-none focus:border-[#ffb84f] focus:bg-white focus:ring-2 focus:ring-[#ffb84f]/20 transition-all font-light"
               />
               <FieldError message={errors.email?.message} />
             </div>
 
+            {/* Password Field */}
             <div className="space-y-2">
-              <label className="text-[13px] font-semibold text-neutral-900 uppercase tracking-wide">Password</label>
+              <div className="flex items-center justify-between mb-3">
+                <label className="block text-sm font-semibold text-[#0a0d14]">Password</label>
+                <Link href={`/${locale}/forgot-password`} className="text-xs font-medium text-[#ffb84f] hover:text-[#e5a443] transition-colors">
+                  Forgot?
+                </Link>
+              </div>
               <input
                 type="password"
                 placeholder="••••••••"
                 {...register('password')}
-                className="w-full bg-neutral-50 border border-neutral-200 text-[#0a0a0a] px-4 py-3.5 rounded-none outline-none focus:border-[#0a0a0a] focus:bg-white transition-all shadow-sm"
+                className="w-full bg-neutral-50 border border-neutral-200 text-[#0a0d14] px-4 py-3.5 rounded-xl outline-none focus:border-[#ffb84f] focus:bg-white focus:ring-2 focus:ring-[#ffb84f]/20 transition-all font-light"
               />
               <FieldError message={errors.password?.message} />
             </div>
 
-            <button type="submit" disabled={loading} className="w-full flex items-center justify-center gap-2 bg-[#0a0a0a] text-white py-4 rounded-none font-medium hover:bg-neutral-800 transition-colors mt-6 disabled:opacity-70">
+            {/* Submit Button */}
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full flex items-center justify-center gap-2 bg-[#ffb84f] text-black py-3.5 rounded-full font-bold hover:bg-[#e5a443] transition-all mt-8 disabled:opacity-70 text-sm tracking-wide uppercase"
+            >
               {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <LogIn className="h-5 w-5" />}
               {loading ? 'Signing in...' : 'Sign In'}
             </button>
           </form>
 
-          <p className="text-center text-[15px] text-neutral-600 mt-8 font-light">
+          {/* Divider */}
+          <div className="flex items-center gap-3 my-8">
+            <div className="flex-1 h-px bg-neutral-200" />
+            <span className="text-xs text-neutral-400 font-medium">OR</span>
+            <div className="flex-1 h-px bg-neutral-200" />
+          </div>
+
+          {/* Sign Up Link */}
+          <p className="text-center text-sm text-neutral-600 font-light">
             Don't have an account?{' '}
-            <Link href={`/${locale}/register`} className="font-medium text-[#0a0a0a] hover:underline">
-              Create one
+            <Link href={`/${locale}/register`} className="font-bold text-[#ffb84f] hover:text-[#e5a443] transition-colors">
+              Create Account
             </Link>
           </p>
         </div>
+
+        {/* Footer */}
+        <p className="text-center text-xs text-neutral-400 mt-8 font-light">
+          By signing in, you agree to our{' '}
+          <Link href={`/${locale}`} className="text-neutral-600 hover:text-[#0a0d14] transition-colors">
+            Terms of Service
+          </Link>
+          {' '}and{' '}
+          <Link href={`/${locale}`} className="text-neutral-600 hover:text-[#0a0d14] transition-colors">
+            Privacy Policy
+          </Link>
+        </p>
       </div>
     </div>
   );
 }
+

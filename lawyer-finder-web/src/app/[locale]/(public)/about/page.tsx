@@ -111,7 +111,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
               <img 
                 src="https://images.unsplash.com/photo-1505664194779-8beaceb93744?q=80&w=300&auto=format&fit=crop" 
                 alt="Law books" 
-                className="w-48 h-32 object-cover rounded-md grayscale opacity-80"
+                className="w-48 h-32 object-cover rounded-3xl grayscale opacity-80"
               />
             </div>
           </div>
@@ -162,9 +162,9 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
                   desc: 'Full platform support in Sinhala, Tamil, and English. Access justice in the language you are most comfortable with.',
                 },
               ].map((feature) => (
-                <Card key={feature.title} className="group hover:shadow-lg transition-all duration-300 border-border/50 hover:border-border rounded-xl">
+                <Card key={feature.title} className="group hover:shadow-lg transition-all duration-300 border-border/50 hover:border-border rounded-3xl hover:-translate-y-1">
                   <CardContent className="p-8">
-                    <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-xl bg-primary/5 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors duration-300">
+                    <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/5 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors duration-300">
                       <feature.icon className="h-6 w-6" />
                     </div>
                     <h3 className="text-lg font-semibold tracking-tight mb-2">{feature.title}</h3>
@@ -179,7 +179,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
         {/* CTA Section */}
         <section className="border-t bg-card py-20">
           <div className="mx-auto max-w-3xl px-4 text-center sm:px-6">
-            <div className="mx-auto mb-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+            <div className="mx-auto mb-6 flex h-14 w-14 items-center justify-center rounded-3xl bg-primary/10 text-primary">
               <Gavel className="h-7 w-7" />
             </div>
             <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
@@ -190,13 +190,13 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
             </p>
             <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
               <Link href={`/${locale}/register`}>
-                <Button size="lg" className="gap-2 font-semibold px-8 rounded-none">
+                <Button size="lg" className="gap-2 font-semibold px-8 rounded-full bg-[#ffb84f] text-black hover:bg-[#e5a443]">
                   <Scale className="h-4 w-4" />
                   Register Your Practice
                 </Button>
               </Link>
               <Link href={`/${locale}/lawyers`}>
-                <Button size="lg" variant="outline" className="gap-2 font-semibold px-8 rounded-none">
+                <Button size="lg" variant="outline" className="gap-2 font-semibold px-8 rounded-full">
                   Browse Directory
                   <ArrowRight className="h-4 w-4" />
                 </Button>

@@ -1,10 +1,9 @@
 import prisma from '@/lib/db';
-import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Separator } from '@/components/ui/separator';
 import Link from 'next/link';
-import { Search, MapPin, Languages, ShieldCheck, Star, Briefcase } from 'lucide-react';
+import { Search, MapPin, Star, Briefcase, ArrowRight } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { SponsoredListing, AdBanner } from '@/components/ads/AdComponents';
 
 export const metadata = { title: 'Lawyer Directory' };
@@ -37,158 +36,169 @@ export default async function LawyerDirectory({
   });
 
   return (
-    <div className="py-8 sm:py-9">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6">
-        {/* Header */}
-        <div className="mb-10 max-w-2xl">
-          <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Lawyer Directory</h1>
-          <p className="mt-3 text-muted-foreground">
-            Browse verified Sri Lankan legal professionals. Use the filters to find the right match.
+    <div className="flex min-h-screen flex-col bg-white">
+      {/* Hero Section */}
+      <section className="relative bg-[#0d1017] text-white py-20 px-6 lg:px-12 xl:px-24">
+        <div className="mx-auto max-w-[1200px]">
+          <h1 className="text-4xl md:text-5xl font-medium tracking-tight mb-4">
+            Find Your Perfect Lawyer
+          </h1>
+          <p className="text-[#a0a4ab] text-lg font-light mb-10 max-w-2xl">
+            Browse verified Sri Lankan legal professionals. Use the filters to find the right match for your legal needs.
           </p>
-        </div>
 
-        {/* Search + Filters */}
-        <form className="mb-10">
-          <div className="flex flex-col gap-3 sm:flex-row">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                name="search"
-                placeholder="Search by name or specialty..."
-                defaultValue={filters.search || ''}
-                className="pl-10 h-9"
-              />
-            </div>
-            <select
-              name="district"
-              defaultValue={filters.district || ''}
-              className="h-9 rounded-md border border-input bg-background px-3 text-sm ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2 outline-none"
-            >
-              <option value="">All Districts</option>
-              {['Colombo', 'Gampaha', 'Kalutara', 'Kandy', 'Matale', 'Nuwara Eliya', 'Galle', 'Matara', 'Hambantota', 'Jaffna', 'Kilinochchi', 'Mannar', 'Vavuniya', 'Mullaitivu', 'Batticaloa', 'Ampara', 'Trincomalee', 'Kurunegala', 'Puttalam', 'Anuradhapura', 'Polonnaruwa', 'Badulla', 'Monaragala', 'Ratnapura', 'Kegalle'].map((d) => (
-                <option key={d} value={d}>{d}</option>
-              ))}
-            </select>
-            <select
-              name="practiceArea"
-              defaultValue={filters.practiceArea || ''}
-              className="h-9 rounded-md border border-input bg-background px-3 text-sm ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2 outline-none"
-            >
-              <option value="">All Practice Areas</option>
-              {['Criminal Law', 'Family Law', 'Property Law', 'Labor Law', 'Corporate Law', 'Civil Law', 'Constitutional Law', 'Tax Law', 'Immigration Law', 'Environmental Law', 'Intellectual Property', 'Human Rights'].map((p) => (
-                <option key={p} value={p}>{p}</option>
-              ))}
-            </select>
-            <button type="submit" className="h-9 px-5 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors">
-              Filter
-            </button>
-            <button type="reset" className="h-9 px-5 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors">
-              Clear
-            </button>
-          </div>
-        </form>
-
-        <Separator className="mb-8" />
-
-        {/* Results count */}
-        <p className="mb-6 text-sm text-muted-foreground">
-          {lawyers.length} verified {lawyers.length === 1 ? 'lawyer' : 'lawyers'} found
-        </p>
-
-        {/* Grid */}
-        {lawyers.length === 0 ? (
-          <Card>
-            <CardContent className="flex flex-col items-center gap-4 py-16 text-center">
-              <Briefcase className="h-12 w-12 text-muted-foreground/30" />
-              <div>
-                <h3 className="text-lg font-semibold">No lawyers found</h3>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Try adjusting your filters or search query.
-                </p>
+          {/* Search + Filters */}
+          <form className="space-y-4">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
+              <div className="flex-1">
+                <label className="block text-xs font-bold uppercase tracking-widest text-white/60 mb-2">Search</label>
+                <div className="relative">
+                  <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-white/40" />
+                  <Input
+                    name="search"
+                    placeholder="Search by name or specialty..."
+                    defaultValue={filters.search || ''}
+                    className="pl-12 h-12 bg-white/10 border-white/20 text-white placeholder:text-white/40 rounded-full focus:ring-[#ffb84f]"
+                  />
+                </div>
               </div>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {/* Sponsored Listings at the top */}
-              <SponsoredListing placement="DIRECTORY_INLINE" locale={locale} />
+              
+              <div className="w-full lg:w-auto">
+                <label className="block text-xs font-bold uppercase tracking-widest text-white/60 mb-2">District</label>
+                <select
+                  name="district"
+                  defaultValue={filters.district || ''}
+                  className="w-full h-12 rounded-full bg-white/10 border border-white/20 text-white px-4 text-sm focus:ring-2 focus:ring-[#ffb84f] outline-none"
+                >
+                  <option value="" className="bg-[#0d1017]">All Districts</option>
+                  {['Colombo', 'Gampaha', 'Kalutara', 'Kandy', 'Matale', 'Nuwara Eliya', 'Galle', 'Matara', 'Hambantota', 'Jaffna', 'Kilinochchi', 'Mannar', 'Vavuniya', 'Mullaitivu', 'Batticaloa', 'Ampara', 'Trincomalee', 'Kurunegala', 'Puttalam', 'Anuradhapura', 'Polonnaruwa', 'Badulla', 'Monaragala', 'Ratnapura', 'Kegalle'].map((d) => (
+                    <option key={d} value={d} className="bg-[#0d1017]">{d}</option>
+                  ))}
+                </select>
+              </div>
+              
+              <div className="w-full lg:w-auto">
+                <label className="block text-xs font-bold uppercase tracking-widest text-white/60 mb-2">Practice Area</label>
+                <select
+                  name="practiceArea"
+                  defaultValue={filters.practiceArea || ''}
+                  className="w-full h-12 rounded-full bg-white/10 border border-white/20 text-white px-4 text-sm focus:ring-2 focus:ring-[#ffb84f] outline-none"
+                >
+                  <option value="" className="bg-[#0d1017]">All Areas</option>
+                  {['Criminal Law', 'Family Law', 'Property Law', 'Labor Law', 'Corporate Law', 'Civil Law', 'Constitutional Law', 'Tax Law', 'Immigration Law', 'Environmental Law', 'Intellectual Property', 'Human Rights'].map((p) => (
+                    <option key={p} value={p} className="bg-[#0d1017]">{p}</option>
+                  ))}
+                </select>
+              </div>
 
+              <div className="flex gap-2 w-full lg:w-auto">
+                <button type="submit" className="flex-1 lg:flex-initial h-12 px-6 rounded-full bg-[#ffb84f] text-black font-bold text-sm hover:bg-[#e5a443] transition-all">
+                  Filter
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </section>
+
+      {/* Results Section */}
+      <section className="flex-1 px-6 lg:px-12 xl:px-24 py-16">
+        <div className="mx-auto max-w-[1200px]">
+          
+          {/* Results count & Ad */}
+          <div className="mb-12">
+            <p className="text-sm font-medium text-[#0a0d14] mb-6">
+              Showing <span className="font-bold text-[#ffb84f]">{lawyers.length}</span> verified {lawyers.length === 1 ? 'lawyer' : 'lawyers'}
+            </p>
+            <div className="mb-10 w-full rounded-2xl overflow-hidden">
+              <SponsoredListing placement="DIRECTORY_TOP" locale={locale} />
+            </div>
+          </div>
+
+          {/* Grid */}
+          {lawyers.length === 0 ? (
+            <div className="text-center py-20">
+              <Briefcase className="h-16 w-16 text-neutral-300 mx-auto mb-4" />
+              <h3 className="text-2xl font-medium text-[#0a0d14] mb-2">No lawyers found</h3>
+              <p className="text-neutral-500 font-light">
+                Try adjusting your filters or search query to find the right legal professional.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {lawyers.map((lawyer) => {
-              const avgRating =
-                lawyer.reviews.length > 0
-                  ? lawyer.reviews.reduce((sum, r) => sum + r.rating, 0) / lawyer.reviews.length
-                  : 0;
+                const avgRating =
+                  lawyer.reviews.length > 0
+                    ? lawyer.reviews.reduce((sum, r) => sum + r.rating, 0) / lawyer.reviews.length
+                    : 0;
 
-              return (
-                <Link key={lawyer.id} href={`/${locale}/lawyers/${lawyer.id}`}>
-                  <div className="group relative flex h-[400px] flex-col overflow-hidden rounded-none bg-[#222a35] text-white transition-transform duration-300 hover:-translate-y-1 hover:shadow-lg">
-                    {/* Top Image Area */}
-                    <div className="relative h-[200px] w-full shrink-0">
-                      <img
-                        src={lawyer.profileImageUrl || 'https://images.unsplash.com/photo-1556157382-97eda2d62296?auto=format&fit=crop&w=800&q=80'}
-                        alt={lawyer.fullName}
-                        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-[#222a35] via-[rgba(214, 214, 214, 0.3)] to-transparent" />
+                return (
+                  <Link key={lawyer.id} href={`/${locale}/lawyers/${lawyer.id}`}>
+                    <div className="group relative flex h-[460px] flex-col overflow-hidden rounded-2xl bg-white border border-neutral-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] transition-all duration-300 hover:-translate-y-2 hover:shadow-[0_20px_40px_rgb(0,0,0,0.08)]">
+                      {/* Image Area */}
+                      <div className="relative h-[210px] w-full shrink-0 overflow-hidden bg-neutral-100">
+                        <img
+                          src={lawyer.profileImageUrl || 'https://images.unsplash.com/photo-1556157382-97eda2d62296?auto=format&fit=crop&w=800&q=80'}
+                          alt={lawyer.fullName}
+                          className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
+                        />
+                      </div>
 
-                      {lawyer.languages.length > 0 && (
-                        <div className="absolute right-4 top-4 flex h-7 items-center justify-center rounded-none bg-black/40 backdrop-blur-md px-2.5 text-[10px] font-bold uppercase tracking-widest text-white border border-white/10 transition-colors hover:bg-black/60">
-                          {lawyer.languages.map((l) => l.slice(0, 2)).join(' • ')}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Content Area */}
-                    <div className="relative z-10 flex flex-1 flex-col px-5 pb-5 -mt-3">
-                      {/* Title & Price */}
-                      <div className="mb-2 flex items-start justify-between gap-3">
-                        <h3 className="text-[18px] font-semibold tracking-tight text-white drop-shadow-sm leading-tight mt-1 max-w-[70%] line-clamp-1">
+                      {/* Content Area */}
+                      <div className="flex flex-1 flex-col px-6 pt-5 pb-6">
+                        
+                        <h3 className="text-lg font-medium tracking-tight text-[#0a0d14] line-clamp-1 mb-1">
                           {lawyer.fullName}
                         </h3>
-                        <div className="shrink-0 rounded-none bg-white/10 px-3 py-1.5 text-sm font-semibold text-white backdrop-blur-md border border-white/5">
-                          {lawyer.baseFeeRange ? `LKR ${lawyer.baseFeeRange.split('-')[0].trim()}` : 'TBD'}
+                        
+                        <p className="line-clamp-2 text-sm text-neutral-500 font-light mb-4">
+                          {lawyer.bio || 'Experienced legal professional dedicated to providing precise and strategic guidance.'}
+                        </p>
+
+                        {/* Rating & Location */}
+                        <div className="flex flex-wrap gap-2 mb-4 mt-auto">
+                          {avgRating > 0 && (
+                            <div className="flex items-center gap-1 rounded-full bg-orange-50 px-3 py-1 text-[11px] font-semibold text-orange-600">
+                              <Star className="h-3 w-3 fill-orange-500 text-orange-500" />
+                              {avgRating.toFixed(1)}
+                            </div>
+                          )}
+                          {lawyer.district && (
+                            <div className="flex items-center rounded-full bg-neutral-100 px-3 py-1 text-[11px] font-medium text-neutral-600">
+                              <MapPin className="h-3 w-3 mr-1" />
+                              {lawyer.district}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Footer - Price & Link */}
+                        <div className="flex items-center justify-between border-t border-neutral-100 pt-4 mt-auto">
+                          <span className="text-sm font-semibold text-[#0a0d14]">
+                            {lawyer.baseFeeRange ? `LKR ${lawyer.baseFeeRange.split('-')[0].trim()}` : 'TBD'}
+                          </span>
+                          <span className="flex items-center text-[12px] font-bold text-[#ffb84f] uppercase tracking-wider group-hover:text-[#e5a443] transition-colors">
+                            View <ArrowRight className="w-3 h-3 ml-1" />
+                          </span>
                         </div>
                       </div>
-
-                      {/* Bio */}
-                      <p className="line-clamp-2 text-[13px] text-white/70 leading-relaxed font-light mb-4 text-balance">
-                        {lawyer.bio || 'Experienced legal professional dedicated to providing precise and strategic guidance.'}
-                      </p>
-
-                      {/* Badges row */}
-                      <div className="mt-auto flex gap-2 overflow-x-hidden whitespace-nowrap mb-6 scrollbar-hide">
-                        {avgRating > 0 && (
-                          <div className="flex shrink-0 items-center gap-1.5 rounded-none bg-white/10 px-3 py-[5px] text-xs font-medium backdrop-blur-md border border-yellow-500">
-                            <Star className="h-3.5 w-3.5 fill-yellow-500" />
-                            {avgRating.toFixed(1)}
-                          </div>
-                        )}
-                        {lawyer.district && (
-                          <div className="flex shrink-0 items-center rounded-none bg-white/10 px-3 py-[5px] text-xs font-medium backdrop-blur-md border border-white/5 text-white/90">
-                            <MapPin className="h-3.5 w-3.5 mr-1" />
-                            {lawyer.district}
-                          </div>
-                        )}
-                        
-                        {lawyer.practiceAreas.slice(0, 1).map((area) => (
-                          <div key={area} className="flex shrink-0 items-center rounded-none bg-white/10 px-3 py-[5px] text-xs font-medium backdrop-blur-md border border-white/5 text-white/90">
-                            {area}
-                          </div>
-                        ))}
-                      </div>
-
-                      {/* Button */}
-                      <button className="w-full rounded-none bg-white py-3.5 text-[15px] font-bold text-[#222a35] transition-colors hover:bg-neutral-200 mt-auto">
-                        View Profile
-                      </button>
                     </div>
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
-        )}
-      </div>
+                  </Link>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Bottom Ad */}
+          {lawyers.length > 0 && (
+            <div className="mt-16 w-full rounded-2xl overflow-hidden">
+              <AdBanner placement="DIRECTORY_BOTTOM" locale={locale} />
+            </div>
+          )}
+        </div>
+      </section>
     </div>
   );
 }
+                   
+
+                 

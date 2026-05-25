@@ -157,8 +157,8 @@ export default function ClientConsultationsPage() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-4">
-        <div className="flex h-11 w-11 items-center justify-center bg-[#0a0a0a] text-white">
-          <CalendarDays className="h-5 w-5" />
+        <div className="flex h-11 w-11 items-center justify-center bg-[#0a0d14] text-white rounded-xl shadow-lg">
+          <CalendarDays className="h-5 w-5 text-[#ffb84f]" />
         </div>
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-neutral-900">My Consultations</h1>
@@ -170,36 +170,36 @@ export default function ClientConsultationsPage() {
       <div className="flex gap-1 border-b border-neutral-200">
         {statusTabs.map((tab) => (
           <button key={tab.value} onClick={() => { setStatusFilter(tab.value); setPage(1); }}
-            className={`px-4 py-2.5 text-xs font-bold uppercase tracking-wide border-b-2 -mb-px transition-colors ${statusFilter === tab.value ? 'border-[#0a0a0a] text-neutral-900' : 'border-transparent text-neutral-400 hover:text-neutral-600'}`}
+            className={`px-4 py-2.5 text-xs font-bold uppercase tracking-wide border-b-2 -mb-px transition-colors ${statusFilter === tab.value ? 'border-[#ffb84f] text-neutral-900' : 'border-transparent text-neutral-400 hover:text-neutral-600'}`}
           >{tab.label}</button>
         ))}
       </div>
 
       {/* Bookings */}
       {loading ? (
-        <div className="space-y-3">{[1,2,3].map(i => <Skeleton key={i} className="h-28 rounded-none" />)}</div>
+        <div className="space-y-3">{[1,2,3].map(i => <Skeleton key={i} className="h-28 rounded-3xl" />)}</div>
       ) : bookings.length === 0 ? (
-        <div className="text-center py-16 border border-dashed border-neutral-200 bg-neutral-50/50">
+        <div className="text-center py-16 border border-dashed border-neutral-200 bg-neutral-50/50 rounded-3xl">
           <CalendarDays className="h-10 w-10 text-neutral-300 mx-auto mb-3" />
           <p className="text-sm font-semibold text-neutral-900">No consultations yet</p>
           <p className="text-xs text-neutral-500 mt-1 mb-4">Browse lawyers and book your first consultation</p>
           <Link href={`/${locale}/lawyers`}>
-            <Button className="bg-[#0a0a0a] text-white hover:bg-neutral-800 rounded-none h-9 text-xs font-bold uppercase tracking-wide">Find a Lawyer</Button>
+            <Button className="bg-[#0a0d14] text-white hover:bg-neutral-800 rounded-full h-10 px-6 text-xs font-bold uppercase tracking-wide">Find a Lawyer</Button>
           </Link>
         </div>
       ) : (
         <div className="space-y-3">
           {bookings.map((b) => (
-            <Card key={b.id} className="rounded-none shadow-sm hover:shadow-md transition-shadow">
+            <Card key={b.id} className="rounded-3xl border border-neutral-200/50 shadow-sm hover:shadow-md transition-shadow">
               <CardContent className="p-5">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-3 mb-2">
                       <span className="text-xs font-mono text-neutral-400">{b.bookingNumber}</span>
-                      <Badge className={`text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-sm ${BOOKING_STATUS_COLORS[b.status]}`}>
+                      <Badge className={`text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full ${BOOKING_STATUS_COLORS[b.status]}`}>
                         {BOOKING_STATUS_LABELS[b.status]}
                       </Badge>
-                      <Badge variant="outline" className="text-[10px] rounded-sm">
+                      <Badge variant="outline" className="text-[10px] rounded-full">
                         {b.mode === 'PHYSICAL' ? <><MapPin className="w-3 h-3 mr-1" /> Physical</> : <><Video className="w-3 h-3 mr-1" /> Online</>}
                       </Badge>
                     </div>
@@ -211,13 +211,13 @@ export default function ClientConsultationsPage() {
                     </div>
                     {/* Meeting link for confirmed online bookings */}
                     {b.status === 'CONFIRMED' && b.mode !== 'PHYSICAL' && b.meetingLink && (
-                      <div className="mt-2 p-2 bg-blue-50 border border-blue-200 inline-flex items-center gap-2">
+                      <div className="mt-2 p-2 bg-blue-50 border border-blue-200 inline-flex items-center gap-2 rounded-2xl">
                         <Video className="w-3.5 h-3.5 text-blue-600" />
                         <a href={b.meetingLink} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 font-semibold underline">Join Meeting</a>
                       </div>
                     )}
                     {b.status === 'CONFIRMED' && b.mode === 'PHYSICAL' && b.officeAddress && (
-                      <div className="mt-2 p-2 bg-green-50 border border-green-200 inline-flex items-center gap-2">
+                      <div className="mt-2 p-2 bg-green-50 border border-green-200 inline-flex items-center gap-2 rounded-2xl">
                         <MapPin className="w-3.5 h-3.5 text-green-600" />
                         <span className="text-xs text-green-800">{b.officeAddress}</span>
                       </div>
@@ -227,7 +227,7 @@ export default function ClientConsultationsPage() {
                     <p className="text-lg font-bold text-neutral-900">Rs. {b.totalAmount.toLocaleString()}</p>
                     <p className="text-[10px] text-neutral-400">Total amount</p>
                     {b.status === 'CANCELLED_BY_CLIENT' && b.refundAmount !== null && (
-                      <div className="mt-2 text-right bg-red-50 p-1.5 border border-red-100">
+                      <div className="mt-2 text-right bg-red-50 p-2 border border-red-100 rounded-2xl">
                         {b.refundAmount < b.totalAmount && (
                           <p className="text-[10px] text-red-600 font-bold">- Rs. {(b.totalAmount - b.refundAmount).toLocaleString()} (Late Cancel Penalty)</p>
                         )}
@@ -236,17 +236,17 @@ export default function ClientConsultationsPage() {
                     )}
                     <div className="flex gap-1.5 mt-3 justify-end flex-wrap">
                       {b.status === 'PENDING_PAYMENT' && (
-                        <Button size="sm" onClick={() => setPaymentModal(b.id)} className="bg-blue-600 text-white hover:bg-blue-700 rounded-none h-7 text-[10px] px-2.5 font-bold border-none">
+                        <Button size="sm" onClick={() => setPaymentModal(b.id)} className="bg-blue-600 text-white hover:bg-blue-700 rounded-full h-8 text-[10px] px-3.5 font-bold border-none">
                           <CreditCard className="w-3 h-3 mr-1" /> Submit Payment
                         </Button>
                       )}
                       {['PENDING_PAYMENT', 'CONFIRMED', 'AWAITING_BANK_TRANSFER_VERIFICATION'].includes(b.status) && (
-                        <Button size="sm" variant="outline" onClick={() => setCancelModal(b.id)} className="rounded-none h-7 text-[10px] px-2.5 font-bold text-red-600 border-red-300">
+                        <Button size="sm" variant="outline" onClick={() => setCancelModal(b.id)} className="rounded-full h-8 text-[10px] px-3.5 font-bold text-red-600 border-red-300">
                           <XCircle className="w-3 h-3 mr-1" /> Cancel
                         </Button>
                       )}
                       {b.status === 'COMPLETED' && !b.clientRating && (
-                        <Button size="sm" onClick={() => setRateModal(b.id)} className="bg-amber-500 text-white hover:bg-amber-600 rounded-none h-7 text-[10px] px-2.5 font-bold">
+                        <Button size="sm" onClick={() => setRateModal(b.id)} className="bg-amber-500 text-white hover:bg-amber-600 rounded-full h-8 text-[10px] px-3.5 font-bold">
                           <Star className="w-3 h-3 mr-1" /> Rate
                         </Button>
                       )}
@@ -262,30 +262,30 @@ export default function ClientConsultationsPage() {
       {/* Pagination */}
       {totalPages > 1 && (
         <div className="flex items-center justify-center gap-4 pt-4">
-          <Button variant="outline" size="sm" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="rounded-none h-8"><ChevronLeft className="w-4 h-4" /></Button>
+          <Button variant="outline" size="sm" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="rounded-full h-8 w-8 p-0 flex items-center justify-center"><ChevronLeft className="w-4 h-4" /></Button>
           <span className="text-xs font-semibold text-neutral-600">Page {page} of {totalPages}</span>
-          <Button variant="outline" size="sm" onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="rounded-none h-8"><ChevronRight className="w-4 h-4" /></Button>
+          <Button variant="outline" size="sm" onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="rounded-full h-8 w-8 p-0 flex items-center justify-center"><ChevronRight className="w-4 h-4" /></Button>
         </div>
       )}
 
       {/* Cancel Modal */}
       {cancelModal && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setCancelModal(null)}>
-          <div className="bg-white max-w-sm w-full shadow-xl" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white max-w-sm w-full shadow-xl rounded-3xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
             <div className="p-6 border-b"><h2 className="text-lg font-bold flex items-center gap-2"><AlertTriangle className="w-5 h-5 text-amber-500" /> Cancel Booking</h2></div>
             <div className="p-6 space-y-4">
-              <div className="p-3 bg-amber-50 border border-amber-200 text-xs text-amber-800">
+              <div className="p-4 bg-amber-50 border border-amber-200 text-xs text-amber-800 rounded-2xl">
                 <p className="font-semibold mb-1">Cancellation Policy</p>
                 <p>• 24+ hours before: Full refund</p>
                 <p>• Less than 24 hours: 50% refund</p>
               </div>
               <div>
                 <label className="block text-xs font-semibold text-neutral-600 mb-1">Reason for cancellation *</label>
-                <textarea value={cancelReason} onChange={(e) => setCancelReason(e.target.value)} rows={3} placeholder="Please explain why..." className="w-full border border-neutral-200 px-3 py-2 text-sm" />
+                <textarea value={cancelReason} onChange={(e) => setCancelReason(e.target.value)} rows={3} placeholder="Please explain why..." className="w-full border border-neutral-200 px-3 py-2 text-sm rounded-3xl resize-none focus:outline-none focus:border-[#ffb84f]" />
               </div>
               <div className="flex gap-2">
-                <Button onClick={() => setCancelModal(null)} variant="outline" className="flex-1 rounded-none h-10 font-bold text-xs">Keep Booking</Button>
-                <Button onClick={cancelBooking} disabled={actionLoading} className="flex-1 bg-red-600 text-white hover:bg-red-700 rounded-none h-10 font-bold text-xs">{actionLoading ? 'Cancelling...' : 'Confirm Cancel'}</Button>
+                <Button onClick={() => setCancelModal(null)} variant="outline" className="flex-1 rounded-full h-10 font-bold text-xs">Keep Booking</Button>
+                <Button onClick={cancelBooking} disabled={actionLoading} className="flex-1 bg-red-600 text-white hover:bg-red-700 rounded-full h-10 font-bold text-xs">{actionLoading ? 'Cancelling...' : 'Confirm Cancel'}</Button>
               </div>
             </div>
           </div>
@@ -295,7 +295,7 @@ export default function ClientConsultationsPage() {
       {/* Rate Modal */}
       {rateModal && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setRateModal(null)}>
-          <div className="bg-white max-w-sm w-full shadow-xl" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white max-w-sm w-full shadow-xl rounded-3xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
             <div className="p-6 border-b"><h2 className="text-lg font-bold flex items-center gap-2"><Star className="w-5 h-5 text-amber-500" /> Rate Consultation</h2></div>
             <div className="p-6 space-y-4">
               <div className="flex justify-center gap-2">
@@ -303,8 +303,8 @@ export default function ClientConsultationsPage() {
                   <button key={v} onClick={() => setRating(v)} className={`text-3xl transition-transform hover:scale-110 ${v <= rating ? 'text-amber-400' : 'text-neutral-200'}`}>★</button>
                 ))}
               </div>
-              <textarea value={feedback} onChange={(e) => setFeedback(e.target.value)} rows={3} placeholder="Share your experience (optional)" className="w-full border border-neutral-200 px-3 py-2 text-sm" />
-              <Button onClick={submitRating} disabled={actionLoading} className="w-full bg-[#0a0a0a] text-white hover:bg-neutral-800 rounded-none h-10 font-bold text-xs uppercase tracking-wide">{actionLoading ? 'Submitting...' : 'Submit Rating'}</Button>
+              <textarea value={feedback} onChange={(e) => setFeedback(e.target.value)} rows={3} placeholder="Share your experience (optional)" className="w-full border border-neutral-200 px-3 py-2 text-sm rounded-3xl resize-none focus:outline-none focus:border-[#ffb84f]" />
+              <Button onClick={submitRating} disabled={actionLoading} className="w-full bg-[#0a0d14] text-white hover:bg-neutral-850 rounded-full h-10 font-bold text-xs uppercase tracking-wide">{actionLoading ? 'Submitting...' : 'Submit Rating'}</Button>
             </div>
           </div>
         </div>
@@ -312,13 +312,13 @@ export default function ClientConsultationsPage() {
       {/* Payment Modal */}
       {paymentModal && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setPaymentModal(null)}>
-          <div className="bg-white max-w-md w-full shadow-xl" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white max-w-md w-full shadow-xl rounded-3xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
             <div className="p-6 border-b flex justify-between items-center">
               <h2 className="text-lg font-bold flex items-center gap-2"><Building2 className="w-5 h-5 text-neutral-900" /> Submit Bank Transfer</h2>
               <button onClick={() => setPaymentModal(null)} className="text-neutral-400 hover:text-neutral-600"><XCircle className="w-5 h-5" /></button>
             </div>
             <div className="p-6 space-y-4">
-              <div className="bg-amber-50 border border-amber-200 p-3 text-xs text-amber-800">
+              <div className="bg-amber-50 border border-amber-200 p-4 text-xs text-amber-800 rounded-2xl">
                 <p className="font-bold mb-1">Bank Transfer Instructions:</p>
                 <p>Please transfer the exact amount to the account below, then enter the transaction reference.</p>
                 <ul className="mt-2 space-y-1 font-mono text-[11px]">
@@ -332,19 +332,19 @@ export default function ClientConsultationsPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold text-neutral-500 uppercase">Your Bank Name</label>
-                  <input value={bankName} onChange={e => setBankName(e.target.value)} className="w-full h-9 border border-neutral-300 px-3 text-sm focus:outline-none focus:border-black" placeholder="e.g. HNB" />
+                  <input value={bankName} onChange={e => setBankName(e.target.value)} className="w-full h-9 border border-neutral-300 rounded-3xl px-3 text-sm focus:outline-none focus:border-[#ffb84f]" placeholder="e.g. HNB" />
                 </div>
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold text-neutral-500 uppercase">Account Holder</label>
-                  <input value={accountHolder} onChange={e => setAccountHolder(e.target.value)} className="w-full h-9 border border-neutral-300 px-3 text-sm focus:outline-none focus:border-black" placeholder="e.g. John Doe" />
+                  <input value={accountHolder} onChange={e => setAccountHolder(e.target.value)} className="w-full h-9 border border-neutral-300 rounded-3xl px-3 text-sm focus:outline-none focus:border-[#ffb84f]" placeholder="e.g. John Doe" />
                 </div>
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-bold text-neutral-500 uppercase">Transaction Reference Number</label>
-                <input value={transactionRef} onChange={e => setTransactionRef(e.target.value)} className="w-full h-9 border border-neutral-300 px-3 text-sm focus:outline-none focus:border-black" />
+                <input value={transactionRef} onChange={e => setTransactionRef(e.target.value)} className="w-full h-9 border border-neutral-300 rounded-3xl px-3 text-sm focus:outline-none focus:border-[#ffb84f]" />
               </div>
 
-              <Button onClick={submitPaymentDetails} disabled={actionLoading} className="w-full bg-[#0a0a0a] text-white hover:bg-neutral-800 rounded-none h-10 font-bold text-xs uppercase tracking-wide">
+              <Button onClick={submitPaymentDetails} disabled={actionLoading} className="w-full bg-[#0a0d14] text-white hover:bg-neutral-850 rounded-full h-10 font-bold text-xs uppercase tracking-wide">
                 {actionLoading ? 'Submitting...' : 'Submit Payment Details'}
               </Button>
             </div>

@@ -133,49 +133,55 @@ export default function PricingPageClient({ locale }: { locale: string }) {
   }
 
   return (
-    <div className="min-h-screen bg-background py-20 px-6">
-      <div className="max-w-[1200px] mx-auto">
-        {/* Header Section */}
-        <div className="text-center mb-16 space-y-6">
-          <Badge variant="outline" className="px-4 py-1.5 rounded-none border-primary/20 text-primary font-bold tracking-widest uppercase">
-            Premium Experience
-          </Badge>
-          <h1 className="text-4xl md:text-6xl font-bold tracking-tight text-foreground">
-            Simple, Transparent Pricing
+    <>
+      {/* Hero Section */}
+      <div className="bg-[#0d1017] text-white py-24 px-6 lg:px-12 xl:px-24">
+        <div className="max-w-[1200px] mx-auto text-center space-y-8">
+          <div className="inline-flex items-center gap-2 bg-white/10 px-4 py-2 rounded-full border border-white/20">
+            <Zap className="h-4 w-4 text-[#ffb84f]" />
+            <span className="text-sm font-semibold uppercase tracking-widest text-[#ffb84f]">Premium Plans</span>
+          </div>
+          <h1 className="text-5xl md:text-6xl font-medium tracking-tight leading-tight">
+            Choose Your Perfect Plan
           </h1>
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Choose the billing cycle that fits your practice perfectly.
+          <p className="text-xl text-gray-400 font-light max-w-2xl mx-auto leading-relaxed">
+            Professional features designed for legal experts. Scale your practice and reach more clients.
           </p>
 
           {/* Billing Switcher */}
-          <div className="flex justify-center mt-10">
-            <div className="bg-muted p-1.5 rounded-none inline-flex items-center">
-              <Tabs 
-                value={billingCycle} 
-                onValueChange={(val) => setBillingCycle(val as 'monthly' | 'yearly')}
-                className="w-auto"
+          <div className="flex justify-center mt-12">
+            <div className="bg-white/5 p-1 rounded-full inline-flex items-center border border-white/10">
+              <button
+                onClick={() => setBillingCycle('monthly')}
+                className={`px-8 py-3 rounded-full font-semibold uppercase text-sm tracking-wider transition-all ${
+                  billingCycle === 'monthly'
+                    ? 'bg-[#ffb84f] text-black'
+                    : 'text-white/60 hover:text-white'
+                }`}
               >
-                <TabsList className="rounded-none bg-transparent">
-                  <TabsTrigger 
-                    value="monthly" 
-                    className="rounded-none px-8 py-2.5 data-active:bg-background data-active:shadow-sm font-bold transition-all"
-                  >
-                    Monthly
-                  </TabsTrigger>
-                  <TabsTrigger 
-                    value="yearly" 
-                    className="rounded-none px-8 py-2.5 data-active:bg-background data-active:shadow-sm font-bold transition-all flex items-center gap-1.5"
-                  >
-                    Yearly <Badge variant="secondary" className="text-[9px] px-1.5 py-0 bg-primary/10 text-primary hover:bg-primary/20">Save 20%</Badge>
-                  </TabsTrigger>
-                </TabsList>
-              </Tabs>
+                Monthly
+              </button>
+              <button
+                onClick={() => setBillingCycle('yearly')}
+                className={`px-8 py-3 rounded-full font-semibold uppercase text-sm tracking-wider transition-all flex items-center gap-2 ${
+                  billingCycle === 'yearly'
+                    ? 'bg-[#ffb84f] text-black'
+                    : 'text-white/60 hover:text-white'
+                }`}
+              >
+                Yearly
+                {billingCycle === 'yearly' && <span className="bg-green-500/20 text-green-300 text-xs px-2 py-1 rounded-full">Save 20%</span>}
+              </button>
             </div>
           </div>
         </div>
+      </div>
+
+      <div className="min-h-screen bg-white py-24 px-6 lg:px-12 xl:px-24">
+      <div className="max-w-[1200px] mx-auto">
 
         {/* Pricing Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch mb-20">
           {plans.filter(p => p.tier !== 'BASIC').map((plan) => {
             const isProfessional = plan.tier === 'PROFESSIONAL';
             const isPremium = plan.tier === 'PREMIUM';
@@ -184,40 +190,46 @@ export default function PricingPageClient({ locale }: { locale: string }) {
             const TierIcon = tierIcons[plan.tier] || ShieldCheck;
 
             return (
-              <Card 
+              <div 
                 key={plan.id}
-                className={`relative flex flex-col h-full border border-border/50 rounded-none shadow-sm hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 group bg-card`}
+                className={`relative flex flex-col h-full rounded-3xl border transition-all duration-300 group ${
+                  isPremium
+                    ? 'bg-gradient-to-br from-[#ffb84f]/10 to-[#ffb84f]/5 border-[#ffb84f]/30 shadow-[0_20px_40px_rgb(255,184,79,0.15)] hover:shadow-[0_30px_60px_rgb(255,184,79,0.2)] hover:-translate-y-2'
+                    : 'bg-white border-[#ffb84f] shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_40px_rgb(0,0,0,0.08)] hover:-translate-y-2'
+                }`}
               >
-                {/* Visual Highlights */}
+                {/* Premium Badge */}
                 {isPremium && (
-                  <div className="absolute inset-x-0 -top-px h-2 bg-gradient-to-r from-primary/40 via-primary to-primary/40" />
+                  <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
+                    <div className="bg-[#ffb84f] text-black px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest">
+                      ⭐ Most Popular
+                    </div>
+                  </div>
                 )}
                 
-                <CardHeader className="pb-8 pt-10 px-8">
-                  <div className="flex justify-between items-start mb-6">
-                    <div className={`p-3 rounded-none ${isPremium ? 'bg-primary text-primary-foreground' : 'bg-neutral-100 text-neutral-900'}`}>
-                      <TierIcon className="h-7 w-7" />
+                <div className="pt-10 px-8 pb-8">
+                  <div className="flex items-start justify-between mb-6">
+                    <div className={`p-3 rounded-full ${isPremium ? 'bg-[#ffb84f] text-black' : 'bg-neutral-100 text-neutral-600'}`}>
+                      <TierIcon className="h-6 w-6" />
                     </div>
-                    {isPremium && (
-                      <Badge className="bg-primary text-primary-foreground font-bold rounded-none px-4 py-1 tracking-tighter">Most Popular</Badge>
-                    )}
                   </div>
-                  <CardTitle className="text-2xl font-bold tracking-tight text-foreground mb-1">{plan.name}</CardTitle>
-                  <CardDescription className="text-primary flex items-baseline gap-1 mt-6">
-                    <span className="text-4xl font-extrabold text-foreground tracking-tighter">LKR {amount.toLocaleString()}</span>
-                    <span className="text-xs font-bold text-muted-foreground uppercase">{billingCycle === 'monthly' ? '/mo' : '/yr'}</span>
-                  </CardDescription>
-                </CardHeader>
-
-                <CardContent className="flex-1 space-y-8 px-8">
+                  <h3 className="text-2xl font-bold text-[#0a0d14] mb-2">{plan.name}</h3>
+                  <div className="flex items-baseline gap-2 mt-6 mb-2">
+                    <span className="text-4xl font-bold text-[#0a0d14]">LKR {amount.toLocaleString()}</span>
+                    <span className="text-neutral-500 font-light text-sm">{billingCycle === 'monthly' ? '/month' : '/year'}</span>
+                  </div>
+                  {isPremium && <p className="text-[#ffb84f] text-xs font-semibold">Save 20% with yearly billing</p>}
+                </div>
+                
+                <div className="flex-1 px-8 py-8 space-y-8 border-t border-neutral-100/50">
                   {/* Feature Limits */}
                   {plan.featureLimits.length > 0 && (
                     <div className="space-y-3">
-                      <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-[0.2em]">Usage Limits</p>
+                      <p className="text-xs font-semibold text-neutral-500 uppercase tracking-wider">Usage Limits</p>
                       <div className="grid grid-cols-2 gap-2">
                         {plan.featureLimits.map((fl) => (
-                          <div key={fl.featureName} className="bg-neutral-50 px-3 py-2 border border-neutral-100">
-                            <span className="text-xs font-bold text-foreground">
+                          <div key={fl.featureName} className="bg-neutral-50 px-3 py-2 rounded-lg border border-neutral-100">
+                            <span className="text-xs font-medium text-[#0a0d14]">
                               {formatFeatureLimit(fl.featureName, fl.limit)}
                             </span>
                           </div>
@@ -227,85 +239,79 @@ export default function PricingPageClient({ locale }: { locale: string }) {
                   )}
 
                   {/* Permissions List */}
-                  <div className="space-y-5">
-                    <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-[0.2em]">Included Permissions</p>
+                  <div className="space-y-4">
+                    <p className="text-xs font-semibold text-neutral-500 uppercase tracking-wider">Included Features</p>
                     <ul className="space-y-3">
                       {plan.permissions.map((perm) => {
                         const PermIcon = permissionIcons[perm.name] || categoryIcons[perm.category] || Check;
                         return (
-                          <li key={perm.id} className="flex items-start gap-3 group/item">
-                            <div className="mt-0.5 rounded-none bg-primary/5 p-1.5 group-hover/item:bg-primary/20 transition-all shrink-0">
-                              <PermIcon className="h-3.5 w-3.5 text-primary" />
+                          <li key={perm.id} className="flex items-start gap-3">
+                            <div className="mt-0.5 p-1.5 bg-[#ffb84f]/10 rounded-lg flex-shrink-0">
+                              <PermIcon className="h-4 w-4 text-[#ffb84f]" />
                             </div>
-                            <div className="flex flex-col">
-                              <span className="text-sm text-foreground/90 leading-tight group-hover/item:text-foreground transition-colors font-semibold">
-                                {perm.description || perm.name.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
-                              </span>
-                              <span className="text-[10px] text-muted-foreground uppercase tracking-wider mt-0.5">
-                                {perm.category}
-                              </span>
-                            </div>
+                            <span className="text-sm text-[#0a0d14] font-light">
+                              {perm.description || perm.name.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
+                            </span>
                           </li>
                         );
                       })}
                     </ul>
                   </div>
 
-                  {/* Subscription Details (extra info from admin) */}
+                  {/* Subscription Details */}
                   {plan.subscriptionDetails.length > 0 && (
-                    <div className="space-y-3 pt-2 border-t border-neutral-100">
-                      <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-[0.2em]">Additional Benefits</p>
+                    <div className="space-y-3 pt-4 border-t border-neutral-100">
+                      <p className="text-xs font-semibold text-neutral-500 uppercase tracking-wider">Additional Benefits</p>
                       <ul className="space-y-2">
                         {plan.subscriptionDetails.map((detail) => (
                           <li key={detail.id} className="flex items-start gap-3">
-                            <div className="mt-0.5 rounded-full bg-primary/5 p-1">
-                              <Check className="h-3.5 w-3.5 text-primary" />
-                            </div>
-                            <span className="text-sm text-foreground/80 leading-relaxed font-medium">
-                              {detail.details}
-                            </span>
+                            <Check className="h-4 w-4 text-[#ffb84f] mt-0.5 flex-shrink-0" />
+                            <span className="text-sm text-neutral-600 font-light">{detail.details}</span>
                           </li>
                         ))}
                       </ul>
                     </div>
                   )}
-                </CardContent>
+                </div>
 
-                <CardFooter className="pt-10 pb-12 px-8">
-                  <Link href={`/${locale}/dashboard/lawyer/payments/invoice/${plan.id}?cycle=${billingCycle}`} className="w-full">
-                    <button className={`w-full py-7 text-sm uppercase tracking-widest rounded-none transition-all duration-300 ${isPremium ? 'bg-primary text-primary-foreground hover:scale-[1.02] shadow-lg shadow-primary/20' : 'bg-neutral-900 text-white hover:bg-neutral-800'}`}>
+                <div className="px-8 py-8 border-t border-neutral-100/50">
+                  <Link href={`/${locale}/dashboard/lawyer/payments/invoice/${plan.id}?cycle=${billingCycle}`} className="w-full block">
+                    <button className={`w-full py-4 rounded-full font-bold uppercase text-sm tracking-widest transition-all ${
+                      isPremium
+                        ? 'bg-[#ffb84f] text-black hover:bg-[#e5a443] shadow-lg shadow-[#ffb84f]/20'
+                        : 'bg-[#0a0d14] text-white hover:bg-[#1a1d24]'
+                    }`}>
                       Subscribe Now
                     </button>
                   </Link>
-                </CardFooter>
-              </Card>
+                </div>
+              </div>
             );
           })}
         </div>
 
-        {/* Access info footer */}
-        <div className="mt-16 text-center">
-           <div className="flex flex-col items-center gap-6 p-10 border border-dashed border-border/60 bg-neutral-50/30">
-              <div className="flex items-center gap-2 text-muted-foreground text-xs uppercase tracking-[0.15em] font-bold">
-                 <ShieldCheck className="h-4 w-4" /> Admin & Lawyer Secured Access
-              </div>
-              <div className="flex items-center justify-center gap-8">
-                 <Link href={`/${locale}/dashboard/lawyer`} className="text-sm hover:text-primary transition-all flex items-center gap-2 font-bold group">
-                   <div className="p-2 rounded-none bg-neutral-100 group-hover:bg-primary/10 transition-colors">
-                     <LayoutDashboard className="h-4 w-4" />
-                   </div>
-                   Dashboard
-                 </Link>
-                 <Link href={`/${locale}`} className="text-sm hover:text-primary transition-all flex items-center gap-2 font-bold group">
-                   <div className="p-2 rounded-none bg-neutral-100 group-hover:bg-primary/10 transition-colors">
-                     <Scale className="h-4 w-4" />
-                   </div>
-                   Home Page
-                 </Link>
-              </div>
-           </div>
+        {/* Help Section */}
+        <div className="bg-[#fafafa] rounded-3xl p-12 border border-neutral-100">
+          <div className="max-w-2xl mx-auto text-center space-y-6">
+            <ShieldCheck className="h-12 w-12 text-[#ffb84f] mx-auto" />
+            <h2 className="text-2xl font-bold text-[#0a0d14]">Not Sure Which Plan?</h2>
+            <p className="text-neutral-600 font-light leading-relaxed">
+              All plans include 24/7 support, secure payments, and monthly analytics. Upgrade or downgrade your plan at any time without penalties.
+            </p>
+            <div className="flex flex-wrap gap-4 justify-center pt-4">
+              <Link href={`/${locale}/dashboard/lawyer`} className="inline-flex items-center gap-2 px-6 py-3 bg-[#0a0d14] text-white rounded-full font-bold hover:bg-[#1a1d24] transition-colors">
+                <LayoutDashboard className="h-5 w-5" />
+                Go to Dashboard
+              </Link>
+              <Link href={`/${locale}`} className="inline-flex items-center gap-2 px-6 py-3 bg-white text-[#0a0d14] rounded-full font-bold border-2 border-[#ffb84f] hover:bg-[#ffb84f]/10 transition-colors">
+                <Scale className="h-5 w-5" />
+                Back to Home
+              </Link>
+            </div>
+          </div>
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 }

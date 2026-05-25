@@ -73,8 +73,8 @@ export default function PricingPage() {
   if (loading) {
     return (
       <div className="space-y-6">
-        <Skeleton className="h-8 w-64 rounded-none" />
-        <Skeleton className="h-64 rounded-none" />
+        <Skeleton className="h-8 w-64 rounded-full" />
+        <Skeleton className="h-64 rounded-3xl" />
       </div>
     );
   }
@@ -86,10 +86,9 @@ export default function PricingPage() {
 
   return (
     <div className="space-y-8 max-w-3xl">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <div className="flex h-11 w-11 items-center justify-center bg-[#0a0a0a] text-white">
+          <div className="flex h-11 w-11 items-center justify-center bg-[#0a0a0a] text-white rounded-xl">
             <DollarSign className="h-5 w-5" />
           </div>
           <div>
@@ -100,14 +99,14 @@ export default function PricingPage() {
         <Button
           onClick={savePricing}
           disabled={saving}
-          className="bg-[#0a0a0a] text-white hover:bg-neutral-800 rounded-none h-10 px-6 text-sm font-bold uppercase tracking-wide"
+          className="bg-[#ffb84f] text-black hover:bg-[#e5a443] rounded-full h-10 px-6 text-sm font-bold uppercase tracking-wide"
         >
           <Save className="w-4 h-4 mr-2" /> {saving ? 'Saving...' : 'Save Pricing'}
         </Button>
       </div>
 
       {/* Pricing Type */}
-      <Card className="rounded-none shadow-sm">
+      <Card className="rounded-3xl border border-neutral-200/50 shadow-sm overflow-hidden">
         <CardContent className="p-6">
           <h3 className="text-sm font-bold text-neutral-900 uppercase tracking-wide mb-4 flex items-center gap-2">
             <Percent className="w-4 h-4" /> Pricing Model
@@ -117,7 +116,7 @@ export default function PricingPage() {
               <button
                 key={type}
                 onClick={() => setPricingType(type)}
-                className={`flex-1 p-4 border-2 text-left transition-all ${pricingType === type ? 'border-[#0a0a0a] bg-neutral-50' : 'border-neutral-200 hover:border-neutral-300'}`}
+                className={`flex-1 p-4 border-2 text-left transition-all rounded-2xl ${pricingType === type ? 'border-black bg-neutral-50' : 'border-neutral-200 hover:border-neutral-300'}`}
               >
                 <p className="text-sm font-bold text-neutral-900">{type === 'PER_SESSION' ? 'Per Session' : 'Hourly'}</p>
                 <p className="text-xs text-neutral-500 mt-1">{type === 'PER_SESSION' ? 'Fixed price per consultation session' : 'Price calculated per hour'}</p>
@@ -128,7 +127,7 @@ export default function PricingPage() {
       </Card>
 
       {/* Price Settings */}
-      <Card className="rounded-none shadow-sm">
+      <Card className="rounded-3xl border border-neutral-200/50 shadow-sm overflow-hidden">
         <CardContent className="p-6 space-y-6">
           <h3 className="text-sm font-bold text-neutral-900 uppercase tracking-wide flex items-center gap-2">
             <DollarSign className="w-4 h-4" /> Consultation Fees
@@ -136,13 +135,13 @@ export default function PricingPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Physical */}
-            <div className="space-y-3 p-5 border border-neutral-200">
+            <div className="space-y-3 p-5 border border-neutral-200/60 bg-neutral-50/50 rounded-2xl">
               <label className="block text-[11px] font-semibold text-neutral-500 uppercase tracking-wide">Physical Consultation (LKR)</label>
               <input
                 type="number"
                 value={physicalPrice}
                 onChange={(e) => setPhysicalPrice(Math.max(0, parseInt(e.target.value) || 0))}
-                className="w-full border border-neutral-200 px-4 py-3 text-lg font-bold bg-white"
+                className="w-full border border-neutral-200 px-4 py-3 text-lg font-bold bg-white rounded-3xl focus:outline-none focus:border-black"
                 min={0}
               />
               <div className="space-y-1 pt-2 border-t border-neutral-100">
@@ -162,13 +161,13 @@ export default function PricingPage() {
             </div>
 
             {/* Online */}
-            <div className="space-y-3 p-5 border border-neutral-200">
+            <div className="space-y-3 p-5 border border-neutral-200/60 bg-neutral-50/50 rounded-2xl">
               <label className="block text-[11px] font-semibold text-neutral-500 uppercase tracking-wide">Online Consultation (LKR)</label>
               <input
                 type="number"
                 value={onlinePrice}
                 onChange={(e) => setOnlinePrice(Math.max(0, parseInt(e.target.value) || 0))}
-                className="w-full border border-neutral-200 px-4 py-3 text-lg font-bold bg-white"
+                className="w-full border border-neutral-200 px-4 py-3 text-lg font-bold bg-white rounded-3xl focus:outline-none focus:border-black"
                 min={0}
               />
               <div className="space-y-1 pt-2 border-t border-neutral-100">
@@ -227,7 +226,7 @@ export default function PricingPage() {
       </Card> */}
 
       {/* Advance Notice Setting */}
-      <Card className="rounded-none shadow-sm">
+      <Card className="rounded-3xl border border-neutral-200/50 shadow-sm overflow-hidden">
         <CardContent className="p-6">
           <h3 className="text-sm font-bold text-neutral-900 uppercase tracking-wide mb-4 flex items-center gap-2">
             <Clock className="w-4 h-4" /> Minimum Advance Notice
@@ -239,7 +238,7 @@ export default function PricingPage() {
             <select
               value={minAdvanceNoticeHours}
               onChange={(e) => setMinAdvanceNoticeHours(parseInt(e.target.value))}
-              className="border border-neutral-200 px-4 py-3 w-full md:w-64 text-sm bg-white outline-none focus:border-[#0a0a0a]"
+              className="border border-neutral-200 px-4 py-3 w-full md:w-64 text-sm bg-white rounded-3xl focus:outline-none focus:border-black"
             >
               <option value={12}>12 Hours</option>
               <option value={24}>24 Hours (1 Day)</option>
@@ -252,7 +251,7 @@ export default function PricingPage() {
       </Card>
 
       {/* Info Box */}
-      <div className="flex items-start gap-3 p-4 bg-blue-50 border border-blue-200">
+      <div className="flex items-start gap-3 p-4 bg-blue-50 border border-blue-200/50 rounded-3xl">
         <Info className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
         <div className="text-xs text-blue-800 space-y-1">
           <p className="font-semibold">How pricing works</p>

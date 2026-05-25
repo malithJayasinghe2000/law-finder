@@ -45,7 +45,7 @@ export default function LawyerEarningsPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
-        <div className="flex h-11 w-11 items-center justify-center bg-[#0a0a0a] text-white">
+        <div className="flex h-11 w-11 items-center justify-center bg-[#0a0a0a] text-white rounded-xl">
           <Banknote className="h-5 w-5" />
         </div>
         <div>
@@ -55,18 +55,18 @@ export default function LawyerEarningsPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="rounded-none bg-[#0a0a0a] text-white">
+        <Card className="rounded-3xl bg-[#0d1017] text-white border-none shadow-2xl">
           <CardContent className="p-6">
-            <p className="text-xs font-bold uppercase tracking-widest text-neutral-400 mb-2">Total Earnings</p>
+            <p className="text-xs font-bold uppercase tracking-widest text-[#ffb84f] mb-2">Total Earnings</p>
             <p className="text-3xl font-bold">LKR {totalEarnings.toLocaleString()}</p>
           </CardContent>
         </Card>
       </div>
 
       {loading ? (
-        <div className="space-y-3">{[1,2,3].map(i => <Skeleton key={i} className="h-24 rounded-none" />)}</div>
+        <div className="space-y-3">{[1,2,3].map(i => <Skeleton key={i} className="h-24 rounded-3xl" />)}</div>
       ) : earnings.length === 0 ? (
-        <div className="text-center py-16 border border-dashed border-neutral-200 bg-neutral-50/50">
+        <div className="text-center py-16 border border-dashed border-neutral-200 bg-neutral-50/50 rounded-3xl">
           <Banknote className="h-10 w-10 text-neutral-300 mx-auto mb-3" />
           <p className="text-sm font-semibold text-neutral-900">No earnings found</p>
           <p className="text-xs text-neutral-500 mt-1">Your completed sessions and retained cancellation fees will appear here</p>
@@ -79,7 +79,7 @@ export default function LawyerEarningsPage() {
             const earnedAmount = isCancellation ? booking.retainedLawyerFee : booking.lawyerFee;
             
             return (
-              <Card key={booking.id} className="rounded-none border border-neutral-200">
+              <Card key={booking.id} className="rounded-3xl border border-neutral-200/50 shadow-sm">
                 <CardContent className="p-5 flex items-center justify-between">
                   <div className="flex items-center gap-4">
                     <div className={`flex h-10 w-10 items-center justify-center rounded-full ${isCancellation ? 'bg-amber-100 text-amber-600' : 'bg-green-100 text-green-600'}`}>
@@ -89,9 +89,9 @@ export default function LawyerEarningsPage() {
                       <div className="flex items-center gap-2 mb-1">
                         <span className="text-sm font-bold text-neutral-900">{booking.bookingNumber}</span>
                         {isCancellation ? (
-                          <Badge className="bg-amber-100 text-amber-800 rounded-sm text-[10px] uppercase tracking-wider px-2 py-0">Late Cancellation Penalty</Badge>
+                          <Badge className="bg-amber-100 text-amber-800 rounded-full text-[10px] uppercase tracking-wider px-2.5 py-0.5">Late Cancellation Penalty</Badge>
                         ) : (
-                          <Badge className="bg-green-100 text-green-800 rounded-sm text-[10px] uppercase tracking-wider px-2 py-0">Completed</Badge>
+                          <Badge className="bg-green-100 text-green-800 rounded-full text-[10px] uppercase tracking-wider px-2.5 py-0.5">Completed</Badge>
                         )}
                       </div>
                       <p className="text-xs text-neutral-500 flex items-center gap-1">

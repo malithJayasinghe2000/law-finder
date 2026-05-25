@@ -111,16 +111,16 @@ export default function PostFeed({ locale, communityId, communitySlug, initialSo
 
   return (
     <div className="space-y-4">
-      {/* Sort tabs */}
-      <div className="flex items-center gap-1 p-1 bg-muted/50 rounded-lg w-fit">
+        {/* Sort tabs */}
+      <div className="flex items-center gap-2 p-1.5 bg-white border border-neutral-100 rounded-full w-fit shadow-[0_4px_20px_rgb(0,0,0,0.02)]">
         {sortTabs.map((tab) => (
           <button
             key={tab.key}
             onClick={() => { setSort(tab.key); setPage(1); }}
-            className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${
+            className={`px-5 py-2.5 text-[10px] font-bold uppercase tracking-widest rounded-full transition-all ${
               sort === tab.key
-                ? 'bg-background text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground'
+                ? 'bg-[#0a0d14] text-white'
+                : 'text-neutral-500 hover:text-[#0a0d14] hover:bg-neutral-50'
             }`}
           >
             {tab.label}
@@ -130,15 +130,15 @@ export default function PostFeed({ locale, communityId, communitySlug, initialSo
 
       {/* Time range for "top" */}
       {sort === 'top' && (
-        <div className="flex items-center gap-1 text-sm">
+        <div className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest mt-4">
           {timeRanges.map((range) => (
             <button
               key={range.key}
               onClick={() => { setTimeRange(range.key); setPage(1); }}
-              className={`px-3 py-1 rounded-full transition-all ${
+              className={`px-4 py-2 rounded-full transition-all ${
                 timeRange === range.key
-                  ? 'bg-primary text-primary-foreground'
-                  : 'text-muted-foreground hover:bg-muted'
+                  ? 'bg-[#ffb84f] text-black border-transparent'
+                  : 'bg-white border border-neutral-200 text-neutral-500 hover:bg-neutral-50 hover:text-[#0a0d14]'
               }`}
             >
               {range.label}
@@ -149,16 +149,16 @@ export default function PostFeed({ locale, communityId, communitySlug, initialSo
 
       {/* Posts */}
       {loading ? (
-        <div className="flex justify-center py-16">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <div className="flex justify-center py-24">
+          <Loader2 className="h-8 w-8 animate-spin text-[#ffb84f]" />
         </div>
       ) : posts.length === 0 ? (
-        <div className="text-center py-16 text-muted-foreground">
-          <p className="text-lg font-medium">No posts yet</p>
-          <p className="text-sm mt-1">Be the first to share something!</p>
+        <div className="text-center py-24 bg-white rounded-3xl border border-neutral-100 shadow-sm">
+          <p className="text-lg font-bold text-[#0a0d14]">No posts yet</p>
+          <p className="text-sm mt-3 font-light text-neutral-500">Be the first to share something!</p>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-4">
           {posts.map((post) => (
             <PostCard
               key={post.id}
@@ -173,26 +173,24 @@ export default function PostFeed({ locale, communityId, communitySlug, initialSo
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex justify-center gap-2 pt-4">
-          <Button
-            variant="outline"
-            size="sm"
+        <div className="flex justify-center items-center gap-4 pt-8">
+          <button
+            className="px-6 py-3 bg-white border border-neutral-200 rounded-full text-[10px] font-bold uppercase tracking-widest hover:border-[#0a0d14] hover:text-[#0a0d14] disabled:opacity-50 transition-colors"
             onClick={() => setPage((p) => Math.max(1, p - 1))}
             disabled={page <= 1}
           >
             Previous
-          </Button>
-          <span className="flex items-center px-3 text-sm text-muted-foreground">
-            Page {page} of {totalPages}
+          </button>
+          <span className="flex items-center text-[10px] uppercase font-bold tracking-widest text-[#ffb84f] bg-[#0a0d14] px-4 py-2 rounded-full">
+            {page} / {totalPages}
           </span>
-          <Button
-            variant="outline"
-            size="sm"
+          <button
+            className="px-6 py-3 bg-white border border-neutral-200 rounded-full text-[10px] font-bold uppercase tracking-widest hover:border-[#0a0d14] hover:text-[#0a0d14] disabled:opacity-50 transition-colors"
             onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
             disabled={page >= totalPages}
           >
             Next
-          </Button>
+          </button>
         </div>
       )}
     </div>

@@ -168,7 +168,7 @@ export default function ChatInterface({ userId, locale }: { userId: string; loca
   const activeConv = conversations.find(c => c.id === activeConvId);
 
   return (
-    <div className="flex h-[calc(100vh-8rem)] bg-white border border-neutral-200 overflow-hidden rounded-none shadow-sm">
+    <div className="flex h-[calc(100vh-8rem)] bg-white border border-neutral-200/50 overflow-hidden rounded-3xl shadow-lg">
       {/* Sidebar */}
       <div className="w-1/3 border-r border-neutral-200 flex flex-col bg-neutral-50/50">
         <div className="p-4 border-b border-neutral-200 bg-white">
@@ -219,10 +219,10 @@ export default function ChatInterface({ userId, locale }: { userId: string; loca
           )}
         </div>
         {isLimited && (
-          <div className="p-4 bg-amber-50 border-t border-amber-100 text-center">
+          <div className="p-4 bg-amber-50 border border-amber-100/50 text-center rounded-2xl m-2">
             <p className="text-xs text-amber-800 font-medium mb-2">Upgrade to view all conversations</p>
             <Link href={`/${locale}/pricing`}>
-              <Button size="sm" className="w-full text-xs font-bold rounded-none bg-[#0a0a0a] text-white hover:bg-neutral-800">
+              <Button size="sm" className="w-full text-xs font-bold rounded-full bg-[#ffb84f] text-black hover:bg-[#e5a443] h-10">
                 Upgrade Plan
               </Button>
             </Link>
@@ -252,7 +252,7 @@ export default function ChatInterface({ userId, locale }: { userId: string; loca
                   return (
                     <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
                       <div className={`max-w-[70%] px-4 py-2.5 shadow-sm text-[14px] ${
-                        isMe ? 'bg-[#0a0a0a] text-white rounded-l-xl rounded-tr-xl' : 'bg-white border border-neutral-200 text-neutral-900 rounded-r-xl rounded-tl-xl'
+                        isMe ? 'bg-[#0a0a0a] text-white rounded-2xl rounded-tr-none' : 'bg-white border border-neutral-200 text-neutral-900 rounded-2xl rounded-tl-none'
                       }`}>
                         {msg.content}
                       </div>
@@ -269,9 +269,9 @@ export default function ChatInterface({ userId, locale }: { userId: string; loca
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   placeholder="Type a message..."
-                  className="rounded-none border-neutral-300 focus-visible:ring-1 focus-visible:ring-neutral-900"
+                  className="rounded-full px-5 border-neutral-300 focus-visible:ring-1 focus-visible:ring-neutral-900"
                 />
-                <Button type="submit" className="rounded-none bg-[#0a0a0a] hover:bg-neutral-800 text-white px-6">
+                <Button type="submit" className="rounded-full bg-[#0a0a0a] hover:bg-neutral-800 text-white px-6">
                   <Send className="w-4 h-4" />
                 </Button>
               </form>

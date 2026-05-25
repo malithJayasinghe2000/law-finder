@@ -1,7 +1,5 @@
 'use client';
 
-import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { MessageCircle, Clock, Eye, Pin, Lock, ShieldCheck } from 'lucide-react';
 import Link from 'next/link';
 import VoteButtons from './VoteButtons';
@@ -43,17 +41,17 @@ interface PostCardProps {
 }
 
 export default function PostCard({ post, locale, onVote, showCommunity = true }: PostCardProps) {
-  const timeAgo = getTimeAgo(new Date(post.createdAt));
+  const timeAgo = getTimeAgo(post?.createdAt ? new Date(post.createdAt) : new Date());
 
   const handleVote = async (type: 'UPVOTE' | 'DOWNVOTE') => {
-    if (onVote) await onVote(post.id, type);
+    if (onVote && post?.id) await onVote(post.id, type);
   };
 
   return (
-    <Card className={`group transition-all duration-200 hover:shadow-md hover:border-primary/20 overflow-hidden ${post.isPinned ? 'border-primary/30 bg-primary/[0.02]' : ''}`}>
+    <div className={`group bg-white rounded-3xl overflow-hidden border ${post?.isPinned ? 'border-[#ffb84f]/20 bg-[#ffb84f]/5 rounded-3xl' : 'border-neutral-100 bg-white'} shadow-[0_4px_20px_rgb(0,0,0,0.02)] transition-all hover:shadow-[0_8px_30px_rgb(0,0,0,0.06)] hover:border-neutral-200`}>
       <div className="flex">
         {/* Vote column */}
-        <div className="hidden sm:flex flex-col items-center justify-start py-4 px-3 bg-muted/30">
+        <div className="hidden sm:flex flex-col items-center justify-start py-6 px-4 bg-neutral-50 border-r border-neutral-100">
           <VoteButtons
             score={post.score}
             userVote={post.userVote}
@@ -64,119 +62,118 @@ export default function PostCard({ post, locale, onVote, showCommunity = true }:
         </div>
 
         {/* Content */}
-        <div className="flex-1 p-4 min-w-0">
+        <div className="flex-1 p-6 lg:p-8 min-w-0">
           {/* Meta row */}
-          <div className="flex items-center gap-2 flex-wrap text-xs text-muted-foreground mb-2">
-            {post.isPinned && (
-              <Badge variant="outline" className="gap-1 text-primary border-primary/30 px-1.5 py-0">
+          <div className="flex items-center gap-3 flex-wrap text-[11px] font-bold uppercase tracking-widest text-neutral-400 mb-4">
+            {post?.isPinned && (
+              <span className="flex items-center gap-1.5 text-[#ffb84f] bg-[#ffb84f]/10 px-2 py-1 rounded-full border border-[#ffb84f]/20">
                 <Pin className="h-3 w-3" /> Pinned
-              </Badge>
+              </span>
             )}
-            {showCommunity && (
+            {showCommunity && post?.community && (
               <Link
-                href={`/${locale}/blog/community/${post.community.name}`}
-                className="font-semibold text-foreground hover:text-primary transition-colors"
+                href={`/${locale}/blog/community/${post.community.name || ''}`}
+                className="text-[#0a0d14] hover:text-[#ffb84f] transition-colors flex items-center gap-1"
               >
                 {post.community.icon} {post.community.displayName}
               </Link>
             )}
-            <span>•</span>
-            <span className="flex items-center gap-1">
-              Posted by{' '}
-              <span className="font-medium text-foreground/80">
-                {post.author.profile?.fullName || post.author.fullName || 'Unknown User'}
+            <span className="text-neutral-300">•</span>
+            <span className="flex items-center gap-1.5">
+              <span className="text-[#0a0d14]">
+                {post?.author?.profile?.fullName || post?.author?.fullName || 'Unknown User'}
               </span>
-              {post.author.profile?.isVerified && (
-                <ShieldCheck className="h-3.5 w-3.5 text-primary" />
+              {post?.author?.profile?.isVerified && (
+                <ShieldCheck className="h-4 w-4 text-[#ffb84f]" />
               )}
-              {post.author.role === 'LAWYER' && (
-                <Badge variant="secondary" className="text-[10px] px-1 py-0 font-normal">
+              {post?.author?.role === 'LAWYER' && (
+                <span className="bg-[#0a0d14] text-white px-2 py-1 rounded-full text-[9px]">
                   Lawyer
-                </Badge>
+                </span>
               )}
             </span>
-            <span>•</span>
+            <span className="text-neutral-300">•</span>
             <span className="flex items-center gap-1">
-              <Clock className="h-3 w-3" /> {timeAgo}
+              <Clock className="h-3 w-3 text-neutral-400" /> {timeAgo}
             </span>
           </div>
 
           {/* Title */}
-          <Link href={`/${locale}/blog/${post.slug}`}>
-            <h3 className="text-lg font-semibold tracking-tight group-hover:text-primary transition-colors line-clamp-2 mb-1">
-              {post.title}
+          <Link href={`/${locale}/blog/${post?.slug || ''}`}>
+            <h3 className="text-xl sm:text-2xl font-bold text-[#0a0d14] tracking-tight group-hover:text-[#ffb84f] transition-colors line-clamp-2 mb-3 leading-snug">
+              {post?.title || 'Untitled Post'}
             </h3>
           </Link>
 
           {/* Rich Content + Cover */}
-          <div className="flex flex-col md:flex-row gap-4 mt-2 mb-3">
-            <div className="flex-1 min-w-0">
-              {post.content && (
+          <div className="flex flex-col md:flex-row gap-6 mt-4 mb-6">
+            <div className="flex-1 min-w-0 relative">
+              {post?.content && (
                 <div className="relative">
                   <div 
-                    className="prose prose-sm prose-neutral max-w-none text-muted-foreground leading-relaxed tiptap-content max-h-[180px] overflow-hidden"
+                    className="prose prose-neutral max-w-none text-neutral-500 font-light leading-relaxed max-h-[140px] overflow-hidden"
                     dangerouslySetInnerHTML={{ __html: post.content }}
                   />
                   {post.content.length > 250 && (
-                    <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-card to-transparent pointer-events-none" />
+                    <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-white to-transparent pointer-events-none" />
                   )}
                 </div>
               )}
-              {post.content && post.content.length > 250 && (
-                <Link href={`/${locale}/blog/${post.slug}`} className="text-primary text-sm font-medium hover:underline inline-flex mt-1">
-                  Read more
+              {post?.content && post.content.length > 250 && (
+                <Link href={`/${locale}/blog/${post?.slug || ''}`} className="text-[#0a0d14] text-[10px] font-bold uppercase tracking-widest hover:text-[#ffb84f] transition-colors inline-block mt-4 border-b border-[#0a0d14] hover:border-[#ffb84f] pb-0.5">
+                  Read Full Article
                 </Link>
               )}
             </div>
-            {post.coverImage && (
-              <div className="flex-shrink-0 mb-2 md:mb-0">
+            {post?.coverImage && (
+              <div className="flex-shrink-0">
                 <img
                   src={post.coverImage}
                   alt=""
-                  className="w-full md:w-32 h-32 md:h-24 object-cover rounded-md border"
+                  className="w-full md:w-36 h-36 object-cover rounded-2xl border border-neutral-100 shadow-sm"
                 />
               </div>
             )}
           </div>
 
           {/* Actions bar */}
-          <div className="flex items-center gap-4 text-xs text-muted-foreground">
+          <div className="flex items-center flex-wrap gap-6 text-[10px] font-bold uppercase tracking-widest text-[#0a0d14]">
             {/* Mobile vote */}
             <div className="sm:hidden">
               <VoteButtons
-                score={post.score}
-                userVote={post.userVote}
+                score={post?.score || 0}
+                userVote={post?.userVote || null}
                 onVote={handleVote}
                 orientation="horizontal"
                 size="sm"
               />
             </div>
             <Link
-              href={`/${locale}/blog/${post.slug}#comments`}
-              className="flex items-center gap-1.5 hover:text-foreground transition-colors py-1 px-2 rounded-md hover:bg-muted"
+              href={`/${locale}/blog/${post?.slug || ''}#comments`}
+              className="flex items-center gap-2 hover:text-[#ffb84f] transition-colors bg-neutral-50 px-4 py-2 rounded-full"
             >
               <MessageCircle className="h-4 w-4" />
-              <span>{post.commentCount} {post.commentCount === 1 ? 'Comment' : 'Comments'}</span>
+              <span>{post?.commentCount || 0} <span className="hidden sm:inline">Comments</span></span>
             </Link>
-            <div className="flex items-center gap-1.5 py-1 px-2">
+            <div className="flex items-center gap-2 text-neutral-400 border border-neutral-100 px-4 py-2 rounded-full">
               <Eye className="h-4 w-4" />
-              <span>{formatCount(post.viewCount)}</span>
+              <span>{formatCount(post?.viewCount || 0)}</span>
             </div>
-            {post.isLocked && (
-              <div className="flex items-center gap-1 text-amber-500">
-                <Lock className="h-3.5 w-3.5" />
+            {post?.isLocked && (
+              <div className="flex items-center gap-1.5 text-[#0a0d14] bg-neutral-100 px-3 py-2 rounded-full">
+                <Lock className="h-3 w-3" />
                 <span>Locked</span>
               </div>
             )}
-            {post.language !== 'en' && (
-              <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+            {post?.language && post?.language !== 'en' && (
+              <span className="bg-neutral-100 text-neutral-500 px-3 py-2 rounded-full border border-neutral-200">
                 {post.language === 'si' ? 'සිංහල' : 'தமிழ்'}
-              </Badge>
+              </span>
             )}
           </div>
         </div>
       </div>
-    </Card>
+    </div>
   );
 }
 

@@ -74,7 +74,7 @@ export function AdBanner({
   if (!ad) return null;
 
   return (
-    <div className={`relative overflow-hidden ${className}`}>
+    <div className={`relative overflow-hidden rounded-3xl ${className}`}>
       <Link
         href={ad.targetUrl.startsWith('/') ? `/${locale}${ad.targetUrl}` : ad.targetUrl}
         onClick={() => trackClick(ad.id)}
@@ -91,11 +91,11 @@ export function AdBanner({
             <div className="absolute bottom-0 left-0 right-0 p-6 text-white">
               {ad.title && <h3 className="text-xl sm:text-2xl font-bold mb-1">{ad.title}</h3>}
               {ad.description && <p className="text-sm text-white/80 mb-3 max-w-lg">{ad.description}</p>}
-              <span className="inline-flex items-center px-4 py-2 bg-white text-neutral-900 text-sm font-bold hover:bg-neutral-100 transition-colors">
+              <span className="inline-flex items-center px-5 py-2.5 bg-white text-neutral-900 text-sm font-bold rounded-full hover:bg-neutral-100 transition-colors">
                 {ad.ctaText || 'Learn More'} →
               </span>
             </div>
-            <span className="absolute top-3 right-3 text-[9px] font-bold uppercase tracking-widest text-white/60 bg-black/30 backdrop-blur-sm px-2 py-1">
+            <span className="absolute top-3 right-3 text-[9px] font-bold uppercase tracking-widest text-white/60 bg-black/30 backdrop-blur-sm px-2 py-1 rounded-full">
               Sponsored
             </span>
           </div>
@@ -105,7 +105,7 @@ export function AdBanner({
               {ad.title && <h3 className="text-lg font-bold mb-1">{ad.title}</h3>}
               {ad.description && <p className="text-sm text-white/70">{ad.description}</p>}
             </div>
-            <span className="px-4 py-2 bg-white text-neutral-900 text-sm font-bold">{ad.ctaText || 'Learn More'} →</span>
+            <span className="px-5 py-2.5 bg-white text-neutral-900 text-sm font-bold rounded-full">{ad.ctaText || 'Learn More'} →</span>
             <span className="absolute top-2 right-2 text-[9px] font-bold uppercase tracking-widest text-white/40">Ad</span>
           </div>
         )}
@@ -154,7 +154,7 @@ export function SponsoredListing({
           href={`/${locale}/lawyers/${ad.lawyer.id}`}
           onClick={() => trackClick(ad.id)}
         >
-          <div className="group relative flex h-[400px] flex-col overflow-hidden bg-[#222a35] text-white transition-transform duration-300 hover:-translate-y-1 hover:shadow-lg ring-2 ring-amber-500/50">
+          <div className="group relative flex h-[400px] flex-col overflow-hidden bg-[#222a35] text-white transition-transform duration-300 hover:-translate-y-1 hover:shadow-lg rounded-3xl ring-2 ring-amber-500/50">
             {/* Sponsored Badge */}
             <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-center py-1.5 bg-gradient-to-r from-amber-500 to-amber-600">
               <span className="text-[10px] font-bold uppercase tracking-widest text-white">★ Sponsored</span>
@@ -176,7 +176,7 @@ export function SponsoredListing({
                 <h3 className="text-[18px] font-semibold tracking-tight text-white drop-shadow-sm leading-tight mt-1 max-w-[70%] line-clamp-1">
                   {ad.lawyer.fullName}
                 </h3>
-                <div className="shrink-0 rounded-none bg-white/10 px-3 py-1.5 text-sm font-semibold text-white backdrop-blur-md border border-white/5">
+                <div className="shrink-0 rounded-full bg-white/10 px-3 py-1.5 text-sm font-semibold text-white backdrop-blur-md border border-white/5">
                   {ad.lawyer.baseFeeRange ? `LKR ${ad.lawyer.baseFeeRange.split('-')[0].trim()}` : 'TBD'}
                 </div>
               </div>
@@ -187,16 +187,16 @@ export function SponsoredListing({
 
               <div className="mt-auto flex gap-2 overflow-x-hidden whitespace-nowrap mb-6">
                 {ad.lawyer.district && (
-                  <div className="flex shrink-0 items-center rounded-none bg-white/10 px-3 py-[5px] text-xs font-medium backdrop-blur-md border border-white/5 text-white/90">
+                  <div className="flex shrink-0 items-center rounded-full bg-white/10 px-3 py-[5px] text-xs font-medium backdrop-blur-md border border-white/5 text-white/90">
                     {ad.lawyer.district}
                   </div>
                 )}
                 {ad.lawyer.practiceAreas.slice(0, 1).map((area) => (
-                  <div key={area} className="flex shrink-0 items-center rounded-none bg-white/10 px-3 py-[5px] text-xs font-medium backdrop-blur-md border border-white/5 text-white/90">{area}</div>
+                  <div key={area} className="flex shrink-0 items-center rounded-full bg-white/10 px-3 py-[5px] text-xs font-medium backdrop-blur-md border border-white/5 text-white/90">{area}</div>
                 ))}
               </div>
 
-              <button className="w-full rounded-none bg-amber-500 py-3.5 text-[15px] font-bold text-white transition-colors hover:bg-amber-600 mt-auto">
+              <button className="w-full rounded-full bg-amber-500 py-3.5 text-[15px] font-bold text-white transition-colors hover:bg-amber-600 mt-auto">
                 {ad.ctaText || 'View Profile'}
               </button>
             </div>
@@ -255,7 +255,7 @@ export function SidebarAd({
           onClick={() => trackClick(ad.id)}
           className="block group"
         >
-          <div className="border border-neutral-200 rounded-lg p-4 hover:shadow-md hover:border-neutral-300 transition-all bg-white">
+          <div className="border border-neutral-200 rounded-3xl p-4 hover:shadow-md hover:border-neutral-300 transition-all bg-white">
             <div className="flex items-center gap-3 mb-3">
               <div className="w-10 h-10 rounded-full overflow-hidden bg-neutral-100 shrink-0">
                 {ad.lawyer.profileImageUrl ? (
@@ -275,7 +275,7 @@ export function SidebarAd({
             {ad.lawyer.practiceAreas.length > 0 && (
               <div className="flex flex-wrap gap-1 mb-3">
                 {ad.lawyer.practiceAreas.slice(0, 2).map((area) => (
-                  <span key={area} className="text-[10px] font-medium px-2 py-0.5 bg-neutral-100 text-neutral-600 rounded">
+                  <span key={area} className="text-[10px] font-medium px-2 py-0.5 bg-neutral-100 text-neutral-600 rounded-full">
                     {area}
                   </span>
                 ))}
@@ -328,7 +328,7 @@ export function InFeedAd({
       onClick={() => trackClick(ad.id)}
       className="block group"
     >
-      <div className="border border-neutral-200 rounded-xl overflow-hidden bg-white hover:shadow-md transition-all relative">
+      <div className="border border-neutral-200 rounded-3xl overflow-hidden bg-white hover:shadow-md transition-all relative">
         {ad.imageUrl && (
           <div className="h-[140px] overflow-hidden">
             <img src={ad.imageUrl} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
@@ -340,7 +340,7 @@ export function InFeedAd({
               <img src={ad.lawyer.profileImageUrl} alt="" className="w-6 h-6 rounded-full object-cover" />
             )}
             <span className="text-xs font-semibold text-neutral-700">{ad.lawyer.fullName}</span>
-            <span className="text-[9px] font-bold uppercase tracking-widest text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded ml-auto">Ad</span>
+            <span className="text-[9px] font-bold uppercase tracking-widest text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-full ml-auto">Ad</span>
           </div>
           {ad.title && <h3 className="text-sm font-bold text-neutral-900 mb-1 group-hover:text-primary transition-colors">{ad.title}</h3>}
           {ad.description && <p className="text-xs text-neutral-600 line-clamp-2">{ad.description}</p>}

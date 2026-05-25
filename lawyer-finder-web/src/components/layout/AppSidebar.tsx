@@ -3,7 +3,7 @@
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { Sidebar, SidebarContent, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarGroup, SidebarGroupLabel, SidebarFooter, SidebarMenuSub, SidebarMenuSubItem, SidebarMenuSubButton } from '@/components/ui/sidebar';
-import { LayoutDashboard, Users, FileText, Settings, Star, ShieldCheck, LogOut, Megaphone, Image, ShieldPlus, ChevronDown, History, CreditCard, MessageCircle, Globe, PenSquare, Flag, CalendarDays, DollarSign, Banknote } from 'lucide-react';
+import { LayoutDashboard, Users, FileText, Settings, Star, ShieldCheck, LogOut, Megaphone, Image, ShieldPlus, ChevronDown, History, CreditCard, MessageCircle, Globe, PenSquare, Flag, CalendarDays, DollarSign, Banknote, Scale } from 'lucide-react';
 import ChatBadge from '@/components/chat/ChatBadge';
 import { toast } from 'sonner';
 import React, { useState } from 'react';
@@ -38,7 +38,7 @@ export function AppSidebar({ locale, role, userId }: { locale: string; role: str
   ];
 
   const lawyerLinks = [
-    { href: `/${locale}/dashboard/lawyer`, icon: LayoutDashboard, label: 'Overview' },
+    { href: `/${locale}/dashboard/lawyer`, icon: LayoutDashboard, label: 'Overview', exact: true },
     {
       href: `/${locale}/dashboard/lawyer/consultations`,
       icon: CalendarDays,
@@ -94,20 +94,21 @@ export function AppSidebar({ locale, role, userId }: { locale: string; role: str
   };
 
   return (
-    <Sidebar className="border-r border-neutral-200 bg-white">
-      <SidebarHeader className="px-6 py-5 border-b border-neutral-200 bg-[#0a0a0a]">
-        <div className="flex flex-col gap-0.5">
-          <h2 className="text-lg font-bold tracking-tight text-white">{role === 'ADMIN' ? 'Control Panel' : (role === 'LAWYER' ? 'Lawyer Portal' : 'Client Portal')}</h2>
-          <p className="text-[11px] text-neutral-400 font-medium tracking-wide uppercase">{role === 'ADMIN' ? 'Platform Administration' : (role === 'LAWYER' ? 'Manage your practice' : 'Manage your account')}</p>
+    <Sidebar className="border-r border-neutral-200/60 bg-white">
+      <SidebarHeader className="px-6 py-5 border-b border-neutral-200/60 bg-[#0d1017] rounded-br-2xl">
+        <div className="flex items-center gap-3 mb-1">
+          <Scale className="h-5 w-5 text-[#ffb84f]" />
+          <h2 className="text-base font-bold tracking-tight text-white">{role === 'ADMIN' ? 'Control Panel' : (role === 'LAWYER' ? 'Lawyer Portal' : 'Client Portal')}</h2>
         </div>
+        <p className="text-[11px] text-neutral-400 font-medium tracking-wide uppercase ml-8">{role === 'ADMIN' ? 'Platform Administration' : (role === 'LAWYER' ? 'Manage your practice' : 'Manage your account')}</p>
       </SidebarHeader>
       <SidebarContent className="px-3 py-4">
         <SidebarGroup>
           <SidebarGroupLabel className="text-[10px] font-bold text-neutral-400 uppercase tracking-[0.15em] mb-2 px-3">Menu</SidebarGroupLabel>
-          <SidebarMenu className="gap-0.5">
+          <SidebarMenu className="gap-1">
             {links.map((link) => {
               const active = isLinkActive(link);
-              const hasSublinks = 'subLinks' in link && link.subLinks && link.subLinks.length > 0;
+              const hasSublinks = 'subLinks' in link && Array.isArray((link as any).subLinks) && (link as any).subLinks.length > 0;
               
               return (
                 <SidebarMenuItem key={link.href}>
@@ -116,17 +117,17 @@ export function AppSidebar({ locale, role, userId }: { locale: string; role: str
                       <SidebarMenuButton
                         onClick={() => toggleSubmenu(link.label)}
                         isActive={active}
-                        className={`h-10 rounded-none transition-all duration-150 ${active ? 'bg-[#0a0a0a] text-white font-semibold shadow-sm' : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900 font-medium'}`}
+                        className={`h-10 rounded-xl transition-all duration-200 ${active ? 'bg-[#0d1017] text-white font-semibold shadow-md' : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900 font-medium'}`}
                       >
                         <div className="flex items-center gap-3 w-full px-1">
-                          <link.icon className={`w-[18px] h-[18px] shrink-0 ${active ? 'text-black' : 'text-neutral-400'}`} />
+                          <link.icon className={`w-[18px] h-[18px] shrink-0 ${active ? 'text-[#ffb84f]' : 'text-neutral-400'}`} />
                           <span className="text-[13px]">{link.label}</span>
-                          <ChevronDown className={`w-4 h-4 ml-auto transition-transform ${openSubmenus.includes(link.label) ? 'rotate-180' : ''}`} />
+                          <ChevronDown className={`w-4 h-4 ml-auto transition-transform duration-200 ${openSubmenus.includes(link.label) ? 'rotate-180' : ''}`} />
                         </div>
                       </SidebarMenuButton>
                       {openSubmenus.includes(link.label) && (
-                        <SidebarMenuSub className="border-l border-neutral-200 ml-5 pl-2 mt-1 gap-1">
-                          {link.subLinks!.map((sub) => {
+                        <SidebarMenuSub className="border-l-2 border-neutral-200 ml-5 pl-2 mt-1 gap-1">
+                          {((link as any).subLinks as any[]).map((sub) => {
                             const subActive = pathname === sub.href;
                             return (
                               <SidebarMenuSubItem key={sub.href}>
@@ -135,11 +136,11 @@ export function AppSidebar({ locale, role, userId }: { locale: string; role: str
                                   render={
                                     <Link 
                                       href={sub.href} 
-                                      className={`flex items-center gap-3 w-full px-2 py-2 text-[12px] transition-colors rounded-none outline-none focus:outline-none focus:ring-0 focus-visible:ring-0 ${subActive ? 'text-black font-bold bg-neutral-100 border-l-2 border-black' : 'text-neutral-500 hover:text-neutral-900 hover:bg-neutral-50'}`}
+                                      className={`flex items-center gap-3 w-full px-2 py-2 text-[12px] transition-colors rounded-lg outline-none focus:outline-none focus:ring-0 focus-visible:ring-0 ${subActive ? 'text-[#0d1017] font-bold bg-[#ffb84f]/10 border-l-2 border-[#ffb84f]' : 'text-neutral-500 hover:text-neutral-900 hover:bg-neutral-50'}`}
                                     />
                                   }
                                 >
-                                  <sub.icon className={`w-3.5 h-3.5 ${subActive ? 'text-black' : ''}`} />
+                                  <sub.icon className={`w-3.5 h-3.5 ${subActive ? 'text-[#ffb84f]' : ''}`} />
                                   <span>{sub.label}</span>
                                 </SidebarMenuSubButton>
                               </SidebarMenuSubItem>
@@ -151,12 +152,12 @@ export function AppSidebar({ locale, role, userId }: { locale: string; role: str
                   ) : (
                     <SidebarMenuButton
                       isActive={active}
-                      className={`h-10 rounded-none transition-all duration-150 outline-none focus:outline-none focus:ring-0 focus-visible:ring-0 ${active ? 'bg-[#0a0a0a] text-white font-semibold shadow-sm' : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900 font-medium'}`}
+                      className={`h-10 rounded-xl transition-all duration-200 outline-none focus:outline-none focus:ring-0 focus-visible:ring-0 ${active ? 'bg-[#0d1017] text-white font-semibold shadow-md' : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900 font-medium'}`}
                       render={<Link href={link.href} className="flex items-center gap-3 w-full px-1" />}
                     >
-                        <link.icon className={`w-[18px] h-[18px] shrink-0 ${active ? 'text-black' : 'text-neutral-400'}`} />
+                        <link.icon className={`w-[18px] h-[18px] shrink-0 ${active ? 'text-[#ffb84f]' : 'text-neutral-400'}`} />
                         <span className="text-[13px]">{link.label}</span>
-                        {('hasBadge' in link) && link.hasBadge && userId && (
+                        {('hasBadge' in link) && (link as any).hasBadge === true && userId && (
                           <div className="ml-auto flex items-center">
                             <ChatBadge userId={userId} isSidebar={true} />
                           </div>
@@ -169,7 +170,7 @@ export function AppSidebar({ locale, role, userId }: { locale: string; role: str
           </SidebarMenu>
         </SidebarGroup>
       </SidebarContent>
-      <SidebarFooter className="border-t border-neutral-200 p-3">
+      <SidebarFooter className="border-t border-neutral-200/60 p-3">
         <button
           onClick={async () => {
             try {
@@ -177,7 +178,7 @@ export function AppSidebar({ locale, role, userId }: { locale: string; role: str
               if (res.ok) window.location.href = `/${locale}`;
             } catch { toast.error('Failed to logout'); }
           }}
-          className="flex items-center gap-3 w-full h-10 px-3 rounded-none text-red-600 hover:bg-red-50 hover:text-red-700 font-semibold transition-colors text-[13px]"
+          className="flex items-center gap-3 w-full h-10 px-3 rounded-xl text-red-600 hover:bg-red-50 hover:text-red-700 font-semibold transition-colors text-[13px]"
         >
           <LogOut className="w-[18px] h-[18px]" />
           <span>Log out</span>

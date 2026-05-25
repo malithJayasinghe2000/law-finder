@@ -304,7 +304,7 @@ export default function ProfileSettingsPage() {
         <div className="max-w-4xl">
           {/* Page Title */}
           <div className="flex items-center gap-4 mb-10">
-            <div className="flex h-12 w-12 items-center justify-center bg-[#0a0a0a] text-white">
+            <div className="flex h-12 w-12 items-center justify-center bg-[#0a0a0a] text-white rounded-2xl">
               <User className="h-6 w-6" />
             </div>
             <div>
@@ -360,7 +360,7 @@ export default function ProfileSettingsPage() {
                   type="text"
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
-                  className="w-full bg-neutral-50 border border-neutral-200 text-[#0a0a0a] px-4 py-3 outline-none focus:border-[#0a0a0a] focus:bg-white transition-all text-sm"
+                  className="w-full bg-neutral-50 border border-neutral-200 text-[#0a0a0a] px-4 py-3 rounded-3xl outline-none focus:border-[#0a0a0a] focus:bg-white transition-all text-sm"
                 />
               </div>
               <div className="space-y-2">
@@ -369,7 +369,7 @@ export default function ProfileSettingsPage() {
                   type="email"
                   value={email}
                   disabled
-                  className="w-full bg-neutral-100 border border-neutral-200 text-neutral-500 px-4 py-3 outline-none text-sm cursor-not-allowed"
+                  className="w-full bg-neutral-100 border border-neutral-200 text-neutral-500 px-4 py-3 rounded-3xl outline-none text-sm cursor-not-allowed"
                 />
               </div>
             </div>
@@ -386,7 +386,7 @@ export default function ProfileSettingsPage() {
                   value={currentPassword}
                   onChange={(e) => setCurrentPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full bg-neutral-50 border border-neutral-200 text-[#0a0a0a] px-4 py-3 outline-none focus:border-[#0a0a0a] focus:bg-white transition-all text-sm"
+                  className="w-full bg-neutral-50 border border-neutral-200 text-[#0a0a0a] px-4 py-3 rounded-3xl outline-none focus:border-[#0a0a0a] focus:bg-white transition-all text-sm"
                 />
               </div>
               <div className="space-y-2">
@@ -396,7 +396,7 @@ export default function ProfileSettingsPage() {
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full bg-neutral-50 border border-neutral-200 text-[#0a0a0a] px-4 py-3 outline-none focus:border-[#0a0a0a] focus:bg-white transition-all text-sm"
+                  className="w-full bg-neutral-50 border border-neutral-200 text-[#0a0a0a] px-4 py-3 rounded-3xl outline-none focus:border-[#0a0a0a] focus:bg-white transition-all text-sm"
                 />
               </div>
               <div className="space-y-2">
@@ -406,7 +406,7 @@ export default function ProfileSettingsPage() {
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full bg-neutral-50 border border-neutral-200 text-[#0a0a0a] px-4 py-3 outline-none focus:border-[#0a0a0a] focus:bg-white transition-all text-sm"
+                  className="w-full bg-neutral-50 border border-neutral-200 text-[#0a0a0a] px-4 py-3 rounded-3xl outline-none focus:border-[#0a0a0a] focus:bg-white transition-all text-sm"
                 />
               </div>
             </div>
@@ -421,7 +421,7 @@ export default function ProfileSettingsPage() {
                 <p className="text-xs text-neutral-400 mb-4">This image is shown on your lawyer directory card. Separate from your profile picture.</p>
                 <div className="flex items-center gap-6">
                   <div className="relative group">
-                    <div className="h-32 w-24 bg-neutral-100 overflow-hidden">
+                    <div className="h-32 w-24 bg-neutral-100 overflow-hidden rounded-2xl">
                       <img
                         src={lawyerProfileImageUrl || 'https://images.unsplash.com/photo-1556157382-97eda2d62296?auto=format&fit=crop&w=800&q=80'}
                         alt="Card"
@@ -463,7 +463,7 @@ export default function ProfileSettingsPage() {
                       type="text"
                       value={lFullName}
                       onChange={(e) => setLFullName(e.target.value)}
-                      className="w-full bg-neutral-50 border border-neutral-200 text-[#0a0a0a] px-4 py-3 outline-none focus:border-[#0a0a0a] focus:bg-white transition-all text-sm"
+                      className="w-full bg-neutral-50 border border-neutral-200 text-[#0a0a0a] px-4 py-3 rounded-3xl outline-none focus:border-[#0a0a0a] focus:bg-white transition-all text-sm"
                     />
                   </div>
                   <div className="space-y-2">
@@ -472,7 +472,7 @@ export default function ProfileSettingsPage() {
                       type="text"
                       value={nic}
                       onChange={(e) => setNic(e.target.value)}
-                      className="w-full bg-neutral-50 border border-neutral-200 text-[#0a0a0a] px-4 py-3 outline-none focus:border-[#0a0a0a] focus:bg-white transition-all text-sm"
+                      className="w-full bg-neutral-50 border border-neutral-200 text-[#0a0a0a] px-4 py-3 rounded-3xl outline-none focus:border-[#0a0a0a] focus:bg-white transition-all text-sm"
                     />
                   </div>
                   <div className="space-y-2">
@@ -481,7 +481,7 @@ export default function ProfileSettingsPage() {
                       type="tel"
                       value={contactPhone}
                       onChange={(e) => setContactPhone(e.target.value)}
-                      className="w-full bg-neutral-50 border border-neutral-200 text-[#0a0a0a] px-4 py-3 outline-none focus:border-[#0a0a0a] focus:bg-white transition-all text-sm"
+                      className="w-full bg-neutral-50 border border-neutral-200 text-[#0a0a0a] px-4 py-3 rounded-3xl outline-none focus:border-[#0a0a0a] focus:bg-white transition-all text-sm"
                     />
                   </div>
                   <div className="space-y-2">
@@ -491,7 +491,7 @@ export default function ProfileSettingsPage() {
                       value={googleMeetLink}
                       onChange={(e) => setGoogleMeetLink(e.target.value)}
                       placeholder="https://meet.google.com/abc-defg-hij"
-                      className="w-full bg-neutral-50 border border-neutral-200 text-[#0a0a0a] px-4 py-3 outline-none focus:border-[#0a0a0a] focus:bg-white transition-all text-sm"
+                      className="w-full bg-neutral-50 border border-neutral-200 text-[#0a0a0a] px-4 py-3 rounded-3xl outline-none focus:border-[#0a0a0a] focus:bg-white transition-all text-sm"
                     />
                     <p className="text-xs text-neutral-400">Your clients will use this link for online consultations. Leave blank for physical-only sessions.</p>
                   </div>
@@ -500,7 +500,7 @@ export default function ProfileSettingsPage() {
                     <select
                       value={gender}
                       onChange={(e) => setGender(e.target.value)}
-                      className="w-full bg-neutral-50 border border-neutral-200 text-[#0a0a0a] px-4 py-3 outline-none focus:border-[#0a0a0a] focus:bg-white transition-all text-sm"
+                      className="w-full bg-neutral-50 border border-neutral-200 text-[#0a0a0a] px-4 py-3 rounded-3xl outline-none focus:border-[#0a0a0a] focus:bg-white transition-all text-sm"
                     >
                       <option value="">Select</option>
                       <option value="Male">Male</option>
@@ -514,7 +514,7 @@ export default function ProfileSettingsPage() {
                       type="number"
                       value={yearsOfExperience}
                       onChange={(e) => setYearsOfExperience(e.target.value)}
-                      className="w-full bg-neutral-50 border border-neutral-200 text-[#0a0a0a] px-4 py-3 outline-none focus:border-[#0a0a0a] focus:bg-white transition-all text-sm"
+                      className="w-full bg-neutral-50 border border-neutral-200 text-[#0a0a0a] px-4 py-3 rounded-3xl outline-none focus:border-[#0a0a0a] focus:bg-white transition-all text-sm"
                     />
                   </div>
                   <div className="space-y-2">
@@ -522,7 +522,7 @@ export default function ProfileSettingsPage() {
                     <select
                       value={practiceType}
                       onChange={(e) => setPracticeType(e.target.value)}
-                      className="w-full bg-neutral-50 border border-neutral-200 text-[#0a0a0a] px-4 py-3 outline-none focus:border-[#0a0a0a] focus:bg-white transition-all text-sm"
+                      className="w-full bg-neutral-50 border border-neutral-200 text-[#0a0a0a] px-4 py-3 rounded-3xl outline-none focus:border-[#0a0a0a] focus:bg-white transition-all text-sm"
                     >
                       <option value="">Select</option>
                       {lookups.practiceTypes.map(t => <option key={t} value={t}>{t}</option>)}
@@ -533,7 +533,7 @@ export default function ProfileSettingsPage() {
                     <select
                       value={district}
                       onChange={(e) => setDistrict(e.target.value)}
-                      className="w-full bg-neutral-50 border border-neutral-200 text-[#0a0a0a] px-4 py-3 outline-none focus:border-[#0a0a0a] focus:bg-white transition-all text-sm"
+                      className="w-full bg-neutral-50 border border-neutral-200 text-[#0a0a0a] px-4 py-3 rounded-3xl outline-none focus:border-[#0a0a0a] focus:bg-white transition-all text-sm"
                     >
                       <option value="">Select</option>
                       {lookups.districts.map(d => <option key={d} value={d}>{d}</option>)}
@@ -546,7 +546,7 @@ export default function ProfileSettingsPage() {
                       value={baseFeeRange}
                       onChange={(e) => setBaseFeeRange(e.target.value)}
                       placeholder="e.g. 5000 - 15000"
-                      className="w-full bg-neutral-50 border border-neutral-200 text-[#0a0a0a] px-4 py-3 outline-none focus:border-[#0a0a0a] focus:bg-white transition-all text-sm"
+                      className="w-full bg-neutral-50 border border-neutral-200 text-[#0a0a0a] px-4 py-3 rounded-3xl outline-none focus:border-[#0a0a0a] focus:bg-white transition-all text-sm"
                     />
                   </div>
                   <div className="sm:col-span-2 space-y-2">
@@ -555,7 +555,7 @@ export default function ProfileSettingsPage() {
                       type="text"
                       value={address}
                       onChange={(e) => setAddress(e.target.value)}
-                      className="w-full bg-neutral-50 border border-neutral-200 text-[#0a0a0a] px-4 py-3 outline-none focus:border-[#0a0a0a] focus:bg-white transition-all text-sm"
+                      className="w-full bg-neutral-50 border border-neutral-200 text-[#0a0a0a] px-4 py-3 rounded-3xl outline-none focus:border-[#0a0a0a] focus:bg-white transition-all text-sm"
                     />
                   </div>
                   <div className="sm:col-span-2 space-y-2">
@@ -564,7 +564,7 @@ export default function ProfileSettingsPage() {
                       value={bio}
                       onChange={(e) => setBio(e.target.value)}
                       rows={4}
-                      className="w-full bg-neutral-50 border border-neutral-200 text-[#0a0a0a] px-4 py-3 outline-none focus:border-[#0a0a0a] focus:bg-white transition-all text-sm"
+                      className="w-full bg-neutral-50 border border-neutral-200 text-[#0a0a0a] px-4 py-3 rounded-3xl outline-none focus:border-[#0a0a0a] focus:bg-white transition-all text-sm resize-none"
                     />
                   </div>
                 </div>
@@ -592,7 +592,7 @@ export default function ProfileSettingsPage() {
                       key={area}
                       type="button"
                       onClick={() => toggleArrayItem(practiceAreas, setPracticeAreas, area)}
-                      className={`px-5 py-3 text-sm font-medium transition-all duration-200 border-none rounded-none focus:outline-none ${
+                      className={`px-5 py-3 text-sm font-medium transition-all duration-200 border-none rounded-full focus:outline-none ${
                         practiceAreas.includes(area)
                           ? 'bg-[#0a0a0a] text-white'
                           : 'bg-neutral-50 text-neutral-500 hover:bg-neutral-100'
@@ -613,7 +613,7 @@ export default function ProfileSettingsPage() {
                       key={lang}
                       type="button"
                       onClick={() => toggleArrayItem(languages, setLanguagesState, lang)}
-                      className={`px-6 py-3 text-sm font-medium transition-all duration-200 border-none rounded-none focus:outline-none ${
+                      className={`px-6 py-3 text-sm font-medium transition-all duration-200 border-none rounded-full focus:outline-none ${
                         languages.includes(lang)
                           ? 'bg-[#0a0a0a] text-white'
                           : 'bg-neutral-50 text-neutral-500 hover:bg-neutral-100'
@@ -640,9 +640,9 @@ export default function ProfileSettingsPage() {
               ) : subscriptionData?.hasSubscription ? (
                 <div className="space-y-6">
                   {/* Plan & Status Row */}
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-neutral-50 p-5 border border-neutral-200">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-neutral-50 p-6 border border-neutral-200 rounded-3xl">
                     <div className="flex items-center gap-4">
-                      <div className="w-11 h-11 bg-[#0a0a0a] flex items-center justify-center shrink-0">
+                      <div className="w-11 h-11 bg-[#0a0a0a] flex items-center justify-center shrink-0 rounded-full">
                         {subscriptionData.subscription.tier === 'PREMIUM' ? <Crown className="h-5 w-5 text-white" /> :
                          subscriptionData.subscription.tier === 'PROFESSIONAL' ? <Zap className="h-5 w-5 text-white" /> :
                          <Shield className="h-5 w-5 text-white" />}
@@ -650,7 +650,7 @@ export default function ProfileSettingsPage() {
                       <div>
                         <p className="font-bold text-[#0a0a0a] text-base">{subscriptionData.subscription.planName}</p>
                         <div className="flex items-center gap-2 mt-0.5">
-                          <span className={`inline-block px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
+                          <span className={`inline-block px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-full ${
                             subscriptionData.subscription.status === 'ACTIVE' ? 'bg-[#0a0a0a] text-white' :
                             subscriptionData.subscription.status === 'CANCELED' ? 'bg-neutral-200 text-neutral-700' :
                             subscriptionData.subscription.status === 'EXPIRED' ? 'bg-red-100 text-red-700' :
@@ -665,20 +665,20 @@ export default function ProfileSettingsPage() {
                   </div>
 
                   {/* Info Grid */}
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-px bg-neutral-200 border border-neutral-200">
-                    <div className="bg-white p-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    <div className="bg-neutral-50 border border-neutral-200/50 rounded-2xl p-4">
                       <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1">Started</p>
                       <p className="text-sm font-semibold text-[#0a0a0a]">{new Date(subscriptionData.subscription.startDate).toLocaleDateString()}</p>
                     </div>
-                    <div className="bg-white p-4">
+                    <div className="bg-neutral-50 border border-neutral-200/50 rounded-2xl p-4">
                       <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1">Expires</p>
                       <p className="text-sm font-semibold text-[#0a0a0a]">{subscriptionData.subscription.endDate ? new Date(subscriptionData.subscription.endDate).toLocaleDateString() : '—'}</p>
                     </div>
-                    <div className="bg-white p-4">
+                    <div className="bg-neutral-50 border border-neutral-200/50 rounded-2xl p-4">
                       <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1">Days Left</p>
                       <p className="text-sm font-semibold text-[#0a0a0a]">{subscriptionData.subscription.daysRemaining ?? '—'}</p>
                     </div>
-                    <div className="bg-white p-4">
+                    <div className="bg-neutral-50 border border-neutral-200/50 rounded-2xl p-4">
                       <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1">Auto Renew</p>
                       <p className={`text-sm font-semibold ${subscriptionData.subscription.autoRenew ? 'text-[#0a0a0a]' : 'text-neutral-400'}`}>
                         {subscriptionData.subscription.autoRenew ? 'Enabled' : 'Disabled'}
@@ -688,17 +688,17 @@ export default function ProfileSettingsPage() {
 
                   {/* Status Messages */}
                   {subscriptionData.subscription.status === 'CANCELED' && (
-                    <p className="text-sm text-neutral-500 bg-neutral-50 border border-neutral-200 p-4">
+                    <p className="text-sm text-neutral-500 bg-neutral-50 border border-neutral-200 p-5 rounded-3xl">
                       Your subscription has been cancelled. You retain access until {subscriptionData.subscription.endDate ? new Date(subscriptionData.subscription.endDate).toLocaleDateString() : 'expiry'}.
                     </p>
                   )}
                   {subscriptionData.subscription.status === 'EXPIRED' && (
-                    <p className="text-sm text-neutral-500 bg-neutral-50 border border-neutral-200 p-4">
+                    <p className="text-sm text-neutral-500 bg-neutral-50 border border-neutral-200 p-5 rounded-3xl">
                       Your subscription has expired. Subscribe to a new plan to regain access to premium features.
                     </p>
                   )}
                   {subscriptionData.subscription.status === 'PAST_DUE' && (
-                    <p className="text-sm text-neutral-500 bg-neutral-50 border border-neutral-200 p-4">
+                    <p className="text-sm text-neutral-500 bg-neutral-50 border border-neutral-200 p-5 rounded-3xl">
                       Your payment is pending approval. Your subscription will activate once payment is verified.
                     </p>
                   )}
@@ -709,7 +709,7 @@ export default function ProfileSettingsPage() {
                       <button
                         onClick={handleCancelSubscription}
                         disabled={cancellingSubscription}
-                        className="flex items-center gap-2 border border-neutral-200 text-neutral-600 px-5 py-3 font-semibold hover:bg-neutral-50 transition-colors disabled:opacity-50 text-sm"
+                        className="flex items-center gap-2 border border-neutral-200 text-neutral-600 px-5 py-3 font-semibold rounded-full hover:bg-neutral-50 transition-colors disabled:opacity-50 text-sm"
                       >
                         {cancellingSubscription ? <Loader2 className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4" />}
                         {cancellingSubscription ? 'Cancelling...' : 'Cancel Subscription'}
@@ -719,7 +719,7 @@ export default function ProfileSettingsPage() {
                       <button
                         onClick={handleRenewSubscription}
                         disabled={renewingSubscription}
-                        className="flex items-center gap-2 bg-[#0a0a0a] text-white px-5 py-3 font-semibold hover:bg-neutral-800 transition-colors disabled:opacity-50 text-sm"
+                        className="flex items-center gap-2 bg-[#0a0a0a] text-white px-5 py-3 font-semibold rounded-full hover:bg-neutral-800 transition-colors disabled:opacity-50 text-sm"
                       >
                         {renewingSubscription ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
                         {renewingSubscription ? 'Renewing...' : 'Renew Subscription'}
@@ -727,25 +727,25 @@ export default function ProfileSettingsPage() {
                     )}
                     {subscriptionData.subscription.status === 'EXPIRED' && (
                       <Link href={`/${locale}/pricing`}>
-                        <button className="flex items-center gap-2 bg-[#0a0a0a] text-white px-5 py-3 font-semibold hover:bg-neutral-800 transition-colors text-sm">
+                        <button className="flex items-center gap-2 bg-[#0a0a0a] text-white px-5 py-3 font-semibold rounded-full hover:bg-neutral-800 transition-colors text-sm">
                           <CreditCard className="h-4 w-4" />
                           Subscribe to New Plan
                         </button>
                       </Link>
                     )}
                     <Link href={`/${locale}/pricing`}>
-                      <button className="flex items-center gap-2 border border-neutral-200 text-neutral-600 px-5 py-3 font-semibold hover:bg-neutral-50 transition-colors text-sm">
+                      <button className="flex items-center gap-2 border border-neutral-200 text-neutral-600 px-5 py-3 font-semibold rounded-full hover:bg-neutral-50 transition-colors text-sm">
                         View Plans
                       </button>
                     </Link>
                   </div>
                 </div>
               ) : (
-                <div className="bg-neutral-50 border border-neutral-200 p-8 text-center">
+                <div className="bg-neutral-50 border border-neutral-200 p-8 text-center rounded-3xl">
                   <CreditCard className="h-8 w-8 text-neutral-300 mx-auto mb-3" />
                   <p className="text-sm text-neutral-500 mb-4">No active subscription found.</p>
                   <Link href={`/${locale}/pricing`}>
-                    <button className="inline-flex items-center gap-2 bg-[#0a0a0a] text-white px-6 py-3 font-semibold hover:bg-neutral-800 transition-colors text-sm">
+                    <button className="inline-flex items-center gap-2 bg-[#0a0a0a] text-white px-6 py-3 font-semibold rounded-full hover:bg-neutral-800 transition-colors text-sm">
                       <CreditCard className="h-4 w-4" />
                       Browse Subscription Plans
                     </button>
@@ -760,7 +760,7 @@ export default function ProfileSettingsPage() {
             <button
               onClick={handleSave}
               disabled={saving}
-              className="flex items-center gap-2 bg-[#0a0a0a] text-white px-8 py-4 font-semibold hover:bg-neutral-800 transition-colors disabled:opacity-50"
+              className="flex items-center gap-2 bg-[#0a0a0a] text-white px-8 py-4 font-semibold rounded-full hover:bg-neutral-800 transition-colors disabled:opacity-50"
             >
               {saving ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save className="h-5 w-5" />}
               {saving ? 'Saving...' : 'Save Changes'}

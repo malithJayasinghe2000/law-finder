@@ -5,15 +5,14 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { registerSchema, RegisterFormValues } from '@/schemas/auth.schema';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { Scale, Loader2 } from 'lucide-react';
+import { Scale, Loader2, CheckCircle2 } from 'lucide-react';
 import { FieldError } from '@/components/ui/FieldError';
 
 export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const { locale } = useParams();
-  const router = useRouter();
 
   useEffect(() => {
     fetch('/api/auth/session')
@@ -24,23 +23,26 @@ export default function RegisterPage() {
         }
       });
   }, [locale]);
+
   const { register, handleSubmit, formState: { errors } } = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema)
   });
-
 
   const onSubmit = async (data: RegisterFormValues) => {
     setLoading(true);
     try {
       const res = await fetch('/api/auth/register', {
-        method: 'POST', body: JSON.stringify(data)
+        method: 'POST', 
+        body: JSON.stringify(data)
       });
       const result = await res.json();
       
       if (!res.ok) throw new Error(result.error?.message || result.error || 'Registration failed');
       
-      toast.success('Account created successfully! Please log in.');
-      window.location.href = '/en/login';
+      toast.success('Account created successfully! Redirecting to login...');
+      setTimeout(() => {
+        window.location.href = `/${locale}/login`;
+      }, 1500);
     } catch (err: any) {
       toast.error(err.message);
     } finally {
@@ -49,83 +51,132 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="flex min-h-[85vh] items-center justify-center px-4 bg-background py-10">
-      <div className="w-full max-w-[420px]">
+    <div className="flex min-h-screen items-center justify-center px-4 bg-gradient-to-br from-white via-white to-[#fafafa] py-10">
+      <div className="w-full max-w-[520px]">
+        
         {/* Logo */}
-        <div className="mb-10 flex flex-col items-center gap-3">
-          <Link href={`/en`} className="flex items-center gap-2 group">
-            <div className="flex h-12 w-12 items-center justify-center rounded-none bg-[#0a0a0a] text-white shadow-md transition-transform group-hover:scale-105">
-              <Scale className="h-6 w-6" />
-            </div>
-            <span className="text-2xl font-semibold tracking-tight text-[#0a0a0a]">
-              LawFinder<span className="font-light opacity-60 ml-0.5">SL</span>
+        <div className="mb-12 flex flex-col items-center gap-4">
+          <Link href={`/${locale}`} className="flex items-center gap-3 group">
+            <Scale className="h-8 w-8 text-[#ffb84f]" />
+            <span className="text-xl font-bold tracking-[0.1em] uppercase text-[#ffb84f]">
+              Lawyer.ai
             </span>
           </Link>
+          <h2 className="text-3xl font-medium text-[#0a0d14] text-center">Create Your Account</h2>
+          <p className="text-center text-neutral-500 font-light">Join our legal network and connect with experts</p>
         </div>
 
-        <div className="bg-white p-10 rounded-none shadow-md border border-neutral-200">
-          <div className="mb-8 text-center">
-            <h1 className="text-[26px] font-semibold tracking-tight text-[#0a0a0a] mb-2">Create Account</h1>
-            <p className="text-[15px] font-light text-neutral-500">Join the digital legal network.</p>
-          </div>
-
+        {/* Form Card */}
+        <div className="bg-white p-10 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-neutral-100">
+          
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+            
+            {/* Full Name Field */}
             <div className="space-y-2">
-              <label className="text-[13px] font-semibold text-neutral-900 uppercase tracking-wide">Full Name</label>
+              <label className="block text-sm font-semibold text-[#0a0d14] mb-2">Full Name</label>
               <input
                 type="text"
                 placeholder="John Doe"
                 {...register('fullName')}
-                className="w-full bg-neutral-50 border border-neutral-200 text-[#0a0a0a] px-4 py-3.5 rounded-none outline-none focus:border-[#0a0a0a] focus:bg-white transition-all shadow-sm"
+                className="w-full bg-neutral-50 border border-neutral-200 text-[#0a0d14] px-4 py-3.5 rounded-xl outline-none focus:border-[#ffb84f] focus:bg-white focus:ring-2 focus:ring-[#ffb84f]/20 transition-all font-light"
               />
               <FieldError message={errors.fullName?.message} />
             </div>
 
+            {/* Email Field */}
             <div className="space-y-2">
-              <label className="text-[13px] font-semibold text-neutral-900 uppercase tracking-wide">Email</label>
+              <label className="block text-sm font-semibold text-[#0a0d14] mb-2">Email Address</label>
               <input
                 type="email"
                 placeholder="hello@example.com"
                 {...register('email')}
-                className="w-full bg-neutral-50 border border-neutral-200 text-[#0a0a0a] px-4 py-3.5 rounded-none outline-none focus:border-[#0a0a0a] focus:bg-white transition-all shadow-sm"
+                className="w-full bg-neutral-50 border border-neutral-200 text-[#0a0d14] px-4 py-3.5 rounded-xl outline-none focus:border-[#ffb84f] focus:bg-white focus:ring-2 focus:ring-[#ffb84f]/20 transition-all font-light"
               />
               <FieldError message={errors.email?.message} />
             </div>
 
+            {/* Password Field */}
             <div className="space-y-2">
-              <label className="text-[13px] font-semibold text-neutral-900 uppercase tracking-wide">Password</label>
+              <label className="block text-sm font-semibold text-[#0a0d14] mb-2">Password</label>
               <input
                 type="password"
                 placeholder="••••••••"
                 {...register('password')}
-                className="w-full bg-neutral-50 border border-neutral-200 text-[#0a0a0a] px-4 py-3.5 rounded-none outline-none focus:border-[#0a0a0a] focus:bg-white transition-all shadow-sm"
+                className="w-full bg-neutral-50 border border-neutral-200 text-[#0a0d14] px-4 py-3.5 rounded-xl outline-none focus:border-[#ffb84f] focus:bg-white focus:ring-2 focus:ring-[#ffb84f]/20 transition-all font-light"
               />
               <FieldError message={errors.password?.message} />
+              <p className="text-xs text-neutral-500 font-light mt-2">
+                At least 8 characters with uppercase, lowercase, and numbers
+              </p>
             </div>
 
+            {/* Confirm Password Field */}
             <div className="space-y-2">
-              <label className="text-[13px] font-semibold text-neutral-900 uppercase tracking-wide">Confirm Password</label>
+              <label className="block text-sm font-semibold text-[#0a0d14] mb-2">Confirm Password</label>
               <input
                 type="password"
                 placeholder="••••••••"
                 {...register('confirmPassword')}
-                className="w-full bg-neutral-50 border border-neutral-200 text-[#0a0a0a] px-4 py-3.5 rounded-none outline-none focus:border-[#0a0a0a] focus:bg-white transition-all shadow-sm"
+                className="w-full bg-neutral-50 border border-neutral-200 text-[#0a0d14] px-4 py-3.5 rounded-xl outline-none focus:border-[#ffb84f] focus:bg-white focus:ring-2 focus:ring-[#ffb84f]/20 transition-all font-light"
               />
               <FieldError message={errors.confirmPassword?.message} />
             </div>
 
-            <button type="submit" disabled={loading} className="w-full flex items-center justify-center gap-2 bg-[#0a0a0a] text-white py-4 rounded-none font-medium hover:bg-neutral-800 transition-colors mt-6 disabled:opacity-70">
-              {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : null}
-              {loading ? 'Creating...' : 'Create Account'}
+            {/* Terms Agreement */}
+            <div className="flex items-start gap-3 py-4 px-3 bg-neutral-50 rounded-lg">
+              <CheckCircle2 className="h-5 w-5 text-[#ffb84f] mt-0.5 flex-shrink-0" />
+              <p className="text-xs text-neutral-600 font-light">
+                By creating an account, you agree to our{' '}
+                <Link href={`/${locale}`} className="font-medium text-[#0a0d14] hover:text-[#ffb84f]">
+                  Terms of Service
+                </Link>
+                {' '}and{' '}
+                <Link href={`/${locale}`} className="font-medium text-[#0a0d14] hover:text-[#ffb84f]">
+                  Privacy Policy
+                </Link>
+              </p>
+            </div>
+
+            {/* Submit Button */}
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full flex items-center justify-center gap-2 bg-[#ffb84f] text-black py-3.5 rounded-full font-bold hover:bg-[#e5a443] transition-all disabled:opacity-70 text-sm tracking-wide uppercase mt-6"
+            >
+              {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <CheckCircle2 className="h-5 w-5" />}
+              {loading ? 'Creating Account...' : 'Create Account'}
             </button>
           </form>
-          
-          <p className="text-center text-[15px] text-neutral-600 mt-6 font-light">
+
+          {/* Sign In Link */}
+          <p className="text-center text-sm text-neutral-600 mt-8 font-light">
             Already have an account?{' '}
-            <Link href={`/en/login`} className="font-medium text-[#0a0a0a] hover:underline">
-              Sign in
+            <Link href={`/${locale}/login`} className="font-bold text-[#ffb84f] hover:text-[#e5a443] transition-colors">
+              Sign In Here
             </Link>
           </p>
+        </div>
+
+        {/* Features */}
+        <div className="mt-10 grid grid-cols-3 gap-4">
+          <div className="text-center">
+            <div className="h-10 w-10 rounded-full bg-[#ffb84f]/10 flex items-center justify-center mx-auto mb-2">
+              <CheckCircle2 className="h-5 w-5 text-[#ffb84f]" />
+            </div>
+            <p className="text-xs font-medium text-neutral-700">Instant Signup</p>
+          </div>
+          <div className="text-center">
+            <div className="h-10 w-10 rounded-full bg-[#ffb84f]/10 flex items-center justify-center mx-auto mb-2">
+              <CheckCircle2 className="h-5 w-5 text-[#ffb84f]" />
+            </div>
+            <p className="text-xs font-medium text-neutral-700">Secure & Safe</p>
+          </div>
+          <div className="text-center">
+            <div className="h-10 w-10 rounded-full bg-[#ffb84f]/10 flex items-center justify-center mx-auto mb-2">
+              <CheckCircle2 className="h-5 w-5 text-[#ffb84f]" />
+            </div>
+            <p className="text-xs font-medium text-neutral-700">Free to Start</p>
+          </div>
         </div>
       </div>
     </div>

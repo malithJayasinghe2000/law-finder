@@ -184,7 +184,7 @@ export default function OfflinePaymentClient({ locale, invoice }: OfflinePayment
               Provide your bank transfer details. Our team will verify within 24–48 hours.
             </p>
           </div>
-          <div className="flex items-center gap-3 bg-neutral-50 border border-neutral-200 px-5 py-3">
+          <div className="flex items-center gap-3 bg-neutral-50 border border-neutral-200 px-5 py-3 rounded-3xl">
             <div>
               <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest">Payable Amount</p>
               <p className="text-xl font-bold tracking-tight text-[#0a0a0a]">LKR {invoice.amount.toLocaleString()}.00</p>
@@ -200,7 +200,7 @@ export default function OfflinePaymentClient({ locale, invoice }: OfflinePayment
           
           {/* LEFT COLUMN: Form */}
           <div className="lg:col-span-8 flex flex-col gap-8">
-            <Card className="rounded-none border-none shadow-2xl overflow-hidden">
+            <Card className="rounded-3xl border-none shadow-2xl overflow-hidden bg-white">
               <div className="h-2 bg-black w-full" />
               <CardHeader className="bg-white pb-8 pt-10 border-b border-neutral-100">
                 <div className="flex items-center justify-between">
@@ -231,7 +231,7 @@ export default function OfflinePaymentClient({ locale, invoice }: OfflinePayment
                           {...register('bankName')}
                           placeholder="e.g. Commercial Bank, BOC, Sampath"
                           disabled={isSubmitting || isReadonly}
-                          className="rounded-none h-12 border-neutral-200 focus:ring-black focus:border-black"
+                          className="rounded-3xl h-12 border-neutral-200 focus:ring-black focus:border-black"
                         />
                         {errors.bankName && <FieldError message={errors.bankName.message} />}
                       </div>
@@ -243,7 +243,7 @@ export default function OfflinePaymentClient({ locale, invoice }: OfflinePayment
                           {...register('accountHolder')}
                           placeholder="Name as on deposit slip"
                           disabled={isSubmitting || isReadonly}
-                          className="rounded-none h-12 border-neutral-200 focus:ring-black focus:border-black"
+                          className="rounded-3xl h-12 border-neutral-200 focus:ring-black focus:border-black"
                         />
                         {errors.accountHolder && <FieldError message={errors.accountHolder.message} />}
                       </div>
@@ -256,7 +256,7 @@ export default function OfflinePaymentClient({ locale, invoice }: OfflinePayment
                         {...register('accountNumber')}
                         placeholder="Enter the account number from which payment was made"
                         disabled={isSubmitting || isReadonly}
-                        className="rounded-none h-12 border-neutral-200 focus:ring-black focus:border-black"
+                        className="rounded-3xl h-12 border-neutral-200 focus:ring-black focus:border-black"
                       />
                       {errors.accountNumber && <FieldError message={errors.accountNumber.message} />}
                     </div>
@@ -279,7 +279,7 @@ export default function OfflinePaymentClient({ locale, invoice }: OfflinePayment
                           type="datetime-local"
                           {...register('transactionDate')}
                           disabled={isSubmitting || isReadonly}
-                          className="rounded-none h-12 border-neutral-200 focus:ring-black focus:border-black"
+                          className="rounded-3xl h-12 border-neutral-200 focus:ring-black focus:border-black"
                         />
                         {errors.transactionDate && <FieldError message={errors.transactionDate.message} />}
                       </div>
@@ -291,7 +291,7 @@ export default function OfflinePaymentClient({ locale, invoice }: OfflinePayment
                           {...register('transactionId')}
                           placeholder="e.g. TX-2938491"
                           disabled={isSubmitting || isReadonly}
-                          className="rounded-none h-12 border-neutral-200 focus:ring-black focus:border-black font-mono"
+                          className="rounded-3xl h-12 border-neutral-200 focus:ring-black focus:border-black font-mono"
                         />
                         {errors.transactionId && <FieldError message={errors.transactionId.message} />}
                       </div>
@@ -306,7 +306,7 @@ export default function OfflinePaymentClient({ locale, invoice }: OfflinePayment
                           {...register('amount', { valueAsNumber: true })}
                           placeholder={invoice.amount.toString()}
                           disabled={isSubmitting || isReadonly}
-                          className="rounded-none h-12 border-neutral-200 focus:ring-black focus:border-black pl-12 font-black text-lg"
+                          className="rounded-3xl h-12 border-neutral-200 focus:ring-black focus:border-black pl-12 font-black text-lg"
                         />
                         <div className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-neutral-400 text-xs">LKR</div>
                       </div>
@@ -327,7 +327,7 @@ export default function OfflinePaymentClient({ locale, invoice }: OfflinePayment
                       <Label className="text-[10px] font-black uppercase text-neutral-500 tracking-widest">Upload Receipt Image / Screenshot *</Label>
                       <div
                         onClick={() => fileInputRef.current?.click()}
-                        className={`group relative border-2 border-dashed rounded-none p-12 text-center transition-all duration-300 ${
+                        className={`group relative border-2 border-dashed rounded-3xl p-12 text-center transition-all duration-300 ${
                           selectedFile 
                             ? 'border-green-500 bg-green-50/30' 
                             : 'border-neutral-200 hover:border-black hover:bg-neutral-50 cursor-pointer'
@@ -378,7 +378,7 @@ export default function OfflinePaymentClient({ locale, invoice }: OfflinePayment
                         placeholder="Optional details for our accounts team..."
                         rows={3}
                         disabled={isSubmitting || isReadonly}
-                        className="rounded-none border-neutral-200 focus:ring-black focus:border-black"
+                        className="rounded-3xl border-neutral-200 focus:ring-black focus:border-black"
                       />
                     </div>
                   </div>
@@ -389,18 +389,18 @@ export default function OfflinePaymentClient({ locale, invoice }: OfflinePayment
                       <Button
                         type="submit"
                         disabled={isSubmitting || isReadonly}
-                        className="w-full h-16 bg-black text-white hover:bg-neutral-800 rounded-none uppercase font-black tracking-[0.2em] transition-all shadow-xl disabled:bg-neutral-400 group relative overflow-hidden"
+                        className="w-full h-16 bg-[#ffb84f] text-black hover:bg-[#e5a443] rounded-full uppercase font-black tracking-[0.2em] transition-all shadow-xl disabled:bg-neutral-400 group relative overflow-hidden"
                       >
                         <span className="relative z-10 flex items-center justify-center gap-3">
                           {isSubmitting ? (
                             <>
-                              <Clock className="w-5 h-5 animate-spin" />
+                              <Clock className="w-5 h-5 animate-spin text-black" />
                               Processing Submission...
                             </>
                           ) : (
                             <>
                               Submit Payment for Review
-                              <ArrowLeft className="w-5 h-5 rotate-180 transition-transform group-hover:translate-x-2" />
+                              <ArrowLeft className="w-5 h-5 rotate-180 transition-transform group-hover:translate-x-2 text-black" />
                             </>
                           )}
                         </span>
@@ -419,7 +419,7 @@ export default function OfflinePaymentClient({ locale, invoice }: OfflinePayment
           <div className="lg:col-span-4 space-y-8">
                         {/* Remarks History */}
             {invoice.remarks && invoice.remarks.length > 0 && (
-              <Card className="rounded-none border-none shadow-xl bg-yellow-50 overflow-hidden relative">
+              <Card className="rounded-3xl border-none shadow-xl bg-yellow-50 overflow-hidden relative">
                 <div className="h-1 bg-yellow-400" />
                 <CardHeader className="pb-4">
                   <CardTitle className="text-xs font-black uppercase tracking-widest text-yellow-800 flex items-center gap-2">
@@ -428,7 +428,7 @@ export default function OfflinePaymentClient({ locale, invoice }: OfflinePayment
                 </CardHeader>
                 <CardContent className="space-y-3 pb-6">
                   {invoice.remarks.slice(0, 3).map((remark: any) => (
-                    <div key={remark.id} className="bg-white border text-sm font-medium border-yellow-200 p-4 relative shadow-sm">
+                    <div key={remark.id} className="bg-white border text-sm font-medium border-yellow-200 p-4 relative shadow-sm rounded-2xl">
                       <p className="text-yellow-900 whitespace-pre-wrap">{remark.remark}</p>
                       <p className="text-[9px] text-yellow-600 font-bold uppercase mt-2 tracking-widest">
                         {new Date(remark.createdAt).toLocaleString()}
@@ -439,13 +439,13 @@ export default function OfflinePaymentClient({ locale, invoice }: OfflinePayment
               </Card>
             )}
             {/* Our Bank Details */}
-            <Card className="rounded-none border-none shadow-xl bg-black text-white p-8 relative overflow-hidden">
+            <Card className="rounded-3xl border-none shadow-xl bg-[#0d1017] text-white p-8 relative overflow-hidden">
               <div className="absolute top-0 right-0 p-4 opacity-10">
-                <ShieldCheck className="w-32 h-32" />
+                <ShieldCheck className="w-32 h-32 text-white" />
               </div>
               <div className="relative z-10 space-y-8">
                 <div>
-                  <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-neutral-500 mb-6 underline decoration-primary decoration-2 underline-offset-8">Deposit To</h3>
+                  <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-[#ffb84f] mb-6 underline decoration-primary decoration-2 underline-offset-8">Deposit To</h3>
                   <div className="space-y-6">
                     <div>
                       <p className="text-[10px] font-black text-neutral-400 uppercase mb-1">Bank Name</p>
@@ -467,12 +467,12 @@ export default function OfflinePaymentClient({ locale, invoice }: OfflinePayment
                 </div>
 
                 <div className="pt-8 border-t border-white/10 space-y-4">
-                  <div className="flex items-start gap-3 bg-white/5 p-4 rounded-none border border-white/10">
+                  <div className="flex items-start gap-3 bg-white/5 p-4 rounded-2xl border border-white/10">
                     <Info className="w-5 h-5 text-red-400 shrink-0" />
                     <div>
                       <p className="text-[10px] font-black uppercase text-red-300 mb-1">Critical Requirement</p>
                       <p className="text-[11px] text-neutral-400 font-medium leading-relaxed uppercase">
-                        Reference Number <span className="text-white font-bold tracking-widest">#{invoice.id.substring(0, 8).toUpperCase()}</span> must be mentioned on the deposit slip or transaction description.
+                        Reference Number <span className="text-[#ffb84f] font-bold tracking-widest">#{invoice.id.substring(0, 8).toUpperCase()}</span> must be mentioned on the deposit slip or transaction description.
                       </p>
                     </div>
                   </div>
@@ -481,7 +481,7 @@ export default function OfflinePaymentClient({ locale, invoice }: OfflinePayment
             </Card>
 
             {/* Verification Process Card */}
-            <Card className="rounded-none border-none shadow-lg bg-white p-6">
+            <Card className="rounded-3xl border border-neutral-200/50 shadow-lg bg-white p-6">
               <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-neutral-400 mb-6">Verification Process</h3>
               <div className="space-y-6">
                 <div className="flex gap-4">
@@ -515,11 +515,11 @@ export default function OfflinePaymentClient({ locale, invoice }: OfflinePayment
             </Card>
 
             {/* Subscription Detail Sidebar */}
-            <Card className="rounded-none border-none shadow-lg bg-white p-6">
+            <Card className="rounded-3xl border border-neutral-200/50 shadow-lg bg-white p-6">
               <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-neutral-400 mb-4">{invoice.plan ? 'Subscription Plan' : 'Invoice Details'}</h4>
-              <div className="bg-neutral-50 p-4 border border-neutral-100 text-center">
+              <div className="bg-neutral-50 p-4 border border-neutral-100 text-center rounded-2xl">
                 <div className="text-black font-black text-xl uppercase tracking-tighter">{invoice.plan?.name || invoice.paymentReason || 'Invoice Payment'}</div>
-                <Badge variant="outline" className="mt-2 bg-white text-[10px] font-black uppercase tracking-widest border-black/5">
+                <Badge variant="outline" className="mt-2 bg-white text-[10px] font-black uppercase tracking-widest border-black/5 rounded-full">
                   {invoice.plan ? 'Professional Subscription' : 'Ad Campaign'}
                 </Badge>
               </div>

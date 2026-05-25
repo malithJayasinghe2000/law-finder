@@ -134,10 +134,10 @@ export default function ApplicationClientForm({ locale, initialStep, initialData
     }
   };
 
-  const inputClass = "w-full bg-neutral-50 border border-neutral-200 p-4 rounded-none outline-none focus:ring-0 focus:border-[#0a0a0a] transition-all font-medium text-[#0a0a0a]";
+  const inputClass = "w-full bg-neutral-50 border border-neutral-200 p-4 rounded-3xl outline-none focus:ring-0 focus:border-[#0a0a0a] transition-all font-medium text-[#0a0a0a]";
 
   return (
-    <div className="bg-white rounded-none shadow-md border border-neutral-200 p-8 sm:p-12 transition-all">
+    <div className="bg-white rounded-3xl shadow-2xl border border-neutral-200/50 p-8 sm:p-12 transition-all">
       <div className="mb-10 text-center">
         <h1 className="text-[28px] font-semibold text-[#0a0a0a] tracking-tight">Attorney Application</h1>
         <p className="text-neutral-500 mt-1 font-light">BASL Verified professionals only.</p>
@@ -150,7 +150,7 @@ export default function ApplicationClientForm({ locale, initialStep, initialData
         { s: 3, label: 'Specializations' },
         { s: 4, label: 'Verification' }].map(i => (
           <div key={i.s} className={`relative z-10 flex flex-col items-center gap-3 transition-colors ${step >= i.s ? 'text-[#0a0a0a]' : 'text-neutral-400'}`}>
-            <div className={`w-10 h-10 rounded-none flex items-center justify-center font-bold border-4 border-white transition-all duration-300 ${step >= i.s ? 'bg-[#0a0a0a] text-white scale-110' : 'bg-neutral-200 text-neutral-500'}`}>
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold border-4 border-white transition-all duration-300 ${step >= i.s ? 'bg-[#0a0a0a] text-white scale-110' : 'bg-neutral-200 text-neutral-500'}`}>
               {i.s}
             </div>
           </div>
@@ -193,7 +193,7 @@ export default function ApplicationClientForm({ locale, initialStep, initialData
                           : [...current, lang];
                         setFormData({ ...formData, step1: { ...formData.step1, languages: next } });
                       }}
-                      className={`px-6 py-3 text-sm font-medium transition-all duration-200 border-none rounded-none shadow-none focus:outline-none ${(formData.step1.languages || []).includes(lang)
+                      className={`px-6 py-3 text-sm font-medium transition-all duration-200 border-none rounded-full shadow-none focus:outline-none ${(formData.step1.languages || []).includes(lang)
                           ? 'bg-[#0a0a0a] text-white'
                           : 'bg-neutral-100 text-neutral-500 hover:bg-neutral-200'
                         }`}
@@ -221,7 +221,7 @@ export default function ApplicationClientForm({ locale, initialStep, initialData
               <label className="block text-[13px] font-semibold mb-2 text-neutral-900 uppercase">Short Bio / Description</label>
               <textarea placeholder="Brief summary of your legal profile..." value={formData.step1?.bio || ''} onChange={(e) => setFormData({ ...formData, step1: { ...formData.step1, bio: e.target.value } })} className={`${inputClass} min-h-[100px] resize-none`} />
             </div>
-            <Button onClick={() => handleSaveDraft(2)} disabled={loading} className="w-full h-14 text-sm font-semibold mt-4 bg-[#0a0a0a] hover:bg-neutral-800 rounded-none uppercase tracking-wide">Save & Continue</Button>
+            <Button onClick={() => handleSaveDraft(2)} disabled={loading} className="w-full h-14 text-sm font-semibold mt-4 bg-[#0a0a0a] hover:bg-neutral-800 rounded-full uppercase tracking-wide">Save & Continue</Button>
           </div>
         )}
 
@@ -262,13 +262,13 @@ export default function ApplicationClientForm({ locale, initialStep, initialData
                 <option value="Other">Other</option>
               </select>
             </div>
-            <div className="flex items-center gap-3 bg-neutral-50 p-4 border border-neutral-200">
+            <div className="flex items-center gap-3 bg-neutral-50 p-4 border border-neutral-200 rounded-2xl">
               <input type="checkbox" checked={formData.step2?.isNotary} onChange={(e) => setFormData({ ...formData, step2: { ...formData.step2, isNotary: e.target.checked } })} className="w-5 h-5 accent-[#0a0a0a]" id="isNotary" />
               <label htmlFor="isNotary" className="text-[13px] font-bold text-neutral-900 uppercase cursor-pointer">I am a sworn Notary Public</label>
             </div>
             <div className="flex gap-4 mt-6">
-              <Button onClick={() => handleSaveDraft(1)} variant="outline" disabled={loading} className="w-1/3 h-14 rounded-none font-semibold uppercase tracking-wide border-neutral-300">Back</Button>
-              <Button onClick={() => handleSaveDraft(3)} disabled={loading} className="w-2/3 h-14 text-sm font-semibold bg-[#0a0a0a] hover:bg-neutral-800 rounded-none uppercase tracking-wide">Save & Continue</Button>
+              <Button onClick={() => handleSaveDraft(1)} variant="outline" disabled={loading} className="w-1/3 h-14 rounded-full font-semibold uppercase tracking-wide border-neutral-300">Back</Button>
+              <Button onClick={() => handleSaveDraft(3)} disabled={loading} className="w-2/3 h-14 text-sm font-semibold bg-[#0a0a0a] hover:bg-neutral-800 rounded-full uppercase tracking-wide">Save & Continue</Button>
             </div>
           </div>
         )}
@@ -294,7 +294,7 @@ export default function ApplicationClientForm({ locale, initialStep, initialData
                         : [...current, area];
                       setFormData({ ...formData, step3: { ...formData.step3, practiceAreas: next } });
                     }}
-                    className={`px-5 py-3 text-sm font-medium transition-all duration-200 border-none rounded-none shadow-none focus:outline-none ${(formData.step3.practiceAreas || []).includes(area)
+                    className={`px-5 py-3 text-sm font-medium transition-all duration-200 border-none rounded-full shadow-none focus:outline-none ${(formData.step3.practiceAreas || []).includes(area)
                         ? 'bg-[#0a0a0a] text-white'
                         : 'bg-neutral-50 text-neutral-500 hover:bg-neutral-100'
                       }`}
@@ -310,8 +310,8 @@ export default function ApplicationClientForm({ locale, initialStep, initialData
               <input type="text" placeholder="e.g. 5,000 LKR / hr" value={formData.step3?.baseFeeRange || ''} onChange={(e) => setFormData({ ...formData, step3: { ...formData.step3, baseFeeRange: e.target.value } })} className={inputClass} />
             </div>
             <div className="flex gap-4 mt-6">
-              <Button onClick={() => handleSaveDraft(2)} variant="outline" disabled={loading} className="w-1/3 h-14 rounded-none font-semibold uppercase tracking-wide border-neutral-300">Back</Button>
-              <Button onClick={() => handleSaveDraft(4)} disabled={loading} className="w-2/3 h-14 text-sm font-semibold bg-[#0a0a0a] hover:bg-neutral-800 rounded-none uppercase tracking-wide">Save Securely</Button>
+              <Button onClick={() => handleSaveDraft(2)} variant="outline" disabled={loading} className="w-1/3 h-14 rounded-full font-semibold uppercase tracking-wide border-neutral-300">Back</Button>
+              <Button onClick={() => handleSaveDraft(4)} disabled={loading} className="w-2/3 h-14 text-sm font-semibold bg-[#0a0a0a] hover:bg-neutral-800 rounded-full uppercase tracking-wide">Save Securely</Button>
             </div>
           </div>
         )}
@@ -320,40 +320,40 @@ export default function ApplicationClientForm({ locale, initialStep, initialData
           <div className="animate-in fade-in zoom-in-95 duration-500 flex flex-col gap-6">
             <h2 className="text-xl font-semibold tracking-tight uppercase text-neutral-800">4. Final Verification</h2>
 
-            <div className="p-6 border border-neutral-200 bg-neutral-50 flex flex-col gap-4">
+            <div className="p-6 border border-neutral-200 bg-neutral-50 rounded-3xl flex flex-col gap-4">
               <div>
                 <h3 className="font-semibold text-sm uppercase mb-1 flex items-center gap-2"><Scale className="w-4 h-4" /> Attorney License Document</h3>
                 <p className="text-xs text-neutral-600 mb-3">Upload a clean image or PDF scan of your verified License certificate.</p>
-                <input type="file" accept="image/*,application/pdf" onChange={handleLicenseUpload} className="text-sm file:mr-4 file:py-2 file:px-4 file:rounded-none file:border-0 file:text-sm file:font-semibold file:bg-[#0a0a0a] file:text-white hover:file:bg-neutral-800 transition-all cursor-pointer" />
+                <input type="file" accept="image/*,application/pdf" onChange={handleLicenseUpload} className="text-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-[#0a0a0a] file:text-white hover:file:bg-neutral-800 transition-all cursor-pointer" />
                 {formData.step4?.licenseImage && <span className="ml-3 text-xs font-bold text-green-700">✓ Attached</span>}
               </div>
             </div>
 
-            <div className="p-6 border border-neutral-200 bg-neutral-50 flex flex-col items-center gap-4 text-center">
+            <div className="p-6 border border-neutral-200 bg-neutral-50 rounded-3xl flex flex-col items-center gap-4 text-center">
               <div>
                 <h3 className="font-semibold text-sm uppercase mb-1 flex items-center justify-center gap-2"><CameraIcon className="w-4 h-4" /> Live Identity Verification</h3>
                 <p className="text-xs text-neutral-600 mb-3">Please grant camera access to match your ID with a live face image.</p>
               </div>
 
               {!stream && !formData.step4?.identityImage && (
-                <Button type="button" onClick={startCamera} variant="outline" className="rounded-none border-[#0a0a0a] text-[#0a0a0a] font-bold h-12 px-6">
+                <Button type="button" onClick={startCamera} variant="outline" className="rounded-full border-[#0a0a0a] text-[#0a0a0a] font-bold h-12 px-6">
                   Launch Secure Camera
                 </Button>
               )}
 
               {stream && (
                 <div className="flex flex-col items-center gap-4">
-                  <video ref={videoRef} autoPlay playsInline muted className="w-64 h-48 bg-black object-cover border-4 border-white shadow-xl" />
+                  <video ref={videoRef} autoPlay playsInline muted className="w-64 h-48 bg-black object-cover border-4 border-white shadow-xl rounded-3xl overflow-hidden" />
                   <div className="flex gap-2">
-                    <Button type="button" onClick={captureFace} className="rounded-none bg-[#0a0a0a] text-white">Capture Match</Button>
-                    <Button type="button" variant="outline" onClick={stopCamera} className="rounded-none">Discard</Button>
+                    <Button type="button" onClick={captureFace} className="rounded-full bg-[#0a0a0a] text-white">Capture Match</Button>
+                    <Button type="button" variant="outline" onClick={stopCamera} className="rounded-full">Discard</Button>
                   </div>
                 </div>
               )}
 
               {formData.step4?.identityImage && !stream && (
                 <div className="flex flex-col items-center gap-3">
-                  <img src={formData.step4.identityImage} alt="Identity Secure Match" className="w-32 h-32 object-cover border-4 border-white shadow-sm" />
+                  <img src={formData.step4.identityImage} alt="Identity Secure Match" className="w-32 h-32 object-cover border-4 border-white shadow-sm rounded-3xl" />
                   <span className="text-xs font-bold text-green-700 uppercase tracking-wide">✓ Authorized Face Match</span>
                   <button type="button" onClick={() => setFormData((p: any) => ({ ...p, step4: { ...p.step4, identityImage: '' } }))} className="text-xs font-semibold underline text-red-600">Retake</button>
                 </div>
@@ -361,8 +361,8 @@ export default function ApplicationClientForm({ locale, initialStep, initialData
             </div>
 
             <div className="flex gap-4 mt-6">
-              <Button onClick={() => handleSaveDraft(3)} variant="outline" disabled={loading} className="w-1/3 h-14 rounded-none font-semibold uppercase tracking-wide border-neutral-300">Back</Button>
-              <Button onClick={handleSubmitFinal} disabled={loading} className="w-2/3 h-14 text-sm font-semibold bg-[#0a0a0a] hover:bg-neutral-800 text-white rounded-none uppercase tracking-wide">Submit Verification</Button>
+              <Button onClick={() => handleSaveDraft(3)} variant="outline" disabled={loading} className="w-1/3 h-14 rounded-full font-semibold uppercase tracking-wide border-neutral-300">Back</Button>
+              <Button onClick={handleSubmitFinal} disabled={loading} className="w-2/3 h-14 text-sm font-semibold bg-[#0a0a0a] hover:bg-neutral-800 text-white rounded-full uppercase tracking-wide">Submit Verification</Button>
             </div>
           </div>
         )}

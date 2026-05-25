@@ -1,45 +1,42 @@
 import Link from 'next/link';
 import { Scale, Mail, MapPin, Phone } from 'lucide-react';
-import { Separator } from '@/components/ui/separator';
 
 export default function Footer({ locale }: { locale: string }) {
   const year = new Date().getFullYear();
 
   return (
-    <footer className="border-t bg-card">
-      <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6">
+    <footer className="bg-[#0a0d14] text-white border-t border-white/10">
+      <div className="mx-auto max-w-[1400px] px-6 lg:px-12 xl:px-24 py-16">
         <div className="grid grid-cols-1 gap-10 sm:grid-cols-2 lg:grid-cols-4">
           {/* Brand */}
           <div className="flex flex-col gap-4">
-            <Link href={`/${locale}`} className="flex items-center gap-2.5">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                <Scale className="h-5 w-5" />
-              </div>
-              <span className="text-lg font-bold tracking-tight">
-                LawFinder<span className="text-muted-foreground font-normal ml-0.5">SL</span>
+            <Link href={`/${locale}`} className="flex items-center gap-3">
+              <Scale className="h-6 w-6 text-[#ffb84f]" />
+              <span className="text-base font-bold tracking-[0.1em] uppercase text-[#ffb84f]">
+                Lawyer.ai
               </span>
             </Link>
-            <p className="text-sm leading-relaxed text-muted-foreground">
-              Sri Lanka&apos;s trusted platform connecting citizens with verified legal professionals across all districts.
+            <p className="text-sm leading-relaxed text-white/50 font-light">
+              Sri Lanka&apos;s trusted AI platform connecting citizens with verified legal professionals.
             </p>
           </div>
 
           {/* Quick Links */}
           <div>
-            <h4 className="mb-4 text-sm font-semibold uppercase tracking-wider text-foreground">Platform</h4>
-            <ul className="flex flex-col gap-2.5">
+            <h4 className="mb-4 text-xs font-bold uppercase tracking-[0.15em] text-white">Platform</h4>
+            <ul className="flex flex-col gap-3">
               <li>
-                <Link href={`/${locale}/lawyers`} className="text-sm text-muted-foreground transition-colors hover:text-foreground">
+                <Link href={`/${locale}/lawyers`} className="text-sm text-white/60 font-light transition-colors hover:text-white">
                   Lawyer Directory
                 </Link>
               </li>
               <li>
-                <Link href={`/${locale}/blog`} className="text-sm text-muted-foreground transition-colors hover:text-foreground">
+                <Link href={`/${locale}/blog`} className="text-sm text-white/60 font-light transition-colors hover:text-white">
                   Legal Insights
                 </Link>
               </li>
               <li>
-                <Link href={`/${locale}/register`} className="text-sm text-muted-foreground transition-colors hover:text-foreground">
+                <Link href={`/${locale}/register`} className="text-sm text-white/60 font-light transition-colors hover:text-white">
                   Join as a Lawyer
                 </Link>
               </li>
@@ -48,47 +45,45 @@ export default function Footer({ locale }: { locale: string }) {
 
           {/* Legal */}
           <div>
-            <h4 className="mb-4 text-sm font-semibold uppercase tracking-wider text-foreground">Legal</h4>
-            <ul className="flex flex-col gap-2.5">
+            <h4 className="mb-4 text-xs font-bold uppercase tracking-[0.15em] text-white">Legal</h4>
+            <ul className="flex flex-col gap-3">
               <li>
-                <span className="text-sm text-muted-foreground">Terms of Service</span>
+                <span className="text-sm text-white/60 font-light cursor-pointer hover:text-white transition-colors">Terms of Service</span>
               </li>
               <li>
-                <span className="text-sm text-muted-foreground">Privacy Policy</span>
+                <span className="text-sm text-white/60 font-light cursor-pointer hover:text-white transition-colors">Privacy Policy</span>
               </li>
               <li>
-                <span className="text-sm text-muted-foreground">Cookie Policy</span>
+                <span className="text-sm text-white/60 font-light cursor-pointer hover:text-white transition-colors">Cookie Policy</span>
               </li>
             </ul>
           </div>
 
           {/* Contact */}
           <div>
-            <h4 className="mb-4 text-sm font-semibold uppercase tracking-wider text-foreground">Contact</h4>
+            <h4 className="mb-4 text-xs font-bold uppercase tracking-[0.15em] text-white">Contact</h4>
             <ul className="flex flex-col gap-3">
-              <li className="flex items-center gap-2.5 text-sm text-muted-foreground">
-                <MapPin className="h-4 w-4 shrink-0" />
+              <li className="flex items-center gap-3 text-sm text-white/60 font-light">
+                <MapPin className="h-4 w-4 shrink-0 text-[#ffb84f]" />
                 Colombo, Sri Lanka
               </li>
-              <li className="flex items-center gap-2.5 text-sm text-muted-foreground">
-                <Mail className="h-4 w-4 shrink-0" />
-                hello@lawfinder.lk
+              <li className="flex items-center gap-3 text-sm text-white/60 font-light">
+                <Mail className="h-4 w-4 shrink-0 text-[#ffb84f]" />
+                hello@lawyer.ai
               </li>
-              <li className="flex items-center gap-2.5 text-sm text-muted-foreground">
-                <Phone className="h-4 w-4 shrink-0" />
+              <li className="flex items-center gap-3 text-sm text-white/60 font-light">
+                <Phone className="h-4 w-4 shrink-0 text-[#ffb84f]" />
                 +94 11 234 5678
               </li>
             </ul>
           </div>
         </div>
 
-        <Separator className="my-8" />
-
-        <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
-          <p className="text-xs text-muted-foreground">
-            {year} LawFinder SL. Powered by FiveNeurals (PVT) LTD.
+        <div className="mt-16 pt-8 border-t border-white/10 flex flex-col items-center justify-between gap-4 sm:flex-row">
+          <p className="text-xs text-white/40 font-light">
+            © {year} Lawyer.ai Platform. Powered by FiveNeurals (PVT) LTD.
           </p>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs text-white/40 font-light">
             Verified by the Bar Association of Sri Lanka (BASL)
           </p>
         </div>

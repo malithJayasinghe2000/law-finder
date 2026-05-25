@@ -79,7 +79,7 @@ export function LawyerInvoicesTable() {
     };
 
     const config = statusConfig[status] || { variant: 'outline', label: status };
-    return <Badge variant={config.variant}>{config.label}</Badge>;
+    return <Badge variant={config.variant} className="rounded-full">{config.label}</Badge>;
   };
 
   if (isLoading && page === 1) {
@@ -88,7 +88,7 @@ export function LawyerInvoicesTable() {
 
   return (
     <>
-      <Card>
+      <Card className="rounded-3xl border border-neutral-200/50 shadow-sm overflow-hidden">
         <CardHeader>
           <CardTitle>My Invoices</CardTitle>
           <CardDescription>View and manage your subscription invoices</CardDescription>
@@ -127,6 +127,7 @@ export function LawyerInvoicesTable() {
                             size="sm"
                             variant="outline"
                             onClick={() => router.push(`/${locale}/dashboard/lawyer/payments/offline/${invoice.id}`)}
+                            className="rounded-full h-8 px-4"
                           >
                             Submit Payment
                           </Button>
@@ -134,7 +135,7 @@ export function LawyerInvoicesTable() {
                           <Button
                             size="sm"
                             variant="outline"
-                            className="bg-yellow-50 text-yellow-800 hover:bg-yellow-100 border-yellow-200"
+                            className="bg-yellow-50 text-yellow-800 hover:bg-yellow-100 border-yellow-200 rounded-full h-8 px-4"
                             onClick={() => router.push(`/${locale}/dashboard/lawyer/payments/offline/${invoice.id}`)}
                           >
                             Resubmit
@@ -144,6 +145,7 @@ export function LawyerInvoicesTable() {
                             size="sm" 
                             variant="outline"
                             onClick={() => router.push(`/${locale}/dashboard/lawyer/payments/offline/${invoice.id}`)}
+                            className="rounded-full h-8 px-4"
                           >
                             View Details
                           </Button>
@@ -162,16 +164,18 @@ export function LawyerInvoicesTable() {
                 variant="outline"
                 onClick={() => setPage(Math.max(1, page - 1))}
                 disabled={page === 1}
+                className="rounded-full h-9 px-4"
               >
                 Previous
               </Button>
-              <span className="px-4 py-2 font-medium flex items-center">
+              <span className="px-4 py-2 font-medium flex items-center text-sm">
                 Page {page} of {totalPages}
               </span>
               <Button
                 variant="outline"
                 onClick={() => setPage(Math.min(totalPages, page + 1))}
                 disabled={page === totalPages}
+                className="rounded-full h-9 px-4"
               >
                 Next
               </Button>

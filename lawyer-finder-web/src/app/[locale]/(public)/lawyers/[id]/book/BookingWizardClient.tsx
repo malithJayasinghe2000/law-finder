@@ -274,7 +274,7 @@ export default function BookingWizardClient({ lawyerId, lawyerName, lawyerImage,
         </div>
 
         {/* Steps */}
-        <Card className="rounded-none shadow-xl border-neutral-200">
+        <Card className="rounded-3xl shadow-xl border-neutral-200/50 overflow-hidden">
           <CardContent className="p-8">
             
             {/* Step 1: Mode */}
@@ -284,7 +284,7 @@ export default function BookingWizardClient({ lawyerId, lawyerName, lawyerImage,
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <button
                     onClick={() => setMode('PHYSICAL')}
-                    className={`p-6 border-2 text-left transition-all relative ${mode === 'PHYSICAL' ? 'border-[#0a0a0a] bg-neutral-50' : 'border-neutral-200 hover:border-neutral-300'}`}
+                    className={`p-6 border-2 text-left transition-all relative rounded-3xl ${mode === 'PHYSICAL' ? 'border-[#0a0a0a] bg-neutral-50' : 'border-neutral-200 hover:border-neutral-300'}`}
                   >
                     {mode === 'PHYSICAL' && <div className="absolute top-4 right-4"><CheckCircle className="w-5 h-5 text-[#0a0a0a]" /></div>}
                     <MapPin className="w-8 h-8 text-[#0a0a0a] mb-4" />
@@ -295,7 +295,7 @@ export default function BookingWizardClient({ lawyerId, lawyerName, lawyerImage,
 
                   <button
                     onClick={() => setMode('ONLINE')}
-                    className={`p-6 border-2 text-left transition-all relative ${mode === 'ONLINE' ? 'border-[#0a0a0a] bg-neutral-50' : 'border-neutral-200 hover:border-neutral-300'}`}
+                    className={`p-6 border-2 text-left transition-all relative rounded-3xl ${mode === 'ONLINE' ? 'border-[#0a0a0a] bg-neutral-50' : 'border-neutral-200 hover:border-neutral-300'}`}
                   >
                     {mode === 'ONLINE' && <div className="absolute top-4 right-4"><CheckCircle className="w-5 h-5 text-[#0a0a0a]" /></div>}
                     <Video className="w-8 h-8 text-[#0a0a0a] mb-4" />
@@ -312,7 +312,7 @@ export default function BookingWizardClient({ lawyerId, lawyerName, lawyerImage,
               <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
                 <h2 className="text-lg font-bold text-[#0a0a0a] uppercase tracking-wide">2. Select Date & Time</h2>
                 
-                <div className="bg-blue-50 border border-blue-200 p-4 flex gap-3 text-sm text-blue-800">
+                <div className="bg-blue-50 border border-blue-200 p-4 rounded-2xl flex gap-3 text-sm text-blue-800">
                   <Info className="w-5 h-5 shrink-0" />
                   <p>Select an available slot. Slots marked with a phone icon require short notice and must be booked over the phone.</p>
                 </div>
@@ -324,7 +324,7 @@ export default function BookingWizardClient({ lawyerId, lawyerName, lawyerImage,
                     min={getMinDate()}
                     value={selectedDate}
                     onChange={(e) => setSelectedDate(e.target.value)}
-                    className="w-full border-2 border-neutral-200 px-4 py-3 outline-none focus:border-[#0a0a0a] transition-colors"
+                    className="w-full border-2 border-neutral-200 px-4 py-3 rounded-3xl outline-none focus:border-[#0a0a0a] transition-colors"
                   />
                 </div>
 
@@ -336,10 +336,10 @@ export default function BookingWizardClient({ lawyerId, lawyerName, lawyerImage,
                     
                     {slotsLoading ? (
                       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                        {[1,2,3].map(i => <div key={i} className="h-12 bg-neutral-100 animate-pulse" />)}
+                        {[1,2,3].map(i => <div key={i} className="h-12 bg-neutral-100 animate-pulse rounded-2xl" />)}
                       </div>
                     ) : availableSlots.length === 0 ? (
-                      <div className="text-center p-6 bg-neutral-50 border border-neutral-200 text-sm text-neutral-500">
+                      <div className="text-center p-6 bg-neutral-50 border border-neutral-200 text-sm text-neutral-500 rounded-3xl">
                         No available slots for this date. Please select another date.
                       </div>
                     ) : (
@@ -354,7 +354,7 @@ export default function BookingWizardClient({ lawyerId, lawyerName, lawyerImage,
                                 setSelectedSlot(slot);
                               }
                             }}
-                            className={`px-4 py-3 text-sm font-semibold border-2 transition-all flex flex-col items-center justify-center gap-1 ${
+                            className={`px-4 py-3 text-sm font-semibold border-2 transition-all flex flex-col items-center justify-center gap-1 rounded-2xl ${
                               selectedSlot?.startTime === slot.startTime 
                               ? 'border-[#0a0a0a] bg-[#0a0a0a] text-white' 
                               : slot.isCallToBook 
@@ -388,7 +388,7 @@ export default function BookingWizardClient({ lawyerId, lawyerName, lawyerImage,
                     value={subject} 
                     onChange={(e) => setSubject(e.target.value)} 
                     placeholder="E.g., Property dispute consultation" 
-                    className="h-12 border-2 border-neutral-200 rounded-none focus-visible:ring-0 focus-visible:border-[#0a0a0a]"
+                    className="h-12 border-2 border-neutral-200 rounded-3xl focus-visible:ring-0 focus-visible:border-[#0a0a0a]"
                   />
                 </div>
 
@@ -398,7 +398,7 @@ export default function BookingWizardClient({ lawyerId, lawyerName, lawyerImage,
                     value={practiceArea} 
                     onChange={(e) => setPracticeArea(e.target.value)} 
                     placeholder="E.g., Real Estate Law" 
-                    className="h-12 border-2 border-neutral-200 rounded-none focus-visible:ring-0 focus-visible:border-[#0a0a0a]"
+                    className="h-12 border-2 border-neutral-200 rounded-3xl focus-visible:ring-0 focus-visible:border-[#0a0a0a]"
                   />
                 </div>
 
@@ -408,7 +408,7 @@ export default function BookingWizardClient({ lawyerId, lawyerName, lawyerImage,
                     value={description} 
                     onChange={(e) => setDescription(e.target.value)} 
                     placeholder="Briefly describe your legal situation so the lawyer can prepare..." 
-                    className="min-h-[120px] border-2 border-neutral-200 rounded-none focus-visible:ring-0 focus-visible:border-[#0a0a0a] resize-none"
+                    className="min-h-[120px] border-2 border-neutral-200 rounded-3xl focus-visible:ring-0 focus-visible:border-[#0a0a0a] resize-none"
                   />
                   <p className="text-[10px] text-neutral-400 text-right">{description.length} characters</p>
                 </div>
@@ -421,7 +421,7 @@ export default function BookingWizardClient({ lawyerId, lawyerName, lawyerImage,
                 <h2 className="text-lg font-bold text-[#0a0a0a] uppercase tracking-wide">4. Review & Payment</h2>
 
                 {/* Summary Box */}
-                <div className="bg-neutral-50 border border-neutral-200 p-6 space-y-4">
+                <div className="bg-neutral-50 border border-neutral-200 rounded-3xl p-6 space-y-4">
                   <div className="flex justify-between items-center pb-4 border-b border-neutral-200">
                     <div>
                       <h3 className="font-bold text-[#0a0a0a]">{mode === 'PHYSICAL' ? 'Physical Consultation' : 'Online Video Consultation'}</h3>
@@ -452,7 +452,7 @@ export default function BookingWizardClient({ lawyerId, lawyerName, lawyerImage,
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <button
                       onClick={() => setPaymentMethod('PAYHERE')}
-                      className={`p-4 border-2 flex items-center gap-3 transition-all ${paymentMethod === 'PAYHERE' ? 'border-[#0a0a0a] bg-neutral-50' : 'border-neutral-200'}`}
+                      className={`p-4 border-2 flex items-center gap-3 transition-all rounded-3xl ${paymentMethod === 'PAYHERE' ? 'border-[#0a0a0a] bg-neutral-50' : 'border-neutral-200'}`}
                     >
                       <CreditCard className={`w-6 h-6 ${paymentMethod === 'PAYHERE' ? 'text-[#0a0a0a]' : 'text-neutral-400'}`} />
                       <div className="text-left">
@@ -462,7 +462,7 @@ export default function BookingWizardClient({ lawyerId, lawyerName, lawyerImage,
                     </button>
                     <button
                       onClick={() => setPaymentMethod('BANK_TRANSFER_NOW')}
-                      className={`p-4 border-2 flex items-center gap-3 transition-all ${paymentMethod === 'BANK_TRANSFER_NOW' ? 'border-[#0a0a0a] bg-neutral-50' : 'border-neutral-200'}`}
+                      className={`p-4 border-2 flex items-center gap-3 transition-all rounded-3xl ${paymentMethod === 'BANK_TRANSFER_NOW' ? 'border-[#0a0a0a] bg-neutral-50' : 'border-neutral-200'}`}
                     >
                       <Building2 className={`w-6 h-6 ${paymentMethod === 'BANK_TRANSFER_NOW' ? 'text-[#0a0a0a]' : 'text-neutral-400'}`} />
                       <div className="text-left">
@@ -472,7 +472,7 @@ export default function BookingWizardClient({ lawyerId, lawyerName, lawyerImage,
                     </button>
                     <button
                       onClick={() => setPaymentMethod('BANK_TRANSFER_LATER')}
-                      className={`p-4 border-2 flex items-center gap-3 transition-all ${paymentMethod === 'BANK_TRANSFER_LATER' ? 'border-[#0a0a0a] bg-neutral-50' : 'border-neutral-200'}`}
+                      className={`p-4 border-2 flex items-center gap-3 transition-all rounded-3xl ${paymentMethod === 'BANK_TRANSFER_LATER' ? 'border-[#0a0a0a] bg-neutral-50' : 'border-neutral-200'}`}
                     >
                       <Clock className={`w-6 h-6 ${paymentMethod === 'BANK_TRANSFER_LATER' ? 'text-[#0a0a0a]' : 'text-neutral-400'}`} />
                       <div className="text-left">
@@ -485,8 +485,8 @@ export default function BookingWizardClient({ lawyerId, lawyerName, lawyerImage,
 
                 {/* Bank Transfer Details */}
                 {paymentMethod === 'BANK_TRANSFER_NOW' && (
-                  <div className="p-6 bg-neutral-50 border border-neutral-200 space-y-4">
-                    <div className="bg-amber-50 border border-amber-200 p-3 text-xs text-amber-800 mb-4">
+                  <div className="p-6 bg-neutral-50 border border-neutral-200 rounded-3xl space-y-4">
+                    <div className="bg-amber-50 border border-amber-200 p-4 rounded-2xl text-xs text-amber-800 mb-4">
                       <p className="font-bold mb-1">Bank Transfer Instructions:</p>
                       <p>Please transfer <strong>LKR {totalAmount.toLocaleString()}</strong> to the account below, then upload the receipt or enter the transaction reference. Manual verification takes up to 24 hours.</p>
                       <ul className="mt-2 space-y-1 font-mono text-[11px]">
@@ -500,18 +500,17 @@ export default function BookingWizardClient({ lawyerId, lawyerName, lawyerImage,
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-1">
                         <label className="text-[10px] font-bold text-neutral-500 uppercase">Your Bank Name</label>
-                        <Input value={bankName} onChange={e => setBankName(e.target.value)} className="h-9 rounded-none text-xs" placeholder="e.g. HNB" />
+                        <Input value={bankName} onChange={e => setBankName(e.target.value)} className="h-9 rounded-3xl text-xs" placeholder="e.g. HNB" />
                       </div>
                       <div className="space-y-1">
                         <label className="text-[10px] font-bold text-neutral-500 uppercase">Account Holder</label>
-                        <Input value={accountHolder} onChange={e => setAccountHolder(e.target.value)} className="h-9 rounded-none text-xs" placeholder="e.g. John Doe" />
+                        <Input value={accountHolder} onChange={e => setAccountHolder(e.target.value)} className="h-9 rounded-3xl text-xs" placeholder="e.g. John Doe" />
                       </div>
                     </div>
                     <div className="space-y-1">
                       <label className="text-[10px] font-bold text-neutral-500 uppercase">Transaction Reference Number</label>
-                      <Input value={transactionRef} onChange={e => setTransactionRef(e.target.value)} className="h-9 rounded-none text-xs" />
+                      <Input value={transactionRef} onChange={e => setTransactionRef(e.target.value)} className="h-9 rounded-3xl text-xs" />
                     </div>
-                    {/* Add Image Upload for receipt if desired, keeping it text for now to simplify */}
                   </div>
                 )}
               </div>
@@ -520,17 +519,17 @@ export default function BookingWizardClient({ lawyerId, lawyerName, lawyerImage,
             {/* Navigation Buttons */}
             <div className="mt-10 pt-6 border-t border-neutral-200 flex items-center justify-between">
               {step > 1 ? (
-                <Button variant="outline" onClick={() => setStep(s => s - 1)} className="rounded-none h-12 px-6 uppercase tracking-widest text-xs font-bold">
+                <Button variant="outline" onClick={() => setStep(s => s - 1)} className="rounded-full h-12 px-6 uppercase tracking-widest text-xs font-bold">
                   <ChevronLeft className="w-4 h-4 mr-2" /> Back
                 </Button>
               ) : <div />}
 
               {step < 4 ? (
-                <Button onClick={nextStep} className="bg-[#0a0a0a] text-white hover:bg-neutral-800 rounded-none h-12 px-8 uppercase tracking-widest text-xs font-bold">
+                <Button onClick={nextStep} className="bg-[#0a0a0a] text-white hover:bg-neutral-800 rounded-full h-12 px-8 uppercase tracking-widest text-xs font-bold">
                   Next Step <ChevronRight className="w-4 h-4 ml-2" />
                 </Button>
               ) : (
-                <Button onClick={submitBooking} disabled={loading} className="bg-green-600 text-white hover:bg-green-700 rounded-none h-12 px-8 uppercase tracking-widest text-xs font-bold w-full md:w-auto">
+                <Button onClick={submitBooking} disabled={loading} className="bg-green-600 text-white hover:bg-green-700 rounded-full h-12 px-8 uppercase tracking-widest text-xs font-bold w-full md:w-auto">
                   {loading ? 'Processing...' : (paymentMethod === 'BANK_TRANSFER_LATER' ? `Book Now & Pay Later` : `Pay LKR ${totalAmount.toLocaleString()} & Book`)}
                 </Button>
               )}
@@ -543,7 +542,7 @@ export default function BookingWizardClient({ lawyerId, lawyerName, lawyerImage,
       {/* Call to Book Modal */}
       {callToBookSlot && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-white max-w-md w-full p-8 relative shadow-2xl animate-in zoom-in-95 duration-200">
+          <div className="bg-white max-w-md w-full p-8 relative shadow-2xl rounded-3xl animate-in zoom-in-95 duration-200">
             <button onClick={() => setCallToBookSlot(null)} className="absolute top-4 right-4 text-neutral-400 hover:text-black">
               <XCircle className="w-6 h-6" />
             </button>
@@ -557,12 +556,12 @@ export default function BookingWizardClient({ lawyerId, lawyerName, lawyerImage,
               </p>
             </div>
             
-            <div className="bg-neutral-50 p-6 border border-neutral-200 text-center mb-6">
+            <div className="bg-neutral-50 p-6 border border-neutral-200 text-center mb-6 rounded-3xl">
               <p className="text-xs font-bold text-neutral-500 uppercase tracking-widest mb-2">Please call our support line to arrange</p>
               <p className="text-2xl font-bold text-[#0a0a0a] tracking-wider">011 234 5678</p>
             </div>
             
-            <Button onClick={() => setCallToBookSlot(null)} className="w-full h-12 rounded-none bg-[#0a0a0a] hover:bg-neutral-800 text-white font-bold uppercase text-xs tracking-widest">
+            <Button onClick={() => setCallToBookSlot(null)} className="w-full h-12 rounded-full bg-[#0a0a0a] hover:bg-neutral-800 text-white font-bold uppercase text-xs tracking-widest">
               Close
             </Button>
           </div>

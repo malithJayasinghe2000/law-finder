@@ -332,33 +332,33 @@ export default function ChatClient({
           className={`${sidebarOpen ? 'w-72' : 'w-0'} shrink-0 transition-all duration-300 overflow-hidden border-r border-neutral-200 bg-[#f5f5f5] flex flex-col`}
         >
           {/* New Chat button */}
-          <div className="p-3 border-b border-neutral-200">
+          <div className="p-4 border-b border-neutral-100">
             <button
               onClick={handleNewChat}
-              className="flex w-full items-center gap-2 px-4 py-3 text-sm font-bold uppercase tracking-widest bg-black text-white hover:bg-neutral-800 transition-colors"
+              className="flex w-full items-center justify-center gap-2 px-4 py-3.5 text-sm font-bold uppercase tracking-widest bg-[#0a0d14] text-white rounded-full hover:bg-neutral-800 transition-colors"
             >
               <Plus className="h-4 w-4" /> New Chat
             </button>
           </div>
 
           {/* Conversation list */}
-          <div className="flex-1 overflow-y-auto p-2 space-y-1">
+          <div className="flex-1 overflow-y-auto p-3 space-y-1">
             {conversations.length === 0 ? (
-              <div className="text-center text-xs text-neutral-400 uppercase tracking-widest mt-8 px-4">
+              <div className="text-center text-xs text-neutral-400 font-bold uppercase tracking-widest mt-8 px-4">
                 No conversations yet
               </div>
             ) : (
               conversations.map(conv => (
                 <div
                   key={conv.id}
-                  className={`group flex items-center gap-2 px-3 py-2.5 cursor-pointer transition-all text-sm ${
+                  className={`group flex items-center gap-3 px-4 py-3 cursor-pointer transition-all text-sm rounded-2xl ${
                     activeConversationId === conv.id
-                      ? 'bg-white border border-neutral-200 shadow-sm font-medium text-black'
-                      : 'hover:bg-white/60 text-neutral-600'
+                      ? 'bg-white border border-[#ffb84f]/20 shadow-[0_4px_12px_rgb(0,0,0,0.03)] font-medium text-[#0a0d14]'
+                      : 'hover:bg-white text-neutral-500 hover:text-[#0a0d14]'
                   }`}
                   onClick={() => loadConversation(conv.id)}
                 >
-                  <MessageSquare className="h-3.5 w-3.5 shrink-0 text-neutral-400" />
+                  <MessageSquare className={`h-4 w-4 shrink-0 ${activeConversationId === conv.id ? 'text-[#ffb84f]' : 'text-neutral-400 group-hover:text-[#ffb84f]/70'}`} />
 
                   {editingId === conv.id ? (
                     <div className="flex items-center gap-1 flex-1 min-w-0">
@@ -415,33 +415,33 @@ export default function ChatClient({
       )}
 
       {/* ─── Main Chat Area ─────────────────────────────────── */}
-      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0 bg-[#fafafa]">
         {/* Chat header bar */}
-        <div className="shrink-0 flex items-center gap-3 px-4 py-2.5 border-b border-neutral-200 bg-white">
+        <div className="shrink-0 flex items-center gap-4 px-6 py-4 border-b border-neutral-100 bg-white">
           {isAuthenticated && (
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="p-1.5 text-neutral-400 hover:text-black transition-colors"
+              className="p-2 text-neutral-400 hover:text-[#0a0d14] bg-neutral-50 rounded-full transition-colors"
             >
-              {sidebarOpen ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeft className="h-4 w-4" />}
+              {sidebarOpen ? <PanelLeftClose className="h-5 w-5" /> : <PanelLeft className="h-5 w-5" />}
             </button>
           )}
-          <div className="flex items-center gap-2">
-            <div className="flex h-7 w-7 items-center justify-center bg-black text-white">
-              <Bot className="h-3.5 w-3.5" />
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center bg-[#0a0d14] text-[#ffb84f] rounded-full shadow-[0_4px_12px_rgb(0,0,0,0.05)]">
+              <Bot className="h-5 w-5" />
             </div>
             <div>
-              <h2 className="text-xs font-bold tracking-tight text-black leading-none">LawyerAI</h2>
-              <p className="text-[10px] text-green-600 font-semibold uppercase tracking-widest leading-none mt-0.5">Online • Web Enabled</p>
+              <h2 className="text-sm font-bold tracking-tight text-[#0a0d14] leading-none mb-1">LawyerAI</h2>
+              <p className="text-[10px] text-green-600 font-bold uppercase tracking-widest leading-none">Online • Web Enabled</p>
             </div>
           </div>
           {!isAuthenticated && (
-            <div className="ml-auto flex items-center gap-2 text-xs text-neutral-500">
-              <span className="font-medium">{Math.max(0, GUEST_QUERY_LIMIT - guestQueryCount)}</span>
-              <span className="text-neutral-400">queries left</span>
+            <div className="ml-auto flex items-center gap-3 text-xs text-neutral-500 bg-neutral-50 pr-2 pl-4 py-1.5 rounded-full border border-neutral-100">
+              <span className="font-medium text-[#0a0d14]">{Math.max(0, GUEST_QUERY_LIMIT - guestQueryCount)}</span>
+              <span className="text-neutral-400 font-bold uppercase tracking-widest text-[9px]">queries left</span>
               <Link
                 href={`/${locale}/login`}
-                className="ml-2 flex items-center gap-1.5 px-3 py-1.5 bg-black text-white text-[10px] font-bold uppercase tracking-widest hover:bg-neutral-800 transition-colors"
+                className="ml-2 flex items-center gap-1.5 px-4 py-2 bg-[#0a0d14] text-white text-[10px] font-bold uppercase tracking-widest rounded-full hover:bg-neutral-800 transition-colors"
               >
                 <LogIn className="h-3 w-3" /> Login
               </Link>
@@ -451,9 +451,15 @@ export default function ChatClient({
 
         {/* Messages area */}
         <div className="flex-1 overflow-y-auto p-6 scroll-smooth">
-          <div className="mx-auto max-w-3xl space-y-6">
+          <div className="mx-auto max-w-4xl space-y-8">
             {messages.length <= 1 && !initialQuery && (
-              <h1 className="text-2xl font-bold text-black text-center mt-8 mb-4">Hi, I&apos;m Your Personal Lawyer</h1>
+              <div className="text-center mt-12 mb-8">
+                <div className="inline-flex h-20 w-20 items-center justify-center bg-white border border-neutral-100 rounded-full shadow-[0_8px_30px_rgb(0,0,0,0.04)] text-[#ffb84f] mb-6">
+                  <Bot className="h-10 w-10" />
+                </div>
+                <h1 className="text-3xl font-medium tracking-tight text-[#0a0d14] mb-3">Hi, I&apos;m Your Personal Lawyer</h1>
+                <p className="text-neutral-500 font-light text-lg">Ask me any legal question regarding Sri Lankan law.</p>
+              </div>
             )}
 
             {messages.map((message) => (
@@ -461,21 +467,21 @@ export default function ChatClient({
                 key={message.id}
                 className={`flex w-full ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
               >
-                <div className={`flex max-w-[85%] gap-3 ${message.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
+                <div className={`flex max-w-[85%] gap-4 ${message.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
                   {/* Avatar */}
-                  <div className={`flex h-8 w-8 shrink-0 items-center justify-center shadow-sm ${
-                    message.role === 'user' ? 'bg-neutral-200 text-neutral-600' : 'bg-black text-white'
+                  <div className={`flex h-10 w-10 shrink-0 items-center justify-center shadow-sm z-10 ${
+                    message.role === 'user' ? 'bg-[#ffb84f] text-[#0a0d14] rounded-full' : 'bg-[#0a0d14] text-[#ffb84f] rounded-full'
                   }`}>
-                    {message.role === 'user' ? <User className="h-4 w-4" /> : <Bot className="h-4 w-4" />}
+                    {message.role === 'user' ? <User className="h-5 w-5" /> : <Bot className="h-5 w-5" />}
                   </div>
 
                   {/* Bubble + Sources + Lawyers */}
-                  <div className="flex flex-col gap-2 min-w-0">
+                  <div className="flex flex-col gap-3 min-w-0 mt-1">
                     <div
-                      className={`relative flex flex-col p-4 shadow-sm border ${
+                      className={`relative flex flex-col p-6 shadow-[0_4px_20px_rgb(0,0,0,0.02)] ${
                         message.role === 'user'
-                          ? 'bg-black text-white border-black'
-                          : 'bg-white text-black border-neutral-200'
+                          ? 'bg-[#0a0d14] text-white rounded-3xl rounded-tr-sm'
+                          : 'bg-white text-[#0a0d14] border border-neutral-100 rounded-3xl rounded-tl-sm'
                       }`}
                     >
                       <div className="prose-h-none text-sm leading-relaxed text-left font-light markdown-content">
@@ -560,16 +566,16 @@ export default function ChatClient({
 
                     {/* Lawyer Suggestions */}
                     {message.lawyerSuggestions && message.lawyerSuggestions.length > 0 && (
-                      <div className="mt-2 border border-neutral-200 bg-white">
-                        <div className="px-4 py-2.5 bg-neutral-50 border-b border-neutral-200">
-                          <h4 className="text-[11px] font-bold uppercase tracking-widest text-neutral-600">
-                            Recommended Lawyers
+                      <div className="mt-4 border border-neutral-100 bg-white rounded-3xl overflow-hidden shadow-[0_4px_20px_rgb(0,0,0,0.02)]">
+                        <div className="px-6 py-4 bg-[#fafafa] border-b border-neutral-100">
+                          <h4 className="text-[11px] font-bold uppercase tracking-widest text-[#0a0d14] flex items-center gap-2">
+                            <Star className="h-3 w-3 text-[#ffb84f] fill-[#ffb84f]" /> Recommended Lawyers
                           </h4>
                         </div>
                         <div className="divide-y divide-neutral-100">
                           {message.lawyerSuggestions.map((lawyer) => (
-                            <div key={lawyer.id} className="flex items-center gap-3 px-4 py-3 hover:bg-neutral-50 transition-colors">
-                              <div className="flex h-10 w-10 shrink-0 items-center justify-center bg-neutral-100 overflow-hidden">
+                            <div key={lawyer.id} className="flex items-center gap-4 px-6 py-4 hover:bg-[#fafafa] transition-colors">
+                              <div className="flex h-12 w-12 shrink-0 items-center justify-center bg-neutral-100 rounded-full overflow-hidden border border-neutral-200">
                                 {lawyer.profileImageUrl ? (
                                   <img src={lawyer.profileImageUrl} alt={lawyer.fullName} className="h-full w-full object-cover" />
                                 ) : (
@@ -577,21 +583,21 @@ export default function ChatClient({
                                 )}
                               </div>
                               <div className="flex-1 min-w-0">
-                                <p className="text-sm font-bold text-black truncate">{lawyer.fullName}</p>
-                                <div className="flex items-center gap-2 mt-0.5">
+                                <p className="text-sm font-bold text-[#0a0d14] truncate">{lawyer.fullName}</p>
+                                <div className="flex items-center gap-2 mt-1">
                                   {lawyer.averageRating > 0 && (
-                                    <span className="flex items-center gap-0.5 text-[10px] text-amber-600 font-bold">
-                                      <Star className="h-2.5 w-2.5 fill-amber-400 text-amber-400" />
+                                    <span className="flex items-center gap-1 text-[11px] text-[#0a0d14] font-bold">
+                                      <Star className="h-3 w-3 fill-[#ffb84f] text-[#ffb84f]" />
                                       {lawyer.averageRating}
                                     </span>
                                   )}
                                   {lawyer.district && (
-                                    <span className="text-[10px] text-neutral-400 uppercase tracking-widest">{lawyer.district}</span>
+                                    <span className="text-[10px] text-neutral-400 uppercase tracking-widest font-bold">{lawyer.district}</span>
                                   )}
                                 </div>
-                                <div className="flex flex-wrap gap-1 mt-1">
+                                <div className="flex flex-wrap gap-1.5 mt-2">
                                   {lawyer.practiceAreas.slice(0, 3).map((area, i) => (
-                                    <span key={i} className="text-[9px] bg-neutral-100 text-neutral-600 px-1.5 py-0.5 font-medium uppercase tracking-wider">
+                                    <span key={i} className="text-[9px] bg-white border border-neutral-200 text-neutral-600 px-2.5 py-1 rounded-full font-bold uppercase tracking-wider">
                                       {area}
                                     </span>
                                   ))}
@@ -599,7 +605,7 @@ export default function ChatClient({
                               </div>
                               <Link
                                 href={`/${locale}/lawyers/${lawyer.id}`}
-                                className="shrink-0 flex items-center gap-1 px-3 py-1.5 bg-black text-white text-[10px] font-bold uppercase tracking-widest hover:bg-neutral-800 transition-colors"
+                                className="shrink-0 flex items-center gap-1.5 px-4 py-2 bg-[#ffb84f] text-black text-[10px] font-bold uppercase tracking-widest rounded-full hover:bg-[#e5a443] transition-colors hover:scale-105"
                               >
                                 Profile <ArrowRight className="h-3 w-3" />
                               </Link>
@@ -615,13 +621,13 @@ export default function ChatClient({
 
             {isLoading && (
               <div className="flex w-full justify-start">
-                <div className="flex max-w-[80%] gap-3 flex-row">
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center bg-black text-white shadow-sm">
-                    <Bot className="h-4 w-4" />
+                <div className="flex max-w-[80%] gap-4 flex-row">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center bg-[#0a0d14] text-[#ffb84f] rounded-full shadow-sm z-10">
+                    <Bot className="h-5 w-5" />
                   </div>
-                  <div className="flex items-center gap-3 p-4 bg-white border border-neutral-200 shadow-sm">
-                    <Loader2 className="h-5 w-5 animate-spin text-neutral-400" />
-                    <span className="text-xs text-neutral-400 font-light">Searching legal database & web...</span>
+                  <div className="flex items-center gap-3 p-5 bg-white border border-neutral-100 rounded-3xl rounded-tl-sm shadow-[0_4px_20px_rgb(0,0,0,0.02)] mt-1">
+                    <Loader2 className="h-5 w-5 animate-spin text-[#ffb84f]" />
+                    <span className="text-sm text-neutral-500 font-light">Searching legal database & web...</span>
                   </div>
                 </div>
               </div>
@@ -632,47 +638,49 @@ export default function ChatClient({
 
         {/* Login prompt overlay */}
         {showLoginPrompt && (
-          <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-            <div className="bg-white w-full max-w-md p-8 shadow-2xl text-center">
-              <div className="flex h-16 w-16 items-center justify-center bg-black text-white mx-auto mb-4">
+          <div className="absolute inset-0 z-50 flex items-center justify-center bg-[#0a0d14]/80 backdrop-blur-sm">
+            <div className="bg-white w-full max-w-md p-10 rounded-3xl shadow-2xl text-center relative overflow-hidden">
+              <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-[#ffb84f] to-[#e5a443]" />
+              <button 
+                onClick={() => setShowLoginPrompt(false)}
+                className="absolute right-6 top-6 text-neutral-400 hover:text-[#0a0d14] transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
+              
+              <div className="flex h-20 w-20 items-center justify-center bg-[#ffb84f]/10 text-[#ffb84f] rounded-full mx-auto mb-6">
                 <LogIn className="h-8 w-8" />
               </div>
-              <h3 className="text-xl font-bold tracking-tight mb-2">Free Limit Reached</h3>
-              <p className="text-sm text-neutral-500 font-light mb-6">
+              <h3 className="text-2xl font-bold tracking-tight text-[#0a0d14] mb-3">Free Limit Reached</h3>
+              <p className="text-neutral-500 font-light text-base mb-8">
                 You&apos;ve used all {GUEST_QUERY_LIMIT} free queries. Sign in to continue chatting with unlimited access and save your conversations.
               </p>
-              <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-4">
                 <Link
                   href={`/${locale}/login`}
-                  className="flex items-center justify-center gap-2 px-6 py-3 bg-black text-white font-bold text-sm uppercase tracking-widest hover:bg-neutral-800 transition-colors"
+                  className="flex items-center justify-center gap-2 px-8 py-4 bg-[#ffb84f] text-black rounded-full font-bold text-sm uppercase tracking-widest hover:bg-[#e5a443] transition-colors"
                 >
                   <LogIn className="h-4 w-4" /> Sign In
                 </Link>
                 <Link
                   href={`/${locale}/register`}
-                  className="flex items-center justify-center gap-2 px-6 py-3 border border-neutral-200 text-neutral-700 font-medium text-sm hover:bg-neutral-50 transition-colors"
+                  className="flex items-center justify-center gap-2 px-8 py-4 bg-white border border-neutral-200 text-[#0a0d14] rounded-full font-bold text-sm hover:bg-neutral-50 transition-colors"
                 >
                   Create Account
                 </Link>
-                <button
-                  onClick={() => setShowLoginPrompt(false)}
-                  className="text-xs text-neutral-400 font-medium mt-2 hover:text-neutral-600 transition-colors"
-                >
-                  Maybe later
-                </button>
               </div>
             </div>
           </div>
         )}
 
         {/* Input Area */}
-        <div className="shrink-0 bg-white border-t border-neutral-200 p-4">
-          <div className="mx-auto max-w-3xl">
+        <div className="shrink-0 bg-white border-t border-neutral-100 p-6 shadow-[0_-10px_40px_rgb(0,0,0,0.02)]">
+          <div className="mx-auto max-w-4xl">
             <form
               onSubmit={(e) => { e.preventDefault(); handleSend(input); }}
-              className="flex items-end gap-2 bg-neutral-50 border border-neutral-200 p-2 shadow-sm focus-within:border-black focus-within:ring-1 focus-within:ring-black transition-all"
+              className="flex items-end gap-3 bg-[#fafafa] border border-neutral-200 p-2 rounded-3xl shadow-inner focus-within:border-[#ffb84f] focus-within:ring-4 focus-within:ring-[#ffb84f]/10 transition-all"
             >
-              <button type="button" className="p-3 text-neutral-400 hover:text-black transition-colors shrink-0">
+              <button type="button" className="p-3 text-neutral-400 hover:text-[#ffb84f] transition-colors shrink-0 rounded-full hover:bg-white ml-1">
                 <Paperclip className="h-5 w-5" />
               </button>
               <textarea
@@ -685,19 +693,20 @@ export default function ChatClient({
                   }
                 }}
                 placeholder="Ask about Sri Lankan law..."
-                className="max-h-32 min-h-[44px] w-full resize-none bg-transparent py-3 text-sm outline-none placeholder:text-neutral-400 font-light"
+                className="max-h-32 min-h-[52px] w-full resize-none bg-transparent py-3.5 text-base outline-none placeholder:text-neutral-400 font-light text-[#0a0d14]"
                 rows={1}
               />
               <button
                 type="submit"
                 disabled={!input.trim() || isLoading}
-                className="p-3 bg-black text-white hover:bg-neutral-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+                className="p-4 bg-[#0a0d14] text-white rounded-full hover:bg-neutral-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shrink-0 shadow-md"
               >
-                {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
+                {isLoading ? <Loader2 className="h-5 w-5 animate-spin text-[#ffb84f]" /> : <Send className="h-5 w-5 text-[#ffb84f]" />}
               </button>
             </form>
-            <div className="mt-2 text-center text-[10px] text-neutral-400 font-medium uppercase tracking-widest">
-              Powered by Sri Lankan Legal Database & Web Search • AI can make mistakes — verify important information
+            <div className="mt-4 text-center text-[10px] text-neutral-400 font-bold uppercase tracking-widest flex items-center justify-center gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+              Powered by Sri Lankan Legal Database & Web Search
             </div>
           </div>
         </div>

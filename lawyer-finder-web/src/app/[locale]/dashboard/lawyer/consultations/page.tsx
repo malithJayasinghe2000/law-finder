@@ -117,7 +117,7 @@ export default function LawyerBookingsPage() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-4">
-        <div className="flex h-11 w-11 items-center justify-center bg-[#0a0a0a] text-white">
+        <div className="flex h-11 w-11 items-center justify-center bg-[#0a0a0a] text-white rounded-xl">
           <CalendarDays className="h-5 w-5" />
         </div>
         <div>
@@ -141,9 +141,9 @@ export default function LawyerBookingsPage() {
 
       {/* Bookings List */}
       {loading ? (
-        <div className="space-y-3">{[1,2,3].map(i => <Skeleton key={i} className="h-24 rounded-none" />)}</div>
+        <div className="space-y-3">{[1,2,3].map(i => <Skeleton key={i} className="h-24 rounded-3xl" />)}</div>
       ) : bookings.length === 0 ? (
-        <div className="text-center py-16 border border-dashed border-neutral-200 bg-neutral-50/50">
+        <div className="text-center py-16 border border-dashed border-neutral-200 bg-neutral-50/50 rounded-3xl">
           <CalendarDays className="h-10 w-10 text-neutral-300 mx-auto mb-3" />
           <p className="text-sm font-semibold text-neutral-900">No bookings found</p>
           <p className="text-xs text-neutral-500 mt-1">Bookings from clients will appear here</p>
@@ -151,16 +151,16 @@ export default function LawyerBookingsPage() {
       ) : (
         <div className="space-y-3">
           {bookings.map((booking) => (
-            <Card key={booking.id} className="rounded-none shadow-sm hover:shadow-md transition-shadow">
+            <Card key={booking.id} className="rounded-3xl border border-neutral-200/50 shadow-sm hover:shadow-md transition-shadow">
               <CardContent className="p-5">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-3 mb-2">
                       <span className="text-xs font-mono text-neutral-400">{booking.bookingNumber}</span>
-                      <Badge className={`text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-sm ${BOOKING_STATUS_COLORS[booking.status] || 'bg-neutral-100 text-neutral-700'}`}>
+                      <Badge className={`text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full ${BOOKING_STATUS_COLORS[booking.status] || 'bg-neutral-100 text-neutral-700'}`}>
                         {BOOKING_STATUS_LABELS[booking.status] || booking.status}
                       </Badge>
-                      <Badge variant="outline" className="text-[10px] rounded-sm">
+                      <Badge variant="outline" className="text-[10px] rounded-full">
                         {booking.mode === 'PHYSICAL' ? <><MapPin className="w-3 h-3 mr-1" /> Physical</> : <><Video className="w-3 h-3 mr-1" /> Online</>}
                       </Badge>
                     </div>
@@ -180,6 +180,7 @@ export default function LawyerBookingsPage() {
                         <Clock className="w-3 h-3" />
                         {booking.startTime} – {booking.endTime}
                       </span>
+
                     </div>
                   </div>
 
@@ -197,7 +198,7 @@ export default function LawyerBookingsPage() {
                             setCancelReason('Cancelled due to non-payment');
                           }}
                           disabled={actionLoading}
-                          className="rounded-none h-7 text-[10px] px-2.5 font-bold text-red-600 border-red-300"
+                          className="rounded-full h-8 text-[10px] px-3.5 font-bold text-red-600 border-red-300"
                         >
                           <XCircle className="w-3 h-3 mr-1" /> Cancel
                         </Button>
@@ -208,7 +209,7 @@ export default function LawyerBookingsPage() {
                             size="sm"
                             onClick={() => handleAction(booking.id, 'complete')}
                             disabled={actionLoading}
-                            className="bg-green-600 text-white hover:bg-green-700 rounded-none h-7 text-[10px] px-2.5 font-bold"
+                            className="bg-green-600 text-white hover:bg-green-700 rounded-full h-8 text-[10px] px-3.5 font-bold"
                           >
                             <CheckCircle className="w-3 h-3 mr-1" /> Complete
                           </Button>
@@ -220,7 +221,7 @@ export default function LawyerBookingsPage() {
                               setCancelReason('Unavailable');
                             }}
                             disabled={actionLoading}
-                            className="rounded-none h-7 text-[10px] px-2.5 font-bold text-red-600 border-red-300"
+                            className="rounded-full h-8 text-[10px] px-3.5 font-bold text-red-600 border-red-300"
                           >
                             <XCircle className="w-3 h-3 mr-1" /> Cancel
                           </Button>
@@ -230,7 +231,7 @@ export default function LawyerBookingsPage() {
                         size="sm"
                         variant="outline"
                         onClick={() => setSelectedBooking(booking)}
-                        className="rounded-none h-7 text-[10px] px-2.5 font-bold"
+                        className="rounded-full h-8 text-[10px] px-3.5 font-bold"
                       >
                         <Eye className="w-3 h-3 mr-1" /> Details
                       </Button>
@@ -246,11 +247,11 @@ export default function LawyerBookingsPage() {
       {/* Pagination */}
       {totalPages > 1 && (
         <div className="flex items-center justify-center gap-4 pt-4">
-          <Button variant="outline" size="sm" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="rounded-none h-8">
+          <Button variant="outline" size="sm" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="rounded-full h-8 w-8 p-0 flex items-center justify-center">
             <ChevronLeft className="w-4 h-4" />
           </Button>
           <span className="text-xs font-semibold text-neutral-600">Page {page} of {totalPages}</span>
-          <Button variant="outline" size="sm" onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="rounded-none h-8">
+          <Button variant="outline" size="sm" onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="rounded-full h-8 w-8 p-0 flex items-center justify-center">
             <ChevronRight className="w-4 h-4" />
           </Button>
         </div>
@@ -259,7 +260,7 @@ export default function LawyerBookingsPage() {
       {/* Booking Detail Modal */}
       {selectedBooking && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setSelectedBooking(null)}>
-          <div className="bg-white max-w-lg w-full max-h-[80vh] overflow-y-auto shadow-xl" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white max-w-lg w-full max-h-[80vh] overflow-y-auto shadow-xl rounded-3xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
             <div className="p-6 border-b border-neutral-200">
               <div className="flex items-center justify-between">
                 <h2 className="text-lg font-bold">{selectedBooking.bookingNumber}</h2>
@@ -271,14 +272,14 @@ export default function LawyerBookingsPage() {
             <div className="p-6 space-y-4">
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div><p className="text-neutral-500 text-xs">Client</p><p className="font-semibold">{selectedBooking.client?.fullName || selectedBooking.client?.email}</p></div>
-                <div><p className="text-neutral-500 text-xs">Status</p><Badge className={`text-[10px] ${BOOKING_STATUS_COLORS[selectedBooking.status]}`}>{BOOKING_STATUS_LABELS[selectedBooking.status]}</Badge></div>
+                <div><p className="text-neutral-500 text-xs">Status</p><Badge className={`text-[10px] rounded-full ${BOOKING_STATUS_COLORS[selectedBooking.status]}`}>{BOOKING_STATUS_LABELS[selectedBooking.status]}</Badge></div>
                 <div><p className="text-neutral-500 text-xs">Date</p><p className="font-semibold">{formatDateOnlyString(selectedBooking.date, 'en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</p></div>
                 <div><p className="text-neutral-500 text-xs">Time</p><p className="font-semibold">{selectedBooking.startTime} – {selectedBooking.endTime} ({selectedBooking.duration} min)</p></div>
                 <div><p className="text-neutral-500 text-xs">Mode</p><p className="font-semibold">{selectedBooking.mode}</p></div>
                 <div><p className="text-neutral-500 text-xs">Your Fee</p><p className="font-semibold">Rs. {selectedBooking.lawyerFee.toLocaleString()}</p></div>
               </div>
               {selectedBooking.meetingLink && (
-                <div className="p-3 bg-blue-50 border border-blue-200">
+                <div className="p-4 bg-blue-50 border border-blue-200 rounded-2xl">
                   <p className="text-xs font-semibold text-blue-800 mb-1">Meeting Link</p>
                   <a href={selectedBooking.meetingLink} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 underline break-all">{selectedBooking.meetingLink}</a>
                 </div>
@@ -292,7 +293,7 @@ export default function LawyerBookingsPage() {
                 <p className="text-sm text-neutral-700">{selectedBooking.description}</p>
               </div>
               {selectedBooking.clientRating && (
-                <div className="p-3 bg-amber-50 border border-amber-200">
+                <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl">
                   <p className="text-xs font-semibold text-amber-800">Client Rating: {'⭐'.repeat(selectedBooking.clientRating)}</p>
                   {selectedBooking.clientFeedback && <p className="text-sm text-amber-700 mt-1">{selectedBooking.clientFeedback}</p>}
                 </div>
@@ -303,7 +304,7 @@ export default function LawyerBookingsPage() {
       )}
 
       <Dialog open={Boolean(cancelBookingTarget)} onOpenChange={(open) => { if (!open) { setCancelBookingTarget(null); setCancelReason(''); } }}>
-        <DialogContent>
+        <DialogContent className="rounded-3xl border border-neutral-200/50">
           <DialogTitle>Cancel Booking</DialogTitle>
           <DialogDescription>
             Provide a clear cancellation reason for this booking. The client will be notified and the refund policy will be applied if the booking has already been paid.
@@ -311,7 +312,7 @@ export default function LawyerBookingsPage() {
 
           {cancelBookingTarget && (
             <div className="space-y-4 mt-4">
-              <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-700">
+              <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-700">
                 <p className="font-semibold">Booking</p>
                 <p>{cancelBookingTarget.bookingNumber} • {cancelBookingTarget.subject}</p>
                 <p>{formatDateOnlyString(cancelBookingTarget.date, 'en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })} • {cancelBookingTarget.startTime} – {cancelBookingTarget.endTime}</p>
@@ -324,7 +325,7 @@ export default function LawyerBookingsPage() {
                   value={cancelReason}
                   onChange={(e) => setCancelReason(e.target.value)}
                   rows={4}
-                  className="w-full mt-2 rounded-md border border-neutral-200 bg-white px-3 py-2 text-sm text-[#0a0a0a] outline-none focus:border-[#0a0a0a] focus:ring-1 focus:ring-[#0a0a0a]"
+                  className="w-full mt-2 rounded-2xl border border-neutral-200 bg-white px-3 py-2 text-sm text-[#0a0a0a] outline-none focus:border-[#0a0a0a] focus:ring-1 focus:ring-[#0a0a0a] resize-none"
                   placeholder="Tell the client why this appointment is being cancelled"
                 />
               </div>
@@ -332,11 +333,11 @@ export default function LawyerBookingsPage() {
           )}
 
           <DialogFooter>
-            <Button variant="outline" className="rounded-none h-10 text-xs font-bold" onClick={() => { setCancelBookingTarget(null); setCancelReason(''); }}>
+            <Button variant="outline" className="rounded-full h-10 text-xs font-bold" onClick={() => { setCancelBookingTarget(null); setCancelReason(''); }}>
               Close
             </Button>
             <Button
-              className="rounded-none h-10 text-xs font-bold bg-red-600 text-white hover:bg-red-700"
+              className="rounded-full h-10 text-xs font-bold bg-red-600 text-white hover:bg-red-700"
               onClick={handleCancelBooking}
               disabled={actionLoading || !cancelReason.trim()}
             >

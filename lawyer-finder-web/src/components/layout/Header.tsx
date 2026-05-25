@@ -75,17 +75,21 @@ export default function Header({ locale, userRole = null, appStatus = null, user
     if (!userRole) {
       if (isPremiumDesign && !isMobile) {
         return (
-          <Link href={`/${locale}/login`} onClick={() => setOpen(false)} className="ml-2">
-            <Button variant="outline" className="gap-2 rounded-none border-white/50 bg-transparent text-white hover:bg-white/10 hover:text-white px-6 font-light">
-              <UserCircle className="h-4 w-4" />
-              {t('login')}
-            </Button>
-          </Link>
+          <div className="flex items-center gap-6 ml-4">
+            <Link href={`/${locale}/login`} onClick={() => setOpen(false)} className="text-white hover:text-[#ffb84f] text-sm font-medium transition-colors">
+              Sign In
+            </Link>
+            <Link href={`/${locale}/auth/login`} onClick={() => setOpen(false)}>
+              <Button className="bg-white text-black hover:bg-neutral-200 rounded-full px-6 h-10 text-[13px] font-bold tracking-wide transition-all">
+                Get Started
+              </Button>
+            </Link>
+          </div>
         );
       }
       return (
         <Link href={`/${locale}/login`} onClick={() => setOpen(false)} className={isMobile ? "w-full block mt-2" : "ml-4"}>
-          <Button className={isMobile ? "w-full gap-2 font-semibold rounded-none bg-[#0a0a0a] text-white hover:bg-neutral-800 py-6" : "gap-2 font-medium rounded-none bg-[#0a0a0a] text-white px-7 hover:bg-neutral-800 transition-all hover:scale-105"}>
+          <Button className={isMobile ? "w-full gap-2 font-semibold rounded-full bg-[#0a0a0a] text-white hover:bg-neutral-800 py-6" : "gap-2 font-medium rounded-full bg-[#0a0a0a] text-white px-7 hover:bg-neutral-800 transition-all"}>
             <UserCircle className="h-4 w-4" />
             {t('login')}
           </Button>
@@ -126,8 +130,8 @@ export default function Header({ locale, userRole = null, appStatus = null, user
             )}
           </Avatar>
         </DropdownMenuTrigger>
-        <DropdownMenuContent className="w-72 rounded-none shadow-2xl border-border p-0" align="end" sideOffset={8}>
-          <div className="px-6 py-5 bg-neutral-50/50 border-b">
+        <DropdownMenuContent className="w-72 rounded-2xl shadow-2xl border border-neutral-100 bg-white p-0 overflow-hidden" align="end" sideOffset={8}>
+          <div className="px-6 py-5 bg-neutral-50/50 border-b border-neutral-100">
             <div className="flex flex-col space-y-2">
               <p className="text-[15px] font-bold text-neutral-900 leading-none">{userProfile?.fullName || 'Account'}</p>
               <p className="text-[10px] text-neutral-400 font-bold uppercase tracking-[0.15em]">{userRole}</p>
@@ -148,16 +152,16 @@ export default function Header({ locale, userRole = null, appStatus = null, user
             </div>
           </div>
           
-          <div className="py-1">
+          <div className="p-1.5 space-y-0.5">
             <Link href={`/${locale}/profile`}>
-              <DropdownMenuItem className="cursor-pointer font-medium py-3 px-6 rounded-none focus:bg-neutral-50 group">
+              <DropdownMenuItem className="cursor-pointer font-medium py-2.5 px-4 rounded-xl focus:bg-neutral-50 outline-none group">
                 <UserCircle className="mr-3 h-4 w-4 text-neutral-400 group-hover:text-neutral-900 transition-colors" /> Profile Settings
               </DropdownMenuItem>
             </Link>
 
             {userRole === 'ADMIN' && (
               <Link href={`/${locale}/dashboard/admin`}>
-                <DropdownMenuItem className="cursor-pointer font-medium text-primary py-3 px-6 rounded-none focus:bg-primary/5 group">
+                <DropdownMenuItem className="cursor-pointer font-medium text-primary py-2.5 px-4 rounded-xl focus:bg-primary/5 outline-none group">
                   <LayoutDashboard className="mr-3 h-4 w-4 text-primary/60 group-hover:text-primary transition-colors" /> Admin Panel
                 </DropdownMenuItem>
               </Link>
@@ -166,12 +170,12 @@ export default function Header({ locale, userRole = null, appStatus = null, user
             {userRole === 'LAWYER' && (
               <>
                 <Link href={`/${locale}/dashboard/lawyer`}>
-                  <DropdownMenuItem className="cursor-pointer font-medium py-3 px-6 rounded-none focus:bg-neutral-50 group">
+                  <DropdownMenuItem className="cursor-pointer font-medium py-2.5 px-4 rounded-xl focus:bg-neutral-50 outline-none group">
                     <LayoutDashboard className="mr-3 h-4 w-4 text-neutral-400 group-hover:text-neutral-900 transition-colors" /> My Dashboard
                   </DropdownMenuItem>
                 </Link>
                 <Link href={`/${locale}/profile`}>
-                  <DropdownMenuItem className="cursor-pointer font-medium py-3 px-6 rounded-none focus:bg-neutral-50 group">
+                  <DropdownMenuItem className="cursor-pointer font-medium py-2.5 px-4 rounded-xl focus:bg-neutral-50 outline-none group">
                     <Zap className="mr-3 h-4 w-4 text-amber-400 group-hover:text-amber-500 transition-colors" /> Subscription Plan
                   </DropdownMenuItem>
                 </Link>
@@ -181,12 +185,12 @@ export default function Header({ locale, userRole = null, appStatus = null, user
             {userRole === 'CLIENT' && (
               <>
                 <Link href={`/${locale}/dashboard/client`}>
-                  <DropdownMenuItem className="cursor-pointer font-medium py-3 px-6 rounded-none focus:bg-neutral-50 group">
+                  <DropdownMenuItem className="cursor-pointer font-medium py-2.5 px-4 rounded-xl focus:bg-neutral-50 outline-none group">
                     <LayoutDashboard className="mr-3 h-4 w-4 text-neutral-400 group-hover:text-neutral-900 transition-colors" /> My Dashboard
                   </DropdownMenuItem>
                 </Link>
                 <Link href={`/${locale}/messages`}>
-                  <DropdownMenuItem className="cursor-pointer font-medium py-3 px-6 rounded-none focus:bg-neutral-50 group">
+                  <DropdownMenuItem className="cursor-pointer font-medium py-2.5 px-4 rounded-xl focus:bg-neutral-50 outline-none group">
                     <div className="flex items-center w-full">
                       <MessageCircle className="mr-3 h-4 w-4 text-neutral-400 group-hover:text-neutral-900 transition-colors" /> 
                       <span>Messages</span>
@@ -195,19 +199,19 @@ export default function Header({ locale, userRole = null, appStatus = null, user
                 </Link>
                 {appStatus === 'DRAFT' && (
                   <Link href={`/${locale}/apply`}>
-                    <DropdownMenuItem className="cursor-pointer text-amber-600 focus:text-amber-700 font-medium py-3 px-6 rounded-none focus:bg-amber-50 group">
+                    <DropdownMenuItem className="cursor-pointer text-amber-600 focus:text-amber-700 font-medium py-2.5 px-4 rounded-xl focus:bg-amber-50 outline-none group">
                       <FileText className="mr-3 h-4 w-4 text-amber-500/60 group-hover:text-amber-600 transition-colors" /> Resume Application
                     </DropdownMenuItem>
                   </Link>
                 )}
                 {(appStatus === 'SUBMITTED' || appStatus === 'IN_REVIEW') && (
-                  <DropdownMenuItem disabled className="opacity-80 font-medium py-3 px-6">
+                  <DropdownMenuItem disabled className="opacity-80 font-medium py-2.5 px-4 rounded-xl">
                      <FileText className="mr-3 h-4 w-4 text-neutral-400" /> Application Pending
                   </DropdownMenuItem>
                 )}
                 {(!appStatus || appStatus === 'REJECTED') && (
                   <Link href={`/${locale}/apply`}>
-                    <DropdownMenuItem className="cursor-pointer font-bold py-3 px-6 rounded-none focus:bg-neutral-50 group">
+                    <DropdownMenuItem className="cursor-pointer font-bold py-2.5 px-4 rounded-xl focus:bg-neutral-50 outline-none group">
                       <Scale className="mr-3 h-4 w-4 text-neutral-400 group-hover:text-neutral-900 transition-colors" /> Become a Lawyer
                     </DropdownMenuItem>
                   </Link>
@@ -217,7 +221,7 @@ export default function Header({ locale, userRole = null, appStatus = null, user
 
             <DropdownMenuSeparator className="my-1" />
             
-            <DropdownMenuItem onClick={handleLogout} className="text-red-600 focus:text-red-700 focus:bg-red-50 cursor-pointer font-semibold py-3 px-6 rounded-none group">
+            <DropdownMenuItem onClick={handleLogout} className="text-red-600 focus:text-red-700 focus:bg-red-50 cursor-pointer font-semibold py-2.5 px-4 rounded-xl outline-none group">
               <LogOut className="mr-3 h-4 w-4 text-red-500/60 group-hover:text-red-600 transition-colors" /> Log out
             </DropdownMenuItem>
           </div>
@@ -228,34 +232,35 @@ export default function Header({ locale, userRole = null, appStatus = null, user
 
   return (
     <header className={`${isPremiumDesign ? 'absolute top-0 w-full z-50 bg-transparent border-none' : 'sticky top-0 z-50 border-b bg-background/80 backdrop-blur-xl'}`}>
-      <div className={`mx-auto flex h-24 max-w-[1400px] items-center justify-between px-6 lg:px-12 xl:px-24 ${isPremiumDesign ? 'border-b border-white/20' : ''}`}>
-        <Link href={`/${locale}`} className="flex items-center gap-2.5 group">
-          <div className={`flex items-center justify-center ${isPremiumDesign ? 'text-white' : 'text-primary transition-transform group-hover:scale-105'}`}>
+      <div className={`mx-auto flex h-24 max-w-[1400px] items-center justify-between px-6 lg:px-12 xl:px-24`}>
+        <Link href={`/${locale}`} className="flex items-center gap-3 group">
+          <div className={`flex items-center justify-center ${isPremiumDesign ? 'text-[#ffb84f]' : 'text-primary transition-transform group-hover:scale-105'}`}>
             <Scale className="h-7 w-7" />
           </div>
-          <span className={`text-xl font-medium tracking-tight ${isPremiumDesign ? 'text-white' : 'text-foreground'}`}>
-            LawFinder<span className={isPremiumDesign ? "opacity-70" : "text-muted-foreground font-normal"}>.</span>
+          <span className={`text-base font-bold tracking-[0.1em] uppercase ${isPremiumDesign ? 'text-[#ffb84f]' : 'text-foreground'}`}>
+            Lawyer.ai
           </span>
         </Link>
 
         {/* Desktop Nav - Centered */}
-        <nav className="hidden md:flex absolute left-1/2 -translate-x-1/2 items-center gap-10">
+        <nav className="hidden md:flex absolute left-1/2 -translate-x-1/2 items-center gap-8">
           {navLinks.map((link) => (
             <Link
               key={link.href}
               href={link.href}
-              className={`flex items-center gap-2 text-[15px] transition-colors ${
+              className={`flex items-center gap-2 text-sm transition-colors ${
                 isPremiumDesign 
-                  ? 'text-white/80 hover:text-white font-light'
+                  ? 'text-white hover:text-[#ffb84f] font-light'
                   : isActive(link.href)
-                    ? 'text-foreground font-medium'
-                    : 'text-muted-foreground hover:text-foreground font-medium'
+                  ? 'text-foreground font-medium'
+                  : 'text-muted-foreground hover:text-foreground font-light'
               }`}
             >
               {renderNavLabel(link)}
             </Link>
           ))}
         </nav>
+                 
 
         {/* Desktop Right Action */}
         <div className="hidden md:block">

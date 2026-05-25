@@ -131,13 +131,13 @@ export default function InvoiceClient({ locale, planId, plan, user, billingCycle
       <title>Your Invoice | Lawyer.ai</title>
       
       {/* Invoice Document Wrapper */}
-      <div className="flex-1 bg-white shadow-xl p-4 sm:p-8 md:p-10 overflow-x-auto print:p-0 print:shadow-none print:m-0 border border-neutral-200 print:border-none rounded-none relative print:overflow-visible print:block print:w-full print:max-w-none">
+      <div className="flex-1 bg-white shadow-xl p-4 sm:p-8 md:p-10 overflow-x-auto print:p-0 print:shadow-none print:m-0 border border-neutral-200 print:border-none rounded-3xl relative print:overflow-visible print:block print:w-full print:max-w-none">
         <div className="print-area mx-auto text-[#0a0a0a] font-sans w-full max-w-[850px] min-w-[320px] flex flex-col print:max-w-none print:w-full print:min-w-0">
           {/* Header Section */}
           <div className="flex justify-between items-start mb-8 border-b-2 border-black pb-8">
             <div>
               <div className="flex items-center gap-2 mb-1">
-                <div className="bg-black text-white p-2 print:bg-black print:text-white shrink-0" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div className="bg-black text-white p-2 print:bg-black print:text-white shrink-0 rounded-xl" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                    <ShieldCheck className="w-5 h-5 text-white" />
                 </div>
                 <h1 className="text-xl sm:text-2xl font-black tracking-tight uppercase text-black">Lawyer.ai</h1>
@@ -225,7 +225,7 @@ export default function InvoiceClient({ locale, planId, plan, user, billingCycle
           <div className="w-full mb-8">
             <div className="flex flex-col md:flex-row justify-between gap-6 md:gap-10 items-start print:flex-row print:gap-10 print:flex-nowrap">
               {/* Payment Details */}
-              <div className="bg-neutral-50 p-5 border-l-4 border-black print:bg-neutral-50 w-full md:w-[320px] print:w-[320px] shrink-0" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
+              <div className="bg-neutral-50 p-5 border-l-4 border-black print:bg-neutral-50 w-full md:w-[320px] print:w-[320px] shrink-0 rounded-2xl border border-neutral-200/50" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
                 <h5 className="text-[10px] font-bold text-black uppercase tracking-widest mb-3 uppercase">Bank Information</h5>
                 <div className="grid grid-cols-[80px_1fr] text-[11px] gap-y-1.5 gap-x-2">
                   <span className="text-neutral-400 uppercase font-bold text-[8px]">Bank:</span>
@@ -249,14 +249,14 @@ export default function InvoiceClient({ locale, planId, plan, user, billingCycle
                        <td className="py-1 uppercase tracking-wider text-[9px]">Tax (VAT 0%)</td>
                        <td className="py-1 text-right text-neutral-900 font-bold">0.00 LKR</td>
                      </tr>
-                     <tr>
-                       <td colSpan={2} className="py-2">
-                         <div className="grand-total-box w-full bg-black text-white p-4 flex justify-between items-center sm:p-5 print:bg-black print:text-white" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact', backgroundColor: '#000000', color: '#ffffff' }}>
-                            <span className="text-[9px] sm:text-[10px] uppercase font-bold tracking-[0.2em] text-white/70">Grand Total</span>
-                            <span className="text-xl sm:text-2xl font-black text-white tracking-tight">{amount.toLocaleString()} LKR</span>
-                         </div>
-                       </td>
-                     </tr>
+                      <tr>
+                        <td colSpan={2} className="py-2">
+                          <div className="grand-total-box w-full bg-black text-white p-4 flex justify-between items-center sm:p-5 print:bg-black print:text-white rounded-2xl" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact', backgroundColor: '#000000', color: '#ffffff' }}>
+                             <span className="text-[9px] sm:text-[10px] uppercase font-bold tracking-[0.2em] text-white/70">Grand Total</span>
+                             <span className="text-xl sm:text-2xl font-black text-white tracking-tight">{amount.toLocaleString()} LKR</span>
+                          </div>
+                        </td>
+                      </tr>
                    </tbody>
                  </table>
               </div>
@@ -266,7 +266,7 @@ export default function InvoiceClient({ locale, planId, plan, user, billingCycle
           {/* Footer Notice */}
           <div className="mt-6 border-t border-neutral-100 flex flex-col sm:flex-row justify-between items-start sm:items-end gap-6 sm:gap-0 print:flex-row print:items-end print:gap-0 pt-6">
             <div className="space-y-2 w-full sm:max-w-[400px] print:max-w-[400px]">
-              <div className="p-3 border border-dashed border-neutral-200">
+              <div className="p-3 border border-dashed border-neutral-200 rounded-2xl">
                 <p className="text-[10px] sm:text-[11px] text-neutral-500 font-medium leading-relaxed italic">
                   Note: This is an unpaid invoice. Please complete the payment to activate your subscription.
                 </p>
@@ -281,9 +281,9 @@ export default function InvoiceClient({ locale, planId, plan, user, billingCycle
 
       {/* Control Panel */}
       <div className="w-full xl:w-[320px] shrink-0 print:hidden">
-        <div className="bg-white p-6 md:p-8 border border-neutral-200 sticky top-10 shadow-md">
+        <div className="bg-white p-6 md:p-8 border border-neutral-200/50 sticky top-10 shadow-md rounded-3xl">
           <div className="flex items-center gap-3 mb-6">
-            <div className="w-10 h-10 bg-neutral-900 flex items-center justify-center border border-neutral-100">
+            <div className="w-10 h-10 bg-neutral-900 flex items-center justify-center border border-neutral-100 rounded-xl">
               <ShieldCheck className="w-5 h-5 text-white" />
             </div>
             <div>
@@ -296,7 +296,7 @@ export default function InvoiceClient({ locale, planId, plan, user, billingCycle
              <Button 
                 onClick={handlePayNow}
                 disabled={isLoading}
-                className="w-full flex items-center justify-center gap-3 bg-primary text-primary-foreground rounded-none hover:bg-primary/90 h-14 px-6 group shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full flex items-center justify-center gap-3 bg-[#ffb84f] text-black rounded-full hover:bg-[#e5a443] h-14 px-6 group shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <CreditCard className="w-4 h-4 group-hover:scale-110 transition-transform" />
                 <span className="uppercase text-xs font-bold tracking-widest">
@@ -307,7 +307,7 @@ export default function InvoiceClient({ locale, planId, plan, user, billingCycle
             <Button 
               onClick={handlePrint}
               variant="outline"
-              className="w-full flex items-center justify-between gap-2 border-neutral-200 text-neutral-900 rounded-none hover:bg-neutral-50 h-14 px-6 group"
+              className="w-full flex items-center justify-between gap-2 border-neutral-200 text-neutral-900 rounded-full hover:bg-neutral-50 h-14 px-6 group"
             >
               <div className="flex items-center gap-3">
                 <Printer className="w-4 h-4" />
@@ -318,7 +318,7 @@ export default function InvoiceClient({ locale, planId, plan, user, billingCycle
             <Button 
               onClick={() => router.back()}
               variant="ghost"
-              className="w-full flex items-center justify-center gap-2 text-neutral-500 hover:text-black rounded-none h-12"
+              className="w-full flex items-center justify-center gap-2 text-neutral-500 hover:text-black rounded-full h-12"
             >
               <ArrowLeft className="w-4 h-4" />
               <span className="text-xs font-bold uppercase">Back to Pricing</span>
@@ -329,7 +329,7 @@ export default function InvoiceClient({ locale, planId, plan, user, billingCycle
 
       {/* Payment Method Selection Modal */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="sm:max-w-[500px] rounded-none border-t-4 border-t-black">
+        <DialogContent className="sm:max-w-[500px] rounded-3xl border border-neutral-200/50 shadow-2xl">
           <DialogHeader>
             <DialogTitle className="text-2xl font-black uppercase tracking-tighter">Choose Payment Method</DialogTitle>
             <DialogDescription className="text-neutral-500 font-medium pt-2">
@@ -342,13 +342,13 @@ export default function InvoiceClient({ locale, planId, plan, user, billingCycle
             <div className="relative group grayscale">
               <Button 
                 disabled
-                className="w-full h-24 bg-white border border-neutral-200 text-neutral-400 flex flex-col items-center justify-center gap-2 hover:bg-neutral-50 rounded-none transition-all"
+                className="w-full h-24 bg-white border border-neutral-200 text-neutral-400 flex flex-col items-center justify-center gap-2 hover:bg-neutral-50 rounded-3xl transition-all"
               >
                 <div className="flex items-center gap-3">
                   <CreditCard className="w-6 h-6" />
                   <span className="text-lg font-bold uppercase tracking-tight">Online Payment</span>
                 </div>
-                <Badge variant="secondary" className="bg-neutral-100 text-[10px] tracking-widest uppercase py-0">Coming Soon</Badge>
+                <Badge variant="secondary" className="bg-neutral-100 text-[10px] tracking-widest uppercase py-0 rounded-full">Coming Soon</Badge>
               </Button>
               <p className="text-[10px] text-center mt-2 font-bold text-neutral-400 uppercase tracking-widest">Credit / Debit Card, KOKO, Mintpay</p>
             </div>
@@ -365,7 +365,7 @@ export default function InvoiceClient({ locale, planId, plan, user, billingCycle
             {/* Offline Payment Option */}
             <Button 
               onClick={handleOfflinePayment}
-              className="w-full h-24 bg-neutral-900 text-white flex flex-col items-center justify-center gap-2 hover:bg-neutral-800 rounded-none transition-all shadow-xl group"
+              className="w-full h-24 bg-neutral-900 text-white flex flex-col items-center justify-center gap-2 hover:bg-neutral-800 rounded-3xl transition-all shadow-xl group"
             >
               <div className="flex items-center gap-3">
                 <Banknote className="w-6 h-6 group-hover:scale-110 transition-transform duration-300" />

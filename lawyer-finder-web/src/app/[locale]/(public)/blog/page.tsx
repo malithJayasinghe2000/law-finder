@@ -1,9 +1,6 @@
 import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Users, FileText, TrendingUp, PenSquare, Search } from 'lucide-react';
+import { Users, FileText, TrendingUp, PenSquare, Search, Award } from 'lucide-react';
 import Link from 'next/link';
 import PostFeed from '@/components/community/PostFeed';
 import { SidebarAd } from '@/components/ads/AdComponents';
@@ -40,129 +37,136 @@ export default async function CommunityHubPage({
   ]);
 
   return (
-    <div className="py-8 sm:py-12">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6">
-        {/* Hero Section */}
-        <div className="relative mb-10 rounded-2xl overflow-hidden bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border border-primary/10 p-8 sm:p-12">
-          <div className="relative z-10 max-w-2xl">
-            <Badge className="mb-4 bg-primary/10 text-primary border-primary/20 hover:bg-primary/20">
+    <div className="bg-[#fafafa] min-h-screen">
+      {/* ─── Hero Section (Premium Dark Style) ─── */}
+      <section className="bg-[#0d1017] text-white py-20 lg:py-24">
+        <div className="mx-auto max-w-[1400px] px-6 lg:px-12 xl:px-24 relative">
+          <div className="max-w-3xl">
+            <span className="inline-block bg-[#ffb84f]/10 text-[#ffb84f] border border-[#ffb84f]/20 px-3 py-1 text-[10px] font-bold uppercase tracking-widest mb-6">
               Community Hub
-            </Badge>
-            <h1 className="text-3xl sm:text-4xl font-bold tracking-tight mb-3">
-              Sri Lanka&apos;s Legal Knowledge Community
+            </span>
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-medium tracking-tight mb-6">
+              Legal Knowledge Community
             </h1>
-            <p className="text-muted-foreground text-lg mb-6">
+            <p className="text-neutral-400 text-lg sm:text-xl font-light mb-8 max-w-2xl leading-relaxed">
               Connect with verified lawyers, share legal experiences, and discover expert insights across all areas of Sri Lankan law.
             </p>
-            <div className="flex flex-wrap gap-3">
+            <div className="flex flex-wrap gap-4">
               {session ? (
-                <Link href={`/${locale}/blog/create`}>
-                  <Button size="lg" className="gap-2 font-semibold">
-                    <PenSquare className="h-4 w-4" /> Create Post
-                  </Button>
+                <Link 
+                  href={`/${locale}/blog/create`}
+                  className="flex items-center gap-2 bg-[#ffb84f] text-black px-8 py-4 rounded-full font-bold uppercase tracking-widest text-sm hover:bg-[#e5a443] transition-all hover:scale-105"
+                >
+                  <PenSquare className="h-4 w-4" /> Create Post
                 </Link>
               ) : (
-                <Link href={`/${locale}/login`}>
-                  <Button size="lg" className="gap-2 font-semibold">
-                    Join Community
-                  </Button>
+                <Link 
+                  href={`/${locale}/login`}
+                  className="bg-[#ffb84f] text-black px-8 py-4 rounded-full font-bold uppercase tracking-widest text-sm hover:bg-[#e5a443] transition-all hover:scale-105"
+                >
+                  Join Community
                 </Link>
               )}
-              <a href="#communities">
-                <Button size="lg" variant="outline" className="gap-2">
-                  <Search className="h-4 w-4" /> Browse Communities
-                </Button>
+              <a 
+                href="#communities"
+                className="flex items-center gap-2 bg-white/5 border border-white/10 text-white px-8 py-4 rounded-full font-bold uppercase tracking-widest text-sm hover:bg-white/10 transition-colors"
+              >
+                <Search className="h-4 w-4" /> Browse
               </a>
             </div>
           </div>
 
-          {/* Stats */}
-          <div className="absolute right-8 top-8 hidden lg:flex gap-6">
+          {/* Stats Overlay */}
+          <div className="absolute right-6 lg:right-12 xl:right-24 top-1/2 -translate-y-1/2 hidden lg:flex flex-col gap-8 bg-white/5 border border-white/10 p-8 rounded-3xl backdrop-blur-sm">
             {[
               { icon: Users, value: totalMembers, label: 'Members' },
-              { icon: FileText, value: totalPosts, label: 'Posts' },
+              { icon: FileText, value: totalPosts, label: 'Discussions' },
               { icon: TrendingUp, value: totalCommunities, label: 'Communities' },
             ].map((stat) => (
               <div key={stat.label} className="text-center">
-                <stat.icon className="h-5 w-5 text-primary mx-auto mb-1" />
-                <div className="text-2xl font-bold">{stat.value}</div>
-                <div className="text-xs text-muted-foreground">{stat.label}</div>
+                <stat.icon className="h-6 w-6 text-[#ffb84f] mx-auto mb-2" />
+                <div className="text-3xl font-bold text-white">{stat.value}</div>
+                <div className="text-[10px] text-neutral-400 font-bold uppercase tracking-widest mt-1">{stat.label}</div>
               </div>
             ))}
           </div>
         </div>
+      </section>
 
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-8">
+      {/* ─── Main Content Area ─── */}
+      <div className="mx-auto max-w-[1400px] px-6 lg:px-12 xl:px-24 py-12 lg:py-16">
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] xl:grid-cols-[1fr_380px] gap-8 lg:gap-12">
+          
           {/* Main Feed */}
           <div>
             <PostFeed locale={locale} />
           </div>
 
           {/* Sidebar */}
-          <aside className="space-y-6">
+          <aside className="space-y-8">
             {/* Communities List */}
-            <Card id="communities">
-              <CardContent className="p-5">
-                <h2 className="font-semibold text-lg mb-4 flex items-center gap-2">
-                  <Users className="h-5 w-5 text-primary" /> Communities
-                </h2>
-                <div className="space-y-1">
-                  {communities.map((community, index) => (
-                    <Link
-                      key={community.id}
-                      href={`/${locale}/blog/community/${community.name}`}
-                      className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-muted transition-colors group"
-                    >
-                      <span className="text-xs font-bold text-muted-foreground w-5 text-right">
-                        {index + 1}
-                      </span>
-                      <span className="text-lg flex-shrink-0">{community.icon || '📋'}</span>
-                      <div className="min-w-0 flex-1">
-                        <div className="text-sm font-medium truncate group-hover:text-primary transition-colors">
-                          {community.displayName}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {community._count.members} members • {community._count.posts} posts
-                        </div>
+            <div id="communities" className="bg-white rounded-3xl p-6 border border-neutral-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
+              <h2 className="font-bold text-[#0a0d14] text-lg mb-6 flex items-center gap-2">
+                <Users className="h-5 w-5 text-[#ffb84f]" /> Active Communities
+              </h2>
+              <div className="space-y-2">
+                {communities.map((community, index) => (
+                  <Link
+                    key={community.id}
+                    href={`/${locale}/blog/community/${community.name}`}
+                    className="flex items-center gap-4 p-3 rounded-2xl hover:bg-neutral-50 border border-transparent hover:border-neutral-100 transition-all group"
+                  >
+                    <span className="text-[10px] font-bold text-neutral-400 w-4 text-right">
+                      {index + 1}
+                    </span>
+                    <span className="text-xl flex-shrink-0 bg-neutral-100 h-10 w-10 flex items-center justify-center rounded-full group-hover:bg-white group-hover:shadow-sm transition-all">{community.icon || '📋'}</span>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm font-bold text-[#0a0d14] truncate group-hover:text-[#ffb84f] transition-colors">
+                        {community.displayName}
                       </div>
-                    </Link>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+                      <div className="text-[11px] text-neutral-500 font-medium">
+                        {community._count.members} members • {community._count.posts} posts
+                      </div>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </div>
 
             {/* Sponsored Lawyers */}
-            <SidebarAd placement="BLOG_FEED" locale={locale} />
+            <div className="overflow-hidden rounded-3xl">
+               <SidebarAd placement="BLOG_FEED" locale={locale} />
+            </div>
 
             {/* Community Guidelines */}
-            <Card>
-              <CardContent className="p-5">
-                <h3 className="font-semibold mb-3">📜 Community Guidelines</h3>
-                <ul className="space-y-2 text-sm text-muted-foreground">
-                  <li className="flex gap-2"><span className="text-primary">1.</span> Be respectful and professional</li>
-                  <li className="flex gap-2"><span className="text-primary">2.</span> No personal legal advice — for general discussion only</li>
-                  <li className="flex gap-2"><span className="text-primary">3.</span> Cite sources when discussing legal provisions</li>
-                  <li className="flex gap-2"><span className="text-primary">4.</span> No spam, self-promotion, or advertisements</li>
-                  <li className="flex gap-2"><span className="text-primary">5.</span> Respect privacy — never share case details</li>
-                </ul>
-              </CardContent>
-            </Card>
+            <div className="bg-[#0a0d14] text-white rounded-3xl p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
+              <h3 className="font-bold text-lg mb-6 flex items-center gap-2">📜 Community Guidelines</h3>
+              <ul className="space-y-4 text-sm text-neutral-400 font-light">
+                <li className="flex gap-3"><span className="text-[#ffb84f] font-bold">1.</span> Be respectful and professional</li>
+                <li className="flex gap-3"><span className="text-[#ffb84f] font-bold">2.</span> No personal legal advice — for general discussion only</li>
+                <li className="flex gap-3"><span className="text-[#ffb84f] font-bold">3.</span> Cite sources when discussing legal provisions</li>
+                <li className="flex gap-3"><span className="text-[#ffb84f] font-bold">4.</span> No spam, self-promotion, or advertisements</li>
+                <li className="flex gap-3"><span className="text-[#ffb84f] font-bold">5.</span> Respect privacy — never share case details</li>
+              </ul>
+            </div>
 
             {/* Lawyer CTA */}
-            {session?.role === 'LAWYER' && (
-              <Card className="border-primary/20 bg-primary/[0.02]">
-                <CardContent className="p-5 text-center">
-                  <h3 className="font-semibold mb-2">Want to create a community?</h3>
-                  <p className="text-sm text-muted-foreground mb-3">
-                    Request a new legal community for your area of expertise.
-                  </p>
-                  <Link href={`/${locale}/dashboard/lawyer`}>
-                    <Button size="sm" variant="outline" className="w-full">
-                      Request Community
-                    </Button>
-                  </Link>
-                </CardContent>
-              </Card>
+            {true && (
+              <div className="bg-[#ffb84f]/10 border border-[#ffb84f]/20 rounded-3xl p-8 text-center">
+                <div className="mx-auto w-12 h-12 bg-white rounded-full flex items-center justify-center mb-4 shadow-sm">
+                  <Award className="h-6 w-6 text-[#ffb84f]" />
+                </div>
+                <h3 className="font-bold text-[#0a0d14] text-lg mb-2">Lead a Community</h3>
+                <p className="text-sm text-neutral-600 font-light mb-6">
+                  Request a new legal community for your area of expertise.
+                </p>
+                <Link 
+                  href={`/${locale}/dashboard/lawyer`}
+                  className="block w-full bg-[#0a0d14] text-white py-3.5 rounded-full text-xs font-bold uppercase tracking-widest hover:bg-neutral-800 transition-colors"
+                >
+                  Request Community
+                </Link>
+              </div>
             )}
           </aside>
         </div>

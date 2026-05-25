@@ -163,8 +163,8 @@ export default function AvailabilityPage() {
   if (loading) {
     return (
       <div className="space-y-6">
-        <Skeleton className="h-8 w-64 rounded-none" />
-        <div className="grid gap-4">{[1,2,3].map(i => <Skeleton key={i} className="h-32 rounded-none" />)}</div>
+        <Skeleton className="h-8 w-64 rounded-full" />
+        <div className="grid gap-4">{[1,2,3].map(i => <Skeleton key={i} className="h-32 rounded-3xl" />)}</div>
       </div>
     );
   }
@@ -174,7 +174,7 @@ export default function AvailabilityPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <div className="flex h-11 w-11 items-center justify-center bg-[#0a0a0a] text-white">
+          <div className="flex h-11 w-11 items-center justify-center bg-[#0a0a0a] text-white rounded-xl">
             <CalendarDays className="h-5 w-5" />
           </div>
           <div>
@@ -185,7 +185,7 @@ export default function AvailabilityPage() {
         <Button
           onClick={saveSchedule}
           disabled={saving}
-          className="bg-[#0a0a0a] text-white hover:bg-neutral-800 rounded-none h-10 px-6 text-sm font-bold uppercase tracking-wide"
+          className="bg-[#ffb84f] text-black hover:bg-[#e5a443] rounded-full h-10 px-6 text-sm font-bold uppercase tracking-wide"
         >
           <Save className="w-4 h-4 mr-2" /> {saving ? 'Saving...' : 'Save Schedule'}
         </Button>
@@ -203,7 +203,7 @@ export default function AvailabilityPage() {
             .filter(s => s.dayOfWeek === day);
 
           return (
-            <Card key={day} className="rounded-none shadow-sm">
+            <Card key={day} className="rounded-3xl border border-neutral-200/50 shadow-sm overflow-hidden">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="text-sm font-bold text-neutral-900">{DAY_LABELS[day]}</h3>
@@ -211,7 +211,7 @@ export default function AvailabilityPage() {
                     variant="outline"
                     size="sm"
                     onClick={() => addSlot(day)}
-                    className="rounded-none h-8 text-xs font-semibold"
+                    className="rounded-full h-8 text-xs font-semibold px-4"
                   >
                     <Plus className="w-3 h-3 mr-1" /> Add Slot
                   </Button>
@@ -222,21 +222,21 @@ export default function AvailabilityPage() {
                 ) : (
                   <div className="space-y-3">
                     {daySlots.map((slot) => (
-                      <div key={slot._idx} className="flex flex-wrap items-center gap-3 p-3 border border-neutral-100 bg-neutral-50">
+                      <div key={slot._idx} className="flex flex-wrap items-center gap-3 p-3 border border-neutral-100 bg-neutral-50 rounded-2xl">
                         {/* Time Range */}
                         <div className="flex items-center gap-2">
                           <input
                             type="time"
                             value={slot.startTime}
                             onChange={(e) => updateSlot(slot._idx, 'startTime', e.target.value)}
-                            className="border border-neutral-200 px-2 py-1.5 text-xs font-mono bg-white w-[100px]"
+                            className="border border-neutral-200 px-3 py-1.5 text-xs font-mono bg-white w-[110px] rounded-2xl focus:outline-none focus:border-black"
                           />
                           <span className="text-xs text-neutral-400">to</span>
                           <input
                             type="time"
                             value={slot.endTime}
                             onChange={(e) => updateSlot(slot._idx, 'endTime', e.target.value)}
-                            className="border border-neutral-200 px-2 py-1.5 text-xs font-mono bg-white w-[100px]"
+                            className="border border-neutral-200 px-3 py-1.5 text-xs font-mono bg-white w-[110px] rounded-2xl focus:outline-none focus:border-black"
                           />
                         </div>
 
@@ -244,7 +244,7 @@ export default function AvailabilityPage() {
                         <select
                           value={slot.slotDuration}
                           onChange={(e) => updateSlot(slot._idx, 'slotDuration', parseInt(e.target.value))}
-                          className="border border-neutral-200 px-2 py-1.5 text-xs bg-white"
+                          className="border border-neutral-200 px-3 py-1.5 text-xs bg-white rounded-2xl focus:outline-none focus:border-black"
                         >
                           <option value={30}>30 min</option>
                           <option value={45}>45 min</option>
@@ -257,7 +257,7 @@ export default function AvailabilityPage() {
                         <select
                           value={slot.bufferTime}
                           onChange={(e) => updateSlot(slot._idx, 'bufferTime', parseInt(e.target.value))}
-                          className="border border-neutral-200 px-2 py-1.5 text-xs bg-white"
+                          className="border border-neutral-200 px-3 py-1.5 text-xs bg-white rounded-2xl focus:outline-none focus:border-black"
                         >
                           <option value={0}>No buffer</option>
                           <option value={10}>10min gap</option>
@@ -269,7 +269,7 @@ export default function AvailabilityPage() {
                         <select
                           value={slot.mode}
                           onChange={(e) => updateSlot(slot._idx, 'mode', e.target.value)}
-                          className="border border-neutral-200 px-2 py-1.5 text-xs bg-white"
+                          className="border border-neutral-200 px-3 py-1.5 text-xs bg-white rounded-2xl focus:outline-none focus:border-black"
                         >
                           <option value="BOTH">Physical & Online</option>
                           <option value="PHYSICAL">Physical Only</option>
@@ -279,7 +279,7 @@ export default function AvailabilityPage() {
                         {/* Remove */}
                         <button
                           onClick={() => removeSlot(slot._idx)}
-                          className="ml-auto p-1.5 text-red-500 hover:bg-red-50 transition-colors"
+                          className="ml-auto p-1.5 text-red-500 hover:bg-red-50 transition-colors rounded-full"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -300,7 +300,7 @@ export default function AvailabilityPage() {
         </h2>
 
         {/* Add Override Form */}
-        <Card className="rounded-none shadow-sm border-dashed border-2 border-neutral-300">
+        <Card className="rounded-3xl shadow-sm border-dashed border-2 border-neutral-200 bg-neutral-50/20">
           <CardContent className="p-5">
             <div className="flex flex-wrap items-end gap-4">
               <div>
@@ -310,7 +310,7 @@ export default function AvailabilityPage() {
                   value={overrideDate}
                   onChange={(e) => setOverrideDate(e.target.value)}
                   min={new Date().toISOString().split('T')[0]}
-                  className="border border-neutral-200 px-3 py-2 text-sm bg-white"
+                  className="border border-neutral-200 px-3 py-2 text-sm bg-white rounded-3xl focus:outline-none focus:border-black"
                 />
               </div>
 
@@ -319,7 +319,7 @@ export default function AvailabilityPage() {
                 <select
                   value={overrideBlocked ? 'blocked' : 'custom'}
                   onChange={(e) => setOverrideBlocked(e.target.value === 'blocked')}
-                  className="border border-neutral-200 px-3 py-2 text-sm bg-white"
+                  className="border border-neutral-200 px-3 py-2 text-sm bg-white rounded-3xl focus:outline-none focus:border-black"
                 >
                   <option value="blocked">Block Entire Day</option>
                   <option value="custom">Custom Hours</option>
@@ -330,11 +330,11 @@ export default function AvailabilityPage() {
                 <>
                   <div>
                     <label className="block text-[11px] font-semibold text-neutral-500 uppercase tracking-wide mb-1">From</label>
-                    <input type="time" value={overrideStart} onChange={(e) => setOverrideStart(e.target.value)} className="border border-neutral-200 px-3 py-2 text-sm bg-white" />
+                    <input type="time" value={overrideStart} onChange={(e) => setOverrideStart(e.target.value)} className="border border-neutral-200 px-3 py-2 text-sm bg-white rounded-3xl focus:outline-none focus:border-black" />
                   </div>
                   <div>
                     <label className="block text-[11px] font-semibold text-neutral-500 uppercase tracking-wide mb-1">To</label>
-                    <input type="time" value={overrideEnd} onChange={(e) => setOverrideEnd(e.target.value)} className="border border-neutral-200 px-3 py-2 text-sm bg-white" />
+                    <input type="time" value={overrideEnd} onChange={(e) => setOverrideEnd(e.target.value)} className="border border-neutral-200 px-3 py-2 text-sm bg-white rounded-3xl focus:outline-none focus:border-black" />
                   </div>
                 </>
               )}
@@ -346,14 +346,14 @@ export default function AvailabilityPage() {
                   value={overrideReason}
                   onChange={(e) => setOverrideReason(e.target.value)}
                   placeholder="e.g., Public holiday"
-                  className="border border-neutral-200 px-3 py-2 text-sm bg-white w-full"
+                  className="border border-neutral-200 px-3 py-2 text-sm bg-white w-full rounded-3xl focus:outline-none focus:border-black"
                 />
               </div>
 
               <Button
                 onClick={addOverride}
                 disabled={savingOverride}
-                className="bg-[#0a0a0a] text-white hover:bg-neutral-800 rounded-none h-10 px-5 text-xs font-bold uppercase tracking-wide"
+                className="bg-[#0a0a0a] text-white hover:bg-neutral-800 rounded-full h-10 px-5 text-xs font-bold uppercase tracking-wide"
               >
                 {savingOverride ? 'Saving...' : 'Add Override'}
               </Button>
@@ -367,7 +367,7 @@ export default function AvailabilityPage() {
         ) : (
           <div className="grid gap-2">
             {overrides.map((o) => (
-              <div key={o.id} className="flex items-center justify-between p-4 border border-neutral-200 bg-white">
+              <div key={o.id} className="flex items-center justify-between p-4 border border-neutral-200/50 bg-white rounded-3xl">
                 <div className="flex items-center gap-3">
                   {o.isBlocked ? (
                     <Ban className="w-4 h-4 text-red-500" />
@@ -384,7 +384,7 @@ export default function AvailabilityPage() {
                     </p>
                   </div>
                 </div>
-                <button onClick={() => deleteOverride(o.id)} className="p-1.5 text-red-500 hover:bg-red-50">
+                <button onClick={() => deleteOverride(o.id)} className="p-1.5 text-red-500 hover:bg-red-50 rounded-full">
                   <Trash2 className="w-4 h-4" />
                 </button>
               </div>

@@ -26,11 +26,11 @@ export default async function DashboardLayout({ children, params }: { children: 
 
   return (
     <SidebarProvider>
-      <div className="flex w-full min-h-screen bg-neutral-50 relative overflow-hidden">
+      <div className="flex w-full min-h-screen bg-[#f5f5f7] relative overflow-hidden">
         <AppSidebar locale={locale} role={liveRole} userId={session.userId} />
         <div className="flex-1 flex flex-col min-w-0 max-w-full">
           {/* Top bar */}
-          <header className="h-14 border-b border-neutral-200 bg-white flex items-center justify-between px-4 lg:px-6 sticky top-0 z-40">
+          <header className="h-16 border-b border-neutral-200/60 bg-white/80 backdrop-blur-xl flex items-center justify-between px-4 lg:px-8 sticky top-0 z-40">
             <div className="flex items-center gap-3">
               <div className="md:hidden">
                 <SidebarTrigger />
@@ -38,10 +38,10 @@ export default async function DashboardLayout({ children, params }: { children: 
               <span className="text-[13px] font-semibold text-neutral-900 tracking-tight">{liveRole === 'ADMIN' ? 'Admin Dashboard' : (liveRole === 'LAWYER' ? 'Lawyer Portal' : 'Client Portal')}</span>
             </div>
             <div className="flex items-center gap-3">
-              <div className="text-xs font-bold rounded-none cursor-pointer hover:text-neutral-500 border border-neutral-200 px-2 py-2">
+              <div className="text-xs font-bold rounded-full cursor-pointer hover:text-neutral-500 border border-neutral-200 px-4 py-2 transition-colors hover:bg-neutral-50">
                 <a href='/'>Back To Home</a>
               </div>
-              <div className="w-8 h-8 bg-[#0a0a0a] text-white flex items-center justify-center text-xs font-bold rounded-none">
+              <div className="w-9 h-9 bg-[#0d1017] text-white flex items-center justify-center text-xs font-bold rounded-full overflow-hidden">
                 {(user?.profileImageUrl || session.profileImageUrl) ? (
                   <img src={user?.profileImageUrl || session.profileImageUrl || ''} alt="Profile" className="h-full w-full object-cover" />
                 ) : (
@@ -51,7 +51,7 @@ export default async function DashboardLayout({ children, params }: { children: 
 
             </div>
           </header>
-          <main className="flex-1 p-6 lg:p-8 overflow-x-hidden">
+          <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-x-hidden">
             <div className="mx-auto w-full max-w-7xl">
               {children}
             </div>
@@ -61,4 +61,3 @@ export default async function DashboardLayout({ children, params }: { children: 
     </SidebarProvider>
   );
 }
-

@@ -198,7 +198,7 @@ export default function LawyerAdsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <div className="flex h-11 w-11 items-center justify-center bg-[#0a0a0a] text-white">
+          <div className="flex h-11 w-11 items-center justify-center bg-[#0a0a0a] text-white rounded-xl">
             <Megaphone className="h-5 w-5" />
           </div>
           <div>
@@ -208,7 +208,7 @@ export default function LawyerAdsPage() {
         </div>
         <Button
           onClick={() => setShowCreate(!showCreate)}
-          className="bg-[#0a0a0a] hover:bg-neutral-800 text-white text-xs font-bold uppercase tracking-wide"
+          className="bg-[#ffb84f] hover:bg-[#e5a443] text-black text-xs font-bold uppercase tracking-wide rounded-full h-10 px-6"
         >
           <Plus className="w-3.5 h-3.5 mr-2" /> New Campaign
         </Button>
@@ -224,7 +224,7 @@ export default function LawyerAdsPage() {
             { label: 'Total Clicks', value: stats.totalClicks.toLocaleString(), icon: MousePointerClick, color: 'text-purple-600' },
             { label: 'Avg. CTR', value: `${stats.avgCtr}%`, icon: TrendingUp, color: 'text-amber-600' },
           ].map((s) => (
-            <Card key={s.label}>
+            <Card key={s.label} className="rounded-3xl border border-neutral-200/50 shadow-sm">
               <CardContent className="p-4">
                 <div className="flex items-center gap-2 mb-2">
                   <s.icon className="w-4 h-4 text-neutral-400" />
@@ -239,7 +239,7 @@ export default function LawyerAdsPage() {
 
       {/* How It Works */}
       {campaigns.length === 0 && !loading && !showCreate && (
-        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 p-8 text-center space-y-4">
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 p-8 text-center space-y-4 rounded-3xl">
           <Megaphone className="w-12 h-12 text-blue-500 mx-auto" />
           <h2 className="text-xl font-bold text-neutral-900">Grow Your Practice with Ads</h2>
           <p className="text-sm text-neutral-600 max-w-lg mx-auto">
@@ -253,7 +253,7 @@ export default function LawyerAdsPage() {
             <ArrowRight className="w-3 h-3" />
             <div className="flex items-center gap-1.5"><span className="w-6 h-6 rounded-full bg-emerald-100 text-emerald-700 font-bold flex items-center justify-center text-[10px]">3</span> Goes Live!</div>
           </div>
-          <Button onClick={() => setShowCreate(true)} className="bg-[#0a0a0a] hover:bg-neutral-800 text-white mt-2">
+          <Button onClick={() => setShowCreate(true)} className="bg-[#0a0a0a] hover:bg-neutral-800 text-white mt-2 rounded-full h-10 px-6">
             <Plus className="w-4 h-4 mr-2" /> Create Your First Campaign
           </Button>
         </div>
@@ -261,19 +261,19 @@ export default function LawyerAdsPage() {
 
       {/* Create Form */}
       {showCreate && (
-        <div className="bg-white border border-neutral-200 p-6 space-y-5 animate-in fade-in duration-300">
+        <div className="bg-white border border-neutral-200/50 p-6 space-y-5 rounded-3xl shadow-sm animate-in fade-in duration-300">
           <h3 className="text-xs font-bold text-neutral-900 uppercase tracking-wide">Create New Campaign</h3>
           <p className="text-sm text-neutral-500">Your campaign will be reviewed by our team before it goes live. This usually takes 24-48 hours.</p>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <div>
               <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5">Campaign Name *</label>
-              <input type="text" placeholder="e.g. January Criminal Law Push" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="w-full py-2.5 px-3 bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-900 outline-none focus:border-[#0a0a0a]" />
+              <input type="text" placeholder="e.g. January Criminal Law Push" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="w-full py-2.5 px-4 bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-900 outline-none focus:border-black rounded-3xl" />
             </div>
 
             <div>
               <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5">Ad Type *</label>
-              <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} className="w-full py-2.5 px-3 bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-900 outline-none focus:border-[#0a0a0a]">
+              <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} className="w-full py-2.5 px-4 bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-900 outline-none focus:border-black rounded-3xl">
                 {AD_TYPES.map((t) => (
                   <option key={t} value={t}>{formatLabel(t)}</option>
                 ))}
@@ -282,7 +282,7 @@ export default function LawyerAdsPage() {
 
             <div>
               <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5">Placement *</label>
-              <select value={form.placement} onChange={(e) => setForm({ ...form, placement: e.target.value })} className="w-full py-2.5 px-3 bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-900 outline-none focus:border-[#0a0a0a]">
+              <select value={form.placement} onChange={(e) => setForm({ ...form, placement: e.target.value })} className="w-full py-2.5 px-4 bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-900 outline-none focus:border-black rounded-3xl">
                 {AD_PLACEMENTS.map((p) => (
                   <option key={p} value={p}>{formatLabel(p)}</option>
                 ))}
@@ -291,23 +291,23 @@ export default function LawyerAdsPage() {
 
             <div>
               <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5">Ad Headline</label>
-              <input type="text" placeholder="e.g. Expert Criminal Defense in Colombo" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="w-full py-2.5 px-3 bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-900 outline-none focus:border-[#0a0a0a]" />
+              <input type="text" placeholder="e.g. Expert Criminal Defense in Colombo" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="w-full py-2.5 px-4 bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-900 outline-none focus:border-black rounded-3xl" />
             </div>
 
             <div>
               <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5">CTA Button Text</label>
-              <input type="text" placeholder="View Profile" value={form.ctaText} onChange={(e) => setForm({ ...form, ctaText: e.target.value })} className="w-full py-2.5 px-3 bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-900 outline-none focus:border-[#0a0a0a]" />
+              <input type="text" placeholder="View Profile" value={form.ctaText} onChange={(e) => setForm({ ...form, ctaText: e.target.value })} className="w-full py-2.5 px-4 bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-900 outline-none focus:border-black rounded-3xl" />
             </div>
 
             <div>
               <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5">Banner Image</label>
               {form.imageUrl ? (
-                <div className="relative rounded overflow-hidden border border-neutral-200 h-[42px]">
+                <div className="relative rounded-2xl overflow-hidden border border-neutral-200 h-[42px]">
                   <img src={form.imageUrl} alt="Banner" className="w-full h-full object-cover" />
                   <button
                     type="button"
                     onClick={() => setForm({ ...form, imageUrl: '' })}
-                    className="absolute top-1 right-1 bg-black/60 text-white px-2 py-0.5 rounded-sm text-[10px] hover:bg-black/80 transition-colors"
+                    className="absolute top-1 right-1 bg-black/60 text-white px-2 py-0.5 rounded-full text-[10px] hover:bg-black/80 transition-colors"
                   >
                     Remove
                   </button>
@@ -317,7 +317,7 @@ export default function LawyerAdsPage() {
                   type="button"
                   onClick={handleImageUpload}
                   disabled={uploadingImage}
-                  className="flex items-center justify-center gap-2 w-full h-[42px] bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-500 hover:border-[#0a0a0a] hover:text-neutral-900 transition-colors rounded-sm"
+                  className="flex items-center justify-center gap-2 w-full h-[42px] bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-500 hover:border-black hover:text-neutral-900 transition-colors rounded-3xl"
                 >
                   {uploadingImage ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
@@ -331,33 +331,33 @@ export default function LawyerAdsPage() {
 
             <div className="md:col-span-3">
               <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5">Description</label>
-              <textarea placeholder="A brief description of your services..." value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={2} className="w-full py-2.5 px-3 bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-900 outline-none focus:border-[#0a0a0a] resize-none" />
+              <textarea placeholder="A brief description of your services..." value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={2} className="w-full py-2.5 px-4 bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-900 outline-none focus:border-black rounded-3xl resize-none" />
             </div>
 
             <Separator className="md:col-span-3" />
 
             <div>
               <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5">Start Date *</label>
-              <input type="date" value={form.startDate} onChange={(e) => setForm({ ...form, startDate: e.target.value })} className="w-full py-2.5 px-3 bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-900 outline-none focus:border-[#0a0a0a]" />
+              <input type="date" value={form.startDate} onChange={(e) => setForm({ ...form, startDate: e.target.value })} className="w-full py-2.5 px-4 bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-900 outline-none focus:border-black rounded-3xl" />
             </div>
 
             <div>
               <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5">End Date *</label>
-              <input type="date" value={form.endDate} onChange={(e) => setForm({ ...form, endDate: e.target.value })} className="w-full py-2.5 px-3 bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-900 outline-none focus:border-[#0a0a0a]" />
+              <input type="date" value={form.endDate} onChange={(e) => setForm({ ...form, endDate: e.target.value })} className="w-full py-2.5 px-4 bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-900 outline-none focus:border-black rounded-3xl" />
             </div>
 
             <div>
               <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5">Budget (LKR)</label>
-              <input type="number" placeholder="15000" value={form.totalBudget} onChange={(e) => setForm({ ...form, totalBudget: e.target.value })} className="w-full py-2.5 px-3 bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-900 outline-none focus:border-[#0a0a0a]" />
+              <input type="number" placeholder="15000" value={form.totalBudget} onChange={(e) => setForm({ ...form, totalBudget: e.target.value })} className="w-full py-2.5 px-4 bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-900 outline-none focus:border-black rounded-3xl" />
             </div>
           </div>
 
           <div className="flex gap-2 pt-2">
-            <Button onClick={handleCreate} disabled={createLoading} className="bg-[#0a0a0a] hover:bg-neutral-800 text-white text-xs font-bold uppercase tracking-wide">
+            <Button onClick={handleCreate} disabled={createLoading} className="bg-[#0a0a0a] hover:bg-neutral-800 text-white text-xs font-bold uppercase tracking-wide rounded-full h-10 px-6">
               {createLoading ? <Loader2 className="w-3 h-3 animate-spin mr-2" /> : <Send className="w-3 h-3 mr-2" />}
               Submit for Review
             </Button>
-            <Button variant="ghost" onClick={() => setShowCreate(false)} className="text-neutral-600">Cancel</Button>
+            <Button variant="ghost" onClick={() => setShowCreate(false)} className="text-neutral-600 rounded-full h-10 px-6">Cancel</Button>
           </div>
         </div>
       )}
@@ -366,7 +366,7 @@ export default function LawyerAdsPage() {
       {loading ? (
         <div className="space-y-3">
           {[...Array(3)].map((_, i) => (
-            <div key={i} className="h-20 bg-white border border-neutral-200 animate-pulse" />
+            <div key={i} className="h-20 bg-white border border-neutral-200/50 rounded-3xl animate-pulse" />
           ))}
         </div>
       ) : campaigns.length > 0 && (
@@ -377,13 +377,13 @@ export default function LawyerAdsPage() {
             const daysLeft = Math.max(0, Math.ceil((new Date(campaign.endDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)));
 
             return (
-              <div key={campaign.id} className="bg-white border border-neutral-200 overflow-hidden transition-shadow hover:shadow-sm">
+              <div key={campaign.id} className="bg-white border border-neutral-200/50 rounded-3xl overflow-hidden transition-all hover:shadow-md">
                 {/* Main Row */}
                 <div
                   className="flex items-center gap-4 px-5 py-4 cursor-pointer"
                   onClick={() => setExpandedId(isExpanded ? null : campaign.id)}
                 >
-                  <div className="w-10 h-10 rounded bg-neutral-100 flex items-center justify-center shrink-0 overflow-hidden">
+                  <div className="w-10 h-10 rounded-xl bg-neutral-100 flex items-center justify-center shrink-0 overflow-hidden">
                     {campaign.imageUrl ? (
                       <img src={campaign.imageUrl} alt="" className="w-full h-full object-cover" />
                     ) : (
@@ -394,7 +394,7 @@ export default function LawyerAdsPage() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-0.5">
                       <p className="text-sm font-bold text-neutral-900 truncate">{campaign.name}</p>
-                      <span className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 border ${sc.bg} ${sc.color}`}>
+                      <span className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 border rounded-full ${sc.bg} ${sc.color}`}>
                         {sc.label}
                       </span>
                     </div>
@@ -421,7 +421,7 @@ export default function LawyerAdsPage() {
 
                 {/* Expanded Details */}
                 {isExpanded && (
-                  <div className="border-t border-neutral-100 px-5 py-5 bg-neutral-50/50 space-y-4 animate-in fade-in duration-200">
+                  <div className="border-t border-neutral-100 px-5 py-5 bg-neutral-50/20 space-y-4 animate-in fade-in duration-200">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                       <div>
                         <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1">Schedule</p>
@@ -452,7 +452,7 @@ export default function LawyerAdsPage() {
 
                     {/* Rejection notice */}
                     {campaign.rejectionReason && (
-                      <div className="bg-red-50 border border-red-200 p-3 rounded text-sm">
+                      <div className="bg-red-50 border border-red-200/50 p-3 rounded-2xl text-sm">
                         <p className="text-[10px] font-bold text-red-600 uppercase tracking-wider mb-1">Rejection Reason</p>
                         <p className="text-red-700">{campaign.rejectionReason}</p>
                       </div>
@@ -462,17 +462,17 @@ export default function LawyerAdsPage() {
                     <Separator />
                     <div className="flex gap-2">
                       {campaign.status === 'ACTIVE' && (
-                        <Button size="sm" variant="outline" onClick={() => handleStatusChange(campaign.id, 'PAUSED')} disabled={actionLoading === campaign.id} className="text-orange-600 border-orange-200 hover:bg-orange-50 text-xs font-bold">
+                        <Button size="sm" variant="outline" onClick={() => handleStatusChange(campaign.id, 'PAUSED')} disabled={actionLoading === campaign.id} className="text-orange-600 border-orange-200 hover:bg-orange-50 text-xs font-bold rounded-full">
                           <Pause className="w-3.5 h-3.5 mr-1.5" /> Pause Campaign
                         </Button>
                       )}
                       {campaign.status === 'PAUSED' && (
-                        <Button size="sm" onClick={() => handleStatusChange(campaign.id, 'ACTIVE')} disabled={actionLoading === campaign.id} className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold">
+                        <Button size="sm" onClick={() => handleStatusChange(campaign.id, 'ACTIVE')} disabled={actionLoading === campaign.id} className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-full">
                           <Play className="w-3.5 h-3.5 mr-1.5" /> Resume Campaign
                         </Button>
                       )}
                       {campaign.status === 'REJECTED' && (
-                        <Button size="sm" onClick={() => handleStatusChange(campaign.id, 'PENDING_REVIEW')} disabled={actionLoading === campaign.id} className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold">
+                        <Button size="sm" onClick={() => handleStatusChange(campaign.id, 'PENDING_REVIEW')} disabled={actionLoading === campaign.id} className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-full">
                           <Send className="w-3.5 h-3.5 mr-1.5" /> Resubmit for Review
                         </Button>
                       )}

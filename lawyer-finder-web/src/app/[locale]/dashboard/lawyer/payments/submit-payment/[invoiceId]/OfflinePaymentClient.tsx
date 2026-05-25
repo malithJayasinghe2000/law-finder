@@ -176,7 +176,7 @@ export default function OfflinePaymentClient({ locale, invoice }: OfflinePayment
         </div>
 
         {/* Invoice Summary */}
-        <Card className="mb-8 border-l-4 border-l-primary">
+        <Card className="mb-8 border-l-4 border-l-[#ffb84f] rounded-3xl shadow-sm border border-neutral-200/50">
           <CardHeader>
             <div className="flex justify-between items-start">
               <div>
@@ -185,7 +185,7 @@ export default function OfflinePaymentClient({ locale, invoice }: OfflinePayment
                   {invoice.plan ? 'Payment Submission for Plan Subscription' : 'Payment Submission for Invoice'}
                 </CardDescription>
               </div>
-              <Badge variant="outline" className="bg-yellow-50 text-yellow-800 border-yellow-200">
+              <Badge variant="outline" className="bg-yellow-50 text-yellow-800 border-yellow-200 rounded-full">
                 {invoice.status}
               </Badge>
             </div>
@@ -213,7 +213,7 @@ export default function OfflinePaymentClient({ locale, invoice }: OfflinePayment
         </Card>
 
         {/* Payment Form */}
-        <Card>
+        <Card className="rounded-3xl border border-neutral-200/50 shadow-lg">
           <CardHeader>
             <CardTitle>Submit Bank Transfer Details</CardTitle>
             <CardDescription>
@@ -233,7 +233,7 @@ export default function OfflinePaymentClient({ locale, invoice }: OfflinePayment
                     {...register('bankName')}
                     placeholder="e.g., Commercial Bank of Ceylon"
                     disabled={isSubmitting}
-                    className="mt-1.5"
+                    className="mt-1.5 rounded-3xl"
                   />
                   {errors.bankName && <FieldError message={errors.bankName.message} />}
                 </div>
@@ -245,7 +245,7 @@ export default function OfflinePaymentClient({ locale, invoice }: OfflinePayment
                     {...register('accountHolder')}
                     placeholder="Full name on bank account"
                     disabled={isSubmitting}
-                    className="mt-1.5"
+                    className="mt-1.5 rounded-3xl"
                   />
                   {errors.accountHolder && <FieldError message={errors.accountHolder.message} />}
                 </div>
@@ -257,7 +257,7 @@ export default function OfflinePaymentClient({ locale, invoice }: OfflinePayment
                     {...register('accountNumber')}
                     placeholder="e.g., 1234567890"
                     disabled={isSubmitting}
-                    className="mt-1.5"
+                    className="mt-1.5 rounded-3xl"
                   />
                   {errors.accountNumber && <FieldError message={errors.accountNumber.message} />}
                 </div>
@@ -274,7 +274,7 @@ export default function OfflinePaymentClient({ locale, invoice }: OfflinePayment
                     type="datetime-local"
                     {...register('transactionDate')}
                     disabled={isSubmitting}
-                    className="mt-1.5"
+                    className="mt-1.5 rounded-3xl"
                   />
                   {errors.transactionDate && <FieldError message={errors.transactionDate.message} />}
                 </div>
@@ -286,7 +286,7 @@ export default function OfflinePaymentClient({ locale, invoice }: OfflinePayment
                     {...register('transactionId')}
                     placeholder="e.g., TXN-2024-123456"
                     disabled={isSubmitting}
-                    className="mt-1.5"
+                    className="mt-1.5 rounded-3xl"
                   />
                   {errors.transactionId && <FieldError message={errors.transactionId.message} />}
                 </div>
@@ -299,7 +299,7 @@ export default function OfflinePaymentClient({ locale, invoice }: OfflinePayment
                     {...register('amount', { valueAsNumber: true })}
                     placeholder={invoice.amount.toString()}
                     disabled={isSubmitting}
-                    className="mt-1.5"
+                    className="mt-1.5 rounded-3xl"
                   />
                   {errors.amount && <FieldError message={errors.amount.message} />}
                 </div>
@@ -312,7 +312,7 @@ export default function OfflinePaymentClient({ locale, invoice }: OfflinePayment
                 <div>
                   <div
                     onClick={() => fileInputRef.current?.click()}
-                    className="border-2 border-dashed border-neutral-300 rounded-lg p-8 text-center cursor-pointer hover:border-primary hover:bg-primary/5 transition-colors"
+                    className="border-2 border-dashed border-neutral-300 rounded-3xl p-8 text-center cursor-pointer hover:border-primary hover:bg-primary/5 transition-colors"
                   >
                     <input
                       ref={fileInputRef}
@@ -357,7 +357,7 @@ export default function OfflinePaymentClient({ locale, invoice }: OfflinePayment
                   placeholder="Any additional information for the admin..."
                   rows={4}
                   disabled={isSubmitting}
-                  className="mt-1.5"
+                  className="mt-1.5 rounded-3xl resize-none"
                 />
                 {errors.notes && <FieldError message={errors.notes.message} />}
               </div>
@@ -369,14 +369,14 @@ export default function OfflinePaymentClient({ locale, invoice }: OfflinePayment
                   variant="outline"
                   onClick={() => router.back()}
                   disabled={isSubmitting}
-                  className="flex-1"
+                  className="flex-1 rounded-full"
                 >
                   Cancel
                 </Button>
                 <Button
                   type="submit"
                   disabled={isSubmitting}
-                  className="flex-1"
+                  className="flex-1 rounded-full bg-[#ffb84f] text-black hover:bg-[#e5a443] font-semibold"
                 >
                   {isSubmitting ? 'Submitting...' : 'Submit Payment'}
                 </Button>
