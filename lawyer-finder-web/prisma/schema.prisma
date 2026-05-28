@@ -12,6 +12,11 @@ enum Role {
   CLIENT
 }
 
+enum AuthProvider {
+  LOCAL
+  GOOGLE
+}
+
 enum InquiryStatus {
   PENDING
   CONTACTED
@@ -137,7 +142,9 @@ enum RefundStatus {
 model User {
   id              String             @id @default(uuid())
   email           String             @unique
-  passwordHash    String
+  passwordHash    String?
+  authProvider    AuthProvider       @default(LOCAL)
+  googleId        String?            @unique
   fullName        String?
   profileImageUrl String?
   role            Role               @default(CLIENT)
