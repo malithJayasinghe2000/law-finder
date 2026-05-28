@@ -3,6 +3,7 @@ import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { CreateBookingSchema, BookingFilterSchema } from '@/schemas/consultation.schema';
 import { formatSriLankaDateIso, parseDateOnlyToUtc } from '@/lib/utils';
+import { EmailService } from '@/lib/email/EmailService';
 
 // GET: List bookings (filtered by role)
 export async function GET(req: Request) {
@@ -112,10 +113,10 @@ export async function POST(req: Request) {
 
     const lawyer = await prisma.lawyerProfile.findUnique({
       where: { id: lawyerId },
-      include: { consultationPricing: true },
+      include: { consultationPricing: true, user: { select: { email: true } } },
     });
 
-    if (!lawyer || !lawyer.consultationPricing) {
+    if (!lawyer || !lawyer.consultationPricing || !lawyer.user) {
       return NextResponse.json({ error: 'Lawyer or pricing not found' }, { status: 404 });
     }
 
@@ -240,6 +241,21 @@ export async function POST(req: Request) {
     }, {
       isolationLevel: 'Serializable',
     });
+
+    // Send emails asynchronously
+    const client = await prisma.user.findUnique({ where: { id: session.userId } });
+    if (client && client.email) {
+      const formattedDate = formatSriLankaDateIso(booking.date);
+      const clientName = client.fullName || 'Client';
+      
+      EmailService.sendBookingCreatedClient(client.email, clientName, lawyer.fullName, formattedDate, startTime, booking.bookingNumber);
+      
+      if (lawyer.user?.email) {
+        EmailService.sendBookingCreatedLawyer(lawyer.user.email, lawyer.fullName, clientName, formattedDate, startTime);
+      }
+      
+      EmailService.sendBookingCreatedAdmin(clientName, lawyer.fullName, formattedDate, startTime, booking.bookingNumber);
+    }
 
     return NextResponse.json({
       success: true,

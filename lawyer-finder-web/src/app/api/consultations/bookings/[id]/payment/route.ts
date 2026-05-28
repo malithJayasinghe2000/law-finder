@@ -21,7 +21,7 @@ export async function POST(
 
     const booking = await prisma.booking.findUnique({
       where: { id },
-      include: { payment: true },
+      include: { payment: true, client: { select: { email: true, fullName: true } } },
     });
 
     if (!booking) {
@@ -63,6 +63,9 @@ export async function POST(
           data: { status: 'AWAITING_BANK_TRANSFER_VERIFICATION' },
         })
       ]);
+
+      EmailService.sendPaymentSubmittedClient(booking.client.email, booking.client.fullName || 'Client', booking.bookingNumber);
+      EmailService.sendPaymentVerificationAdmin(booking.bookingNumber, booking.client.fullName || 'Client', booking.totalAmount);
 
       return NextResponse.json({
         success: true,
@@ -181,7 +184,8 @@ export async function PATCH(
         booking.lawyer.fullName,
         formatSriLankaDateIso(booking.date),
         booking.startTime,
-        meetingLink || undefined
+        meetingLink || undefined,
+        booking.mode === 'PHYSICAL' ? booking.officeAddress || undefined : undefined
       );
 
       if (booking.lawyer.user?.email) {
@@ -207,11 +211,12 @@ export async function PATCH(
         },
       });
       
-      await EmailService.sendBookingCancellation(
+      await EmailService.sendBookingCancelledClient(
         booking.client.email,
         booking.client.fullName || 'Client',
         booking.bookingNumber,
-        'Payment rejected by admin'
+        'Payment rejected by admin',
+        0
       );
     } else if (validated.data.status === 'RESUBMIT') {
       await prisma.booking.update({
@@ -220,7 +225,12 @@ export async function PATCH(
           status: 'PENDING_PAYMENT',
         },
       });
-      // Optional: Send email notifying client to resubmit payment details
+      await EmailService.sendPaymentResubmitClient(
+        booking.client.email,
+        booking.client.fullName || 'Client',
+        booking.bookingNumber,
+        validated.data.adminNotes || 'Payment receipt was unclear or invalid.'
+      );
     }
 
     return NextResponse.json({ success: true });

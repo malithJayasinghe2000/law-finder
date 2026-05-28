@@ -3,6 +3,7 @@ import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { CancelBookingSchema, CompleteBookingSchema, BookingRatingSchema } from '@/schemas/consultation.schema';
 import { formatSriLankaDateIso } from '@/lib/utils';
+import { EmailService } from '@/lib/email/EmailService';
 
 // GET: Get single booking details
 export async function GET(
@@ -73,7 +74,8 @@ export async function PATCH(
     const booking = await prisma.booking.findUnique({
       where: { id },
       include: {
-        lawyer: { select: { userId: true } },
+        lawyer: { select: { userId: true, fullName: true, user: { select: { email: true } } } },
+        client: { select: { email: true, fullName: true } }
       },
     });
 
@@ -139,6 +141,20 @@ export async function PATCH(
           },
         });
 
+        if (isClient) {
+          await EmailService.sendBookingCancelledClient(booking.client.email, booking.client.fullName || 'Client', booking.bookingNumber, validated.data.reason, refundAmount);
+          if (booking.lawyer.user?.email) {
+            await EmailService.sendBookingCancelledLawyer(booking.lawyer.user.email, booking.lawyer.fullName, booking.bookingNumber, booking.client.fullName || 'Client');
+          }
+        } else if (isLawyer) {
+          await EmailService.sendBookingCancelledClient(booking.client.email, booking.client.fullName || 'Client', booking.bookingNumber, `Cancelled by lawyer: ${validated.data.reason}`, refundAmount);
+        } else if (isAdmin) {
+          await EmailService.sendBookingCancelledClient(booking.client.email, booking.client.fullName || 'Client', booking.bookingNumber, `Cancelled by admin: ${validated.data.reason}`, refundAmount);
+          if (booking.lawyer.user?.email) {
+            await EmailService.sendBookingCancelledLawyer(booking.lawyer.user.email, booking.lawyer.fullName, booking.bookingNumber, booking.client.fullName || 'Client');
+          }
+        }
+
         return NextResponse.json({
           success: true,
           booking: { ...updated, date: formatSriLankaDateIso(updated.date) },
@@ -167,6 +183,12 @@ export async function PATCH(
             lawyerNotes: validated.data.lawyerNotes,
           },
         });
+
+        await EmailService.sendConsultationCompleted(
+          booking.client.email,
+          booking.client.fullName || 'Client',
+          booking.lawyer.fullName
+        );
 
         return NextResponse.json({
           success: true,
