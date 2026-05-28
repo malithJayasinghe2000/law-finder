@@ -39,7 +39,7 @@ export default function RegisterPage() {
       
       if (!res.ok) throw new Error(result.error?.message || result.error || 'Registration failed');
       
-      toast.success('Account created successfully! Please log in.');
+      toast.success('Account created! Please check your email to verify your account.');
       window.location.href = '/en/login';
     } catch (err: any) {
       toast.error(err.message);

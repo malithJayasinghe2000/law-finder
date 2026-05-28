@@ -75,6 +75,7 @@ export async function GET(req: Request) {
           role: 'CLIENT',
           authProvider: 'GOOGLE',
           googleId: googleId,
+          isEmailVerified: true,
         }
       });
     }

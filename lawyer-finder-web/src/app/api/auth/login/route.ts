@@ -16,8 +16,15 @@ export async function POST(req: Request) {
     const { email, password } = validated.data;
     const user = await prisma.user.findUnique({ where: { email } });
 
-    if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
+    if (!user || !user.passwordHash || !(await bcrypt.compare(password, user.passwordHash))) {
       return NextResponse.json({ error: 'Invalid email or password.' }, { status: 401 });
+    }
+
+    if (user.authProvider === 'LOCAL' && !user.isEmailVerified) {
+      return NextResponse.json(
+        { error: 'Please verify your email address before logging in.', unverifiedEmail: user.email },
+        { status: 403 }
+      );
     }
 
     const sessionPayload: SessionPayload = { 

@@ -16,6 +16,9 @@ import { FieldError } from '@/components/ui/FieldError';
 
 export default function LoginPage() {
   const [loading, setLoading] = useState(false);
+  const [unverifiedEmail, setUnverifiedEmail] = useState<string | null>(null);
+  const [showVerificationModal, setShowVerificationModal] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
   const { locale } = useParams();
   const router = useRouter();
 
@@ -27,7 +30,36 @@ export default function LoginPage() {
           window.location.href = data.role === 'CLIENT' ? `/${locale}` : `/${locale}/dashboard/${data.role.toLowerCase()}`;
         }
       });
+      
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('verified') === 'true') {
+        toast.success('Email verified successfully. You can now log in.');
+      }
+    }
   }, [locale]);
+
+  useEffect(() => {
+    if (resendCooldown > 0) {
+      const timer = setTimeout(() => setResendCooldown(prev => prev - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [resendCooldown]);
+
+  // Load cooldown from localStorage when modal opens
+  useEffect(() => {
+    if (unverifiedEmail && typeof window !== 'undefined') {
+      const savedTime = localStorage.getItem(`resend_cooldown_${unverifiedEmail}`);
+      if (savedTime) {
+        const timePassed = Math.floor((Date.now() - parseInt(savedTime)) / 1000);
+        if (timePassed < 60) {
+          setResendCooldown(60 - timePassed);
+        } else {
+          localStorage.removeItem(`resend_cooldown_${unverifiedEmail}`);
+        }
+      }
+    }
+  }, [unverifiedEmail]);
 
   const { register, handleSubmit, formState: { errors } } = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -43,7 +75,14 @@ export default function LoginPage() {
       });
       const result = await res.json();
 
-      if (!res.ok) throw new Error(result.error || 'Login failed');
+      if (!res.ok) {
+        if (res.status === 403 && result.unverifiedEmail) {
+          setUnverifiedEmail(result.unverifiedEmail);
+          setShowVerificationModal(true);
+          return;
+        }
+        throw new Error(result.error || 'Login failed');
+      }
 
       toast.success('Signed in successfully.');
       window.location.href =
@@ -55,6 +94,27 @@ export default function LoginPage() {
       toast.error(message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleResendVerification = async () => {
+    if (!unverifiedEmail || resendCooldown > 0) return;
+    try {
+      const res = await fetch('/api/auth/resend-verification', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: unverifiedEmail })
+      });
+      if (res.ok) {
+        toast.success('Verification email resent. Please check your inbox.');
+        setResendCooldown(60);
+        localStorage.setItem(`resend_cooldown_${unverifiedEmail}`, Date.now().toString());
+      } else {
+        const result = await res.json();
+        toast.error(result.error || 'Failed to resend verification email.');
+      }
+    } catch {
+      toast.error('An error occurred while resending.');
     }
   };
 
@@ -132,6 +192,43 @@ export default function LoginPage() {
           </p>
         </div>
       </div>
+
+      {showVerificationModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white p-8 max-w-md w-full shadow-xl border border-neutral-200 rounded-none transform transition-all">
+            <div className="flex flex-col items-center text-center mb-6">
+              <div className="h-12 w-12 bg-neutral-100 flex items-center justify-center mb-4 text-[#0a0a0a]">
+                <Scale className="h-6 w-6" />
+              </div>
+              <h3 className="text-xl font-semibold text-[#0a0a0a] tracking-tight">Verify Your Email</h3>
+              <p className="text-[15px] text-neutral-500 mt-2 font-light">
+                Your email address <span className="font-medium text-[#0a0a0a]">{unverifiedEmail}</span> has not been verified yet.
+              </p>
+              <p className="text-[14px] text-neutral-500 mt-1 font-light">
+                Please check your inbox for the verification link.
+              </p>
+            </div>
+            
+            <div className="flex flex-col gap-3">
+              <button
+                type="button"
+                onClick={handleResendVerification}
+                disabled={resendCooldown > 0}
+                className="w-full flex items-center justify-center py-3.5 bg-[#0a0a0a] text-white font-medium hover:bg-neutral-800 disabled:opacity-70 disabled:hover:bg-[#0a0a0a] transition-colors rounded-none"
+              >
+                {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend Verification Email'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowVerificationModal(false)}
+                className="w-full py-3.5 bg-white text-[#0a0a0a] border border-neutral-200 font-medium hover:bg-neutral-50 transition-colors rounded-none"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

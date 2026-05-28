@@ -145,10 +145,12 @@ model User {
   passwordHash    String?
   authProvider    AuthProvider       @default(LOCAL)
   googleId        String?            @unique
+  isEmailVerified Boolean            @default(false)
   fullName        String?
   profileImageUrl String?
   role            Role               @default(CLIENT)
   createdAt       DateTime           @default(now())
+  verificationTokens VerificationToken[]
   profile         LawyerProfile?
   application     LawyerApplication?
   reviews         Review[]           @relation("ReviewAuthor")
@@ -167,6 +169,15 @@ model User {
 
   // Consultation Booking relations
   bookings           Booking[]          @relation("ClientBookings")
+}
+
+model VerificationToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
 }
 
 model LawyerApplication {
