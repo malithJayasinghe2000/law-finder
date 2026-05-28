@@ -163,7 +163,7 @@ export const EmailService = {
       <p>Dear ${clientName},</p>
       <p>Your booking <strong>${bookingNumber}</strong> has been cancelled.</p>
       <p>Reason: ${reason}</p>
-      ${refundAmount > 0 ? `<p>A refund of LKR ${refundAmount / 100} is currently pending processing by our admin team.</p>` : ''}
+      ${refundAmount > 0 ? `<p>A refund of LKR ${refundAmount} is currently pending processing by our admin team.</p>` : ''}
     `));
   },
 
@@ -180,7 +180,7 @@ export const EmailService = {
   async sendRefundProcessed(email: string, clientName: string, bookingNumber: string, refundAmount: number) {
     await sendMailSafe(email, `Refund Processed - ${bookingNumber}`, template('Refund Processed', `
       <p>Dear ${clientName},</p>
-      <p>Your refund of <strong>LKR ${refundAmount / 100}</strong> for booking ${bookingNumber} has been successfully processed.</p>
+      <p>Your refund of <strong>LKR ${refundAmount}</strong> for booking ${bookingNumber} has been successfully processed.</p>
       <p>Please allow a few business days for the funds to appear in your account.</p>
     `));
   },
