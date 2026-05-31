@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
@@ -13,6 +14,7 @@ export default function AdminConsultationPaymentsPage() {
   const [bookings, setBookings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [selectedReceiptUrl, setSelectedReceiptUrl] = useState<string | null>(null);
 
   useEffect(() => { loadPendingPayments(); }, []);
 
@@ -98,9 +100,13 @@ export default function AdminConsultationPaymentsPage() {
                     <p><span className="font-semibold text-blue-700">Ref:</span> {b.payment.transactionRef}</p>
                   </div>
                   {b.payment.receiptImageUrl && (
-                    <a href={b.payment.receiptImageUrl} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2 text-xs font-semibold text-blue-600 border border-blue-200 p-2 hover:bg-blue-50 transition-colors">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedReceiptUrl(b.payment.receiptImageUrl)}
+                      className="flex items-center justify-center gap-2 text-xs font-semibold text-blue-600 border border-blue-200 p-2 hover:bg-blue-50 transition-colors"
+                    >
                       <ExternalLink className="w-3 h-3" /> View Uploaded Receipt
-                    </a>
+                    </button>
                   )}
                   <div className="grid grid-cols-2 gap-2 pt-2">
                     <Button 
@@ -125,6 +131,27 @@ export default function AdminConsultationPaymentsPage() {
           ))}
         </div>
       )}
+
+      <Dialog open={Boolean(selectedReceiptUrl)} onOpenChange={(open) => { if (!open) setSelectedReceiptUrl(null); }}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Uploaded Receipt</DialogTitle>
+            <DialogDescription>Review the uploaded bank transfer receipt.</DialogDescription>
+          </DialogHeader>
+
+          {selectedReceiptUrl ? (
+            <div className="mt-4">
+              <img
+                src={selectedReceiptUrl}
+                alt="Uploaded receipt"
+                className="w-full max-h-[70vh] object-contain rounded-lg border border-neutral-200"
+              />
+            </div>
+          ) : (
+            <div className="mt-4 text-sm text-neutral-500">No receipt selected.</div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

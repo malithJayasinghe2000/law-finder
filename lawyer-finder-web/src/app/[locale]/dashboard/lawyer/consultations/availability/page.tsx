@@ -229,14 +229,14 @@ export default function AvailabilityPage() {
                             type="time"
                             value={slot.startTime}
                             onChange={(e) => updateSlot(slot._idx, 'startTime', e.target.value)}
-                            className="border border-neutral-200 px-2 py-1.5 text-xs font-mono bg-white w-[100px]"
+                            className="border border-neutral-200 px-1 py-1.5 text-xs font-mono bg-white w-[100px]"
                           />
                           <span className="text-xs text-neutral-400">to</span>
                           <input
                             type="time"
                             value={slot.endTime}
                             onChange={(e) => updateSlot(slot._idx, 'endTime', e.target.value)}
-                            className="border border-neutral-200 px-2 py-1.5 text-xs font-mono bg-white w-[100px]"
+                            className="border border-neutral-200 px-1 py-1.5 text-xs font-mono bg-white w-[100px]"
                           />
                         </div>
 

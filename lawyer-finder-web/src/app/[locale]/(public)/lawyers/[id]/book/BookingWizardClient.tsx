@@ -10,7 +10,7 @@ import { toast } from 'sonner';
 import { 
   CalendarDays, Clock, MapPin, Video, CheckCircle, CreditCard, Loader2, ArrowRight, Info, Phone, XCircle, ChevronRight,
   ChevronLeft,
-  Building2
+  Building2, ImagePlus
 } from 'lucide-react';
 
 interface Props {
@@ -54,6 +54,7 @@ export default function BookingWizardClient({ lawyerId, lawyerName, lawyerImage,
   const [accountHolder, setAccountHolder] = useState('');
   const [transactionRef, setTransactionRef] = useState('');
   const [receiptImageUrl, setReceiptImageUrl] = useState('');
+  const [receiptUploading, setReceiptUploading] = useState(false);
 
   // Call to Book Modal
   const [callToBookSlot, setCallToBookSlot] = useState<any>(null);
@@ -93,6 +94,58 @@ export default function BookingWizardClient({ lawyerId, lawyerName, lawyerImage,
       setSlotsLoading(false);
     }
   }
+
+  const uploadReceiptImage = async (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('folder', 'receipts');
+
+    const response = await fetch('/api/upload', {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to upload receipt image');
+    }
+
+    const data = await response.json();
+    return data.url as string;
+  };
+
+  const handleReceiptUpload = async () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/jpeg,image/png,image/webp';
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+
+      if (!file.type.startsWith('image/')) {
+        toast.error('Please select an image file for the receipt.');
+        return;
+      }
+
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('Image must be under 5MB.');
+        return;
+      }
+
+      setReceiptUploading(true);
+      try {
+        const url = await uploadReceiptImage(file);
+        setReceiptImageUrl(url);
+        toast.success('Receipt uploaded successfully.');
+      } catch (uploadError: any) {
+        toast.error(uploadError?.message || 'Receipt upload failed.');
+      } finally {
+        setReceiptUploading(false);
+      }
+    };
+
+    input.click();
+  };
 
   // Next step validation
   const nextStep = async () => {
@@ -511,7 +564,36 @@ export default function BookingWizardClient({ lawyerId, lawyerName, lawyerImage,
                       <label className="text-[10px] font-bold text-neutral-500 uppercase">Transaction Reference Number</label>
                       <Input value={transactionRef} onChange={e => setTransactionRef(e.target.value)} className="h-9 rounded-none text-xs" />
                     </div>
-                    {/* Add Image Upload for receipt if desired, keeping it text for now to simplify */}
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-neutral-500 uppercase mb-2">Receipt Photo (optional)</label>
+                      {receiptImageUrl ? (
+                        <div className="relative rounded-lg overflow-hidden border border-neutral-200">
+                          <img src={receiptImageUrl} alt="Receipt preview" className="w-full h-48 object-cover" />
+                          <button
+                            type="button"
+                            onClick={() => setReceiptImageUrl('')}
+                            className="absolute top-2 right-2 bg-black/60 text-white px-2 py-1 text-[10px] rounded-md hover:bg-black/80"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={handleReceiptUpload}
+                          disabled={receiptUploading}
+                          className="flex items-center gap-2 w-full p-4 border-2 border-dashed rounded-lg text-sm text-muted-foreground hover:border-primary/50 hover:text-foreground transition-colors"
+                        >
+                          {receiptUploading ? (
+                            <Loader2 className="h-5 w-5 animate-spin" />
+                          ) : (
+                            <ImagePlus className="h-5 w-5" />
+                          )}
+                          {receiptUploading ? 'Uploading receipt...' : 'Click to upload receipt image'}
+                        </button>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>

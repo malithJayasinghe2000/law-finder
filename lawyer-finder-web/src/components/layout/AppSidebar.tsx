@@ -44,7 +44,7 @@ export function AppSidebar({ locale, role, userId }: { locale: string; role: str
       label: 'Consultations',
       subLinks: [
         { href: `/${locale}/dashboard/lawyer/consultations`, icon: CalendarDays, label: 'Bookings' },
-        { href: `/${locale}/dashboard/lawyer/consultations/availability`, icon: History, label: 'Availability' },
+        { href: `/${locale}/dashboard/lawyer/consultations/availability`, icon: History, label: 'Set Availability' },
         { href: `/${locale}/dashboard/lawyer/consultations/pricing`, icon: DollarSign, label: 'Pricing' },
         { href: `/${locale}/dashboard/lawyer/consultations/earnings`, icon: Banknote, label: 'Earnings' },
       ]
