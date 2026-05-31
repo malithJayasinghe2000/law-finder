@@ -4,14 +4,36 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { registerSchema, RegisterFormValues } from '@/schemas/auth.schema';
 import { useEffect, useState } from 'react';
-import { toast } from 'sonner';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Scale, Loader2 } from 'lucide-react';
+import { Scale, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
 import { FieldError } from '@/components/ui/FieldError';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+
+interface ModalState {
+  isOpen: boolean;
+  type: 'success' | 'error' | null;
+  title: string;
+  message: string;
+  details?: string;
+}
 
 export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
+  const [modal, setModal] = useState<ModalState>({
+    isOpen: false,
+    type: null,
+    title: '',
+    message: '',
+  });
   const { locale } = useParams();
   const router = useRouter();
 
@@ -28,21 +50,48 @@ export default function RegisterPage() {
     resolver: zodResolver(registerSchema)
   });
 
+  const showModal = (type: 'success' | 'error', title: string, message: string, details?: string) => {
+    setModal({ isOpen: true, type, title, message, details });
+  };
+
+  const closeModal = () => {
+    setModal({ isOpen: false, type: null, title: '', message: '' });
+  };
+
+  const handleModalClose = () => {
+    closeModal();
+    if (modal.type === 'success') {
+      window.location.href = '/en/login';
+    }
+  };
 
   const onSubmit = async (data: RegisterFormValues) => {
     setLoading(true);
     try {
       const res = await fetch('/api/auth/register', {
-        method: 'POST', body: JSON.stringify(data)
+        method: 'POST',
+        body: JSON.stringify(data)
       });
       const result = await res.json();
-      
-      if (!res.ok) throw new Error(result.error?.message || result.error || 'Registration failed');
-      
-      toast.success('Account created! Please check your email to verify your account.');
-      window.location.href = '/en/login';
+
+      if (!res.ok) {
+        const errorMessage = typeof result.error === 'string' 
+          ? result.error 
+          : result.error?.message || 'Registration failed';
+        throw new Error(errorMessage);
+      }
+
+      showModal(
+        'success',
+        'Account Created Successfully! ✓',
+        'Please check your email to verify your account before logging in.'
+      );
     } catch (err: any) {
-      toast.error(err.message);
+      showModal(
+        'error',
+        'Registration Failed',
+        err.message || 'An error occurred during registration',
+      );
     } finally {
       setLoading(false);
     }
@@ -144,6 +193,70 @@ export default function RegisterPage() {
           </p>
         </div>
       </div>
+
+      {/* Success Modal */}
+      <Dialog open={modal.isOpen && modal.type === 'success'} onOpenChange={handleModalClose}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader className="text-center">
+            <div className="flex justify-center mb-4">
+              <div className="bg-green-50 p-3 rounded-full">
+                <CheckCircle2 className="h-8 w-8 text-green-600" />
+              </div>
+            </div>
+            <DialogTitle className="text-center text-2xl font-bold text-green-700">
+              {modal.title}
+            </DialogTitle>
+            <DialogDescription className="text-center text-base text-neutral-600 mt-2">
+              {modal.message}
+            </DialogDescription>
+          </DialogHeader>
+          {modal.details && (
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-sm text-neutral-700">
+              {modal.details}
+            </div>
+          )}
+          <DialogFooter className="flex justify-center mt-6">
+            <Button
+              onClick={handleModalClose}
+              className="bg-green-600 hover:bg-green-700 text-white px-8"
+            >
+              Go to Login
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Error Modal */}
+      <Dialog open={modal.isOpen && modal.type === 'error'} onOpenChange={closeModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader className="text-center">
+            <div className="flex justify-center mb-4">
+              <div className="bg-red-50 p-3 rounded-full">
+                <AlertCircle className="h-8 w-8 text-red-600" />
+              </div>
+            </div>
+            <DialogTitle className="text-center text-2xl font-bold text-red-700">
+              {modal.title}
+            </DialogTitle>
+            <DialogDescription className="text-center text-base text-neutral-600 mt-2">
+              {modal.message}
+            </DialogDescription>
+          </DialogHeader>
+          {modal.details && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-neutral-700">
+              {modal.details}
+            </div>
+          )}
+          <DialogFooter className="flex justify-center mt-6">
+            <Button
+              onClick={closeModal}
+              className="bg-red-600 hover:bg-red-700 text-white px-8"
+            >
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
