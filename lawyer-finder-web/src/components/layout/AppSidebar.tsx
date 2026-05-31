@@ -16,8 +16,7 @@ export function AppSidebar({ locale, role, userId }: { locale: string; role: str
     { href: `/${locale}/dashboard/admin`, icon: LayoutDashboard, label: 'Dashboard', exact: true },
     { href: `/${locale}/dashboard/admin/verification`, icon: ShieldCheck, label: 'Verification' },
     { href: `/${locale}/dashboard/admin/invoices`, icon: FileText, label: 'Invoices' },
-    { href: `/${locale}/dashboard/admin/paymentTemplate`, icon: ShieldCheck, label: 'Payment Templates' },
-    { href: `/${locale}/dashboard/admin/paid-promo`, icon: Megaphone, label: 'Paid Promo' },
+    // { href: `/${locale}/dashboard/admin/paymentTemplate`, icon: ShieldCheck, label: 'Payment Templates' },
     { href: `/${locale}/dashboard/admin/advertisements`, icon: Image, label: 'Ad Campaigns' },
     { href: `/${locale}/dashboard/admin/users`, icon: Users, label: 'User Management' },
     { href: `/${locale}/dashboard/admin/reviews`, icon: Star, label: 'Reviews' },
@@ -51,8 +50,6 @@ export function AppSidebar({ locale, role, userId }: { locale: string; role: str
       ]
     },
     { href: `/${locale}/dashboard/lawyer/chat`, icon: MessageCircle, label: 'Messages', hasBadge: true },
-    { href: `/${locale}/dashboard/lawyer/schedule`, icon: History, label: 'Schedule' },
-    {href: `/${locale}/dashboard/lawyer/Promotion`, icon: Megaphone, label: 'Promotion' },
     { href: `/${locale}/dashboard/lawyer/ads`, icon: Image, label: 'My Ads' },
     { 
       href: `/${locale}/dashboard/lawyer/payments`, 
@@ -63,8 +60,6 @@ export function AppSidebar({ locale, role, userId }: { locale: string; role: str
         { href: `/${locale}/dashboard/lawyer/payments/history`, icon: History, label: 'Payment History' },
       ]
     },
-    { href: `/${locale}/dashboard/lawyer/inquiries`, icon: Users, label: 'Client Inquiries' },
-    { href: `/${locale}/dashboard/lawyer/articles`, icon: FileText, label: 'My Articles' },
     { href: `/${locale}/blog/my-posts`, icon: PenSquare, label: 'Community Posts' },
     { href: `/${locale}/profile`, icon: Settings, label: 'Profile Settings' },
   ];
