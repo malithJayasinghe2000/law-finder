@@ -10,8 +10,10 @@ import {
   Shield, Calendar, CreditCard, AlertTriangle, CheckCircle, XCircle,
   RefreshCw, Zap, Crown,
 } from 'lucide-react';
+import { DISTRICTS, PRACTICE_AREAS } from '@/schemas/profile.schema';
 
 const LANGUAGES = ['Sinhala', 'Tamil', 'English'];
+const PRACTICE_TYPES = ['Independent', 'Law Firm'];
 
 export default function ProfileSettingsPage() {
   const { locale } = useParams();
@@ -60,20 +62,7 @@ export default function ProfileSettingsPage() {
   const [cancellingSubscription, setCancellingSubscription] = useState(false);
   const [renewingSubscription, setRenewingSubscription] = useState(false);
 
-  const [lookups, setLookups] = useState<{ districts: string[], practiceAreas: string[], practiceTypes: string[] }>({
-    districts: [],
-    practiceAreas: [],
-    practiceTypes: []
-  });
-
-  useEffect(() => {
-    fetch('/api/lookups')
-      .then(res => res.json())
-      .then(data => {
-        if (data.districts) setLookups(data);
-      })
-      .catch(console.error);
-  }, []);
+  // DISTRICTS, PRACTICE_AREAS, PRACTICE_TYPES are imported as static constants — no API call needed.
 
   useEffect(() => {
     fetchProfile();
@@ -531,7 +520,7 @@ export default function ProfileSettingsPage() {
                       className="w-full bg-neutral-50 border border-neutral-200 text-[#0a0a0a] px-4 py-3 outline-none focus:border-[#0a0a0a] focus:bg-white transition-all text-sm"
                     >
                       <option value="">Select</option>
-                      {lookups.practiceTypes.map(t => <option key={t} value={t}>{t}</option>)}
+                      {PRACTICE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
                     </select>
                   </div>
                   <div className="space-y-2">
@@ -542,7 +531,7 @@ export default function ProfileSettingsPage() {
                       className="w-full bg-neutral-50 border border-neutral-200 text-[#0a0a0a] px-4 py-3 outline-none focus:border-[#0a0a0a] focus:bg-white transition-all text-sm"
                     >
                       <option value="">Select</option>
-                      {lookups.districts.map(d => <option key={d} value={d}>{d}</option>)}
+                      {DISTRICTS.map(d => <option key={d} value={d}>{d}</option>)}
                     </select>
                   </div>
                   <div className="space-y-2">
@@ -613,7 +602,7 @@ export default function ProfileSettingsPage() {
               <div className="mb-10 pb-10 border-b border-neutral-200">
                 <h3 className="text-sm font-bold text-[#0a0a0a] uppercase tracking-[0.2em] mb-8 font-sans">Practice Areas</h3>
                 <div className="flex flex-wrap gap-2">
-                  {lookups.practiceAreas.map(area => (
+                  {PRACTICE_AREAS.map(area => (
                     <button
                       key={area}
                       type="button"
