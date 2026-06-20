@@ -99,7 +99,7 @@ export default function LawyerDashboard() {
       </div>
 
       {/* Subscription Status Card */}
-      <Card className={`rounded-none shadow-sm mb-6 border-l-4 ${
+      {/* <Card className={`rounded-none shadow-sm mb-6 border-l-4 ${
         sub?.status === 'ACTIVE' ? 'border-l-green-500' :
         sub?.status === 'CANCELED' ? 'border-l-amber-500' :
         sub?.status === 'EXPIRED' ? 'border-l-red-500' :
@@ -175,7 +175,7 @@ export default function LawyerDashboard() {
             </div>
           )}
         </CardContent>
-      </Card>
+      </Card> */}
 
       {/* Stats */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 mb-8">
