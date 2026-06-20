@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { z } from 'zod';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -27,6 +28,10 @@ interface Props {
   };
 }
 
+import { CreateBookingSchema, BankTransferPaymentSchema } from '@/schemas/consultation.schema';
+
+const step3Schema = CreateBookingSchema.pick({ subject: true, description: true });
+
 export default function BookingWizardClient({ lawyerId, lawyerName, lawyerImage, lawyerDistrict, locale, pricing }: Props) {
   const router = useRouter();
   const [step, setStep] = useState(1);
@@ -43,7 +48,6 @@ export default function BookingWizardClient({ lawyerId, lawyerName, lawyerImage,
 
   // Issue Details
   const [subject, setSubject] = useState('');
-  const [practiceArea, setPracticeArea] = useState('');
   const [description, setDescription] = useState('');
 
   // Payment
@@ -61,6 +65,9 @@ export default function BookingWizardClient({ lawyerId, lawyerName, lawyerImage,
 
   // Pay Later 48h Notice Modal
   const [payLaterNoticeModal, setPayLaterNoticeModal] = useState(false);
+
+  // Validation Errors
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Step 2: Load slots when date changes
   useEffect(() => {
@@ -152,10 +159,21 @@ export default function BookingWizardClient({ lawyerId, lawyerName, lawyerImage,
 
   // Next step validation
   const nextStep = async () => {
-    if (step === 1 && !mode) { toast.error('Please select consultation mode'); return; }
+    setErrors({});
+    if (step === 1 && !mode) { 
+      setErrors({ mode: 'Please select a consultation mode to continue.' });
+      return; 
+    }
     
     if (step === 2) {
-      if (!selectedSlot) { toast.error('Please select a time slot'); return; }
+      if (!selectedDate) {
+        setErrors({ date: 'Please select a date.' });
+        return;
+      }
+      if (!selectedSlot) { 
+        setErrors({ slot: 'Please select an available time slot.' });
+        return; 
+      }
       
       // Try to hold the slot
       setLoading(true);
@@ -189,8 +207,18 @@ export default function BookingWizardClient({ lawyerId, lawyerName, lawyerImage,
     }
 
     if (step === 3) {
-      if (subject.length < 3) { toast.error('Subject is required'); return; }
-      if (description.length < 10) { toast.error('Please provide more detail in description'); return; }
+      const result = step3Schema.safeParse({ subject, description });
+      if (!result.success) {
+        const fieldErrors = result.error.flatten().fieldErrors;
+        const formattedErrors: Record<string, string> = {};
+        for (const key in fieldErrors) {
+          if (fieldErrors[key] && fieldErrors[key]!.length > 0) {
+            formattedErrors[key] = fieldErrors[key]![0];
+          }
+        }
+        setErrors(formattedErrors);
+        return;
+      }
     }
     setStep(s => s + 1);
   };
@@ -202,9 +230,18 @@ export default function BookingWizardClient({ lawyerId, lawyerName, lawyerImage,
   }
 
   const submitBooking = async () => {
+    setErrors({});
     if (paymentMethod === 'BANK_TRANSFER_NOW') {
-      if (!bankName || !accountHolder || !transactionRef) {
-        toast.error('Please fill in all bank transfer details');
+      const result = BankTransferPaymentSchema.safeParse({ bankName, accountHolder, transactionRef });
+      if (!result.success) {
+        const fieldErrors = result.error.flatten().fieldErrors;
+        const formattedErrors: Record<string, string> = {};
+        for (const key in fieldErrors) {
+          if (fieldErrors[key] && fieldErrors[key]!.length > 0) {
+            formattedErrors[key] = fieldErrors[key]![0];
+          }
+        }
+        setErrors(formattedErrors);
         return;
       }
     }
@@ -234,7 +271,6 @@ export default function BookingWizardClient({ lawyerId, lawyerName, lawyerImage,
           mode,
           subject,
           description,
-          practiceArea: practiceArea || undefined,
           paymentMethod: paymentMethod === 'PAYHERE' ? 'PAYHERE' : 'BANK_TRANSFER',
           isPayLater: paymentMethod === 'BANK_TRANSFER_LATER',
         }),
@@ -351,7 +387,7 @@ export default function BookingWizardClient({ lawyerId, lawyerName, lawyerImage,
                 <h2 className="text-lg font-bold text-[#0a0a0a] uppercase tracking-wide">1. Select Consultation Mode</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <button
-                    onClick={() => setMode('PHYSICAL')}
+                    onClick={() => { setMode('PHYSICAL'); setErrors({}); }}
                     className={`p-6 border-2 text-left transition-all relative ${mode === 'PHYSICAL' ? 'border-[#0a0a0a] bg-neutral-50' : 'border-neutral-200 hover:border-neutral-300'}`}
                   >
                     {mode === 'PHYSICAL' && <div className="absolute top-4 right-4"><CheckCircle className="w-5 h-5 text-[#0a0a0a]" /></div>}
@@ -362,7 +398,7 @@ export default function BookingWizardClient({ lawyerId, lawyerName, lawyerImage,
                   </button>
 
                   <button
-                    onClick={() => setMode('ONLINE')}
+                    onClick={() => { setMode('ONLINE'); setErrors({}); }}
                     className={`p-6 border-2 text-left transition-all relative ${mode === 'ONLINE' ? 'border-[#0a0a0a] bg-neutral-50' : 'border-neutral-200 hover:border-neutral-300'}`}
                   >
                     {mode === 'ONLINE' && <div className="absolute top-4 right-4"><CheckCircle className="w-5 h-5 text-[#0a0a0a]" /></div>}
@@ -372,6 +408,7 @@ export default function BookingWizardClient({ lawyerId, lawyerName, lawyerImage,
                     <p className="text-sm font-bold">LKR {pricing.onlinePrice.toLocaleString()} <span className="text-[10px] font-normal text-neutral-400">+ platform fee</span></p>
                   </button>
                 </div>
+                {errors.mode && <p className="text-sm text-red-500 mt-3 font-medium">{errors.mode}</p>}
               </div>
             )}
 
@@ -391,9 +428,10 @@ export default function BookingWizardClient({ lawyerId, lawyerName, lawyerImage,
                     type="date"
                     min={getMinDate()}
                     value={selectedDate}
-                    onChange={(e) => setSelectedDate(e.target.value)}
-                    className="w-full border-2 border-neutral-200 px-4 py-3 outline-none focus:border-[#0a0a0a] transition-colors"
+                    onChange={(e) => { setSelectedDate(e.target.value); setErrors(prev => ({ ...prev, date: '' })); }}
+                    className={`w-full border-2 px-4 py-3 outline-none transition-colors ${errors.date ? 'border-red-500 focus:border-red-500' : 'border-neutral-200 focus:border-[#0a0a0a]'}`}
                   />
+                  {errors.date && <p className="text-xs text-red-500">{errors.date}</p>}
                 </div>
 
                 {selectedDate && (
@@ -411,34 +449,38 @@ export default function BookingWizardClient({ lawyerId, lawyerName, lawyerImage,
                         No available slots for this date. Please select another date.
                       </div>
                     ) : (
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                        {availableSlots.map((slot, idx) => (
-                          <button
-                            key={idx}
-                            onClick={() => {
-                              if (slot.isCallToBook) {
-                                setCallToBookSlot(slot);
-                              } else {
-                                setSelectedSlot(slot);
-                              }
-                            }}
-                            className={`px-4 py-3 text-sm font-semibold border-2 transition-all flex flex-col items-center justify-center gap-1 ${
-                              selectedSlot?.startTime === slot.startTime 
-                              ? 'border-[#0a0a0a] bg-[#0a0a0a] text-white' 
-                              : slot.isCallToBook 
-                                ? 'border-neutral-200 bg-neutral-100 text-neutral-600 hover:border-neutral-300'
-                                : 'border-neutral-200 text-neutral-700 hover:border-[#0a0a0a] hover:text-[#0a0a0a]'
-                            }`}
-                          >
-                            <span>{slot.startTime} - {slot.endTime}</span>
-                            {slot.isCallToBook && (
-                              <div className="flex items-center gap-1 text-[10px] uppercase font-bold text-neutral-500">
-                                <Phone className="w-3 h-3" /> Call to Book
-                              </div>
-                            )}
-                          </button>
-                        ))}
-                      </div>
+                      <>
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                          {availableSlots.map((slot, idx) => (
+                            <button
+                              key={idx}
+                              onClick={() => {
+                                setErrors(prev => ({ ...prev, slot: '' }));
+                                if (slot.isCallToBook) {
+                                  setCallToBookSlot(slot);
+                                } else {
+                                  setSelectedSlot(slot);
+                                }
+                              }}
+                              className={`px-4 py-3 text-sm font-semibold border-2 transition-all flex flex-col items-center justify-center gap-1 ${
+                                selectedSlot?.startTime === slot.startTime 
+                                ? 'border-[#0a0a0a] bg-[#0a0a0a] text-white' 
+                                : slot.isCallToBook 
+                                  ? 'border-neutral-200 bg-neutral-100 text-neutral-600 hover:border-neutral-300'
+                                  : 'border-neutral-200 text-neutral-700 hover:border-[#0a0a0a] hover:text-[#0a0a0a]'
+                              }`}
+                            >
+                              <span>{slot.startTime} - {slot.endTime}</span>
+                              {slot.isCallToBook && (
+                                <div className="flex items-center gap-1 text-[10px] uppercase font-bold text-neutral-500">
+                                  <Phone className="w-3 h-3" /> Call to Book
+                                </div>
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                        {errors.slot && <p className="text-xs text-red-500 mt-2">{errors.slot}</p>}
+                      </>
                     )}
                   </div>
                 )}
@@ -451,34 +493,28 @@ export default function BookingWizardClient({ lawyerId, lawyerName, lawyerImage,
                 <h2 className="text-lg font-bold text-[#0a0a0a] uppercase tracking-wide">3. Legal Issue Details</h2>
                 
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-neutral-500 uppercase tracking-widest">Subject</label>
+                  <label className="text-xs font-bold text-neutral-500 uppercase tracking-widest">Subject <span className="text-red-500">*</span></label>
                   <Input 
                     value={subject} 
-                    onChange={(e) => setSubject(e.target.value)} 
+                    onChange={(e) => { setSubject(e.target.value); setErrors(prev => ({ ...prev, subject: '' })); }} 
                     placeholder="E.g., Property dispute consultation" 
-                    className="h-12 border-2 border-neutral-200 rounded-none focus-visible:ring-0 focus-visible:border-[#0a0a0a]"
+                    className={`h-12 border-2 rounded-none focus-visible:ring-0 ${errors.subject ? 'border-red-500 focus-visible:border-red-500' : 'border-neutral-200 focus-visible:border-[#0a0a0a]'}`}
                   />
+                  {errors.subject && <p className="text-xs text-red-500">{errors.subject}</p>}
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-neutral-500 uppercase tracking-widest">Practice Area (Optional)</label>
-                  <Input 
-                    value={practiceArea} 
-                    onChange={(e) => setPracticeArea(e.target.value)} 
-                    placeholder="E.g., Real Estate Law" 
-                    className="h-12 border-2 border-neutral-200 rounded-none focus-visible:ring-0 focus-visible:border-[#0a0a0a]"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-neutral-500 uppercase tracking-widest">Brief Description</label>
+                  <label className="text-xs font-bold text-neutral-500 uppercase tracking-widest">Brief Description <span className="text-red-500">*</span></label>
                   <Textarea 
                     value={description} 
-                    onChange={(e) => setDescription(e.target.value)} 
+                    onChange={(e) => { setDescription(e.target.value); setErrors(prev => ({ ...prev, description: '' })); }} 
                     placeholder="Briefly describe your legal situation so the lawyer can prepare..." 
-                    className="min-h-[120px] border-2 border-neutral-200 rounded-none focus-visible:ring-0 focus-visible:border-[#0a0a0a] resize-none"
+                    className={`min-h-[120px] border-2 rounded-none focus-visible:ring-0 resize-none ${errors.description ? 'border-red-500 focus-visible:border-red-500' : 'border-neutral-200 focus-visible:border-[#0a0a0a]'}`}
                   />
-                  <p className="text-[10px] text-neutral-400 text-right">{description.length} characters</p>
+                  <div className="flex justify-between items-center">
+                    {errors.description ? <p className="text-xs text-red-500">{errors.description}</p> : <div />}
+                    <p className={`text-[10px] text-right ${description.length > 2000 ? 'text-red-500' : 'text-neutral-400'}`}>{description.length} / 2000</p>
+                  </div>
                 </div>
               </div>
             )}
@@ -567,17 +603,20 @@ export default function BookingWizardClient({ lawyerId, lawyerName, lawyerImage,
 
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-neutral-500 uppercase">Your Bank Name</label>
-                        <Input value={bankName} onChange={e => setBankName(e.target.value)} className="h-9 rounded-none text-xs" placeholder="e.g. HNB" />
+                        <label className="text-[10px] font-bold text-neutral-500 uppercase">Your Bank Name <span className="text-red-500">*</span></label>
+                        <Input value={bankName} onChange={e => { setBankName(e.target.value); setErrors(prev => ({ ...prev, bankName: '' })); }} className={`h-9 rounded-none text-xs ${errors.bankName ? 'border-red-500' : 'border-neutral-200'}`} placeholder="e.g. HNB" />
+                        {errors.bankName && <p className="text-[10px] text-red-500">{errors.bankName}</p>}
                       </div>
                       <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-neutral-500 uppercase">Account Holder</label>
-                        <Input value={accountHolder} onChange={e => setAccountHolder(e.target.value)} className="h-9 rounded-none text-xs" placeholder="e.g. John Doe" />
+                        <label className="text-[10px] font-bold text-neutral-500 uppercase">Account Holder <span className="text-red-500">*</span></label>
+                        <Input value={accountHolder} onChange={e => { setAccountHolder(e.target.value); setErrors(prev => ({ ...prev, accountHolder: '' })); }} className={`h-9 rounded-none text-xs ${errors.accountHolder ? 'border-red-500' : 'border-neutral-200'}`} placeholder="e.g. John Doe" />
+                        {errors.accountHolder && <p className="text-[10px] text-red-500">{errors.accountHolder}</p>}
                       </div>
                     </div>
                     <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-neutral-500 uppercase">Transaction Reference Number</label>
-                      <Input value={transactionRef} onChange={e => setTransactionRef(e.target.value)} className="h-9 rounded-none text-xs" />
+                      <label className="text-[10px] font-bold text-neutral-500 uppercase">Transaction Reference Number <span className="text-red-500">*</span></label>
+                      <Input value={transactionRef} onChange={e => { setTransactionRef(e.target.value); setErrors(prev => ({ ...prev, transactionRef: '' })); }} className={`h-9 rounded-none text-xs ${errors.transactionRef ? 'border-red-500' : 'border-neutral-200'}`} />
+                      {errors.transactionRef && <p className="text-[10px] text-red-500">{errors.transactionRef}</p>}
                     </div>
 
                     <div>

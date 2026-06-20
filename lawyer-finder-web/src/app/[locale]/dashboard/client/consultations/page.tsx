@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import {
-  CalendarDays, Clock, MapPin, Video, Star, XCircle, ChevronLeft, ChevronRight, AlertTriangle, CreditCard, Building2
+  CalendarDays, Clock, MapPin, Video, Star, XCircle, ChevronLeft, ChevronRight, AlertTriangle, CreditCard, Building2, Loader2, ImagePlus
 } from 'lucide-react';
 import { BOOKING_STATUS_COLORS, BOOKING_STATUS_LABELS } from '@/schemas/consultation.schema';
 import { formatDateOnlyString } from '@/lib/utils';
@@ -55,6 +55,8 @@ export default function ClientConsultationsPage() {
   const [bankName, setBankName] = useState('');
   const [accountHolder, setAccountHolder] = useState('');
   const [transactionRef, setTransactionRef] = useState('');
+  const [receiptImageUrl, setReceiptImageUrl] = useState('');
+  const [receiptUploading, setReceiptUploading] = useState(false);
   
   const [actionLoading, setActionLoading] = useState(false);
 
@@ -72,6 +74,58 @@ export default function ClientConsultationsPage() {
     } catch { toast.error('Failed to load'); }
     finally { setLoading(false); }
   }
+
+  const uploadReceiptImage = async (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('folder', 'receipts');
+
+    const response = await fetch('/api/upload', {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to upload receipt image');
+    }
+
+    const data = await response.json();
+    return data.url as string;
+  };
+
+  const handleReceiptUpload = async () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/jpeg,image/png,image/webp';
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+
+      if (!file.type.startsWith('image/')) {
+        toast.error('Please select an image file for the receipt.');
+        return;
+      }
+
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('Image must be under 5MB.');
+        return;
+      }
+
+      setReceiptUploading(true);
+      try {
+        const url = await uploadReceiptImage(file);
+        setReceiptImageUrl(url);
+        toast.success('Receipt uploaded successfully.');
+      } catch (uploadError: any) {
+        toast.error(uploadError?.message || 'Receipt upload failed.');
+      } finally {
+        setReceiptUploading(false);
+      }
+    };
+
+    input.click();
+  };
 
   async function cancelBooking() {
     if (!cancelModal || cancelReason.length < 5) { toast.error('Please provide a reason (min 5 chars)'); return; }
@@ -127,7 +181,8 @@ export default function ClientConsultationsPage() {
           method: 'BANK_TRANSFER',
           bankName,
           accountHolder,
-          transactionRef
+          transactionRef,
+          receiptImageUrl
         }),
       });
       const data = await res.json();
@@ -137,6 +192,7 @@ export default function ClientConsultationsPage() {
         setBankName('');
         setAccountHolder('');
         setTransactionRef('');
+        setReceiptImageUrl('');
         loadBookings();
       } else {
         toast.error(data.error || 'Failed to submit payment details');
@@ -342,6 +398,36 @@ export default function ClientConsultationsPage() {
               <div className="space-y-1">
                 <label className="text-[10px] font-bold text-neutral-500 uppercase">Transaction Reference Number</label>
                 <input value={transactionRef} onChange={e => setTransactionRef(e.target.value)} className="w-full h-9 border border-neutral-300 px-3 text-sm focus:outline-none focus:border-black" />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-neutral-500 uppercase mb-2">Receipt Photo (optional)</label>
+                {receiptImageUrl ? (
+                  <div className="relative rounded-lg overflow-hidden border border-neutral-200">
+                    <img src={receiptImageUrl} alt="Receipt preview" className="w-full h-48 object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => setReceiptImageUrl('')}
+                      className="absolute top-2 right-2 bg-black/60 text-white px-2 py-1 text-[10px] rounded-md hover:bg-black/80"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleReceiptUpload}
+                    disabled={receiptUploading}
+                    className="flex items-center justify-center gap-2 w-full p-4 border-2 border-dashed rounded-lg text-sm text-muted-foreground hover:border-primary/50 hover:text-foreground transition-colors"
+                  >
+                    {receiptUploading ? (
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                    ) : (
+                      <ImagePlus className="h-5 w-5" />
+                    )}
+                    {receiptUploading ? 'Uploading receipt...' : 'Click to upload receipt image'}
+                  </button>
+                )}
               </div>
 
               <Button onClick={submitPaymentDetails} disabled={actionLoading} className="w-full bg-[#0a0a0a] text-white hover:bg-neutral-800 rounded-none h-10 font-bold text-xs uppercase tracking-wide">
