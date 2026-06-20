@@ -133,16 +133,17 @@ export async function POST(req: Request) {
       );
     }
 
-    // For bank transfer (offline), enforce notice + 24 hours (or whatever buffer is preferred, keeping it as max(minNotice, 48h) or just sticking to minNotice)
-    if (paymentMethod === 'BANK_TRANSFER') {
-      const minOfflineNotice = new Date(now.getTime() + Math.max(48, minAdvanceNoticeHours) * 60 * 60 * 1000);
-      if (slotDateTime < minOfflineNotice) {
+    // Strictly enforce 48 hours ONLY for "Pay Later" (because they need up to 24h to pay, and admin needs 24h to verify)
+    if (body.isPayLater) {
+      const minPayLaterNotice = new Date(now.getTime() + 48 * 60 * 60 * 1000);
+      if (slotDateTime < minPayLaterNotice) {
         return NextResponse.json(
-          { error: `Offline payment bookings require at least ${Math.max(48, minAdvanceNoticeHours)} hours advance notice to allow payment verification` },
+          { error: `The 'Pay Later' option requires at least 48 hours advance notice.` },
           { status: 400 }
         );
       }
     }
+
 
 
     // Cannot book yourself

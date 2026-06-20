@@ -59,6 +59,9 @@ export default function BookingWizardClient({ lawyerId, lawyerName, lawyerImage,
   // Call to Book Modal
   const [callToBookSlot, setCallToBookSlot] = useState<any>(null);
 
+  // Pay Later 48h Notice Modal
+  const [payLaterNoticeModal, setPayLaterNoticeModal] = useState(false);
+
   // Step 2: Load slots when date changes
   useEffect(() => {
     if (selectedDate && step === 2) {
@@ -206,6 +209,17 @@ export default function BookingWizardClient({ lawyerId, lawyerName, lawyerImage,
       }
     }
 
+    if (paymentMethod === 'BANK_TRANSFER_LATER') {
+      const slotDateTime = new Date(`${selectedDate}T${selectedSlot.startTime}:00+05:30`);
+      const now = new Date();
+      const minNotice = new Date(now.getTime() + 48 * 60 * 60 * 1000);
+      
+      if (slotDateTime < minNotice) {
+        setPayLaterNoticeModal(true);
+        return;
+      }
+    }
+
     setLoading(true);
     try {
       // 1. Create Booking
@@ -222,6 +236,7 @@ export default function BookingWizardClient({ lawyerId, lawyerName, lawyerImage,
           description,
           practiceArea: practiceArea || undefined,
           paymentMethod: paymentMethod === 'PAYHERE' ? 'PAYHERE' : 'BANK_TRANSFER',
+          isPayLater: paymentMethod === 'BANK_TRANSFER_LATER',
         }),
       });
 
@@ -646,6 +661,37 @@ export default function BookingWizardClient({ lawyerId, lawyerName, lawyerImage,
             
             <Button onClick={() => setCallToBookSlot(null)} className="w-full h-12 rounded-none bg-[#0a0a0a] hover:bg-neutral-800 text-white font-bold uppercase text-xs tracking-widest">
               Close
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Pay Later Notice Modal */}
+      {payLaterNoticeModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-white max-w-md w-full p-8 relative shadow-2xl animate-in zoom-in-95 duration-200">
+            <button onClick={() => setPayLaterNoticeModal(false)} className="absolute top-4 right-4 text-neutral-400 hover:text-black">
+              <XCircle className="w-6 h-6" />
+            </button>
+            <div className="text-center mb-6">
+              <div className="w-16 h-16 bg-amber-50 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Clock className="w-8 h-8" />
+              </div>
+              <h2 className="text-xl font-bold text-[#0a0a0a]">Insufficient Time for Pay Later</h2>
+              <p className="text-sm text-neutral-500 mt-2">
+                This consultation is less than 48 hours away. The "Pay Later" option requires at least 48 hours advance notice to allow our admin team to verify your payment.
+              </p>
+            </div>
+            
+            <div className="bg-neutral-50 p-6 border border-neutral-200 text-center mb-6">
+              <p className="text-xs font-bold text-neutral-500 uppercase tracking-widest">Please choose</p>
+              <p className="text-lg font-bold text-[#0a0a0a] mt-2">Pay Online</p>
+              <p className="text-xs font-bold text-neutral-500 uppercase tracking-widest my-2">or</p>
+              <p className="text-lg font-bold text-[#0a0a0a]">Bank Transfer (Submit Now)</p>
+            </div>
+            
+            <Button onClick={() => setPayLaterNoticeModal(false)} className="w-full h-12 rounded-none bg-[#0a0a0a] hover:bg-neutral-800 text-white font-bold uppercase text-xs tracking-widest">
+              Change Payment Method
             </Button>
           </div>
         </div>
