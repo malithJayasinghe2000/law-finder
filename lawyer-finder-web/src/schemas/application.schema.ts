@@ -26,6 +26,8 @@ export const applicationStep1Schema = z.object({
   district: z.enum(DISTRICTS as unknown as [string, ...string[]], {
     message: 'Please select a valid district.',
   }),
+  latitude: z.string().optional().or(z.literal('')),
+  longitude: z.string().optional().or(z.literal('')),
 });
 
 // ── Step 2: Professional Credentials ─────────────────────────────────────────

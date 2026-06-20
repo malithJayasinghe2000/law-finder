@@ -6,6 +6,8 @@ export const profileSchema = z.object({
   practiceAreas: z.array(z.string()).min(1, 'Select at least one practice area.'),
   languages: z.array(z.string()).min(1, 'Select at least one language.'),
   district: z.string().min(2, 'District is required.'),
+  latitude: z.string().optional().or(z.literal('')),
+  longitude: z.string().optional().or(z.literal('')),
   baseFeeRange: z.string().optional(),
 });
 

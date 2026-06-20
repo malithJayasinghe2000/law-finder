@@ -42,6 +42,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
           gender: data.step1?.gender || null,
           bio: data.step1?.bio || null,
           address: data.step1?.address || null,
+          latitude: data.step1?.latitude && data.step1.latitude !== '' ? parseFloat(data.step1.latitude) : null,
+          longitude: data.step1?.longitude && data.step1.longitude !== '' ? parseFloat(data.step1.longitude) : null,
           contactPhone: data.step1?.phone || null,
           isVerified: true,
           practiceAreas: Array.isArray(data.step3?.practiceAreas) 

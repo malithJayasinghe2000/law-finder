@@ -40,7 +40,7 @@ export default function ApplicationClientForm({ locale, initialStep, initialData
 
   // Local JSON state syncing with Postgres `draftData` JSON blob
   const [formData, setFormData] = useState<any>(initialData?.step1 ? initialData : {
-    step1: { fullName: '', gender: '', languages: [], bio: '', phone: '', address: '', district: '' },
+    step1: { fullName: '', gender: '', languages: [], bio: '', phone: '', address: '', district: '', latitude: '', longitude: '' },
     step2: { baslNumber: '', yearsOfExperience: '', practiceType: '', courts: '', isNotary: false },
     step3: { practiceAreas: [], baseFeeRange: '' },
     step4: { licenseImage: '', identityImage: '' }

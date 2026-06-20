@@ -43,6 +43,8 @@ export default function ProfileSettingsPage() {
   const [baseFeeRange, setBaseFeeRange] = useState('');
   const [contactPhone, setContactPhone] = useState('');
   const [address, setAddress] = useState('');
+  const [latitude, setLatitude] = useState('');
+  const [longitude, setLongitude] = useState('');
   const [gender, setGender] = useState('');
   const [yearsOfExperience, setYearsOfExperience] = useState('');
   const [practiceType, setPracticeType] = useState('');
@@ -156,6 +158,8 @@ export default function ProfileSettingsPage() {
         setBaseFeeRange(lp.baseFeeRange || '');
         setContactPhone(lp.contactPhone || '');
         setAddress(lp.address || '');
+        setLatitude(lp.latitude?.toString() || '');
+        setLongitude(lp.longitude?.toString() || '');
         setGender(lp.gender || '');
         setYearsOfExperience(lp.yearsOfExperience?.toString() || '');
         setPracticeType(lp.practiceType || '');
@@ -239,6 +243,8 @@ export default function ProfileSettingsPage() {
           baseFeeRange,
           contactPhone,
           address,
+          latitude: latitude || undefined,
+          longitude: longitude || undefined,
           gender,
           yearsOfExperience: yearsOfExperience ? parseInt(yearsOfExperience) : null,
           practiceType,
@@ -555,6 +561,26 @@ export default function ProfileSettingsPage() {
                       type="text"
                       value={address}
                       onChange={(e) => setAddress(e.target.value)}
+                      className="w-full bg-neutral-50 border border-neutral-200 text-[#0a0a0a] px-4 py-3 outline-none focus:border-[#0a0a0a] focus:bg-white transition-all text-sm"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[11px] font-bold text-neutral-900 uppercase tracking-widest">Latitude (Optional)</label>
+                    <input
+                      type="text"
+                      value={latitude}
+                      onChange={(e) => setLatitude(e.target.value)}
+                      placeholder="e.g. 6.927079"
+                      className="w-full bg-neutral-50 border border-neutral-200 text-[#0a0a0a] px-4 py-3 outline-none focus:border-[#0a0a0a] focus:bg-white transition-all text-sm"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[11px] font-bold text-neutral-900 uppercase tracking-widest">Longitude (Optional)</label>
+                    <input
+                      type="text"
+                      value={longitude}
+                      onChange={(e) => setLongitude(e.target.value)}
+                      placeholder="e.g. 79.861244"
                       className="w-full bg-neutral-50 border border-neutral-200 text-[#0a0a0a] px-4 py-3 outline-none focus:border-[#0a0a0a] focus:bg-white transition-all text-sm"
                     />
                   </div>
