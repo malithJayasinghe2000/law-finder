@@ -10,7 +10,7 @@ import React, { useState } from 'react';
 
 export function AppSidebar({ locale, role, userId }: { locale: string; role: string; userId?: string }) {
   const pathname = usePathname();
-  const [openSubmenus, setOpenSubmenus] = useState<string[]>(['Payments']); // Default open for better UX, or empty
+  const [openSubmenus, setOpenSubmenus] = useState<string[]>(['Payments','Consultations']); // Default open for better UX, or empty
 
   const adminLinks = [
     { href: `/${locale}/dashboard/admin`, icon: LayoutDashboard, label: 'Dashboard', exact: true },
