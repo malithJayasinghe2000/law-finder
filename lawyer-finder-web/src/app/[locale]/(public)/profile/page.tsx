@@ -133,7 +133,7 @@ export default function ProfileSettingsPage() {
       if (!resNew.ok) {
         console.error('Failed to fetch profile', resNew.status);
         if (resNew.status === 401) {
-             router.push(`/${locale}/login`);
+          router.push(`/${locale}/login`);
         }
         return;
       }
@@ -592,11 +592,10 @@ export default function ProfileSettingsPage() {
                       key={area}
                       type="button"
                       onClick={() => toggleArrayItem(practiceAreas, setPracticeAreas, area)}
-                      className={`px-5 py-3 text-sm font-medium transition-all duration-200 border-none rounded-none focus:outline-none ${
-                        practiceAreas.includes(area)
+                      className={`px-5 py-3 text-sm font-medium transition-all duration-200 border-none rounded-none focus:outline-none ${practiceAreas.includes(area)
                           ? 'bg-[#0a0a0a] text-white'
                           : 'bg-neutral-50 text-neutral-500 hover:bg-neutral-100'
-                      }`}
+                        }`}
                     >
                       {area}
                     </button>
@@ -613,11 +612,10 @@ export default function ProfileSettingsPage() {
                       key={lang}
                       type="button"
                       onClick={() => toggleArrayItem(languages, setLanguagesState, lang)}
-                      className={`px-6 py-3 text-sm font-medium transition-all duration-200 border-none rounded-none focus:outline-none ${
-                        languages.includes(lang)
+                      className={`px-6 py-3 text-sm font-medium transition-all duration-200 border-none rounded-none focus:outline-none ${languages.includes(lang)
                           ? 'bg-[#0a0a0a] text-white'
                           : 'bg-neutral-50 text-neutral-500 hover:bg-neutral-100'
-                      }`}
+                        }`}
                     >
                       {lang}
                     </button>
@@ -628,7 +626,7 @@ export default function ProfileSettingsPage() {
           )}
 
           {/* Subscription Management Section */}
-          {isLawyer && (
+          {/* {isLawyer && (
             <div className="mb-10 pb-10 border-b border-neutral-200">
               <h3 className="text-sm font-bold text-[#0a0a0a] uppercase tracking-[0.2em] mb-8 font-sans">Subscription</h3>
               
@@ -639,7 +637,6 @@ export default function ProfileSettingsPage() {
                 </div>
               ) : subscriptionData?.hasSubscription ? (
                 <div className="space-y-6">
-                  {/* Plan & Status Row */}
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-neutral-50 p-5 border border-neutral-200">
                     <div className="flex items-center gap-4">
                       <div className="w-11 h-11 bg-[#0a0a0a] flex items-center justify-center shrink-0">
@@ -664,7 +661,6 @@ export default function ProfileSettingsPage() {
                     </div>
                   </div>
 
-                  {/* Info Grid */}
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-px bg-neutral-200 border border-neutral-200">
                     <div className="bg-white p-4">
                       <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1">Started</p>
@@ -686,7 +682,6 @@ export default function ProfileSettingsPage() {
                     </div>
                   </div>
 
-                  {/* Status Messages */}
                   {subscriptionData.subscription.status === 'CANCELED' && (
                     <p className="text-sm text-neutral-500 bg-neutral-50 border border-neutral-200 p-4">
                       Your subscription has been cancelled. You retain access until {subscriptionData.subscription.endDate ? new Date(subscriptionData.subscription.endDate).toLocaleDateString() : 'expiry'}.
@@ -703,7 +698,6 @@ export default function ProfileSettingsPage() {
                     </p>
                   )}
 
-                  {/* Actions */}
                   <div className="flex flex-wrap gap-3">
                     {subscriptionData.subscription.status === 'ACTIVE' && (
                       <button
@@ -753,7 +747,7 @@ export default function ProfileSettingsPage() {
                 </div>
               )}
             </div>
-          )}
+          )} */}
 
           {/* Save Button */}
           <div className="flex justify-end">
