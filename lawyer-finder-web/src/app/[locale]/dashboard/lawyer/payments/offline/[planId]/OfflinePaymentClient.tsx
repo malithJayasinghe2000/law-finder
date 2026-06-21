@@ -29,7 +29,7 @@ export default function OfflinePaymentClient({ locale, invoice }: OfflinePayment
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
 
-  const isReadonly = invoice.status !== 'PENDING' && invoice.status !== 'RESUBMIT';
+  const isReadonly = invoice.status !== 'UNPAID' && invoice.status !== 'RESUBMIT';
 
   const {
     register,
@@ -45,6 +45,7 @@ export default function OfflinePaymentClient({ locale, invoice }: OfflinePayment
       accountHolder: invoice.paymentDetails?.accountHolder || '',
       accountNumber: invoice.paymentDetails?.accountNumber || '',
       transactionId: invoice.paymentDetails?.transactionId || '',
+      transactionDate: invoice.paymentDetails?.transactionDate || '',
       notes: invoice.paymentDetails?.notes || '',
     },
   });
@@ -345,18 +346,25 @@ export default function OfflinePaymentClient({ locale, invoice }: OfflinePayment
                         <div className="flex flex-col items-center">
                           {selectedFile ? (
                             <CheckCircle2 className="w-12 h-12 text-green-500 mb-4" />
+                          ) : invoice.receiptImageUrl ? (
+                            <div className="mb-4 w-full flex justify-center">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img src={invoice.receiptImageUrl} alt="Receipt" className="max-h-32 object-contain rounded border border-neutral-200" />
+                            </div>
                           ) : (
                             <Upload className="w-12 h-12 text-neutral-300 mb-4 group-hover:text-black transition-colors" />
                           )}
                           
-                          <p className="text-sm font-black text-black">
-                            {selectedFile ? selectedFile.name : 'CLICK TO UPLOAD RECEIPT'}
+                          <p className="text-sm font-black text-black mt-2">
+                            {selectedFile ? selectedFile.name : invoice.receiptImageUrl ? 'UPLOADED RECEIPT' : 'CLICK TO UPLOAD RECEIPT'}
                           </p>
-                          <p className="text-[10px] text-neutral-400 uppercase font-bold mt-2 tracking-widest">
-                            {selectedFile 
-                              ? `(${(selectedFile.size / 1024 / 1024).toFixed(2)} MB)` 
-                              : 'JPG, PNG OR PDF (MAX 5MB)'}
-                          </p>
+                          {(!invoice.receiptImageUrl || selectedFile) && (
+                            <p className="text-[10px] text-neutral-400 uppercase font-bold mt-2 tracking-widest">
+                              {selectedFile 
+                                ? `(${(selectedFile.size / 1024 / 1024).toFixed(2)} MB)` 
+                                : 'JPG, PNG OR PDF (MAX 5MB)'}
+                            </p>
+                          )}
                         </div>
 
                         {uploadProgress > 0 && uploadProgress < 100 && (

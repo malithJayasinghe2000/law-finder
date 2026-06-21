@@ -53,9 +53,17 @@ export async function PUT(req: Request) {
       return NextResponse.json({ error: 'Profile not found.' }, { status: 404 });
     }
 
+    const dataToUpdate: any = { ...validated.data };
+    if (dataToUpdate.latitude !== undefined) {
+      dataToUpdate.latitude = dataToUpdate.latitude === '' ? null : parseFloat(dataToUpdate.latitude);
+    }
+    if (dataToUpdate.longitude !== undefined) {
+      dataToUpdate.longitude = dataToUpdate.longitude === '' ? null : parseFloat(dataToUpdate.longitude);
+    }
+
     const updated = await prisma.lawyerProfile.update({
       where: { id: profile.id },
-      data: validated.data,
+      data: dataToUpdate,
     });
 
     return NextResponse.json(updated, { status: 200 });

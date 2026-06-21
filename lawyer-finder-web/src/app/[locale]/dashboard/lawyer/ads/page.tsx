@@ -3,14 +3,24 @@
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import {
-  Image, Plus, Loader2, Eye, EyeOff, Pause, Play,
-  Calendar, CheckCircle2, XCircle, Clock, Send,
-  BarChart3, MousePointerClick, TrendingUp,
+  Image as ImageIcon, Plus, Loader2, Eye, Pause, Play,
+  Calendar, CheckCircle2, Send,
+  MousePointerClick, TrendingUp,
   ChevronDown, ChevronUp, ArrowRight, Megaphone, ImagePlus
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
+import FieldError from '@/components/ui/FieldError';
+import {
+  AD_TYPES,
+  PLACEMENT_DETAILS,
+  LawyerCreateAdSchema,
+  formatZodFieldErrors,
+  getPlacementsForType,
+  isImageRequiredType,
+  type AdPlacementValue,
+} from '@/schemas/ad.schema';
 
 interface Campaign {
   id: string;
@@ -44,9 +54,6 @@ interface Stats {
   avgCtr: string;
 }
 
-const AD_TYPES = ['BANNER', 'SPONSORED_LISTING', 'FEATURED_PROFILE', 'IN_FEED', 'SIDEBAR'];
-const AD_PLACEMENTS = ['HOMEPAGE_HERO', 'HOMEPAGE_MID', 'DIRECTORY_TOP', 'DIRECTORY_INLINE', 'BLOG_SIDEBAR', 'BLOG_FEED', 'BLOG_POST_BOTTOM'];
-
 function formatLabel(str: string) {
   return str.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }
@@ -75,6 +82,7 @@ export default function LawyerAdsPage() {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
   const [form, setForm] = useState({
     name: '',
@@ -90,8 +98,27 @@ export default function LawyerAdsPage() {
     startDate: '',
     endDate: '',
     totalBudget: '',
-    pricePerDay: '',
   });
+
+  const validPlacements = getPlacementsForType(form.type);
+  const placementDetails = PLACEMENT_DETAILS[form.placement as AdPlacementValue];
+  const imageRequired = isImageRequiredType(form.type);
+
+  const updateForm = (field: keyof typeof form, value: string) => {
+    setFormErrors((prev) => {
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+
+    setForm((prev) => {
+      if (field === 'type') {
+        const [nextPlacement] = getPlacementsForType(value);
+        return { ...prev, type: value, placement: nextPlacement || prev.placement };
+      }
+      return { ...prev, [field]: value };
+    });
+  };
 
   const fetchCampaigns = async () => {
     setLoading(true);
@@ -146,9 +173,14 @@ export default function LawyerAdsPage() {
   };
 
   const handleCreate = async () => {
-    if (!form.name || !form.startDate || !form.endDate) {
-      return toast.error('Campaign name, start date, and end date are required.');
+    const parsed = LawyerCreateAdSchema.safeParse(form);
+    if (!parsed.success) {
+      setFormErrors(formatZodFieldErrors(parsed.error));
+      toast.error('Please fix the highlighted fields.');
+      return;
     }
+
+    setFormErrors({});
     setCreateLoading(true);
     try {
       const res = await fetch('/api/lawyer/ads', {
@@ -157,18 +189,21 @@ export default function LawyerAdsPage() {
         body: JSON.stringify(form),
       });
       const result = await res.json();
-      if (!res.ok) throw new Error(result.error);
+      if (!res.ok) {
+        if (result.fieldErrors) setFormErrors(result.fieldErrors);
+        throw new Error(result.error);
+      }
       toast.success('Campaign submitted for review!');
       setShowCreate(false);
       setForm({
         name: '', type: 'SPONSORED_LISTING', placement: 'DIRECTORY_TOP',
         title: '', description: '', imageUrl: '', targetUrl: '', ctaText: 'View Profile',
         targetDistricts: [], targetPracticeAreas: [], startDate: '', endDate: '',
-        totalBudget: '', pricePerDay: '',
+        totalBudget: '',
       });
       fetchCampaigns();
-    } catch (e: any) {
-      toast.error(e.message || 'Failed to create campaign.');
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to create campaign.');
     } finally {
       setCreateLoading(false);
     }
@@ -186,8 +221,8 @@ export default function LawyerAdsPage() {
       if (!res.ok) throw new Error(result.error);
       toast.success(result.message || 'Campaign updated.');
       fetchCampaigns();
-    } catch (e: any) {
-      toast.error(e.message || 'Failed to update campaign.');
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to update campaign.');
     } finally {
       setActionLoading(null);
     }
@@ -265,91 +300,115 @@ export default function LawyerAdsPage() {
           <h3 className="text-xs font-bold text-neutral-900 uppercase tracking-wide">Create New Campaign</h3>
           <p className="text-sm text-neutral-500">Your campaign will be reviewed by our team before it goes live. This usually takes 24-48 hours.</p>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <div>
-              <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5">Campaign Name *</label>
-              <input type="text" placeholder="e.g. January Criminal Law Push" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="w-full py-2.5 px-3 bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-900 outline-none focus:border-[#0a0a0a]" />
-            </div>
-
-            <div>
-              <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5">Ad Type *</label>
-              <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} className="w-full py-2.5 px-3 bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-900 outline-none focus:border-[#0a0a0a]">
-                {AD_TYPES.map((t) => (
-                  <option key={t} value={t}>{formatLabel(t)}</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5">Placement *</label>
-              <select value={form.placement} onChange={(e) => setForm({ ...form, placement: e.target.value })} className="w-full py-2.5 px-3 bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-900 outline-none focus:border-[#0a0a0a]">
-                {AD_PLACEMENTS.map((p) => (
-                  <option key={p} value={p}>{formatLabel(p)}</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5">Ad Headline</label>
-              <input type="text" placeholder="e.g. Expert Criminal Defense in Colombo" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="w-full py-2.5 px-3 bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-900 outline-none focus:border-[#0a0a0a]" />
-            </div>
-
-            <div>
-              <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5">CTA Button Text</label>
-              <input type="text" placeholder="View Profile" value={form.ctaText} onChange={(e) => setForm({ ...form, ctaText: e.target.value })} className="w-full py-2.5 px-3 bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-900 outline-none focus:border-[#0a0a0a]" />
-            </div>
-
-            <div>
-              <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5">Banner Image</label>
-              {form.imageUrl ? (
-                <div className="relative rounded overflow-hidden border border-neutral-200 h-[42px]">
-                  <img src={form.imageUrl} alt="Banner" className="w-full h-full object-cover" />
-                  <button
-                    type="button"
-                    onClick={() => setForm({ ...form, imageUrl: '' })}
-                    className="absolute top-1 right-1 bg-black/60 text-white px-2 py-0.5 rounded-sm text-[10px] hover:bg-black/80 transition-colors"
-                  >
-                    Remove
-                  </button>
+          <div className="space-y-6">
+            <section className="space-y-3">
+              <div>
+                <h4 className="text-[11px] font-bold uppercase tracking-wide text-neutral-900">1. Ad Format</h4>
+                <p className="text-xs text-neutral-500">Pick a format to see only the placements that fit that ad.</p>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5">Ad Type *</label>
+                  <select value={form.type} onChange={(e) => updateForm('type', e.target.value)} className="w-full py-2.5 px-3 bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-900 outline-none focus:border-[#0a0a0a]">
+                    {AD_TYPES.map((t) => (
+                      <option key={t} value={t}>{formatLabel(t)}</option>
+                    ))}
+                  </select>
+                  <FieldError message={formErrors.type} />
                 </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={handleImageUpload}
-                  disabled={uploadingImage}
-                  className="flex items-center justify-center gap-2 w-full h-[42px] bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-500 hover:border-[#0a0a0a] hover:text-neutral-900 transition-colors rounded-sm"
-                >
-                  {uploadingImage ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <ImagePlus className="w-4 h-4" />
+                <div>
+                  <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5">Placement *</label>
+                  <select value={form.placement} onChange={(e) => updateForm('placement', e.target.value)} className="w-full py-2.5 px-3 bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-900 outline-none focus:border-[#0a0a0a]">
+                    {validPlacements.map((p) => (
+                      <option key={p} value={p}>{formatLabel(p)}</option>
+                    ))}
+                  </select>
+                  {placementDetails && (
+                    <p className="text-[11px] text-neutral-500 mt-1">{placementDetails.description} • {placementDetails.dimensions}</p>
                   )}
-                  {uploadingImage ? 'Uploading...' : 'Upload Image'}
-                </button>
-              )}
-            </div>
+                  <FieldError message={formErrors.placement} />
+                </div>
+              </div>
+            </section>
 
-            <div className="md:col-span-3">
-              <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5">Description</label>
-              <textarea placeholder="A brief description of your services..." value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={2} className="w-full py-2.5 px-3 bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-900 outline-none focus:border-[#0a0a0a] resize-none" />
-            </div>
+            <Separator />
 
-            <Separator className="md:col-span-3" />
+            <section className="space-y-3">
+              <div>
+                <h4 className="text-[11px] font-bold uppercase tracking-wide text-neutral-900">2. Creative Content</h4>
+                <p className="text-xs text-neutral-500">For sponsored listings and featured profiles, your profile photo is used automatically.</p>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div>
+                  <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5">Campaign Name *</label>
+                  <input type="text" placeholder="e.g. January Criminal Law Push" value={form.name} onChange={(e) => updateForm('name', e.target.value)} className="w-full py-2.5 px-3 bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-900 outline-none focus:border-[#0a0a0a]" />
+                  <FieldError message={formErrors.name} />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5">Ad Headline {form.type === 'BANNER' ? '*' : ''}</label>
+                  <input type="text" placeholder="e.g. Expert Criminal Defense in Colombo" value={form.title} onChange={(e) => updateForm('title', e.target.value)} className="w-full py-2.5 px-3 bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-900 outline-none focus:border-[#0a0a0a]" />
+                  <FieldError message={formErrors.title} />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5">CTA Button Text</label>
+                  <input type="text" placeholder="View Profile" value={form.ctaText} onChange={(e) => updateForm('ctaText', e.target.value)} className="w-full py-2.5 px-3 bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-900 outline-none focus:border-[#0a0a0a]" />
+                  <FieldError message={formErrors.ctaText} />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5">Banner Image {imageRequired ? '*' : ''}</label>
+                  {imageRequired || form.imageUrl ? (
+                    form.imageUrl ? (
+                      <div className="relative rounded overflow-hidden border border-neutral-200 h-[42px]">
+                        <img src={form.imageUrl} alt="Banner" className="w-full h-full object-cover" />
+                        <button type="button" onClick={() => updateForm('imageUrl', '')} className="absolute top-1 right-1 bg-black/60 text-white px-2 py-0.5 rounded-sm text-[10px] hover:bg-black/80 transition-colors">Remove</button>
+                      </div>
+                    ) : (
+                      <button type="button" onClick={handleImageUpload} disabled={uploadingImage} className="flex items-center justify-center gap-2 w-full h-[42px] bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-500 hover:border-[#0a0a0a] hover:text-neutral-900 transition-colors rounded-sm">
+                        {uploadingImage ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImagePlus className="w-4 h-4" />}
+                        {uploadingImage ? 'Uploading...' : 'Upload Image'}
+                      </button>
+                    )
+                  ) : (
+                    <div className="min-h-[42px] flex items-center px-3 bg-neutral-50 border border-neutral-200 text-sm text-neutral-500">
+                      Your profile photo will be used automatically.
+                    </div>
+                  )}
+                  <FieldError message={formErrors.imageUrl} />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5">Description</label>
+                  <textarea placeholder="A brief description of your services..." value={form.description} onChange={(e) => updateForm('description', e.target.value)} rows={2} className="w-full py-2.5 px-3 bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-900 outline-none focus:border-[#0a0a0a] resize-none" />
+                  <FieldError message={formErrors.description} />
+                </div>
+              </div>
+            </section>
 
-            <div>
-              <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5">Start Date *</label>
-              <input type="date" value={form.startDate} onChange={(e) => setForm({ ...form, startDate: e.target.value })} className="w-full py-2.5 px-3 bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-900 outline-none focus:border-[#0a0a0a]" />
-            </div>
+            <Separator />
 
-            <div>
-              <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5">End Date *</label>
-              <input type="date" value={form.endDate} onChange={(e) => setForm({ ...form, endDate: e.target.value })} className="w-full py-2.5 px-3 bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-900 outline-none focus:border-[#0a0a0a]" />
-            </div>
-
-            <div>
-              <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5">Budget (LKR)</label>
-              <input type="number" placeholder="15000" value={form.totalBudget} onChange={(e) => setForm({ ...form, totalBudget: e.target.value })} className="w-full py-2.5 px-3 bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-900 outline-none focus:border-[#0a0a0a]" />
-            </div>
+            <section className="space-y-3">
+              <div>
+                <h4 className="text-[11px] font-bold uppercase tracking-wide text-neutral-900">3. Schedule & Budget</h4>
+                <p className="text-xs text-neutral-500">Pricing is based on placement and duration. The admin team will confirm the final daily rate.</p>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5">Start Date *</label>
+                  <input type="date" value={form.startDate} onChange={(e) => updateForm('startDate', e.target.value)} className="w-full py-2.5 px-3 bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-900 outline-none focus:border-[#0a0a0a]" />
+                  <FieldError message={formErrors.startDate} />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5">End Date *</label>
+                  <input type="date" value={form.endDate} onChange={(e) => updateForm('endDate', e.target.value)} className="w-full py-2.5 px-3 bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-900 outline-none focus:border-[#0a0a0a]" />
+                  <FieldError message={formErrors.endDate} />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5">Budget (LKR) *</label>
+                  <input type="number" min="500" placeholder="15000" value={form.totalBudget} onChange={(e) => updateForm('totalBudget', e.target.value)} className="w-full py-2.5 px-3 bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-900 outline-none focus:border-[#0a0a0a]" />
+                  <p className="text-[11px] text-neutral-500 mt-1">Minimum LKR 500. Price per day is confirmed during review.</p>
+                  <FieldError message={formErrors.totalBudget} />
+                </div>
+              </div>
+            </section>
           </div>
 
           <div className="flex gap-2 pt-2">
@@ -387,7 +446,7 @@ export default function LawyerAdsPage() {
                     {campaign.imageUrl ? (
                       <img src={campaign.imageUrl} alt="" className="w-full h-full object-cover" />
                     ) : (
-                      <Image className="w-4 h-4 text-neutral-300" />
+                      <ImageIcon className="w-4 h-4 text-neutral-300" />
                     )}
                   </div>
 

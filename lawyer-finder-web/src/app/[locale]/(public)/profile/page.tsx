@@ -10,8 +10,10 @@ import {
   Shield, Calendar, CreditCard, AlertTriangle, CheckCircle, XCircle,
   RefreshCw, Zap, Crown,
 } from 'lucide-react';
+import { DISTRICTS, PRACTICE_AREAS } from '@/schemas/profile.schema';
 
 const LANGUAGES = ['Sinhala', 'Tamil', 'English'];
+const PRACTICE_TYPES = ['Independent', 'Law Firm'];
 
 export default function ProfileSettingsPage() {
   const { locale } = useParams();
@@ -43,6 +45,8 @@ export default function ProfileSettingsPage() {
   const [baseFeeRange, setBaseFeeRange] = useState('');
   const [contactPhone, setContactPhone] = useState('');
   const [address, setAddress] = useState('');
+  const [latitude, setLatitude] = useState('');
+  const [longitude, setLongitude] = useState('');
   const [gender, setGender] = useState('');
   const [yearsOfExperience, setYearsOfExperience] = useState('');
   const [practiceType, setPracticeType] = useState('');
@@ -58,20 +62,7 @@ export default function ProfileSettingsPage() {
   const [cancellingSubscription, setCancellingSubscription] = useState(false);
   const [renewingSubscription, setRenewingSubscription] = useState(false);
 
-  const [lookups, setLookups] = useState<{ districts: string[], practiceAreas: string[], practiceTypes: string[] }>({
-    districts: [],
-    practiceAreas: [],
-    practiceTypes: []
-  });
-
-  useEffect(() => {
-    fetch('/api/lookups')
-      .then(res => res.json())
-      .then(data => {
-        if (data.districts) setLookups(data);
-      })
-      .catch(console.error);
-  }, []);
+  // DISTRICTS, PRACTICE_AREAS, PRACTICE_TYPES are imported as static constants — no API call needed.
 
   useEffect(() => {
     fetchProfile();
@@ -133,7 +124,7 @@ export default function ProfileSettingsPage() {
       if (!resNew.ok) {
         console.error('Failed to fetch profile', resNew.status);
         if (resNew.status === 401) {
-             router.push(`/${locale}/login`);
+          router.push(`/${locale}/login`);
         }
         return;
       }
@@ -156,6 +147,8 @@ export default function ProfileSettingsPage() {
         setBaseFeeRange(lp.baseFeeRange || '');
         setContactPhone(lp.contactPhone || '');
         setAddress(lp.address || '');
+        setLatitude(lp.latitude?.toString() || '');
+        setLongitude(lp.longitude?.toString() || '');
         setGender(lp.gender || '');
         setYearsOfExperience(lp.yearsOfExperience?.toString() || '');
         setPracticeType(lp.practiceType || '');
@@ -239,6 +232,8 @@ export default function ProfileSettingsPage() {
           baseFeeRange,
           contactPhone,
           address,
+          latitude: latitude || undefined,
+          longitude: longitude || undefined,
           gender,
           yearsOfExperience: yearsOfExperience ? parseInt(yearsOfExperience) : null,
           practiceType,
@@ -525,7 +520,7 @@ export default function ProfileSettingsPage() {
                       className="w-full bg-neutral-50 border border-neutral-200 text-[#0a0a0a] px-4 py-3 outline-none focus:border-[#0a0a0a] focus:bg-white transition-all text-sm"
                     >
                       <option value="">Select</option>
-                      {lookups.practiceTypes.map(t => <option key={t} value={t}>{t}</option>)}
+                      {PRACTICE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
                     </select>
                   </div>
                   <div className="space-y-2">
@@ -536,7 +531,7 @@ export default function ProfileSettingsPage() {
                       className="w-full bg-neutral-50 border border-neutral-200 text-[#0a0a0a] px-4 py-3 outline-none focus:border-[#0a0a0a] focus:bg-white transition-all text-sm"
                     >
                       <option value="">Select</option>
-                      {lookups.districts.map(d => <option key={d} value={d}>{d}</option>)}
+                      {DISTRICTS.map(d => <option key={d} value={d}>{d}</option>)}
                     </select>
                   </div>
                   <div className="space-y-2">
@@ -555,6 +550,26 @@ export default function ProfileSettingsPage() {
                       type="text"
                       value={address}
                       onChange={(e) => setAddress(e.target.value)}
+                      className="w-full bg-neutral-50 border border-neutral-200 text-[#0a0a0a] px-4 py-3 outline-none focus:border-[#0a0a0a] focus:bg-white transition-all text-sm"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[11px] font-bold text-neutral-900 uppercase tracking-widest">Latitude (Optional)</label>
+                    <input
+                      type="text"
+                      value={latitude}
+                      onChange={(e) => setLatitude(e.target.value)}
+                      placeholder="e.g. 6.927079"
+                      className="w-full bg-neutral-50 border border-neutral-200 text-[#0a0a0a] px-4 py-3 outline-none focus:border-[#0a0a0a] focus:bg-white transition-all text-sm"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[11px] font-bold text-neutral-900 uppercase tracking-widest">Longitude (Optional)</label>
+                    <input
+                      type="text"
+                      value={longitude}
+                      onChange={(e) => setLongitude(e.target.value)}
+                      placeholder="e.g. 79.861244"
                       className="w-full bg-neutral-50 border border-neutral-200 text-[#0a0a0a] px-4 py-3 outline-none focus:border-[#0a0a0a] focus:bg-white transition-all text-sm"
                     />
                   </div>
@@ -587,16 +602,15 @@ export default function ProfileSettingsPage() {
               <div className="mb-10 pb-10 border-b border-neutral-200">
                 <h3 className="text-sm font-bold text-[#0a0a0a] uppercase tracking-[0.2em] mb-8 font-sans">Practice Areas</h3>
                 <div className="flex flex-wrap gap-2">
-                  {lookups.practiceAreas.map(area => (
+                  {PRACTICE_AREAS.map(area => (
                     <button
                       key={area}
                       type="button"
                       onClick={() => toggleArrayItem(practiceAreas, setPracticeAreas, area)}
-                      className={`px-5 py-3 text-sm font-medium transition-all duration-200 border-none rounded-none focus:outline-none ${
-                        practiceAreas.includes(area)
+                      className={`px-5 py-3 text-sm font-medium transition-all duration-200 border-none rounded-none focus:outline-none ${practiceAreas.includes(area)
                           ? 'bg-[#0a0a0a] text-white'
                           : 'bg-neutral-50 text-neutral-500 hover:bg-neutral-100'
-                      }`}
+                        }`}
                     >
                       {area}
                     </button>
@@ -613,11 +627,10 @@ export default function ProfileSettingsPage() {
                       key={lang}
                       type="button"
                       onClick={() => toggleArrayItem(languages, setLanguagesState, lang)}
-                      className={`px-6 py-3 text-sm font-medium transition-all duration-200 border-none rounded-none focus:outline-none ${
-                        languages.includes(lang)
+                      className={`px-6 py-3 text-sm font-medium transition-all duration-200 border-none rounded-none focus:outline-none ${languages.includes(lang)
                           ? 'bg-[#0a0a0a] text-white'
                           : 'bg-neutral-50 text-neutral-500 hover:bg-neutral-100'
-                      }`}
+                        }`}
                     >
                       {lang}
                     </button>
@@ -628,7 +641,7 @@ export default function ProfileSettingsPage() {
           )}
 
           {/* Subscription Management Section */}
-          {isLawyer && (
+          {/* {isLawyer && (
             <div className="mb-10 pb-10 border-b border-neutral-200">
               <h3 className="text-sm font-bold text-[#0a0a0a] uppercase tracking-[0.2em] mb-8 font-sans">Subscription</h3>
               
@@ -639,7 +652,6 @@ export default function ProfileSettingsPage() {
                 </div>
               ) : subscriptionData?.hasSubscription ? (
                 <div className="space-y-6">
-                  {/* Plan & Status Row */}
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-neutral-50 p-5 border border-neutral-200">
                     <div className="flex items-center gap-4">
                       <div className="w-11 h-11 bg-[#0a0a0a] flex items-center justify-center shrink-0">
@@ -664,7 +676,6 @@ export default function ProfileSettingsPage() {
                     </div>
                   </div>
 
-                  {/* Info Grid */}
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-px bg-neutral-200 border border-neutral-200">
                     <div className="bg-white p-4">
                       <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1">Started</p>
@@ -686,7 +697,6 @@ export default function ProfileSettingsPage() {
                     </div>
                   </div>
 
-                  {/* Status Messages */}
                   {subscriptionData.subscription.status === 'CANCELED' && (
                     <p className="text-sm text-neutral-500 bg-neutral-50 border border-neutral-200 p-4">
                       Your subscription has been cancelled. You retain access until {subscriptionData.subscription.endDate ? new Date(subscriptionData.subscription.endDate).toLocaleDateString() : 'expiry'}.
@@ -703,7 +713,6 @@ export default function ProfileSettingsPage() {
                     </p>
                   )}
 
-                  {/* Actions */}
                   <div className="flex flex-wrap gap-3">
                     {subscriptionData.subscription.status === 'ACTIVE' && (
                       <button
@@ -753,7 +762,7 @@ export default function ProfileSettingsPage() {
                 </div>
               )}
             </div>
-          )}
+          )} */}
 
           {/* Save Button */}
           <div className="flex justify-end">

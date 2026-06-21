@@ -48,6 +48,8 @@ export async function GET(req: NextRequest) {
           practiceAreas: true,
           languages: true,
           district: true,
+          latitude: true,
+          longitude: true,
           baseFeeRange: true,
           gender: true,
           yearsOfExperience: true,
@@ -158,7 +160,7 @@ export async function PUT(req: NextRequest) {
           'fullName', 'bio', 'practiceAreas', 'languages', 'district',
           'baseFeeRange', 'contactPhone', 'address', 'gender',
           'yearsOfExperience', 'practiceType', 'courts', 'isNotary',
-          'onlineMeetingLink', 'profileImageUrl', 'nic',
+          'onlineMeetingLink', 'profileImageUrl', 'nic', 'latitude', 'longitude',
         ];
 
         for (const field of allowedFields) {
@@ -168,6 +170,15 @@ export async function PUT(req: NextRequest) {
               return NextResponse.json({ error: 'Please enter a valid Google Meet URL.' }, { status: 400 });
             }
             lawyerUpdateData.onlineMeetingLink = link || null;
+            continue;
+          }
+
+          // Parse coordinates to float (they arrive as strings from the form)
+          if ((field === 'latitude' || field === 'longitude') && lawyerProfile[field] !== undefined) {
+            const val = lawyerProfile[field];
+            lawyerUpdateData[field] = (val === '' || val === null || val === undefined)
+              ? null
+              : parseFloat(val as string);
             continue;
           }
 

@@ -157,11 +157,11 @@ export default function Header({ locale, userRole = null, appStatus = null, user
                   </div>
                 </div>
               )}
-              {userRole === 'LAWYER' && !subscriptionTier && (
+              {/* {userRole === 'LAWYER' && !subscriptionTier && (
                 <Link href={`/${locale}/pricing`} className="mt-2 pt-2 border-t border-neutral-200 block">
                   <p className="text-xs font-semibold text-amber-600 hover:text-amber-700">Upgrade your subscription</p>
                 </Link>
-              )}
+              )} */}
             </div>
           </div>
 
@@ -187,11 +187,11 @@ export default function Header({ locale, userRole = null, appStatus = null, user
                     <LayoutDashboard className="mr-3 h-4 w-4 text-neutral-400 group-hover:text-neutral-900 transition-colors" /> My Dashboard
                   </DropdownMenuItem>
                 </Link>
-                <Link href={`/${locale}/profile`}>
+                {/* <Link href={`/${locale}/profile`}>
                   <DropdownMenuItem className="cursor-pointer font-medium py-3 px-6 rounded-none focus:bg-neutral-50 group">
                     <Zap className="mr-3 h-4 w-4 text-amber-400 group-hover:text-amber-500 transition-colors" /> Subscription Plan
                   </DropdownMenuItem>
-                </Link>
+                </Link> */}
               </>
             )}
 

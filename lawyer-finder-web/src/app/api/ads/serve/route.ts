@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import type { AdPlacement } from '@prisma/client';
 import prisma from '@/lib/db';
 
 // GET /api/ads/serve?placement=HOMEPAGE_HERO&district=Colombo&practiceArea=Criminal+Law
@@ -21,7 +22,7 @@ export async function GET(req: Request) {
     // Fetch active campaigns for the requested placement
     const campaigns = await prisma.adCampaign.findMany({
       where: {
-        placement: placement as any,
+        placement: placement as AdPlacement,
         status: 'ACTIVE',
         startDate: { lte: now },
         endDate: { gte: todayUTCMidnight }, // Inclusive of the final day
@@ -36,6 +37,11 @@ export async function GET(req: Request) {
             practiceAreas: true,
             baseFeeRange: true,
             bio: true,
+            user: {
+              select: {
+                profileImageUrl: true,
+              },
+            },
           },
         },
       },
@@ -59,17 +65,24 @@ export async function GET(req: Request) {
     }
 
     // Return only what the client needs (no internal fields)
-    const ads = filtered.map((c) => ({
-      id: c.id,
-      type: c.type,
-      placement: c.placement,
-      title: c.title,
-      description: c.description,
-      imageUrl: c.imageUrl,
-      targetUrl: c.targetUrl || `/lawyers/${c.lawyer.id}`,
-      ctaText: c.ctaText,
-      lawyer: c.lawyer,
-    }));
+    const ads = filtered.map((c) => {
+      const { user, ...lawyer } = c.lawyer;
+
+      return {
+        id: c.id,
+        type: c.type,
+        placement: c.placement,
+        title: c.title,
+        description: c.description,
+        imageUrl: c.imageUrl,
+        targetUrl: c.targetUrl || `/lawyers/${c.lawyer.id}`,
+        ctaText: c.ctaText,
+        lawyer: {
+          ...lawyer,
+          profileImageUrl: lawyer.profileImageUrl || user.profileImageUrl,
+        },
+      };
+    });
 
     return NextResponse.json({ ads });
   } catch (error) {

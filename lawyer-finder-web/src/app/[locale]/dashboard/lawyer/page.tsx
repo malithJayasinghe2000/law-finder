@@ -101,7 +101,7 @@ export default function LawyerDashboard() {
       </div>
 
       {/* Subscription Status Card */}
-      <Card className={`rounded-2xl border border-[#efeae0] bg-[#fdfbf7] shadow-sm overflow-hidden border-l-4 ${
+      <Card className={`rounded-2xl border border-[#efeae0] bg-white shadow-sm mb-6 border-l-4 ${
         sub?.status === 'ACTIVE' ? 'border-l-emerald-500' :
         sub?.status === 'CANCELED' ? 'border-l-amber-500' :
         sub?.status === 'EXPIRED' ? 'border-l-red-500' :
@@ -161,7 +161,7 @@ export default function LawyerDashboard() {
           ) : (
             <div className="flex items-center justify-between flex-wrap gap-4">
               <div className="flex items-center gap-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-neutral-50 border border-[#efeae0] text-neutral-400">
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#faf8f6] border border-[#efeae0] text-[#bfa37a]">
                   <CreditCard className="h-5 w-5" />
                 </div>
                 <div>
@@ -178,123 +178,130 @@ export default function LawyerDashboard() {
           )}
         </CardContent>
       </Card>
- 
-        {/* Stats */}
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
-          <Card className="rounded-2xl border border-[#efeae0] bg-white p-6 shadow-[0_8px_30px_rgb(0,0,0,0.01)] hover:shadow-md transition-all duration-300">
-            <CardContent className="flex items-center gap-4 p-0">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#faf8f6] border border-[#efeae0] text-[#bfa37a]">
-                <Inbox className="h-5 w-5" />
-              </div>
-              <div>
-                <p className="text-3xl font-extrabold text-neutral-900 tracking-tight font-serif">{pendingInquiries}</p>
-                <p className="text-[10px] text-neutral-450 font-bold uppercase tracking-widest mt-1">Pending Inquiries</p>
-              </div>
-            </CardContent>
-          </Card>
- 
-          <Card className="rounded-2xl border border-[#efeae0] bg-white p-6 shadow-[0_8px_30px_rgb(0,0,0,0.01)] hover:shadow-md transition-all duration-300">
-            <CardContent className="flex items-center gap-4 p-0">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#faf8f6] border border-[#efeae0] text-[#bfa37a]">
-                <FileText className="h-5 w-5" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-3xl font-extrabold text-neutral-900 tracking-tight font-serif">{publishedArticles}</p>
-                <p className="text-[10px] text-neutral-450 font-bold uppercase tracking-widest mt-1">Published Articles</p>
-                <Link href={`/${locale}/blog/my-posts`} className="text-[9px] text-[#bfa37a] hover:text-[#a68d67] font-bold uppercase tracking-widest transition-colors mt-2.5 block">
-                  Manage articles &rarr;
-                </Link>
-              </div>
-            </CardContent>
-          </Card>
- 
-          <Card className="rounded-2xl border border-[#efeae0] bg-white p-6 shadow-[0_8px_30px_rgb(0,0,0,0.01)] hover:shadow-md transition-all duration-300">
-            <CardContent className="flex items-center gap-4 p-0">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#faf8f6] border border-[#efeae0] text-[#bfa37a]">
-                <Star className="h-5 w-5" />
-              </div>
-              <div>
-                <p className="text-3xl font-extrabold text-neutral-900 tracking-tight font-serif">{approvedReviews}</p>
-                <p className="text-[10px] text-neutral-450 font-bold uppercase tracking-widest mt-1">Approved Reviews</p>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
- 
-        {/* Recent Inquiries */}
-        <Card className="rounded-2xl border border-[#efeae0] bg-white shadow-sm overflow-hidden">
-          <CardContent className="p-6">
-            <h2 className="text-base font-bold uppercase tracking-widest text-neutral-800 mb-6 flex items-center gap-2 font-serif border-b border-[#efeae0] pb-4">
-              <Inbox className="h-4.5 w-4.5 text-[#bfa37a]" />
-              Recent Inquiries
-            </h2>
-            {profile.inquiries.length === 0 ? (
-              <p className="text-sm text-neutral-400 py-12 text-center font-light">No inquiries received yet.</p>
-            ) : (
-              <div className="space-y-4">
-                {profile.inquiries.slice(0, 5).map((inq) => (
-                  <div key={inq.id} className="rounded-xl border border-[#efeae0]/60 bg-white p-5 shadow-[0_4px_12px_rgba(0,0,0,0.01)] hover:border-[#bfa37a]/30 hover:shadow-md transition-all duration-300">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-                          <span className="font-serif font-bold text-[14px] text-neutral-950">{inq.clientName}</span>
-                          <Badge variant={inq.status === 'PENDING' ? 'outline' : 'secondary'} className={`text-[9px] rounded-full px-2 py-0.5 uppercase tracking-wider ${
-                            inq.status === 'PENDING' 
-                              ? 'text-amber-600 bg-amber-50/50 border-amber-200' 
-                              : 'text-neutral-500 bg-neutral-100 border-neutral-200'
-                          }`}>
-                            {inq.status}
-                          </Badge>
-                        </div>
-                        <p className="text-xs text-[#bfa37a] font-medium mb-2">{inq.clientEmail}</p>
-                        <p className="text-xs text-neutral-600 font-light leading-relaxed text-balance">{inq.message}</p>
-                      </div>
-                      <span className="shrink-0 text-[10px] text-neutral-400 font-bold uppercase tracking-wider">
-                        {new Date(inq.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+
+      {/* Stats */}
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
+        <Card className="rounded-2xl border border-[#efeae0] bg-white p-6 shadow-[0_8px_30px_rgb(0,0,0,0.01)] hover:shadow-md transition-all duration-300">
+          <CardContent className="flex items-center gap-4 p-0">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#faf8f6] border border-[#efeae0] text-[#bfa37a]">
+              <Inbox className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-3xl font-extrabold text-neutral-900 tracking-tight font-serif">{pendingInquiries}</p>
+              <p className="text-[10px] text-neutral-450 font-bold uppercase tracking-widest mt-1">Pending Inquiries</p>
+            </div>
           </CardContent>
         </Card>
- 
-        {/* Profile Preview */}
-        <Card className="rounded-2xl border border-[#efeae0] bg-white shadow-sm overflow-hidden">
-          <CardContent className="p-6">
-            <h2 className="text-base font-bold uppercase tracking-widest text-neutral-800 mb-6 flex items-center gap-2 font-serif border-b border-[#efeae0] pb-4">
-              <Eye className="h-4.5 w-4.5 text-[#bfa37a]" />
-              Profile Summary
-            </h2>
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 text-sm">
-              <div className="border border-[#efeae0]/40 p-4 rounded-xl">
-                <p className="text-[10px] text-neutral-400 font-bold uppercase tracking-widest mb-1.5">District</p>
-                <p className="font-serif font-bold text-neutral-900 text-[14px]">{profile.district || 'Not set'}</p>
-              </div>
-              <div className="border border-[#efeae0]/40 p-4 rounded-xl">
-                <p className="text-[10px] text-neutral-400 font-bold uppercase tracking-widest mb-1.5">Fee Range</p>
-                <p className="font-serif font-bold text-neutral-900 text-[14px]">{profile.baseFeeRange || 'Not set'}</p>
-              </div>
-              <div className="border border-[#efeae0]/40 p-4 rounded-xl">
-                <p className="text-[10px] text-neutral-400 font-bold uppercase tracking-widest mb-2.5">Languages</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {profile.languages.length > 0 ? profile.languages.map((l) => (
-                    <Badge key={l} variant="secondary" className="text-[9px] rounded-full bg-[#faf8f6] border border-[#efeae0] text-[#bfa37a] px-2.5 py-0.5 hover:bg-[#bfa37a]/10 font-bold uppercase tracking-wider transition-colors">{l}</Badge>
-                  )) : <span className="text-neutral-400 text-xs font-light">Not set</span>}
-                </div>
-              </div>
-              <div className="border border-[#efeae0]/40 p-4 rounded-xl">
-                <p className="text-[10px] text-neutral-400 font-bold uppercase tracking-widest mb-2.5">Practice Areas</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {profile.practiceAreas.length > 0 ? profile.practiceAreas.map((p) => (
-                    <Badge key={p} variant="secondary" className="text-[9px] rounded-full bg-[#faf8f6] border border-[#efeae0] text-[#bfa37a] px-2.5 py-0.5 hover:bg-[#bfa37a]/10 font-bold uppercase tracking-wider transition-colors">{p}</Badge>
-                  )) : <span className="text-neutral-400 text-xs font-light">Not set</span>}
-                </div>
-              </div>
+
+        <Card className="rounded-2xl border border-[#efeae0] bg-white p-6 shadow-[0_8px_30px_rgb(0,0,0,0.01)] hover:shadow-md transition-all duration-300">
+          <CardContent className="flex items-center gap-4 p-0">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#faf8f6] border border-[#efeae0] text-[#bfa37a]">
+              <FileText className="h-5 w-5" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-3xl font-extrabold text-neutral-900 tracking-tight font-serif">{publishedArticles}</p>
+              <p className="text-[10px] text-neutral-450 font-bold uppercase tracking-widest mt-1">Published Articles</p>
+              <Link href={`/${locale}/blog/my-posts`} className="text-[9px] text-[#bfa37a] hover:text-[#a68d67] font-bold uppercase tracking-widest transition-colors mt-2.5 block">
+                Manage articles &rarr;
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="rounded-2xl border border-[#efeae0] bg-white p-6 shadow-[0_8px_30px_rgb(0,0,0,0.01)] hover:shadow-md transition-all duration-300">
+          <CardContent className="flex items-center gap-4 p-0">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#faf8f6] border border-[#efeae0] text-[#bfa37a]">
+              <Star className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-3xl font-extrabold text-neutral-900 tracking-tight font-serif">{approvedReviews}</p>
+              <p className="text-[10px] text-neutral-450 font-bold uppercase tracking-widest mt-1">Approved Reviews</p>
             </div>
           </CardContent>
         </Card>
       </div>
+
+      {/* Lower Section Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Recent Inquiries */}
+        <div className="lg:col-span-2">
+          <Card className="rounded-2xl border border-[#efeae0] bg-white shadow-sm overflow-hidden h-full">
+            <CardContent className="p-6">
+              <h2 className="text-base font-bold uppercase tracking-widest text-neutral-800 mb-6 flex items-center gap-2 font-serif border-b border-[#efeae0] pb-4">
+                <Inbox className="h-4.5 w-4.5 text-[#bfa37a]" />
+                Recent Inquiries
+              </h2>
+              {profile.inquiries.length === 0 ? (
+                <p className="text-sm text-neutral-400 py-12 text-center font-light">No inquiries received yet.</p>
+              ) : (
+                <div className="space-y-4">
+                  {profile.inquiries.slice(0, 5).map((inq) => (
+                    <div key={inq.id} className="rounded-xl border border-[#efeae0]/60 bg-white p-5 shadow-[0_4px_12px_rgba(0,0,0,0.01)] hover:border-[#bfa37a]/30 hover:shadow-md transition-all duration-300">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                            <span className="font-serif font-bold text-[14px] text-neutral-950">{inq.clientName}</span>
+                            <Badge variant={inq.status === 'PENDING' ? 'outline' : 'secondary'} className={`text-[9px] rounded-full px-2 py-0.5 uppercase tracking-wider ${
+                              inq.status === 'PENDING' 
+                                ? 'text-amber-600 bg-amber-50/50 border-amber-200' 
+                                : 'text-neutral-500 bg-neutral-100 border-neutral-200'
+                            }`}>
+                              {inq.status}
+                            </Badge>
+                          </div>
+                          <p className="text-xs text-[#bfa37a] font-medium mb-2">{inq.clientEmail}</p>
+                          <p className="text-xs text-neutral-600 font-light leading-relaxed text-balance">{inq.message}</p>
+                        </div>
+                        <span className="shrink-0 text-[10px] text-neutral-400 font-bold uppercase tracking-wider">
+                          {new Date(inq.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Profile Preview */}
+        <div>
+          <Card className="rounded-2xl border border-[#efeae0] bg-white shadow-sm overflow-hidden h-full">
+            <CardContent className="p-6">
+              <h2 className="text-base font-bold uppercase tracking-widest text-neutral-800 mb-6 flex items-center gap-2 font-serif border-b border-[#efeae0] pb-4">
+                <Eye className="h-4.5 w-4.5 text-[#bfa37a]" />
+                Profile Summary
+              </h2>
+              <div className="grid grid-cols-1 gap-6 text-sm">
+                <div className="border border-[#efeae0]/40 p-4 rounded-xl">
+                  <p className="text-[10px] text-neutral-400 font-bold uppercase tracking-widest mb-1.5">District</p>
+                  <p className="font-serif font-bold text-neutral-900 text-[14px]">{profile.district || 'Not set'}</p>
+                </div>
+                <div className="border border-[#efeae0]/40 p-4 rounded-xl">
+                  <p className="text-[10px] text-neutral-450 font-bold uppercase tracking-widest mb-1.5">Fee Range</p>
+                  <p className="font-serif font-bold text-neutral-900 text-[14px]">{profile.baseFeeRange || 'Not set'}</p>
+                </div>
+                <div className="border border-[#efeae0]/40 p-4 rounded-xl">
+                  <p className="text-[10px] text-neutral-400 font-bold uppercase tracking-widest mb-2.5">Languages</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {profile.languages.length > 0 ? profile.languages.map((l) => (
+                      <Badge key={l} variant="secondary" className="text-[9px] rounded-full bg-[#faf8f6] border border-[#efeae0] text-[#bfa37a] px-2.5 py-0.5 hover:bg-[#bfa37a]/10 font-bold uppercase tracking-wider transition-colors">{l}</Badge>
+                    )) : <span className="text-neutral-400 text-xs font-light">Not set</span>}
+                  </div>
+                </div>
+                <div className="border border-[#efeae0]/40 p-4 rounded-xl">
+                  <p className="text-[10px] text-neutral-400 font-bold uppercase tracking-widest mb-2.5">Practice Areas</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {profile.practiceAreas.length > 0 ? profile.practiceAreas.map((p) => (
+                      <Badge key={p} variant="secondary" className="text-[9px] rounded-full bg-[#faf8f6] border border-[#efeae0] text-[#bfa37a] px-2.5 py-0.5 hover:bg-[#bfa37a]/10 font-bold uppercase tracking-wider transition-colors">{p}</Badge>
+                    )) : <span className="text-neutral-400 text-xs font-light">Not set</span>}
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </div>
   );
 }

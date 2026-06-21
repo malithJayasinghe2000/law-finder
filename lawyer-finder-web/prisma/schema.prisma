@@ -211,6 +211,8 @@ model LawyerProfile {
   practiceAreas     String[]
   languages         String[]
   district          String?
+  latitude          Float?
+  longitude         Float?
   baseFeeRange      String?
   gender            String?
   yearsOfExperience Int?
