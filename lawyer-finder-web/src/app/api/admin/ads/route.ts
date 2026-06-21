@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
+import type { AdPlacement, AdStatus, AdType, Prisma } from '@prisma/client';
 import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { AdminCreateAdSchema, formatZodFieldErrors, getComputedTotalBudget } from '@/schemas/ad.schema';
 
 // GET /api/admin/ads — List all campaigns with optional filters
 export async function GET(req: Request) {
@@ -17,10 +19,10 @@ export async function GET(req: Request) {
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '20');
 
-    const where: any = {};
-    if (status) where.status = status;
-    if (type) where.type = type;
-    if (placement) where.placement = placement;
+    const where: Prisma.AdCampaignWhereInput = {};
+    if (status) where.status = status as AdStatus;
+    if (type) where.type = type as AdType;
+    if (placement) where.placement = placement as AdPlacement;
 
     const [campaigns, total] = await Promise.all([
       prisma.adCampaign.findMany({
@@ -83,7 +85,15 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
 
-    const body = await req.json();
+    const parsed = AdminCreateAdSchema.safeParse(await req.json());
+
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: 'Please fix the highlighted fields.', fieldErrors: formatZodFieldErrors(parsed.error) },
+        { status: 400 }
+      );
+    }
+
     const {
       lawyerId,
       name,
@@ -102,14 +112,7 @@ export async function POST(req: Request) {
       dailyBudget,
       pricePerDay,
       status,
-    } = body;
-
-    if (!lawyerId || !name || !type || !placement || !startDate || !endDate) {
-      return NextResponse.json(
-        { error: 'Lawyer, name, type, placement, start date, and end date are required.' },
-        { status: 400 }
-      );
-    }
+    } = parsed.data;
 
     // Verify the lawyer exists
     const lawyer = await prisma.lawyerProfile.findUnique({ where: { id: lawyerId } });
@@ -132,9 +135,9 @@ export async function POST(req: Request) {
         targetPracticeAreas: targetPracticeAreas || [],
         startDate: new Date(startDate),
         endDate: new Date(endDate),
-        totalBudget: totalBudget ? parseInt(totalBudget) : null,
-        dailyBudget: dailyBudget ? parseInt(dailyBudget) : null,
-        pricePerDay: pricePerDay ? parseInt(pricePerDay) : null,
+        totalBudget: totalBudget || getComputedTotalBudget(pricePerDay, startDate, endDate),
+        dailyBudget: dailyBudget || null,
+        pricePerDay,
         status: status || 'DRAFT',
       },
       include: {

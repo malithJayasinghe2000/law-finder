@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { LawyerCreateAdSchema, formatZodFieldErrors } from '@/schemas/ad.schema';
 
 // GET /api/lawyer/ads — Get lawyer's own campaigns
-export async function GET(req: Request) {
+export async function GET() {
   try {
     const session = await getSession();
     if (!session || session.role !== 'LAWYER') {
@@ -69,26 +70,23 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Lawyer profile not found.' }, { status: 404 });
     }
 
-    const body = await req.json();
-    const {
-      name, type, placement, title, description, imageUrl,
-      targetUrl, ctaText, targetDistricts, targetPracticeAreas,
-      startDate, endDate, totalBudget, pricePerDay,
-    } = body;
+    const parsed = LawyerCreateAdSchema.safeParse(await req.json());
 
-    if (!name || !type || !placement || !startDate || !endDate) {
+    if (!parsed.success) {
       return NextResponse.json(
-        { error: 'Name, type, placement, start date, and end date are required.' },
+        { error: 'Please fix the highlighted fields.', fieldErrors: formatZodFieldErrors(parsed.error) },
         { status: 400 }
       );
     }
 
-    // Validate dates
+    const {
+      name, type, placement, title, description, imageUrl,
+      targetUrl, ctaText, targetDistricts, targetPracticeAreas,
+      startDate, endDate, totalBudget,
+    } = parsed.data;
+
     const start = new Date(startDate);
     const end = new Date(endDate);
-    if (end <= start) {
-      return NextResponse.json({ error: 'End date must be after start date.' }, { status: 400 });
-    }
 
     const campaign = await prisma.adCampaign.create({
       data: {
@@ -106,8 +104,8 @@ export async function POST(req: Request) {
         targetPracticeAreas: targetPracticeAreas || [],
         startDate: start,
         endDate: end,
-        totalBudget: totalBudget ? parseInt(totalBudget) : null,
-        pricePerDay: pricePerDay ? parseInt(pricePerDay) : null,
+        totalBudget,
+        pricePerDay: null,
       },
     });
 

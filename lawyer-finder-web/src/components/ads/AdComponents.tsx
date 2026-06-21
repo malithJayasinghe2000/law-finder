@@ -23,6 +23,8 @@ interface Ad {
   };
 }
 
+const DEFAULT_LAWYER_IMAGE = 'https://images.unsplash.com/photo-1556157382-97eda2d62296?auto=format&fit=crop&w=800&q=80';
+
 // Track impression
 function trackImpression(campaignId: string) {
   fetch('/api/ads/track', {
@@ -73,6 +75,14 @@ export function AdBanner({
 
   if (!ad) return null;
 
+  const displayImageUrl =
+    ad.imageUrl ||
+    (['FEATURED_PROFILE', 'SPONSORED_LISTING'].includes(ad.type)
+      ? ad.lawyer.profileImageUrl || DEFAULT_LAWYER_IMAGE
+      : null);
+  const bannerTitle = ad.title || ad.lawyer.fullName;
+  const bannerDescription = ad.description || ad.lawyer.bio || ad.lawyer.district || null;
+
   return (
     <div className={`relative overflow-hidden ${className}`}>
       <Link
@@ -80,17 +90,17 @@ export function AdBanner({
         onClick={() => trackClick(ad.id)}
         className="block group"
       >
-        {ad.imageUrl ? (
+        {displayImageUrl ? (
           <div className="relative w-full h-[200px] sm:h-[280px] lg:h-[320px] overflow-hidden">
             <img
-              src={ad.imageUrl}
-              alt={ad.title || 'Sponsored'}
+              src={displayImageUrl}
+              alt={bannerTitle}
               className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
             <div className="absolute bottom-0 left-0 right-0 p-6 text-white">
-              {ad.title && <h3 className="text-xl sm:text-2xl font-bold mb-1">{ad.title}</h3>}
-              {ad.description && <p className="text-sm text-white/80 mb-3 max-w-lg">{ad.description}</p>}
+              <h3 className="text-xl sm:text-2xl font-bold mb-1">{bannerTitle}</h3>
+              {bannerDescription && <p className="text-sm text-white/80 mb-3 max-w-lg">{bannerDescription}</p>}
               <span className="inline-flex items-center px-4 py-2 bg-white text-neutral-900 text-sm font-bold hover:bg-neutral-100 transition-colors">
                 {ad.ctaText || 'Learn More'} →
               </span>
@@ -102,8 +112,8 @@ export function AdBanner({
         ) : (
           <div className="w-full py-8 px-6 bg-gradient-to-r from-neutral-900 to-neutral-800 text-white flex items-center justify-between">
             <div>
-              {ad.title && <h3 className="text-lg font-bold mb-1">{ad.title}</h3>}
-              {ad.description && <p className="text-sm text-white/70">{ad.description}</p>}
+              <h3 className="text-lg font-bold mb-1">{bannerTitle}</h3>
+              {bannerDescription && <p className="text-sm text-white/70">{bannerDescription}</p>}
             </div>
             <span className="px-4 py-2 bg-white text-neutral-900 text-sm font-bold">{ad.ctaText || 'Learn More'} →</span>
             <span className="absolute top-2 right-2 text-[9px] font-bold uppercase tracking-widest text-white/40">Ad</span>
@@ -163,7 +173,7 @@ export function SponsoredListing({
             {/* Image */}
             <div className="relative h-[200px] w-full shrink-0">
               <img
-                src={ad.lawyer.profileImageUrl || 'https://images.unsplash.com/photo-1556157382-97eda2d62296?auto=format&fit=crop&w=800&q=80'}
+                src={ad.lawyer.profileImageUrl || DEFAULT_LAWYER_IMAGE}
                 alt={ad.lawyer.fullName}
                 className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
               />
