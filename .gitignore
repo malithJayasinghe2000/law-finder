@@ -11,3 +11,8 @@ __pycache__/
 # *.bin
 # *.sqlite3
 # *.pickle
+
+# BMad
+_bmad/config.user.toml
+_bmad/custom/*.user.toml
+*.user.toml
