@@ -148,3 +148,21 @@
   pointer-events: none;
   opacity: 0.5;
 }
+
+@keyframes scrollUp {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(-50%); }
+}
+
+@keyframes scrollDown {
+  0% { transform: translateY(-50%); }
+  100% { transform: translateY(0); }
+}
+
+.animate-marquee-vertical-up {
+  animation: scrollUp 25s linear infinite;
+}
+
+.animate-marquee-vertical-down {
+  animation: scrollDown 25s linear infinite;
+}

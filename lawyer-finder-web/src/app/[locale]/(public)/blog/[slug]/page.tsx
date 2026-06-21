@@ -4,7 +4,7 @@ import { notFound } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Card, CardContent } from '@/components/ui/card';
-import { ShieldCheck, Clock, Eye, Pin, Lock, ArrowLeft } from 'lucide-react';
+import { ShieldCheck, Clock, Eye, Pin, Lock, ArrowLeft, Scale } from 'lucide-react';
 import Link from 'next/link';
 import PostInteractions from './PostInteractions';
 import { SidebarAd, AdBanner } from '@/components/ads/AdComponents';
@@ -70,48 +70,48 @@ export default async function PostDetailPage({
   });
 
   return (
-    <div className="py-8 sm:py-12">
-      <div className="mx-auto max-w-6xl px-4 sm:px-6">
+    <div className="py-12 sm:py-16 bg-white selection:bg-[#bfa37a]/30">
+      <div className="mx-auto max-w-[1400px] px-6 lg:px-12 xl:px-24">
         {/* Back navigation */}
-        <div className="flex items-center gap-3 mb-6 text-sm text-muted-foreground">
+        <div className="flex items-center gap-3 mb-8 text-[11px] font-bold uppercase tracking-widest text-neutral-400">
           <Link
             href={`/${locale}/blog`}
-            className="flex items-center gap-1.5 hover:text-foreground transition-colors"
+            className="flex items-center gap-1.5 hover:text-[#bfa37a] transition-colors"
           >
             <ArrowLeft className="h-3.5 w-3.5" /> Community Hub
           </Link>
           <span>/</span>
           <Link
             href={`/${locale}/blog/community/${post.community.name}`}
-            className="flex items-center gap-1.5 hover:text-foreground transition-colors"
+            className="flex items-center gap-1.5 hover:text-[#bfa37a] transition-colors font-bold uppercase tracking-wider text-[10px]"
           >
-            {post.community.icon} {post.community.displayName}
+            <Scale className="h-3.5 w-3.5 text-[#bfa37a]" /> {post.community.displayName}
           </Link>
         </div>
 
         {/* Status badges */}
         {post.status === 'PENDING_REVIEW' && (
-          <div className="mb-4 p-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg text-sm text-amber-700 dark:text-amber-300">
-            ⏳ This post is pending review and is only visible to you.
+          <div className="mb-6 p-4 bg-amber-50 border border-amber-200 text-[10px] font-bold text-amber-800 uppercase tracking-widest flex items-center gap-2">
+            <Clock className="h-4 w-4 text-amber-600 animate-pulse" /> This post is pending review and is only visible to you.
           </div>
         )}
 
-        <div className="flex flex-col lg:flex-row gap-8">
+        <div className="flex flex-col lg:flex-row gap-10">
         <div className="flex-1 min-w-0">
-        <article>
+        <article className="text-left">
           {/* Post header */}
           <header className="mb-8">
-            <div className="flex items-center gap-2 flex-wrap text-xs text-muted-foreground mb-3">
+            <div className="flex items-center gap-2.5 flex-wrap text-[10px] font-bold uppercase tracking-widest text-neutral-400 mb-4">
               {post.isPinned && (
-                <Badge variant="outline" className="gap-1 text-primary border-primary/30">
-                  <Pin className="h-3 w-3" /> Pinned
-                </Badge>
+                <span className="inline-flex items-center gap-1 text-[9px] font-bold text-[#bfa37a] border border-[#bfa37a]/30 bg-[#faf8f6] px-2 py-0.5">
+                  <Pin className="h-2.5 w-2.5" /> Pinned
+                </span>
               )}
               <Link
                 href={`/${locale}/blog/community/${post.community.name}`}
-                className="font-semibold text-foreground hover:text-primary transition-colors"
+                className="flex items-center gap-1 text-neutral-600 hover:text-[#bfa37a] transition-colors"
               >
-                {post.community.icon} {post.community.displayName}
+                <Scale className="h-3.5 w-3.5 text-[#bfa37a]" /> {post.community.displayName}
               </Link>
               <span>•</span>
               <span className="flex items-center gap-1">
@@ -123,7 +123,7 @@ export default async function PostDetailPage({
               {new Date(post.updatedAt).getTime() - new Date(post.createdAt).getTime() > 60000 && (
                 <>
                   <span>•</span>
-                  <span className="flex items-center gap-1 italic">
+                  <span className="flex items-center gap-1 italic text-neutral-400 normal-case font-light">
                     Last updated: {new Date(post.updatedAt).toLocaleDateString('en-US', {
                       month: 'short', day: 'numeric', year: 'numeric',
                     })}
@@ -135,50 +135,50 @@ export default async function PostDetailPage({
                 <Eye className="h-3 w-3" /> {post.viewCount} views
               </span>
               {post.isLocked && (
-                <Badge variant="outline" className="gap-1 text-amber-500 border-amber-300">
-                  <Lock className="h-3 w-3" /> Comments locked
-                </Badge>
+                <span className="inline-flex items-center gap-1 text-[9px] text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5">
+                  <Lock className="h-2.5 w-2.5" /> Comments locked
+                </span>
               )}
             </div>
 
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight leading-tight mb-4">
+            <h1 className="text-3xl sm:text-4xl font-serif font-bold text-neutral-900 leading-tight mb-6">
               {post.title}
             </h1>
 
             {/* Cover image */}
             {post.coverImage && (
-              <div className="mb-6 rounded-xl overflow-hidden border">
+              <div className="mb-8 overflow-hidden border border-[#efeae0]">
                 <img
                   src={post.coverImage}
                   alt=""
-                  className="w-full h-auto max-h-[400px] object-cover"
+                  className="w-full h-auto max-h-[420px] object-cover"
                 />
               </div>
             )}
 
             {/* Author card */}
-            <div className="flex items-center gap-4 p-4 bg-muted/30 rounded-xl">
+            <div className="flex items-center gap-4 p-5 bg-[#faf8f6] border border-[#efeae0]">
               <Link href={post.author.profile ? `/${locale}/lawyers/${post.author.profile.id}` : '#'}>
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary font-bold flex-shrink-0">
+                <div className="flex h-12 w-12 items-center justify-center bg-neutral-100 border border-neutral-200 text-neutral-800 font-bold flex-shrink-0 overflow-hidden">
                   {post.author.profileImageUrl ? (
-                    <img src={post.author.profileImageUrl} alt="" className="h-full w-full rounded-full object-cover" />
+                    <img src={post.author.profileImageUrl} alt="" className="h-full w-full object-cover" />
                   ) : (
                     (post.author.profile?.fullName || post.author.fullName || '?').split(' ').map((n) => n[0]).join('').slice(0, 2)
                   )}
                 </div>
               </Link>
               <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <span className="font-semibold">{post.author.profile?.fullName || post.author.fullName || 'Unknown User'}</span>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-serif font-bold text-neutral-900">{post.author.profile?.fullName || post.author.fullName || 'Unknown User'}</span>
                   {post.author.profile?.isVerified && (
-                    <ShieldCheck className="h-4 w-4 text-primary" />
+                    <ShieldCheck className="h-4 w-4 text-[#bfa37a]" />
                   )}
                   {post.author.role === 'LAWYER' && (
-                    <Badge variant="secondary" className="text-xs">Lawyer</Badge>
+                    <span className="text-[9px] font-bold uppercase tracking-widest text-[#bfa37a] bg-[#bfa37a]/10 px-2 py-0.5 border border-[#bfa37a]/20">Lawyer</span>
                   )}
                 </div>
                 {post.author.profile && (
-                  <div className="text-xs text-muted-foreground">
+                  <div className="text-xs text-neutral-450 mt-1 font-light">
                     {post.author.profile.practiceAreas?.slice(0, 2).join(', ')}
                     {post.author.profile.district && ` • ${post.author.profile.district}`}
                   </div>
@@ -187,7 +187,7 @@ export default async function PostDetailPage({
             </div>
           </header>
 
-          <Separator className="my-6" />
+          <Separator className="my-8 bg-[#efeae0]" />
 
           {/* Post content + interactions (client component) */}
           <PostInteractions
@@ -207,25 +207,25 @@ export default async function PostDetailPage({
             translations={post.translations}
           />
 
-          <Separator className="my-8" />
+          <Separator className="my-10 bg-[#efeae0]" />
 
           {/* Footer CTA */}
-          <Card>
-            <CardContent className="flex flex-col items-center gap-4 p-8 text-center">
-              <h3 className="text-lg font-semibold">Need legal assistance?</h3>
-              <p className="text-sm text-muted-foreground max-w-md">
+          <Card className="border border-[#efeae0] rounded-none bg-[#faf8f6] shadow-none">
+            <CardContent className="flex flex-col items-center gap-5 p-8 text-center">
+              <h3 className="text-lg font-serif font-bold text-neutral-900">Need legal assistance?</h3>
+              <p className="text-xs text-neutral-500 max-w-md font-light leading-relaxed">
                 Connect with verified Sri Lankan legal professionals for expert advice.
               </p>
-              <div className="flex gap-3">
+              <div className="flex flex-wrap gap-3 pt-2">
                 {post.author.profile && (
                   <Link href={`/${locale}/lawyers/${post.author.profile.id}`}>
-                    <button className="inline-flex items-center px-4 py-2 text-sm font-semibold bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors">
+                    <button className="inline-flex items-center px-6 py-4 bg-[#bfa37a] text-white hover:bg-[#a68d67] text-xs font-bold uppercase tracking-widest transition-all">
                       Contact Author
                     </button>
                   </Link>
                 )}
                 <Link href={`/${locale}/lawyers`}>
-                  <button className="inline-flex items-center px-4 py-2 text-sm font-semibold border rounded-lg hover:bg-muted transition-colors">
+                  <button className="inline-flex items-center px-6 py-4 border border-[#bfa37a] text-[#bfa37a] hover:bg-[#bfa37a]/5 text-xs font-bold uppercase tracking-widest transition-all">
                     Browse Directory
                   </button>
                 </Link>

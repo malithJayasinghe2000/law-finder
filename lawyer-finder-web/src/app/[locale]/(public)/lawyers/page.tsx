@@ -38,7 +38,7 @@ export default async function LawyerDirectory({
 
   return (
     <div className="py-8 sm:py-9">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6">
+      <div className="mx-auto max-w-[1400px] px-6 lg:px-12 xl:px-24">
         {/* Header */}
         <div className="mb-10 max-w-2xl">
           <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Lawyer Directory</h1>
@@ -110,77 +110,68 @@ export default async function LawyerDirectory({
           </Card>
         ) : (
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {/* Sponsored Listings at the top */}
-              <SponsoredListing placement="DIRECTORY_INLINE" locale={locale} />
+            {/* Sponsored Listings at the top */}
+            <SponsoredListing placement="DIRECTORY_INLINE" locale={locale} />
 
-              {lawyers.map((lawyer) => {
+            {lawyers.map((lawyer) => {
               const avgRating =
                 lawyer.reviews.length > 0
                   ? lawyer.reviews.reduce((sum, r) => sum + r.rating, 0) / lawyer.reviews.length
                   : 0;
+              const primaryArea = lawyer.practiceAreas[0] || 'Legal Counsel';
 
               return (
                 <Link key={lawyer.id} href={`/${locale}/lawyers/${lawyer.id}`}>
-                  <div className="group relative flex h-[400px] flex-col overflow-hidden rounded-none bg-[#222a35] text-white transition-transform duration-300 hover:-translate-y-1 hover:shadow-lg">
-                    {/* Top Image Area */}
-                    <div className="relative h-[200px] w-full shrink-0">
+                  <div className="group flex flex-col items-start bg-white border border-neutral-100 p-4 hover:shadow-2xl transition-all duration-500 hover:-translate-y-1">
+                    {/* Image Frame */}
+                    <div className="relative w-full h-[280px] overflow-hidden bg-neutral-100">
                       <img
                         src={lawyer.profileImageUrl || 'https://images.unsplash.com/photo-1556157382-97eda2d62296?auto=format&fit=crop&w=800&q=80'}
                         alt={lawyer.fullName}
-                        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                        className="h-full w-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700"
                       />
-                      <div className="absolute inset-0 bg-gradient-to-t from-[#222a35] via-[rgba(214, 214, 214, 0.3)] to-transparent" />
-
-                      {lawyer.languages.length > 0 && (
-                        <div className="absolute right-4 top-4 flex h-7 items-center justify-center rounded-none bg-black/40 backdrop-blur-md px-2.5 text-[10px] font-bold uppercase tracking-widest text-white border border-white/10 transition-colors hover:bg-black/60">
-                          {lawyer.languages.map((l) => l.slice(0, 2)).join(' • ')}
+                      {/* Hover Overlay */}
+                      <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-between p-5">
+                        {/* Top-left: Languages they accept (instead of social buttons) */}
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          {lawyer.languages.map((lang) => (
+                            <span key={lang} className="text-[9px] bg-white/20 backdrop-blur-md text-white font-bold uppercase tracking-widest px-2.5 py-1 border border-white/10">
+                              {lang}
+                            </span>
+                          ))}
                         </div>
-                      )}
+                        {/* Bottom-left */}
+                        <div>
+                          <h3 className="text-white text-base font-serif font-bold mb-0.5">{lawyer.fullName}</h3>
+                          <p className="text-[#bfa37a] text-[9px] font-bold uppercase tracking-widest">{primaryArea}</p>
+                        </div>
+                      </div>
                     </div>
 
-                    {/* Content Area */}
-                    <div className="relative z-10 flex flex-1 flex-col px-5 pb-5 -mt-3">
-                      {/* Title & Price */}
-                      <div className="mb-2 flex items-start justify-between gap-3">
-                        <h3 className="text-[18px] font-semibold tracking-tight text-white drop-shadow-sm leading-tight mt-1 max-w-[70%] line-clamp-1">
-                          {lawyer.fullName}
-                        </h3>
-                        <div className="shrink-0 rounded-none bg-white/10 px-3 py-1.5 text-sm font-semibold text-white backdrop-blur-md border border-white/5">
-                          {lawyer.baseFeeRange ? `LKR ${lawyer.baseFeeRange.split('-')[0].trim()}` : 'TBD'}
-                        </div>
-                      </div>
-
-                      {/* Bio */}
-                      <p className="line-clamp-2 text-[13px] text-white/70 leading-relaxed font-light mb-4 text-balance">
-                        {lawyer.bio || 'Experienced legal professional dedicated to providing precise and strategic guidance.'}
+                    {/* Display Info below card */}
+                    <div className="w-full pt-4 space-y-2 text-left">
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-[#bfa37a]">
+                        {primaryArea}
+                      </span>
+                      <h4 className="text-neutral-900 font-serif font-bold text-base transition-colors group-hover:text-[#bfa37a]">
+                        {lawyer.fullName}
+                      </h4>
+                      <p className="text-neutral-400 text-xs font-light line-clamp-1">
+                        {lawyer.bio || 'Vetted legal counsel ready for guidance.'}
                       </p>
-
-                      {/* Badges row */}
-                      <div className="mt-auto flex gap-2 overflow-x-hidden whitespace-nowrap mb-6 scrollbar-hide">
-                        {avgRating > 0 && (
-                          <div className="flex shrink-0 items-center gap-1.5 rounded-none bg-white/10 px-3 py-[5px] text-xs font-medium backdrop-blur-md border border-yellow-500">
-                            <Star className="h-3.5 w-3.5 fill-yellow-500" />
+                      <div className="flex items-center gap-3 pt-2">
+                        {avgRating > 0 ? (
+                          <div className="flex items-center gap-1 text-[10px] font-bold text-neutral-600 bg-neutral-100 px-2 py-1">
+                            <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
                             {avgRating.toFixed(1)}
                           </div>
-                        )}
-                        {lawyer.district && (
-                          <div className="flex shrink-0 items-center rounded-none bg-white/10 px-3 py-[5px] text-xs font-medium backdrop-blur-md border border-white/5 text-white/90">
-                            <MapPin className="h-3.5 w-3.5 mr-1" />
+                        ) : null}
+                        {lawyer.district ? (
+                          <div className="text-[9px] font-bold uppercase tracking-widest text-neutral-400 bg-neutral-100 px-2 py-1">
                             {lawyer.district}
                           </div>
-                        )}
-                        
-                        {lawyer.practiceAreas.slice(0, 1).map((area) => (
-                          <div key={area} className="flex shrink-0 items-center rounded-none bg-white/10 px-3 py-[5px] text-xs font-medium backdrop-blur-md border border-white/5 text-white/90">
-                            {area}
-                          </div>
-                        ))}
+                        ) : null}
                       </div>
-
-                      {/* Button */}
-                      <button className="w-full rounded-none bg-white py-3.5 text-[15px] font-bold text-[#222a35] transition-colors hover:bg-neutral-200 mt-auto">
-                        View Profile
-                      </button>
                     </div>
                   </div>
                 </Link>
