@@ -135,6 +135,7 @@ export async function PATCH(req: Request) {
 
     const body = await req.json();
     const { id, ...updateData } = body;
+    delete updateData.pausedBy;
 
     if (!id) {
       return NextResponse.json({ error: 'Campaign ID is required.' }, { status: 400 });
@@ -164,6 +165,21 @@ export async function PATCH(req: Request) {
           { error: `Cannot transition from ${existing.status} to ${updateData.status}.` },
           { status: 400 }
         );
+      }
+
+      if (existing.status === 'PAUSED' && updateData.status === 'ACTIVE' && existing.pausedBy !== 'LAWYER') {
+        return NextResponse.json(
+          { error: 'This campaign was paused by an admin and can only be resumed by an admin.' },
+          { status: 403 }
+        );
+      }
+
+      if (existing.status === 'ACTIVE' && updateData.status === 'PAUSED') {
+        updateData.pausedBy = 'LAWYER';
+      }
+
+      if (existing.status === 'PAUSED' && updateData.status === 'ACTIVE') {
+        updateData.pausedBy = null;
       }
     }
 

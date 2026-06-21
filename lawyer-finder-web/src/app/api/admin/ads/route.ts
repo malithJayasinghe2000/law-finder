@@ -178,6 +178,8 @@ export async function PATCH(req: Request) {
     if (updateData.totalBudget) updateData.totalBudget = parseInt(updateData.totalBudget);
     if (updateData.dailyBudget) updateData.dailyBudget = parseInt(updateData.dailyBudget);
     if (updateData.pricePerDay) updateData.pricePerDay = parseInt(updateData.pricePerDay);
+    if (updateData.status === 'PAUSED') updateData.pausedBy = 'ADMIN';
+    if (updateData.status === 'ACTIVE') updateData.pausedBy = null;
 
     const campaign = await prisma.adCampaign.update({
       where: { id },
