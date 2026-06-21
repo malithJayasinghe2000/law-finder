@@ -2,19 +2,17 @@ import { getTranslations } from 'next-intl/server';
 import Link from 'next/link';
 import Footer from '@/components/layout/Footer';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
 import {
   ArrowRight,
-  Globe,
-  ArrowUpRight,
-  ShieldCheck,
-  Search,
-  MessageSquare,
-  BookOpen,
   Star,
-  Languages,
   Scale,
-  Gavel
+  Building2,
+  Gavel,
+  ShieldCheck,
+  FileText,
+  PhoneCall,
+  Facebook,
+  Linkedin
 } from 'lucide-react';
 import ChatWidget from '@/components/home/ChatWidget';
 import HeroChatInput from '@/components/home/HeroChatInput';
@@ -54,119 +52,279 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
   });
 
   return (
-    <div className="flex min-h-screen flex-col font-sans">
+    <div className="flex min-h-screen flex-col font-sans bg-white selection:bg-[#bfa37a]/30">
       <main className="flex-1">
-        
-        {/* Dark Hero Section matching the image */}
-        <section className="relative bg-[#0a0a0a] text-white min-h-[90vh] flex flex-col pt-20 pb-12 px-6 lg:px-12 xl:px-24">
-          {/* Background Image & Overlay */}
-          <div className="absolute inset-0 overflow-hidden pointer-events-none">
-            <img 
-              src="/hero.png" 
-              alt="Lawyer Hero" 
-              className="object-cover w-full h-full opacity-70"
-            />
-            {/* Dark Toplayer Overlay as requested */}
-            <div className="absolute inset-0 bg-black/40" />
-            <div className="absolute inset-0 bg-gradient-to-b from-[#0f1115]/90 via-transparent to-[#0a0a0a]/90" />
+
+        {/* 1. Premium White Hero Section */}
+        <section className="relative bg-white pt-36 pb-16 px-6 lg:px-12 xl:px-24 overflow-hidden border-b border-neutral-100">
+          <div className="max-w-[1200px] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+            {/* Left Content Column */}
+            <div className="lg:col-span-8 space-y-8">
+              <h1 className="text-4xl sm:text-6xl font-serif text-neutral-900 leading-[1.1] tracking-tight">
+                Defending Your Rights <br />
+                Delivering 
+                <span className="inline-flex items-center mx-3 px-3 py-1 bg-neutral-900 rounded-full h-9 w-20 sm:h-12 sm:w-24 overflow-hidden relative align-middle">
+                  <img 
+                    src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=200&h=100&q=80" 
+                    className="object-cover w-full h-full scale-125 opacity-80" 
+                    alt="Justice Decor" 
+                  />
+                </span>
+                Justice
+              </h1>
+
+              <p className="text-neutral-500 text-base sm:text-lg max-w-xl font-light leading-relaxed">
+                Welcome to LawHub, where our team of experienced attorneys is dedicated to providing you with the best. Sri Lanka&apos;s leading legal SaaS platform.
+              </p>
+
+              {/* Action Buttons & Badges */}
+              <div className="flex flex-wrap items-center gap-6">
+                <div className="flex flex-wrap items-center gap-4">
+                  <Link href={`/${locale}/lawyers`}>
+                    <Button className="bg-[#bfa37a] text-white hover:bg-[#a68d67] rounded-none px-8 py-6 text-xs font-bold uppercase tracking-widest transition-all">
+                      Find Lawyers
+                    </Button>
+                  </Link>
+                  <Link href={`/${locale}/chat`}>
+                    <Button variant="outline" className="border border-[#bfa37a] text-[#bfa37a] hover:bg-[#bfa37a]/5 rounded-none px-8 py-6 text-xs font-bold uppercase tracking-widest transition-all">
+                      Chat With AI
+                    </Button>
+                  </Link>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <div className="flex -space-x-3">
+                    <img src="/assets/images/home1/author1.png" className="w-9 h-9 rounded-full border-2 border-white object-cover shadow-sm" alt="Client 1" />
+                    <img src="/assets/images/home1/author2.png" className="w-9 h-9 rounded-full border-2 border-white object-cover shadow-sm" alt="Client 2" />
+                    <img src="/assets/images/home1/author3.png" className="w-9 h-9 rounded-full border-2 border-white object-cover shadow-sm" alt="Client 3" />
+                    <div className="w-9 h-9 rounded-full border-2 border-white bg-[#bfa37a] text-white flex items-center justify-center text-[10px] font-bold font-sans">
+                      +48
+                    </div>
+                  </div>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-neutral-400">
+                    48+ Vetted Clients
+                  </p>
+                </div>
+              </div>
+
+              {/* Embedded Chat or Search Option matching UI */}
+              <div className="pt-2 w-full max-w-[580px] text-neutral-950">
+                <HeroChatInput locale={locale} />
+              </div>
+            </div>
+
+            {/* Right Column - Infinite Scrolling Vertical Lawyer Marquees */}
+            <div className="lg:col-span-4 h-[500px] overflow-hidden grid grid-cols-2 gap-4 relative">
+              {/* Left Column moves UP */}
+              <div className="relative h-full overflow-hidden">
+                <div className="flex flex-col gap-4 animate-marquee-vertical-up hover:[animation-play-state:paused] py-1">
+                  <div className="overflow-hidden rounded-tr-[60px] h-56 w-full shrink-0 bg-neutral-100 border border-neutral-100 shadow-sm">
+                    <img src="https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=400&h=500&q=80" className="object-cover w-full h-full" alt="Lawyer Portrait 1" />
+                  </div>
+                  <div className="overflow-hidden h-48 w-full shrink-0 bg-neutral-100 border border-neutral-100 shadow-sm">
+                    <img src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=400&h=500&q=80" className="object-cover w-full h-full" alt="Lawyer Portrait 2" />
+                  </div>
+                  
+                  {/* Duplicates for seamless vertical loop */}
+                  <div className="overflow-hidden rounded-tr-[60px] h-56 w-full shrink-0 bg-neutral-100 border border-neutral-100 shadow-sm">
+                    <img src="https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=400&h=500&q=80" className="object-cover w-full h-full" alt="Lawyer Portrait 1 Duplicate" />
+                  </div>
+                  <div className="overflow-hidden h-48 w-full shrink-0 bg-neutral-100 border border-neutral-100 shadow-sm">
+                    <img src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=400&h=500&q=80" className="object-cover w-full h-full" alt="Lawyer Portrait 2 Duplicate" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Right Column moves DOWN */}
+              <div className="relative h-full overflow-hidden pt-8">
+                <div className="flex flex-col gap-4 animate-marquee-vertical-down hover:[animation-play-state:paused] py-1">
+                  <div className="overflow-hidden rounded-br-[60px] h-56 w-full shrink-0 bg-neutral-100 border border-neutral-100 shadow-sm">
+                    <img src="https://images.unsplash.com/photo-1556157382-97eda2d62296?auto=format&fit=crop&w=400&h=500&q=80" className="object-cover w-full h-full" alt="Lawyer Portrait 3" />
+                  </div>
+                  <div className="overflow-hidden h-48 w-full shrink-0 bg-neutral-100 border border-neutral-100 shadow-sm">
+                    <img src="https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=400&h=500&q=80" className="object-cover w-full h-full" alt="Lawyer Portrait 4" />
+                  </div>
+
+                  {/* Duplicates for seamless vertical loop */}
+                  <div className="overflow-hidden rounded-br-[60px] h-56 w-full shrink-0 bg-neutral-100 border border-neutral-100 shadow-sm">
+                    <img src="https://images.unsplash.com/photo-1556157382-97eda2d62296?auto=format&fit=crop&w=400&h=500&q=80" className="object-cover w-full h-full" alt="Lawyer Portrait 3 Duplicate" />
+                  </div>
+                  <div className="overflow-hidden h-48 w-full shrink-0 bg-neutral-100 border border-neutral-100 shadow-sm">
+                    <img src="https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=400&h=500&q=80" className="object-cover w-full h-full" alt="Lawyer Portrait 4 Duplicate" />
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
 
-          <div className="relative z-10 flex-1 w-full max-w-[1400px] mx-auto flex flex-col items-center justify-center pt-8 text-center">
-            
-            <h1 className="text-4xl sm:text-5xl md:text-6xl font-light leading-[1.1] tracking-tight text-white mb-4">
-              Chat Smarter, Not Harder <br />
-              <span className="font-semibold px-2">Lawyer.ai</span>
-            </h1>
-            <p className="text-white/60 text-base md:text-lg font-light mb-8 max-w-2xl px-4">
-              Your Ultimate AI Chat Partner & Legal Directory – Instant Answers, Endless Knowledge!
-            </p>
-
-            <HeroChatInput locale={locale} />
-            
-            {serializedReviews.length > 0 && (
+          {/* Social Proof Marquee & Ad Placement below the main Hero */}
+          {/* {serializedReviews.length > 0 && (
+            <div className="mt-12 pt-8 border-t border-neutral-100">
               <HeroReviewsMarquee reviews={serializedReviews} />
-            )}
-
-            <AdBanner placement="HOMEPAGE_HERO" locale={locale} className="w-full max-w-4xl mx-auto mt-8 rounded-lg overflow-hidden shadow-2xl" />
-          </div>
+            </div>
+          )} */}
+          
+          <AdBanner placement="HOMEPAGE_HERO" locale={locale} className="w-full max-w-4xl mx-auto mt-8 rounded-none overflow-hidden shadow-sm border border-neutral-100" />
         </section>
 
         {/* Mid-Page Ad Banner */}
-        <AdBanner placement="HOMEPAGE_MID" locale={locale} className="mx-auto max-w-[1400px] px-6 lg:px-12 xl:px-24 py-6" />
+        <AdBanner placement="HOMEPAGE_MID" locale={locale} className="mx-auto max-w-[1200px] px-6 lg:px-12 xl:px-24 py-6" />
 
-        {/* Top Lawyers Section (White Space) */}
-        <section className="bg-white py-20 px-6 lg:px-12 xl:px-24">
-          <div className="mx-auto max-w-[1400px]">
-            <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-6">
-              <div>
-                <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-[#0a0a0a] mb-3">
-                  Top Legal Professionals
-                </h2>
-                <p className="text-neutral-500 text-lg font-light">
-                  Find verified lawyers for your active legal matters.
-                </p>
+        {/* 3. The Legal Advisory section (Charcoal background with round-br wave curve) */}
+        <section className="relative bg-[#161616] text-white pt-24 pb-32 px-6 lg:px-12 xl:px-24 rounded-br-[120px] md:rounded-br-[220px] z-10">
+          <div className="max-w-[1200px] mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12">
+            {/* Left */}
+            <div className="space-y-8">
+              <h2 className="text-3xl sm:text-4xl md:text-5xl font-serif text-white tracking-tight leading-snug">
+                The Legal Advisory Is <br /> Our Expertise
+              </h2>
+              <p className="text-neutral-400 text-sm font-light max-w-md leading-relaxed">
+                We handle a broad spectrum of legal matters with dedicated skill and strategic focus. Connecting client requirements with specialized advocates across the island.
+              </p>
+              
+              {/* Profile Block */}
+              <div className="flex items-center gap-4 pt-4">
+                <img src="/assets/images/home1/author1.png" className="w-12 h-12 rounded-full border border-[#bfa37a]/30 object-cover" alt="CEO Avatar" />
+                <div>
+                  <p className="text-sm font-bold text-white">Allison Torff</p>
+                  <p className="text-[10px] text-neutral-500 uppercase tracking-wider font-bold">CEO, Factorix</p>
+                </div>
               </div>
+            </div>
+
+            {/* Right */}
+            <div className="flex flex-col justify-between items-start space-y-8 lg:space-y-0">
+              <p className="text-neutral-400 text-sm font-light max-w-lg leading-relaxed">
+                From simple consultations to complex litigation support, LawFinder delivers accessibility. Start your conversation with our AI tool, download documents or coordinate directly with our active directory of vetted advocates.
+              </p>
+              <Link href={`/${locale}/about`}>
+                <Button className="bg-[#bfa37a] text-white hover:bg-[#a68d67] rounded-none px-8 py-6 text-xs font-bold uppercase tracking-widest transition-all">
+                  More About Us
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </section>
+
+        {/* 4. My Legal Practice Area section (Watermarked with specified bg asset) */}
+        <section 
+          className="relative bg-white py-24 px-6 lg:px-12 xl:px-24 overflow-hidden -mt-10 pt-32"
+          style={{ 
+            backgroundImage: "url('/assets/images/home1/practicearea-bg.webp')",
+            backgroundPosition: 'left 5% center',
+            backgroundRepeat: 'no-repeat',
+            backgroundSize: '35% auto'
+          }}
+        >
+          <div className="max-w-[1200px] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-12 relative z-10">
+            {/* Title / Info on Left */}
+            <div className="lg:col-span-4 flex flex-col justify-center space-y-8">
+              <h2 className="text-3xl sm:text-4xl font-serif text-neutral-900">
+                My Legal Practice <br /> Area
+              </h2>
+              <p className="text-neutral-500 text-sm font-light max-w-xs leading-relaxed">
+                Browse our directory segmented by active areas of expertise to get the perfect representation.
+              </p>
               <Link href={`/${locale}/lawyers`}>
-                <Button className="bg-[#0a0a0a] text-white hover:bg-neutral-800 rounded-none px-8 py-6 text-sm font-bold uppercase tracking-widest flex items-center gap-2 group">
-                  Find Lawyer
-                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                <Button className="bg-[#bfa37a] text-white hover:bg-[#a68d67] rounded-none px-8 py-6 text-xs font-bold uppercase tracking-widest transition-all self-start">
+                  All Practices Areas
                 </Button>
               </Link>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {/* Sponsored Listings injected at the top */}
+            {/* Grid on Right */}
+            <div className="lg:col-span-8 grid grid-cols-1 sm:grid-cols-2 gap-6">
+              {[
+                { title: 'Trusted Lawyer', desc: 'Expert assistance on criminal, civil litigation and family disputes.', icon: Scale, area: 'Civil' },
+                { title: 'Business Consulting', desc: 'Corporate advice, commercial contracts, IP registration, and audits.', icon: Building2, area: 'Corporate' },
+                { title: 'Legal Champion', desc: 'Accidents, injuries representation and insurance claim collection.', icon: Gavel, area: 'Employment' },
+                { title: 'Dedicated Legalist', desc: 'Administrative tribunals, banking and labor law assistance.', icon: ShieldCheck, area: 'Administrative' },
+                { title: 'Case Analysis', desc: 'Deep analytics and automated templates check for business audits.', icon: FileText, area: 'Civil' },
+                { title: 'Discovery Caller', desc: 'Direct secure communication lines and scheduling options.', icon: PhoneCall, area: 'Corporate' }
+              ].map((item, idx) => {
+                const Icon = item.icon;
+                return (
+                  <Link key={idx} href={`/${locale}/lawyers?practiceArea=${item.area}`}>
+                    <div className="bg-white border border-neutral-100 p-8 hover:shadow-2xl transition-all duration-500 hover:-translate-y-1 group flex flex-col items-start space-y-5">
+                      <div className="p-3 bg-[#faf6f0] text-[#bfa37a] group-hover:bg-[#bfa37a] group-hover:text-white transition-all duration-300">
+                        <Icon className="w-6 h-6 stroke-[1.5]" />
+                      </div>
+                      <h3 className="text-sm font-serif font-bold text-neutral-900 uppercase tracking-wider">{item.title}</h3>
+                      <p className="text-neutral-500 text-xs font-light leading-relaxed">{item.desc}</p>
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-neutral-400 group-hover:text-[#bfa37a] transition-colors flex items-center gap-1.5 pt-2">
+                        Read More <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
+                      </span>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+
+        {/* 5. The Best Lawyers In Our House (Dynamic dynamic database list B&W) */}
+        <section className="bg-neutral-50 py-24 px-6 lg:px-12 xl:px-24 border-t border-neutral-100">
+          <div className="max-w-[1200px] mx-auto space-y-16">
+            
+            {/* Header */}
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-neutral-200 pb-8">
+              <div className="space-y-3">
+                <span className="text-[10px] text-[#bfa37a] uppercase tracking-[0.2em] font-bold">Expert Panel</span>
+                <h2 className="text-3xl md:text-4xl font-serif text-neutral-900">
+                  The Best Lawyers In <br /> Our House
+                </h2>
+              </div>
+              <p className="text-neutral-500 text-sm max-w-md font-light leading-relaxed">
+                Connect with our top-tier legal counselors, fully verified and ready to assist you.
+              </p>
+            </div>
+
+            {/* Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+              {/* Ad/Sponsored placement */}
               <SponsoredListing placement="DIRECTORY_TOP" locale={locale} />
 
               {topLawyers.map((lawyer) => {
-                const avgRating = lawyer.reviews.length > 0 
-                  ? lawyer.reviews.reduce((s, r) => s + r.rating, 0) / lawyer.reviews.length : 0;
-                
+                const primaryArea = lawyer.practiceAreas[0] || 'Legal Counsel';
+
                 return (
                   <Link key={lawyer.id} href={`/${locale}/lawyers/${lawyer.id}`}>
-                    <div className="group relative flex h-[400px] flex-col overflow-hidden rounded-none bg-[#222a35] text-white transition-transform duration-300 hover:-translate-y-1 hover:shadow-lg">
-                      <div className="relative h-[200px] w-full shrink-0">
+                    <div className="group flex flex-col items-start bg-white border border-neutral-100 p-4 hover:shadow-2xl transition-all duration-500 hover:-translate-y-1">
+                      {/* Image frame with hover B&W filter logic */}
+                      <div className="relative w-full h-[360px] overflow-hidden bg-neutral-100">
                         <img
                           src={lawyer.profileImageUrl || 'https://images.unsplash.com/photo-1556157382-97eda2d62296?auto=format&fit=crop&w=800&q=80'}
                           alt={lawyer.fullName}
-                          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                          className="h-full w-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700"
                         />
-                        <div className="absolute inset-0 bg-gradient-to-t from-[#222a35] via-[rgba(214,214,214,0.3)] to-transparent" />
-                        
-                        {lawyer.languages.length > 0 && (
-                          <div className="absolute right-4 top-4 flex h-7 items-center justify-center rounded-none bg-black/40 backdrop-blur-md px-2.5 text-[10px] font-bold uppercase tracking-widest text-white border border-white/10 transition-colors hover:bg-black/60">
-                            {lawyer.languages.map((l) => l.slice(0, 2)).join(' • ')}
+                        {/* Hover Overlay */}
+                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-between p-6">
+                          {/* Top-left: Languages they accept (instead of social buttons) */}
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            {lawyer.languages.map((lang) => (
+                              <span key={lang} className="text-[9px] bg-white/20 backdrop-blur-md text-white font-bold uppercase tracking-widest px-2.5 py-1 border border-white/10">
+                                {lang}
+                              </span>
+                            ))}
                           </div>
-                        )}
+                          <div>
+                            <h3 className="text-white text-lg font-serif font-bold mb-1">{lawyer.fullName}</h3>
+                            <p className="text-[#bfa37a] text-[10px] font-bold uppercase tracking-widest">{primaryArea}</p>
+                          </div>
+                        </div>
                       </div>
-                      <div className="relative z-10 flex flex-1 flex-col px-5 pb-5 -mt-3">
-                        <div className="mb-2 flex items-start justify-between gap-3">
-                          <h3 className="text-[18px] font-semibold tracking-tight text-white drop-shadow-sm leading-tight mt-1 max-w-[70%] line-clamp-1">
-                            {lawyer.fullName}
-                          </h3>
-                          <div className="shrink-0 rounded-none bg-white/10 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur-md border border-white/5 uppercase tracking-widest">
-                            {lawyer.baseFeeRange ? `LKR ${lawyer.baseFeeRange.split('-')[0].trim()}` : 'TBD'}
-                          </div>
-                        </div>
-                        <p className="line-clamp-2 text-[13px] text-white/70 leading-relaxed font-light mb-4">
-                          {lawyer.bio || 'Experienced legal professional.'}
+
+                      {/* Display Info below card */}
+                      <div className="w-full pt-4 space-y-2">
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-[#bfa37a]">
+                          {primaryArea}
+                        </span>
+                        <h4 className="text-neutral-900 font-serif font-bold text-base transition-colors group-hover:text-[#bfa37a]">
+                          {lawyer.fullName}
+                        </h4>
+                        <p className="text-neutral-400 text-xs font-light line-clamp-1">
+                          {lawyer.bio || 'Vetted legal counsel ready for guidance.'}
                         </p>
-                        <div className="mt-auto flex gap-2 overflow-hidden whitespace-nowrap mb-6">
-                          {avgRating > 0 && (
-                            <div className="flex shrink-0 items-center gap-1.5 rounded-none bg-white/10 px-3 py-[5px] text-[10px] font-bold backdrop-blur-md border border-white/5 text-white/90">
-                              <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
-                              {avgRating.toFixed(1)}
-                            </div>
-                          )}
-                          {lawyer.district && (
-                            <div className="flex shrink-0 items-center rounded-none bg-white/10 px-3 py-[5px] text-[10px] uppercase font-bold backdrop-blur-md border border-white/5 text-white/90">
-                              {lawyer.district}
-                            </div>
-                          )}
-                        </div>
-                        <button className="w-full rounded-none bg-white py-3.5 text-[13px] font-bold text-[#222a35] uppercase tracking-widest transition-colors hover:bg-neutral-200 mt-auto">
-                          View Profile
-                        </button>
                       </div>
                     </div>
                   </Link>

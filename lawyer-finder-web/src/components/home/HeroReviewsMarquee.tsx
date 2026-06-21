@@ -81,29 +81,39 @@ export default function HeroReviewsMarquee({ reviews }: { reviews: Review[] }) {
 
 function ReviewCard({ review }: { review: Review }) {
   return (
-    <div className="inline-flex flex-col min-w-[320px] max-w-[320px] bg-[#1a1a1a]/60 backdrop-blur-md border border-white/10 p-5 rounded-none shrink-0 whitespace-normal text-left">
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-3">
-          <img 
-            src={review.reviewerImage || '/avatar.png'} 
-            alt={review.reviewerName} 
-            className="w-10 h-10 object-cover border border-white/10 bg-[#1a1a1a]" 
-          />
-          <div>
-            <p className="text-sm font-bold text-white tracking-tight">{review.reviewerName}</p>
-            {review.lawyerName && <p className="text-[10px] text-white/50 uppercase tracking-widest"><span className="font-bold text-white/70">Lawyer:</span> {review.lawyerName}</p>}
-          </div>
-        </div>
+    <div className="inline-flex flex-col min-w-[340px] max-w-[340px] bg-white border border-neutral-200/60 p-6 shrink-0 whitespace-normal text-left relative shadow-sm">
+      {/* Testimonial Stars & Quotes */}
+      <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-0.5">
           {Array.from({ length: 5 }).map((_, i) => (
             <Star
               key={i}
-              className={`h-3.5 w-3.5 ${i < review.rating ? 'fill-amber-400 text-amber-400' : 'text-white/10'}`}
+              className={`h-4.5 w-4.5 ${i < review.rating ? 'fill-amber-400 text-amber-400' : 'text-neutral-200'}`}
             />
           ))}
         </div>
+        <span className="text-[90px] font-serif text-neutral-100/70 leading-none absolute top-2 right-4 pointer-events-none select-none">”</span>
       </div>
-      <p className="text-sm text-white/70 leading-relaxed line-clamp-3 font-light">"{review.comment}"</p>
+
+      {/* Review text */}
+      <p className="text-[13px] text-neutral-500 leading-relaxed font-light mb-6 flex-1 min-h-[60px]">
+        &ldquo;{review.comment}
+      </p>
+
+      {/* Profile info */}
+      <div className="flex items-center gap-3 border-t border-neutral-100 pt-4 mt-auto">
+        <img 
+          src={review.reviewerImage || '/avatar.png'} 
+          alt={review.reviewerName} 
+          className="w-11 h-11 rounded-full object-cover border border-neutral-100 bg-neutral-50" 
+        />
+        <div>
+          <p className="text-sm font-serif font-bold text-[#bfa37a] tracking-tight">{review.reviewerName}</p>
+          <p className="text-[10px] text-neutral-400 uppercase tracking-widest font-semibold mt-0.5">
+            {review.lawyerName ? `Client of ${review.lawyerName}` : 'Verified Client'}
+          </p>
+        </div>
+      </div>
     </div>
   );
 }

@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { MessageCircle, Share2, Flag, Loader2, PenSquare, Trash2, ShieldAlert } from 'lucide-react';
+import { MessageCircle, Share2, Flag, Loader2, PenSquare, Trash2, ShieldAlert, Lock } from 'lucide-react';
 import VoteButtons from '@/components/community/VoteButtons';
 import CommentThread from '@/components/community/CommentThread';
 import TranslationBadge from '@/components/community/TranslationBadge';
@@ -360,15 +360,15 @@ export default function PostInteractions({
               </div>
             </div>
           ) : (
-            <div className="mb-6 p-4 bg-muted/50 rounded-xl text-sm text-muted-foreground text-center">
-              🔒 Comments are locked on this post.
+            <div className="mb-6 p-4 bg-[#faf8f6] border border-[#efeae0] rounded-none text-xs font-bold uppercase tracking-widest text-neutral-450 flex items-center justify-center gap-2">
+              <Lock className="h-4 w-4 text-[#bfa37a]" /> Comments are locked on this post
             </div>
           )
         ) : (
-          <div className="mb-6 p-4 bg-muted/50 rounded-xl text-sm text-center">
-            <span className="text-muted-foreground">Sign in to join the discussion. </span>
-            <a href={`/${locale}/login`} className="text-primary font-semibold hover:underline">
-              Sign In →
+          <div className="mb-6 p-4 bg-[#faf8f6] border border-[#efeae0] rounded-none text-xs font-bold uppercase tracking-widest text-center text-neutral-400">
+            <span>Sign in to join the discussion. </span>
+            <a href={`/${locale}/login`} className="text-[#bfa37a] hover:text-[#a68d67] hover:underline ml-1.5 transition-colors">
+              Sign In
             </a>
           </div>
         )}

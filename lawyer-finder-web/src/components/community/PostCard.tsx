@@ -50,10 +50,10 @@ export default function PostCard({ post, locale, onVote, showCommunity = true }:
   };
 
   return (
-    <Card className={`group transition-all duration-200 hover:shadow-md hover:border-primary/20 overflow-hidden ${post.isPinned ? 'border-primary/30 bg-primary/[0.02]' : ''}`}>
+    <Card className={`group transition-all duration-300 border border-[#efeae0] bg-white rounded-none hover:shadow-xl hover:border-[#bfa37a]/35 overflow-hidden ${post.isPinned ? 'border-[#bfa37a]/40 bg-[#faf8f6]/40' : ''}`}>
       <div className="flex">
         {/* Vote column */}
-        <div className="hidden sm:flex flex-col items-center justify-start py-4 px-3 bg-muted/30">
+        <div className="hidden sm:flex flex-col items-center justify-start py-5 px-3.5 bg-[#faf8f6] border-r border-[#efeae0]/80">
           <VoteButtons
             score={post.score}
             userVote={post.userVote}
@@ -64,18 +64,18 @@ export default function PostCard({ post, locale, onVote, showCommunity = true }:
         </div>
 
         {/* Content */}
-        <div className="flex-1 p-4 min-w-0">
+        <div className="flex-1 p-5 min-w-0 text-left">
           {/* Meta row */}
-          <div className="flex items-center gap-2 flex-wrap text-xs text-muted-foreground mb-2">
+          <div className="flex items-center gap-2 flex-wrap text-xs text-neutral-400 mb-2.5 font-light">
             {post.isPinned && (
-              <Badge variant="outline" className="gap-1 text-primary border-primary/30 px-1.5 py-0">
-                <Pin className="h-3 w-3" /> Pinned
-              </Badge>
+              <span className="inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-widest text-[#bfa37a] border border-[#bfa37a]/30 bg-[#faf8f6] px-2 py-0.5">
+                <Pin className="h-2.5 w-2.5" /> Pinned
+              </span>
             )}
             {showCommunity && (
               <Link
                 href={`/${locale}/blog/community/${post.community.name}`}
-                className="font-semibold text-foreground hover:text-primary transition-colors"
+                className="font-bold text-neutral-600 hover:text-[#bfa37a] uppercase tracking-wider text-[10px] transition-colors"
               >
                 {post.community.icon} {post.community.displayName}
               </Link>
@@ -83,47 +83,47 @@ export default function PostCard({ post, locale, onVote, showCommunity = true }:
             <span>•</span>
             <span className="flex items-center gap-1">
               Posted by{' '}
-              <span className="font-medium text-foreground/80">
+              <span className="font-semibold text-neutral-700">
                 {post.author.profile?.fullName || post.author.fullName || 'Unknown User'}
               </span>
               {post.author.profile?.isVerified && (
-                <ShieldCheck className="h-3.5 w-3.5 text-primary" />
+                <ShieldCheck className="h-3.5 w-3.5 text-[#bfa37a]" />
               )}
               {post.author.role === 'LAWYER' && (
-                <Badge variant="secondary" className="text-[10px] px-1 py-0 font-normal">
+                <span className="text-[9px] font-bold uppercase tracking-widest text-[#bfa37a] bg-[#bfa37a]/5 px-2 py-0.5 border border-[#bfa37a]/10">
                   Lawyer
-                </Badge>
+                </span>
               )}
             </span>
             <span>•</span>
-            <span className="flex items-center gap-1">
-              <Clock className="h-3 w-3" /> {timeAgo}
+            <span className="flex items-center gap-1 font-semibold uppercase tracking-widest text-[9px]">
+              <Clock className="h-2.5 w-2.5" /> {timeAgo}
             </span>
           </div>
 
           {/* Title */}
           <Link href={`/${locale}/blog/${post.slug}`}>
-            <h3 className="text-lg font-semibold tracking-tight group-hover:text-primary transition-colors line-clamp-2 mb-1">
+            <h3 className="text-xl font-serif font-bold text-neutral-900 leading-snug group-hover:text-[#bfa37a] transition-colors line-clamp-2 mb-2">
               {post.title}
             </h3>
           </Link>
 
           {/* Rich Content + Cover */}
-          <div className="flex flex-col md:flex-row gap-4 mt-2 mb-3">
+          <div className="flex flex-col md:flex-row gap-5 mt-3 mb-4">
             <div className="flex-1 min-w-0">
               {post.content && (
                 <div className="relative">
                   <div 
-                    className="prose prose-sm prose-neutral max-w-none text-muted-foreground leading-relaxed tiptap-content max-h-[180px] overflow-hidden"
+                    className="prose prose-sm prose-neutral max-w-none text-neutral-500 leading-relaxed font-light tiptap-content max-h-[160px] overflow-hidden"
                     dangerouslySetInnerHTML={{ __html: post.content }}
                   />
                   {post.content.length > 250 && (
-                    <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-card to-transparent pointer-events-none" />
+                    <div className="absolute bottom-0 left-0 right-0 h-14 bg-gradient-to-t from-white to-transparent pointer-events-none" />
                   )}
                 </div>
               )}
               {post.content && post.content.length > 250 && (
-                <Link href={`/${locale}/blog/${post.slug}`} className="text-primary text-sm font-medium hover:underline inline-flex mt-1">
+                <Link href={`/${locale}/blog/${post.slug}`} className="text-[#bfa37a] hover:text-[#a68d67] text-xs font-bold uppercase tracking-wider hover:underline inline-flex mt-2">
                   Read more
                 </Link>
               )}
@@ -133,14 +133,14 @@ export default function PostCard({ post, locale, onVote, showCommunity = true }:
                 <img
                   src={post.coverImage}
                   alt=""
-                  className="w-full md:w-32 h-32 md:h-24 object-cover rounded-md border"
+                  className="w-full md:w-32 h-32 md:h-24 object-cover rounded-none border border-[#efeae0]"
                 />
               </div>
             )}
           </div>
 
           {/* Actions bar */}
-          <div className="flex items-center gap-4 text-xs text-muted-foreground">
+          <div className="flex items-center gap-4 text-[10px] font-bold uppercase tracking-widest text-neutral-450">
             {/* Mobile vote */}
             <div className="sm:hidden">
               <VoteButtons
@@ -153,25 +153,25 @@ export default function PostCard({ post, locale, onVote, showCommunity = true }:
             </div>
             <Link
               href={`/${locale}/blog/${post.slug}#comments`}
-              className="flex items-center gap-1.5 hover:text-foreground transition-colors py-1 px-2 rounded-md hover:bg-muted"
+              className="flex items-center gap-1.5 hover:text-[#bfa37a] transition-colors py-1.5 px-2.5 border border-transparent hover:border-[#efeae0] bg-neutral-50"
             >
-              <MessageCircle className="h-4 w-4" />
+              <MessageCircle className="h-3.5 w-3.5" />
               <span>{post.commentCount} {post.commentCount === 1 ? 'Comment' : 'Comments'}</span>
             </Link>
-            <div className="flex items-center gap-1.5 py-1 px-2">
-              <Eye className="h-4 w-4" />
+            <div className="flex items-center gap-1.5 py-1.5 px-2.5 bg-neutral-50 border border-transparent">
+              <Eye className="h-3.5 w-3.5" />
               <span>{formatCount(post.viewCount)}</span>
             </div>
             {post.isLocked && (
-              <div className="flex items-center gap-1 text-amber-500">
-                <Lock className="h-3.5 w-3.5" />
+              <div className="flex items-center gap-1.5 text-amber-600 bg-amber-50 px-2 py-1">
+                <Lock className="h-3 w-3" />
                 <span>Locked</span>
               </div>
             )}
             {post.language !== 'en' && (
-              <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+              <span className="text-[9px] border border-neutral-200 px-2 py-1 font-bold text-neutral-500 bg-neutral-50 ml-auto shrink-0">
                 {post.language === 'si' ? 'සිංහල' : 'தமிழ்'}
-              </Badge>
+              </span>
             )}
           </div>
         </div>
