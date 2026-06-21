@@ -22,80 +22,61 @@ export default function HeroChatInput({ locale }: { locale: string }) {
   };
 
   return (
-    <div className="w-full max-w-4xl mx-auto flex flex-col items-center">
-      {/* Mode Switcher */}
-      <div className="flex items-center gap-1 bg-[#1a1a1a]/80 backdrop-blur-md p-1 rounded-none border border-white/10 mb-6">
+    <div className="w-full max-w-xl mx-auto flex flex-col items-center">
+      {/* Capsule Mode Switcher - Styled like Chill/Sport mockup */}
+      <div className="inline-flex items-center p-1 bg-neutral-100 rounded-full border border-neutral-200/50 mb-6 shadow-sm">
         <button
+          type="button"
           onClick={() => setMode('chat')}
           className={cn(
-            "flex items-center gap-2 px-6 py-2 text-sm font-semibold transition-colors uppercase tracking-widest",
+            "rounded-full px-7 py-2.5 text-xs font-bold uppercase tracking-widest transition-all",
             mode === 'chat' 
-              ? "bg-white text-black" 
-              : "text-white/60 hover:text-white hover:bg-white/5"
+              ? "bg-white text-neutral-900 shadow-sm" 
+              : "text-neutral-500 hover:text-neutral-800"
           )}
         >
-          <MessageSquare className="w-4 h-4" />
-          Chat
+          Chat AI
         </button>
         <button
+          type="button"
           onClick={() => setMode('search')}
           className={cn(
-            "flex items-center gap-2 px-6 py-2 text-sm font-semibold transition-colors uppercase tracking-widest",
+            "rounded-full px-7 py-2.5 text-xs font-bold uppercase tracking-widest transition-all",
             mode === 'search' 
-              ? "bg-white text-black" 
-              : "text-white/60 hover:text-white hover:bg-white/5"
+              ? "bg-white text-neutral-900 shadow-sm" 
+              : "text-neutral-500 hover:text-neutral-800"
           )}
         >
-          <Search className="w-4 h-4" />
           Search
         </button>
       </div>
 
-      {/* Input Box based on image inspiration */}
-      <form onSubmit={handleSubmit} className="w-full relative shadow-2xl">
-        <div className="absolute -inset-1 bg-gradient-to-r from-blue-500/10 via-primary/10 to-purple-500/10 blur-xl opacity-30 pointer-events-none" />
-        
-        <div className="relative bg-[#0f1115]/90 backdrop-blur-xl border border-white/10 p-2 sm:p-3 rounded-none flex flex-col">
-          <textarea
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder={mode === 'chat' ? "Write any request or command to AI..." : "Search for lawyers by name, specialty, or location..."}
-            className="w-full bg-transparent text-white/90 text-base sm:text-lg placeholder:text-white/30 resize-none outline-none min-h-[80px] p-3 font-light"
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                handleSubmit(e);
-              }
-            }}
-          />
-
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-4 px-2">
-            <div className="flex flex-wrap items-center gap-2">
-              <button type="button" className="flex items-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 text-white/70 text-xs font-semibold px-4 py-2 uppercase tracking-widest transition-colors">
-                <Search className="w-3.5 h-3.5" /> Quick Search
-              </button>
-              {mode === 'chat' && (
-                <>
-                  <button type="button" className="flex items-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 text-white/70 text-xs font-semibold px-4 py-2 uppercase tracking-widest transition-colors">
-                    <ImageIcon className="w-3.5 h-3.5" /> Analyze Doc
-                  </button>
-                  <button type="button" className="flex items-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 text-white/70 text-xs font-semibold px-4 py-2 uppercase tracking-widest transition-colors">
-                    <FileText className="w-3.5 h-3.5" /> Templates
-                  </button>
-                </>
-              )}
-            </div>
-
-            <button
-              type="submit"
-              disabled={!query.trim()}
-              className="group flex border border-white items-center gap-2 bg-white text-black px-8 py-3 text-sm font-bold uppercase tracking-widest hover:bg-neutral-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
-            >
-              {mode === 'chat' ? 'Generate' : 'Search Now'}
-              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-            </button>
-          </div>
+      {/* Simple Search Input Box */}
+      <form onSubmit={handleSubmit} className="w-full relative shadow-md rounded-full bg-white border border-neutral-200 focus-within:border-[#bfa37a] focus-within:shadow-[0_0_15px_rgba(191,163,122,0.15)] transition-all p-1.5 flex items-center">
+        <div className="pl-4 pr-1 text-neutral-400 shrink-0">
+          {mode === 'chat' ? (
+            <MessageSquare className="w-4 h-4 text-[#bfa37a]" />
+          ) : (
+            <Search className="w-4 h-4 text-[#bfa37a]" />
+          )}
         </div>
+        
+        <input
+          type="text"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder={mode === 'chat' ? "Ask the AI assistant anything..." : "Search for lawyers by name, specialty..."}
+          className="w-full bg-transparent text-neutral-800 text-sm outline-none px-3 font-light"
+        />
+
+        <button
+          type="submit"
+          disabled={!query.trim()}
+          className="group bg-[#bfa37a] text-white hover:bg-[#a68d67] hover:scale-[1.02] text-xs font-bold uppercase tracking-widest px-6 py-3.5 rounded-full transition-all shrink-0 flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+        >
+          {mode === 'chat' ? 'Ask AI' : 'Search'}
+          <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+        </button>
       </form>
     </div>
   );

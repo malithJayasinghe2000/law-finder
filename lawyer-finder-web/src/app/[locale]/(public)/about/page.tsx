@@ -26,14 +26,14 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
   return (
     <div className="flex min-h-screen flex-col font-sans">
       <main className="flex-1">
-        
+
         {/* Dark Hero Section matching the image */}
         <section className="relative bg-[#0a0a0a] text-white min-h-[90vh] flex flex-col pt-32 pb-16 px-6 lg:px-12 xl:px-24">
           {/* Background Image & Overlay */}
           <div className="absolute inset-0 overflow-hidden pointer-events-none">
-            <img 
-              src="/hero.png" 
-              alt="Lawyer Hero" 
+            <img
+              src="/hero.png"
+              alt="Lawyer Hero"
               className="object-cover w-full h-full opacity-70"
             />
             {/* Dark Toplayer Overlay as requested */}
@@ -78,7 +78,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
                     <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                   </Button>
                 </Link> */}
-                
+
                 <div className="mt-8 border-t border-white/30 pt-6 flex flex-row items-center justify-between">
                   <div className="flex items-center gap-3">
                     <Globe className="w-5 h-5 text-white/60" />
@@ -90,7 +90,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
           </div>
         </section>
 
-       
+
 
         {/* Content Section mimicking 'About the Firm' layout provided in the screenshot */}
         <section className="py-24 px-6 lg:px-12 xl:px-24 bg-background">
@@ -98,19 +98,19 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
             <div className="max-w-3xl">
               <h2 className="text-3xl sm:text-4xl lg:text-5xl font-light leading-snug tracking-tight text-foreground">
                 Since 2026, we've transformed the way legal support is delivered —
-                blending strategic thinking, deep domain expertise, and unwavering 
+                blending strategic thinking, deep domain expertise, and unwavering
                 dedication to secure the best outcomes for our clients.
               </h2>
             </div>
-            
+
             <div className="flex flex-col items-start lg:items-end gap-6 min-w-[200px] lg:pt-4">
               <Link href={`/${locale}/about`} className="group flex items-center gap-2 border-b border-foreground pb-1 text-lg font-medium hover:text-primary transition-colors">
                 About the Firm.
                 <ArrowUpRight className="w-5 h-5 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
               </Link>
-              <img 
-                src="https://images.unsplash.com/photo-1505664194779-8beaceb93744?q=80&w=300&auto=format&fit=crop" 
-                alt="Law books" 
+              <img
+                src="https://images.unsplash.com/photo-1505664194779-8beaceb93744?q=80&w=300&auto=format&fit=crop"
+                alt="Law books"
                 className="w-48 h-32 object-cover rounded-md grayscale opacity-80"
               />
             </div>
@@ -210,7 +210,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
       {/* Persistent AI Chat Widget */}
       <ChatWidget />
 
-      
+
     </div>
   );
 }

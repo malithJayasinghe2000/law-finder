@@ -48,13 +48,12 @@ export default function DashboardSidebar({ role, locale }: DashboardSidebarProps
 
   const SidebarContent = () => (
     <div className="flex h-full flex-col">
-      {/* Logo */}
-      <div className="flex h-16 items-center gap-2.5 border-b px-5">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-          <Scale className="h-4 w-4" />
+      <div className="flex h-16 items-center gap-2 border-b px-5 bg-card">
+        <div className="flex items-center justify-center text-[#bfa37a]">
+          <Scale className="h-5 w-5 stroke-[1.5]" />
         </div>
-        <span className="text-sm font-bold tracking-tight">
-          LawFinder<span className="text-muted-foreground font-normal ml-0.5">SL</span>
+        <span className="text-sm font-serif tracking-[0.15em] font-medium uppercase text-neutral-800">
+          LAWFINDER
         </span>
       </div>
 

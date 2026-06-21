@@ -1,0 +1,9 @@
+@font-face {
+    font-family: 'ClashDisplayMedium';
+    src: url('../fonts/ClashDisplayMedium.eot');
+    src: url('../fonts/ClashDisplayMedium.eot') format('embedded-opentype'),
+         url('../fonts/ClashDisplayMedium.woff2') format('woff2'),
+         url('../fonts/ClashDisplayMedium.woff') format('woff'),
+         url('../fonts/ClashDisplayMedium.ttf') format('truetype'),
+         url('../fonts/ClashDisplayMedium.svg#ClashDisplayMedium') format('svg');
+}
