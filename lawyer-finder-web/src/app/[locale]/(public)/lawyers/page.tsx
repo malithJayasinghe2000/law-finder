@@ -4,8 +4,9 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import Link from 'next/link';
-import { Search, MapPin, Languages, ShieldCheck, Star, Briefcase } from 'lucide-react';
+import { Search, MapPin, Languages, ShieldCheck, Briefcase } from 'lucide-react';
 import { SponsoredListing, AdBanner } from '@/components/ads/AdComponents';
+import LawyerCard from '@/components/lawyer/LawyerCard';
 
 export const metadata = { title: 'Lawyer Directory' };
 
@@ -118,63 +119,21 @@ export default async function LawyerDirectory({
                 lawyer.reviews.length > 0
                   ? lawyer.reviews.reduce((sum, r) => sum + r.rating, 0) / lawyer.reviews.length
                   : 0;
-              const primaryArea = lawyer.practiceAreas[0] || 'Legal Counsel';
 
               return (
-                <Link key={lawyer.id} href={`/${locale}/lawyers/${lawyer.id}`}>
-                  <div className="group flex flex-col items-start bg-white border border-neutral-100 p-4 hover:shadow-2xl transition-all duration-500 hover:-translate-y-1">
-                    {/* Image Frame */}
-                    <div className="relative w-full h-[280px] overflow-hidden bg-neutral-100">
-                      <img
-                        src={lawyer.profileImageUrl || 'https://images.unsplash.com/photo-1556157382-97eda2d62296?auto=format&fit=crop&w=800&q=80'}
-                        alt={lawyer.fullName}
-                        className="h-full w-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700"
-                      />
-                      {/* Hover Overlay */}
-                      <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-between p-5">
-                        {/* Top-left: Languages they accept (instead of social buttons) */}
-                        <div className="flex flex-wrap items-center gap-1.5">
-                          {lawyer.languages.map((lang) => (
-                            <span key={lang} className="text-[9px] bg-white/20 backdrop-blur-md text-white font-bold uppercase tracking-widest px-2.5 py-1 border border-white/10">
-                              {lang}
-                            </span>
-                          ))}
-                        </div>
-                        {/* Bottom-left */}
-                        <div>
-                          <h3 className="text-white text-base font-serif font-bold mb-0.5">{lawyer.fullName}</h3>
-                          <p className="text-[#bfa37a] text-[9px] font-bold uppercase tracking-widest">{primaryArea}</p>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Display Info below card */}
-                    <div className="w-full pt-4 space-y-2 text-left">
-                      <span className="text-[10px] font-bold uppercase tracking-widest text-[#bfa37a]">
-                        {primaryArea}
-                      </span>
-                      <h4 className="text-neutral-900 font-serif font-bold text-base transition-colors group-hover:text-[#bfa37a]">
-                        {lawyer.fullName}
-                      </h4>
-                      <p className="text-neutral-400 text-xs font-light line-clamp-1">
-                        {lawyer.bio || 'Vetted legal counsel ready for guidance.'}
-                      </p>
-                      <div className="flex items-center gap-3 pt-2">
-                        {avgRating > 0 ? (
-                          <div className="flex items-center gap-1 text-[10px] font-bold text-neutral-600 bg-neutral-100 px-2 py-1">
-                            <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
-                            {avgRating.toFixed(1)}
-                          </div>
-                        ) : null}
-                        {lawyer.district ? (
-                          <div className="text-[9px] font-bold uppercase tracking-widest text-neutral-400 bg-neutral-100 px-2 py-1">
-                            {lawyer.district}
-                          </div>
-                        ) : null}
-                      </div>
-                    </div>
-                  </div>
-                </Link>
+                <LawyerCard
+                  key={lawyer.id}
+                  id={lawyer.id}
+                  fullName={lawyer.fullName}
+                  profileImageUrl={lawyer.profileImageUrl}
+                  bio={lawyer.bio}
+                  practiceAreas={lawyer.practiceAreas}
+                  languages={lawyer.languages}
+                  district={lawyer.district}
+                  avgRating={avgRating}
+                  locale={locale}
+                  imageHeight="h-[280px]"
+                />
               );
             })}
           </div>

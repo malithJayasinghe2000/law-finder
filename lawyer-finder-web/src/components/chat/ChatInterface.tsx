@@ -2,11 +2,9 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useSocket } from '@/hooks/useSocket';
-import { Card } from '@/components/ui/card';
 import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Send, Lock, MessageCircle } from 'lucide-react';
+import { Send, Lock, MessageCircle, Search } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
@@ -41,7 +39,9 @@ export default function ChatInterface({ userId, locale }: { userId: string; loca
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLimited, setIsLimited] = useState(false);
+  const [searchFilter, setSearchFilter] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const lastConvIdRef = useRef<string | null>(null);
   const searchParams = useSearchParams();
   const initialConvId = searchParams.get('conv');
 
@@ -60,6 +60,9 @@ export default function ChatInterface({ userId, locale }: { userId: string; loca
             return [...prev, message];
           });
           markAsRead(activeConvId);
+          setTimeout(() => {
+            messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          }, 50);
         }
         // Always refresh conversations to update sidebar previews and sorting
         fetchConversations();
@@ -106,7 +109,8 @@ export default function ChatInterface({ userId, locale }: { userId: string; loca
     const res = await fetch(`/api/chat/conversations/${convId}/messages`);
     if (res.ok) {
       setMessages(await res.json());
-      messagesEndRef.current?.scrollIntoView();
+      // Explicitly set the active conversation ref to skip general auto-scroll
+      lastConvIdRef.current = convId;
     }
   };
 
@@ -118,14 +122,12 @@ export default function ChatInterface({ userId, locale }: { userId: string; loca
     }
   };
 
-  // Helper function for the initial load auto-select bypasses state dependency race
   const selectConversationId = (convId: string, unreadCount: number) => {
     if (activeConvId && socket) {
       socket.emit('leave_conversation', activeConvId);
     }
     
     setActiveConvId(convId);
-    
     fetchMessages(convId);
     if (unreadCount > 0) markAsRead(convId);
   };
@@ -135,8 +137,7 @@ export default function ChatInterface({ userId, locale }: { userId: string; loca
     selectConversationId(conv.id, conv.unreadCount);
   };
 
-  const sendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSendMessage = async () => {
     if (!input.trim() || !activeConvId) return;
 
     const tempInput = input;
@@ -151,67 +152,103 @@ export default function ChatInterface({ userId, locale }: { userId: string; loca
     if (res.ok) {
       const sentMsg = await res.json();
       if (socket) {
-        // Optimistic append is fine, but since we emit from backend/frontend?
-        // Actually the backend API doesn't emit, we emit from frontend!
         socket.emit('send_message', sentMsg);
         setMessages(prev => [...prev, sentMsg]);
       }
-      messagesEndRef.current?.scrollIntoView();
-      fetchConversations(); // update last message
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }, 50);
+      fetchConversations();
     }
   };
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView();
-  }, [messages]);
+    // Only auto scroll for active conversation updates when conversations IDs match
+    if (activeConvId !== lastConvIdRef.current) {
+      lastConvIdRef.current = activeConvId;
+      return;
+    }
+    if (messages.length > 0) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }, [messages, activeConvId]);
 
   const activeConv = conversations.find(c => c.id === activeConvId);
 
+  // Filter conversations
+  const filteredConversations = conversations.filter(c =>
+    c.otherUser?.fullName?.toLowerCase().includes(searchFilter.toLowerCase())
+  );
+
   return (
-    <div className="flex h-[calc(100vh-8rem)] bg-white border border-neutral-200 overflow-hidden rounded-none shadow-sm">
-      {/* Sidebar */}
-      <div className="w-1/3 border-r border-neutral-200 flex flex-col bg-neutral-50/50">
-        <div className="p-4 border-b border-neutral-200 bg-white">
-          <h2 className="text-lg font-bold tracking-tight">Messages</h2>
+    <div className="flex bg-[#faf8f6] border border-[#efeae0] rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.025)] font-sans relative selection:bg-[#bfa37a]/30">
+      {/* Sidebar - Sticky layout */}
+      <aside className="w-80 md:w-1/3 shrink-0 bg-[#fbf9f6] border-r border-[#efeae0] sticky top-24 h-[calc(100vh-10rem)] min-h-[500px] flex flex-col rounded-l-2xl">
+        {/* Sidebar Header */}
+        <div className="px-5 py-4.5 flex items-center justify-between border-b border-[#efeae0] bg-[#fbf9f6] shrink-0 rounded-tl-2xl">
+          <h2 className="text-xs font-bold text-neutral-800 uppercase tracking-widest font-serif">Messages</h2>
+          <div className="relative flex items-center bg-neutral-100 px-2 py-1 border border-[#efeae0]">
+            <Search className="h-3 w-3 text-neutral-450 mr-1" />
+            <input
+              type="text"
+              placeholder="Search..."
+              value={searchFilter}
+              onChange={(e) => setSearchFilter(e.target.value)}
+              className="bg-transparent text-[10px] outline-none text-neutral-800 font-light w-20"
+            />
+          </div>
         </div>
-        <div className="flex-1 overflow-y-auto">
+
+        {/* Sidebar Conversation List */}
+        <div className="flex-1 overflow-y-auto p-3 space-y-2">
           {conversations.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-neutral-400 p-4 text-center">
-              <MessageCircle className="w-10 h-10 mb-2 opacity-20" />
-              <p className="text-sm">No conversations yet</p>
+            <div className="flex flex-col items-center justify-center h-full text-neutral-400 p-6 text-center">
+              <MessageCircle className="w-10 h-10 mb-3 opacity-20 text-[#bfa37a]" />
+              <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest">No conversations yet</p>
             </div>
           ) : (
-            conversations.map(conv => (
+            filteredConversations.map(conv => (
               <div
                 key={conv.id}
                 onClick={() => selectConversation(conv)}
-                className={`p-4 border-b border-neutral-100 flex items-center gap-3 transition-colors ${!conv.isDummy ? 'cursor-pointer hover:bg-neutral-100' : ''} ${activeConvId === conv.id ? 'bg-neutral-100' : ''} ${conv.isDummy ? 'opacity-80 select-none' : ''}`}
+                className={`group flex items-center gap-3 p-3 cursor-pointer transition-all duration-200 border rounded-xl ${
+                  activeConvId === conv.id
+                    ? 'bg-white border-[#efeae0] shadow-sm font-semibold text-neutral-900'
+                    : 'bg-transparent border-transparent hover:bg-white/50 text-neutral-500 hover:text-neutral-850'
+                } ${conv.isDummy ? 'opacity-80 select-none relative' : ''}`}
               >
                 <div className="relative">
-                  <Avatar className="h-10 w-10 border rounded-full overflow-hidden">
+                  <Avatar className="h-9 w-9 border border-[#efeae0] rounded-full overflow-hidden shrink-0">
                     {conv.otherUser?.profileImageUrl && !conv.isDummy ? (
-                      <img src={conv.otherUser.profileImageUrl} alt="Profile" className="object-cover" />
+                      <img src={conv.otherUser.profileImageUrl} alt="Profile" className="object-cover h-full w-full" />
                     ) : (
-                      <img src="/avatar.png" alt="Profile" className="object-cover" />
+                      <img src="/avatar.png" alt="Profile" className="object-cover h-full w-full" />
                     )}
                   </Avatar>
                   {conv.unreadCount > 0 && !conv.isDummy && (
-                    <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white ring-2 ring-white">
+                    <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[8px] font-bold text-white ring-2 ring-white">
                       {conv.unreadCount}
                     </span>
                   )}
                 </div>
                 <div className={`flex-1 min-w-0 ${conv.isDummy ? 'blur-[3px]' : ''}`}>
-                  <p className="text-[14px] font-bold text-neutral-900 truncate">
-                    {conv.otherUser?.fullName || 'User'}
-                  </p>
-                  <p className="text-[12px] text-neutral-500 truncate mt-0.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-[12px] font-bold font-serif text-neutral-900 truncate">
+                      {conv.otherUser?.fullName || 'User'}
+                    </p>
+                    {conv.lastMessage && (
+                      <span className="text-[8px] text-neutral-400 font-bold uppercase tracking-wider shrink-0">
+                        {new Date(conv.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-neutral-450 truncate mt-0.5 font-light">
                     {conv.lastMessage?.content || 'No messages yet'}
                   </p>
                 </div>
                 {conv.isDummy && (
                   <div className="absolute inset-0 z-10 flex items-center justify-center right-4 left-auto">
-                    <Lock className="w-4 h-4 text-neutral-500 drop-shadow-sm" />
+                    <Lock className="w-3.5 h-3.5 text-[#bfa37a]" />
                   </div>
                 )}
               </div>
@@ -219,70 +256,123 @@ export default function ChatInterface({ userId, locale }: { userId: string; loca
           )}
         </div>
         {isLimited && (
-          <div className="p-4 bg-amber-50 border-t border-amber-100 text-center">
-            <p className="text-xs text-amber-800 font-medium mb-2">Upgrade to view all conversations</p>
+          <div className="p-4 bg-amber-50/50 border-t border-amber-100 text-center rounded-bl-2xl">
+            <p className="text-[9px] text-amber-800 font-bold uppercase tracking-wider mb-2">Upgrade to view all conversations</p>
             <Link href={`/${locale}/pricing`}>
-              <Button size="sm" className="w-full text-xs font-bold rounded-none bg-[#0a0a0a] text-white hover:bg-neutral-800">
+              <Button size="sm" className="w-full text-[9px] font-bold uppercase tracking-widest rounded-full bg-[#161616] text-white hover:bg-neutral-800 transition-all duration-300">
                 Upgrade Plan
               </Button>
             </Link>
           </div>
         )}
-      </div>
+      </aside>
 
       {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col bg-white overflow-hidden">
+      <div className="flex-1 flex flex-col bg-[#faf8f6] rounded-r-2xl min-h-[500px]">
         {activeConvId ? (
           <>
-            <div className="h-16 border-b border-neutral-200 flex items-center px-6 bg-white shrink-0">
-              <Avatar className="h-9 w-9 border rounded-full mr-3">
-                {activeConv?.otherUser?.profileImageUrl ? (
-                    <img src={activeConv.otherUser.profileImageUrl} alt="Profile" className="object-cover" />
+            {/* Sticky Chat Header */}
+            <div className="sticky top-24 z-20 h-16 border-b border-[#efeae0] flex items-center justify-between px-6 bg-[#faf8f6]/95 backdrop-blur-sm shrink-0 rounded-tr-2xl">
+              <div className="flex items-center">
+                <Avatar className="h-9 w-9 border border-[#efeae0] rounded-full mr-3 overflow-hidden shrink-0">
+                  {activeConv?.otherUser?.profileImageUrl ? (
+                    <img src={activeConv.otherUser.profileImageUrl} alt="Profile" className="object-cover h-full w-full" />
                   ) : (
-                    <img src="/avatar.png" alt="Profile" className="object-cover" />
-                )}
-              </Avatar>
-              <h3 className="font-bold text-[15px]">{activeConv?.otherUser?.fullName || 'User'}</h3>
-            </div>
-            
-            <div className="flex-1 p-6 overflow-y-auto bg-neutral-50/30">
-              <div className="space-y-4">
-                {messages.map(msg => {
-                  const isMe = msg.senderId === userId;
-                  return (
-                    <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
-                      <div className={`max-w-[70%] px-4 py-2.5 shadow-sm text-[14px] ${
-                        isMe ? 'bg-[#0a0a0a] text-white rounded-l-xl rounded-tr-xl' : 'bg-white border border-neutral-200 text-neutral-900 rounded-r-xl rounded-tl-xl'
-                      }`}>
-                        {msg.content}
-                      </div>
-                    </div>
-                  );
-                })}
-                <div ref={messagesEndRef} />
+                    <img src="/avatar.png" alt="Profile" className="object-cover h-full w-full" />
+                  )}
+                </Avatar>
+                <div>
+                  <h3 className="font-serif font-bold text-sm text-neutral-950 leading-tight">{activeConv?.otherUser?.fullName || 'User'}</h3>
+                  <p className="text-[9px] text-[#bfa37a] font-bold uppercase tracking-wider mt-0.5">Secure Consultation</p>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 border border-emerald-100 bg-emerald-50 text-emerald-700 rounded-full text-[8px] font-bold uppercase tracking-wider">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> Active
+                </span>
               </div>
             </div>
+            
+            {/* Messages list - grows naturally supporting main page scroll */}
+            <div className="flex-1 p-6 scroll-smooth space-y-6 pb-24">
+              {messages.map(msg => {
+                const isMe = msg.senderId === userId;
+                return (
+                  <div key={msg.id} className={`flex w-full ${isMe ? 'justify-end' : 'justify-start'}`}>
+                    <div className="max-w-[80%] min-w-[50px] flex flex-col gap-1">
+                      <div className={`relative flex flex-col p-4.5 shadow-[0_4px_12px_rgba(0,0,0,0.015)] border text-sm leading-relaxed ${
+                        isMe 
+                          ? 'bg-[#161616] text-white border-[#161616] rounded-2xl rounded-tr-none' 
+                          : 'bg-[#fdfbf7] border-[#efeae0] text-neutral-850 rounded-2xl rounded-tl-none'
+                      }`}>
+                        <p className="whitespace-pre-wrap text-left font-light leading-relaxed">{msg.content}</p>
+                      </div>
+                      <span className={`text-[8px] text-neutral-450 font-bold uppercase tracking-wider mt-1 px-1 ${isMe ? 'text-right' : 'text-left'}`}>
+                        {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+              <div ref={messagesEndRef} />
+            </div>
 
-            <div className="p-4 border-t border-neutral-200 bg-white shrink-0">
-              <form onSubmit={sendMessage} className="flex gap-2">
-                <Input
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  placeholder="Type a message..."
-                  className="rounded-none border-neutral-300 focus-visible:ring-1 focus-visible:ring-neutral-900"
-                />
-                <Button type="submit" className="rounded-none bg-[#0a0a0a] hover:bg-neutral-800 text-white px-6">
-                  <Send className="w-4 h-4" />
-                </Button>
-              </form>
+            {/* Sticky Card-like input area */}
+            <div className="sticky bottom-0 z-10 shrink-0 bg-[#faf8f6]/95 backdrop-blur-sm border-t border-[#efeae0] py-4 px-6 rounded-br-2xl">
+              <div className="mx-auto w-full">
+                <form
+                  onSubmit={(e) => { e.preventDefault(); handleSendMessage(); }}
+                  className="bg-white border border-[#efeae0] p-4 shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-2xl flex flex-col gap-3 transition-all focus-within:border-[#bfa37a]/60"
+                >
+                  <textarea
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        handleSendMessage();
+                      }
+                    }}
+                    placeholder="Type your message securely..."
+                    className="w-full resize-none bg-transparent py-1 text-sm outline-none placeholder:text-neutral-400 text-neutral-850 font-light min-h-[50px] max-h-32 leading-relaxed"
+                    rows={2}
+                  />
+                  
+                  <div className="flex items-center justify-between border-t border-[#efeae0]/60 pt-3">
+                    <div className="flex items-center gap-1.5 text-[9px] font-bold text-neutral-400 uppercase tracking-[0.18em]">
+                      <Lock className="h-3.5 w-3.5 text-[#bfa37a]" />
+                      <span>Encrypted Session</span>
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={!input.trim()}
+                      className="flex items-center justify-center gap-1.5 px-5 py-2 bg-[#bfa37a] hover:bg-[#a68d67] text-white disabled:opacity-50 disabled:cursor-not-allowed rounded-full text-[11px] font-bold uppercase tracking-widest transition-all shadow-sm shrink-0"
+                    >
+                      <Send className="h-3 w-3" />
+                      <span>Send</span>
+                    </button>
+                  </div>
+                </form>
+              </div>
             </div>
           </>
         ) : (
-          <div className="flex-1 flex flex-col items-center justify-center text-neutral-400 bg-neutral-50/50">
-            <div className="w-20 h-20 bg-neutral-100 rounded-full flex items-center justify-center mb-4">
-              <MessageCircle className="w-8 h-8 text-neutral-300" />
+          /* Empty state matching RAG chat client look */
+          <div className="flex-1 flex flex-col items-center justify-center text-center p-8 bg-[#faf8f6] rounded-r-2xl">
+            <div className="space-y-4 max-w-md">
+              <span className="text-[10px] text-[#bfa37a] uppercase tracking-[0.25em] font-bold">Secure Portal</span>
+              <h2 className="text-3xl font-serif text-neutral-900 leading-tight">Your Secure Consultations</h2>
+              <p className="text-neutral-500 text-sm font-light leading-relaxed">
+                Connect with verified legal professionals. All messages and documents exchanged here are fully encrypted and confidential.
+              </p>
+              <div className="pt-2">
+                <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 border border-[#efeae0] bg-white text-neutral-500 rounded-full text-[9px] font-bold uppercase tracking-wider shadow-sm">
+                  <Lock className="w-3.5 h-3.5 text-[#bfa37a]" /> End-To-End Secure
+                </span>
+              </div>
             </div>
-            <p className="text-[15px] font-medium text-neutral-500">Select a conversation to start chatting</p>
           </div>
         )}
       </div>

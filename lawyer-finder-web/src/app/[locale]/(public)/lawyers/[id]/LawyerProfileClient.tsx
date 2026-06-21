@@ -10,6 +10,7 @@ import {
   MessageSquare, CalendarCheck, Send, X, Loader2, Globe, User, Zap,
   Facebook, Linkedin
 } from 'lucide-react';
+import LawyerCard from '@/components/lawyer/LawyerCard';
 
 interface Review {
   id: string;
@@ -202,28 +203,32 @@ export default function LawyerProfileClient({
                   <img
                     src={lawyer.profileImageUrl || 'https://images.unsplash.com/photo-1556157382-97eda2d62296?auto=format&fit=crop&w=800&q=80'}
                     alt={lawyer.fullName}
-                    className="w-full aspect-[4/5] object-cover transition-transform duration-700 group-hover:scale-102"
+                    className="w-full aspect-[4/5] object-cover transition-all duration-750 group-hover:grayscale group-hover:scale-102"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                  {/* Languages - Always Visible */}
+                  <div className="absolute top-4 left-4 z-10 flex flex-wrap items-center gap-1.5">
+                    {lawyer.languages.map((lang) => (
+                      <span key={lang} className="text-[9px] bg-black/45 backdrop-blur-md text-white font-bold uppercase tracking-widest px-2.5 py-1 border border-white/10">
+                        {lang}
+                      </span>
+                    ))}
+                  </div>
 
-                  {/* Overlay Info */}
-                  <div className="absolute bottom-0 left-0 right-0 p-6">
-                    <div className="flex items-center gap-2 mb-3 flex-wrap">
-                      {lawyer.isVerified && (
-                        <div className="flex items-center gap-1.5 text-white text-[9px] font-bold bg-[#bfa37a] w-fit px-3 py-1.5 uppercase tracking-widest rounded-none">
-                          <ShieldCheck className="h-3.5 w-3.5" /> BASL Verified
-                        </div>
-                      )}
-                      {lawyer.subscription && (
-                        <div className="flex items-center gap-1.5 text-[#bfa37a] text-[9px] font-bold bg-[#1a1a1a] w-fit px-3 py-1.5 uppercase tracking-widest rounded-none border border-[#efeae0]/30">
-                          <Zap className="h-3.5 w-3.5" /> {lawyer.subscription.tier}
-                        </div>
-                      )}
-                    </div>
-                    <h2 className="text-2xl font-serif font-bold text-white tracking-tight mb-1">{lawyer.fullName}</h2>
-                    <p className="text-white/80 text-xs uppercase tracking-widest font-medium">
-                      {lawyer.practiceAreas.slice(0, 2).join(' · ') || 'Legal Professional'}
-                    </p>
+                  {/* Soft Hover Overlay */}
+                  <div className="absolute inset-0 bg-black/25 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+
+                  {/* Verification/Subscription Badges - Always Visible */}
+                  <div className="absolute bottom-4 left-4 right-4 z-10 flex flex-wrap items-center gap-2">
+                    {lawyer.isVerified && (
+                      <div className="flex items-center gap-1.5 text-white text-[9px] font-bold bg-[#bfa37a] w-fit px-3 py-1.5 uppercase tracking-widest rounded-none">
+                        <ShieldCheck className="h-3.5 w-3.5" /> BASL Verified
+                      </div>
+                    )}
+                    {lawyer.subscription && (
+                      <div className="flex items-center gap-1.5 text-[#bfa37a] text-[9px] font-bold bg-[#1a1a1a] w-fit px-3 py-1.5 uppercase tracking-widest rounded-none border border-[#efeae0]/30">
+                        <Zap className="h-3.5 w-3.5" /> {lawyer.subscription.planName}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -570,48 +575,21 @@ export default function LawyerProfileClient({
                 }}
               >
                 {[...otherLawyers, ...otherLawyers].map((l, idx) => {
-                  const primaryArea = l.practiceAreas[0] || 'Legal Counsel';
                   return (
-                    <Link key={`${l.id}-${idx}`} href={`/${locale}/lawyers/${l.id}`} className="shrink-0">
-                      <div className="group flex flex-col items-start bg-[#fdfcfb] border border-[#efeae0] p-4 hover:shadow-2xl transition-all duration-500 hover:-translate-y-1 w-[320px] rounded-none">
-                        {/* Image frame with hover B&W filter logic */}
-                        <div className="relative w-full h-[280px] overflow-hidden bg-[#faf8f6]">
-                          <img
-                            src={l.profileImageUrl || 'https://images.unsplash.com/photo-1556157382-97eda2d62296?auto=format&fit=crop&w=800&q=80'}
-                            alt={l.fullName}
-                            className="h-full w-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700"
-                          />
-                          {/* Hover Overlay */}
-                          <div className="absolute inset-0 bg-black/75 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-between p-5">
-                            {/* Top-left: Languages they accept (instead of social buttons) */}
-                            <div className="flex flex-wrap items-center gap-1.5">
-                              {l.languages.map((lang) => (
-                                <span key={lang} className="text-[8px] bg-[#bfa37a]/90 text-white font-bold uppercase tracking-widest px-2 py-0.5 border border-white/10 rounded-none">
-                                  {lang}
-                                </span>
-                              ))}
-                            </div>
-                            <div>
-                              <h3 className="text-white text-base font-serif font-bold mb-0.5">{l.fullName}</h3>
-                              <p className="text-[#bfa37a] text-[9px] font-bold uppercase tracking-widest">{primaryArea}</p>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Display Info below card */}
-                        <div className="w-full pt-4 space-y-2 text-left">
-                          <span className="text-[9px] font-bold uppercase tracking-widest text-[#bfa37a]">
-                            {primaryArea}
-                          </span>
-                          <h4 className="text-neutral-900 font-serif font-bold text-base transition-colors group-hover:text-[#bfa37a]">
-                            {l.fullName}
-                          </h4>
-                          <p className="text-neutral-400 text-xs font-light line-clamp-1">
-                            {l.bio || 'Vetted legal counsel ready for guidance.'}
-                          </p>
-                        </div>
-                      </div>
-                    </Link>
+                    <div key={`${l.id}-${idx}`} className="shrink-0 w-[320px]">
+                      <LawyerCard
+                        id={l.id}
+                        fullName={l.fullName}
+                        profileImageUrl={l.profileImageUrl}
+                        bio={l.bio}
+                        practiceAreas={l.practiceAreas}
+                        languages={l.languages}
+                        district={l.district}
+                        avgRating={l.avgRating}
+                        locale={locale}
+                        imageHeight="h-[280px]"
+                      />
+                    </div>
                   );
                 })}
               </div>

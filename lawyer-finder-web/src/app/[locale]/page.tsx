@@ -19,6 +19,7 @@ import HeroChatInput from '@/components/home/HeroChatInput';
 import HeroReviewsMarquee from '@/components/home/HeroReviewsMarquee';
 import { AdBanner, SponsoredListing } from '@/components/ads/AdComponents';
 import prisma from '@/lib/db';
+import LawyerCard from '@/components/lawyer/LawyerCard';
 
 export default async function HomePage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
@@ -285,49 +286,25 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
               <SponsoredListing placement="DIRECTORY_TOP" locale={locale} />
 
               {topLawyers.map((lawyer) => {
-                const primaryArea = lawyer.practiceAreas[0] || 'Legal Counsel';
+                const avgRating =
+                  lawyer.reviews.length > 0
+                    ? lawyer.reviews.reduce((sum, r) => sum + r.rating, 0) / lawyer.reviews.length
+                    : 0;
 
                 return (
-                  <Link key={lawyer.id} href={`/${locale}/lawyers/${lawyer.id}`}>
-                    <div className="group flex flex-col items-start bg-white border border-neutral-100 p-4 hover:shadow-2xl transition-all duration-500 hover:-translate-y-1">
-                      {/* Image frame with hover B&W filter logic */}
-                      <div className="relative w-full h-[360px] overflow-hidden bg-neutral-100">
-                        <img
-                          src={lawyer.profileImageUrl || 'https://images.unsplash.com/photo-1556157382-97eda2d62296?auto=format&fit=crop&w=800&q=80'}
-                          alt={lawyer.fullName}
-                          className="h-full w-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700"
-                        />
-                        {/* Hover Overlay */}
-                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-between p-6">
-                          {/* Top-left: Languages they accept (instead of social buttons) */}
-                          <div className="flex flex-wrap items-center gap-1.5">
-                            {lawyer.languages.map((lang) => (
-                              <span key={lang} className="text-[9px] bg-white/20 backdrop-blur-md text-white font-bold uppercase tracking-widest px-2.5 py-1 border border-white/10">
-                                {lang}
-                              </span>
-                            ))}
-                          </div>
-                          <div>
-                            <h3 className="text-white text-lg font-serif font-bold mb-1">{lawyer.fullName}</h3>
-                            <p className="text-[#bfa37a] text-[10px] font-bold uppercase tracking-widest">{primaryArea}</p>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Display Info below card */}
-                      <div className="w-full pt-4 space-y-2">
-                        <span className="text-[10px] font-bold uppercase tracking-widest text-[#bfa37a]">
-                          {primaryArea}
-                        </span>
-                        <h4 className="text-neutral-900 font-serif font-bold text-base transition-colors group-hover:text-[#bfa37a]">
-                          {lawyer.fullName}
-                        </h4>
-                        <p className="text-neutral-400 text-xs font-light line-clamp-1">
-                          {lawyer.bio || 'Vetted legal counsel ready for guidance.'}
-                        </p>
-                      </div>
-                    </div>
-                  </Link>
+                  <LawyerCard
+                    key={lawyer.id}
+                    id={lawyer.id}
+                    fullName={lawyer.fullName}
+                    profileImageUrl={lawyer.profileImageUrl}
+                    bio={lawyer.bio}
+                    practiceAreas={lawyer.practiceAreas}
+                    languages={lawyer.languages}
+                    district={lawyer.district}
+                    avgRating={avgRating}
+                    locale={locale}
+                    imageHeight="h-[360px]"
+                  />
                 );
               })}
             </div>

@@ -301,30 +301,134 @@ export default function Header({ locale, userRole = null, appStatus = null, user
           <SheetTrigger className="md:hidden">
             <Menu className="h-5 w-5 text-neutral-800" />
           </SheetTrigger>
-          <SheetContent side="right" className="w-72">
-            <SheetTitle className="flex items-center gap-2 px-1 mb-2 font-serif text-[#bfa37a] tracking-[0.1em] uppercase">
-              <Scale className="h-5 w-5" />
-              LawFinder
-            </SheetTitle>
-            <SheetDescription className="sr-only">Mobile navigation menu</SheetDescription>
-            <div className="my-4 h-px bg-border" />
-            <nav className="flex flex-col gap-1">
-              {navLinks.map((link) => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  onClick={() => setOpen(false)}
-                  className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${isActive(link.href)
-                      ? 'bg-secondary text-foreground'
-                      : 'text-muted-foreground hover:bg-secondary'
+          <SheetContent side="right" className="w-72 bg-[#fbf9f6] border-l border-[#efeae0] p-6 flex flex-col justify-between">
+            <div className="flex flex-col flex-1">
+              <SheetTitle className="flex items-center gap-2 px-1 mb-6 font-serif text-[#bfa37a] tracking-[0.15em] uppercase text-sm font-medium">
+                <Scale className="h-5 w-5 stroke-[1.5]" />
+                LAWFINDER
+              </SheetTitle>
+              <SheetDescription className="sr-only">Mobile navigation menu</SheetDescription>
+              
+              <nav className="flex flex-col gap-4">
+                {navLinks.map((link) => (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    onClick={() => setOpen(false)}
+                    className={`flex items-center gap-3 py-1.5 text-xs font-bold uppercase tracking-widest transition-colors ${
+                      isActive(link.href)
+                        ? 'text-[#bfa37a]'
+                        : 'text-neutral-600 hover:text-[#bfa37a]'
                     }`}
-                >
-                  {link.icon && <link.icon className="h-4 w-4" />}
-                  {link.label}
-                </Link>
-              ))}
-              {renderAuthAction(true)}
-            </nav>
+                  >
+                    {link.icon && <link.icon className="h-4 w-4 text-[#bfa37a]" />}
+                    <span>{renderNavLabel(link)}</span>
+                  </Link>
+                ))}
+
+                {/* Divider */}
+                <div className="my-4 border-t border-[#efeae0]" />
+
+                {/* Account Actions / Auth */}
+                {userRole ? (
+                  <div className="flex flex-col gap-4">
+                    <p className="text-[9px] font-bold text-neutral-400 uppercase tracking-[0.2em] mb-1">Account Menu</p>
+                    
+                    <Link
+                      href={`/${locale}/profile`}
+                      onClick={() => setOpen(false)}
+                      className="flex items-center gap-3 text-xs font-bold uppercase tracking-widest text-neutral-600 hover:text-[#bfa37a] py-1 transition-colors"
+                    >
+                      <UserCircle className="h-4 w-4 text-[#bfa37a]" />
+                      <span>Profile Settings</span>
+                    </Link>
+
+                    {userRole === 'ADMIN' && (
+                      <Link
+                        href={`/${locale}/dashboard/admin`}
+                        onClick={() => setOpen(false)}
+                        className="flex items-center gap-3 text-xs font-bold uppercase tracking-widest text-[#bfa37a] py-1 transition-colors font-semibold"
+                      >
+                        <LayoutDashboard className="h-4 w-4" />
+                        <span>Admin Panel</span>
+                      </Link>
+                    )}
+
+                    {userRole === 'LAWYER' && (
+                      <Link
+                        href={`/${locale}/dashboard/lawyer`}
+                        onClick={() => setOpen(false)}
+                        className="flex items-center gap-3 text-xs font-bold uppercase tracking-widest text-[#bfa37a] py-1 transition-colors font-semibold"
+                      >
+                        <LayoutDashboard className="h-4 w-4" />
+                        <span>Lawyer Dashboard</span>
+                      </Link>
+                    )}
+
+                    {userRole === 'CLIENT' && (
+                      <Link
+                        href={`/${locale}/dashboard/client`}
+                        onClick={() => setOpen(false)}
+                        className="flex items-center gap-3 text-xs font-bold uppercase tracking-widest text-[#bfa37a] py-1 transition-colors font-semibold"
+                      >
+                        <LayoutDashboard className="h-4 w-4" />
+                        <span>My Dashboard</span>
+                      </Link>
+                    )}
+
+                    {userRole === 'CLIENT' && appStatus === 'DRAFT' && (
+                      <Link
+                        href={`/${locale}/apply`}
+                        onClick={() => setOpen(false)}
+                        className="flex items-center gap-3 text-xs font-bold uppercase tracking-widest text-amber-600 py-1 transition-colors"
+                      >
+                        <FileText className="h-4 w-4 text-amber-500" />
+                        <span>Resume Application</span>
+                      </Link>
+                    )}
+
+                    {userRole === 'CLIENT' && (appStatus === 'SUBMITTED' || appStatus === 'IN_REVIEW') && (
+                      <div className="flex items-center gap-3 text-xs font-bold uppercase tracking-widest text-neutral-400 py-1 select-none">
+                        <FileText className="h-4 w-4 text-neutral-350" />
+                        <span>Application Pending</span>
+                      </div>
+                    )}
+
+                    {userRole === 'CLIENT' && (!appStatus || appStatus === 'REJECTED') && (
+                      <Link
+                        href={`/${locale}/apply`}
+                        onClick={() => setOpen(false)}
+                        className="flex items-center gap-3 text-xs font-bold uppercase tracking-widest text-neutral-600 hover:text-[#bfa37a] py-1 transition-colors"
+                      >
+                        <Scale className="h-4 w-4 text-[#bfa37a]" />
+                        <span>Become a Lawyer</span>
+                      </Link>
+                    )}
+
+                    <button
+                      onClick={() => { setOpen(false); handleLogout(); }}
+                      className="w-full flex items-center justify-center gap-2 mt-4 px-4 py-3 bg-[#efeae0]/40 border border-[#efeae0] text-red-650 text-xs font-bold uppercase tracking-widest hover:bg-red-50 hover:border-red-200 transition-all duration-300 rounded-none"
+                    >
+                      <LogOut className="h-3.5 w-3.5" />
+                      <span>Log Out</span>
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-2 mt-4">
+                    <Link href={`/${locale}/login`} onClick={() => setOpen(false)} className="w-full">
+                      <button className="w-full py-3 border border-[#efeae0] text-neutral-700 hover:bg-neutral-50 text-xs font-bold uppercase tracking-widest transition-colors rounded-none">
+                        Sign In
+                      </button>
+                    </Link>
+                    <Link href={`/${locale}/register`} onClick={() => setOpen(false)} className="w-full">
+                      <button className="w-full py-3 bg-[#1a1a1a] text-white hover:bg-neutral-800 text-xs font-bold uppercase tracking-widest transition-colors rounded-none">
+                        Sign Up
+                      </button>
+                    </Link>
+                  </div>
+                )}
+              </nav>
+            </div>
           </SheetContent>
         </Sheet>
       </div>
