@@ -73,7 +73,7 @@ export default async function PostDetailPage({
     <div className="py-12 sm:py-16 bg-white selection:bg-[#bfa37a]/30">
       <div className="mx-auto max-w-[1400px] px-6 lg:px-12 xl:px-24">
         {/* Back navigation */}
-        <div className="flex items-center gap-3 mb-8 text-[11px] font-bold uppercase tracking-widest text-neutral-400">
+        <div className="flex flex-wrap items-center gap-3 mb-8 text-[11px] font-bold uppercase tracking-widest text-neutral-400">
           <Link
             href={`/${locale}/blog`}
             className="flex items-center gap-1.5 hover:text-[#bfa37a] transition-colors"
@@ -157,7 +157,7 @@ export default async function PostDetailPage({
             )}
 
             {/* Author card */}
-            <div className="flex items-center gap-4 p-5 bg-[#faf8f6] border border-[#efeae0]">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-4 p-5 bg-[#faf8f6] border border-[#efeae0]">
               <Link href={post.author.profile ? `/${locale}/lawyers/${post.author.profile.id}` : '#'}>
                 <div className="flex h-12 w-12 items-center justify-center bg-neutral-100 border border-neutral-200 text-neutral-800 font-bold flex-shrink-0 overflow-hidden">
                   {post.author.profileImageUrl ? (
@@ -199,6 +199,7 @@ export default async function PostDetailPage({
               isLocked: post.isLocked,
               commentCount,
               authorId: post.authorId,
+              communityName: post.community.name,
             }}
             userVote={userVote as 'UPVOTE' | 'DOWNVOTE' | null}
             currentUserId={session?.userId || null}

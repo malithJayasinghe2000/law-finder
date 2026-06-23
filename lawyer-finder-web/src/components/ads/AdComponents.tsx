@@ -257,9 +257,10 @@ export function SidebarAd({
   if (ads.length === 0) return null;
 
   return (
-    <div className={`space-y-4 ${className}`}>
-      <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest">Sponsored Lawyers</p>
-      {ads.map((ad) => {
+    <div className={className}>
+      <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest mb-4">Sponsored Lawyers</p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-4">
+        {ads.map((ad) => {
         const isBanner = ad.type === 'BANNER' || !!ad.imageUrl;
         const linkHref = isBanner
           ? (ad.targetUrl.startsWith('/') ? `/${locale}${ad.targetUrl}` : ad.targetUrl)
@@ -326,6 +327,7 @@ export function SidebarAd({
           </Link>
         );
       })}
+      </div>
     </div>
   );
 }
