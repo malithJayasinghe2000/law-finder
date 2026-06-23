@@ -425,6 +425,11 @@ enum AdStatus {
   REJECTED
 }
 
+enum AdPauseActor {
+  ADMIN
+  LAWYER
+}
+
 enum AdPlacement {
   HOMEPAGE_HERO
   HOMEPAGE_MID
@@ -475,6 +480,7 @@ model AdCampaign {
   // Admin
   adminNotes      String?
   rejectionReason String?
+  pausedBy        AdPauseActor?
 
   // Billing
   invoiceId   String?

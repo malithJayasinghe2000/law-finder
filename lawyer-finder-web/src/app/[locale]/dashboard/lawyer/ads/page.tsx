@@ -39,6 +39,7 @@ interface Campaign {
   endDate: string;
   totalBudget: number | null;
   pricePerDay: number | null;
+  pausedBy: string | null;
   impressions: number;
   clicks: number;
   rejectionReason: string | null;
@@ -434,6 +435,8 @@ export default function LawyerAdsPage() {
             const sc = statusConfig[campaign.status] || statusConfig.DRAFT;
             const isExpanded = expandedId === campaign.id;
             const daysLeft = Math.max(0, Math.ceil((new Date(campaign.endDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)));
+            const canLawyerResume = campaign.status === 'PAUSED' && campaign.pausedBy === 'LAWYER';
+            const isAdminPaused = campaign.status === 'PAUSED' && campaign.pausedBy !== 'LAWYER';
 
             return (
               <div key={campaign.id} className="bg-white border border-neutral-200 overflow-hidden transition-shadow hover:shadow-sm">
@@ -525,10 +528,15 @@ export default function LawyerAdsPage() {
                           <Pause className="w-3.5 h-3.5 mr-1.5" /> Pause Campaign
                         </Button>
                       )}
-                      {campaign.status === 'PAUSED' && (
+                      {canLawyerResume && (
                         <Button size="sm" onClick={() => handleStatusChange(campaign.id, 'ACTIVE')} disabled={actionLoading === campaign.id} className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold">
                           <Play className="w-3.5 h-3.5 mr-1.5" /> Resume Campaign
                         </Button>
+                      )}
+                      {isAdminPaused && (
+                        <p className="text-xs font-medium text-orange-700 bg-orange-50 border border-orange-200 px-3 py-2">
+                          This campaign was paused by an admin. Please contact support to resume it.
+                        </p>
                       )}
                       {campaign.status === 'REJECTED' && (
                         <Button size="sm" onClick={() => handleStatusChange(campaign.id, 'PENDING_REVIEW')} disabled={actionLoading === campaign.id} className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold">
