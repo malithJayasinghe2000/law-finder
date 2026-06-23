@@ -112,7 +112,7 @@ export default async function LawyerDirectory({
         ) : (
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {/* Sponsored Listings at the top */}
-            <SponsoredListing placement="DIRECTORY_INLINE" locale={locale} />
+            <SponsoredListing placement="DIRECTORY_INLINE" locale={locale} imageHeight="h-[280px]" />
 
             {lawyers.map((lawyer) => {
               const avgRating =

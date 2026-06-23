@@ -130,9 +130,11 @@ export function AdBanner({
 export function SponsoredListing({
   placement,
   locale,
+  imageHeight = 'h-[360px]',
 }: {
   placement: string;
   locale: string;
+  imageHeight?: string;
 }) {
   const [ads, setAds] = useState<Ad[]>([]);
   const trackedRef = useRef(new Set<string>());
@@ -163,52 +165,51 @@ export function SponsoredListing({
           key={ad.id}
           href={`/${locale}/lawyers/${ad.lawyer.id}`}
           onClick={() => trackClick(ad.id)}
+          className="w-full"
         >
-          <div className="group relative flex h-[400px] flex-col overflow-hidden bg-[#222a35] text-white transition-transform duration-300 hover:-translate-y-1 hover:shadow-lg ring-2 ring-amber-500/50">
-            {/* Sponsored Badge */}
-            <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-center py-1.5 bg-gradient-to-r from-amber-500 to-amber-600">
-              <span className="text-[10px] font-bold uppercase tracking-widest text-white">★ Sponsored</span>
-            </div>
-
-            {/* Image */}
-            <div className="relative h-[200px] w-full shrink-0">
+          <div className="group flex flex-col items-start bg-white border border-[#bfa37a]/50 bg-[#bfa37a]/[0.02] p-4 hover:shadow-2xl transition-all duration-500 hover:-translate-y-1 relative">
+            {/* Image Frame */}
+            <div className={`relative w-full ${imageHeight} overflow-hidden bg-neutral-100`}>
               <img
                 src={ad.lawyer.profileImageUrl || DEFAULT_LAWYER_IMAGE}
                 alt={ad.lawyer.fullName}
-                className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                className="h-full w-full object-cover transition-all duration-750 group-hover:grayscale"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-[#222a35] via-[rgba(214,214,214,0.3)] to-transparent" />
+              {/* Sponsored Tag */}
+              <div className="absolute top-4 left-4 z-10 flex flex-wrap items-center gap-1.5">
+                <span className="text-[10px] bg-[#bfa37a] text-white font-bold uppercase tracking-widest px-2 py-0.5 border border-[#bfa37a] rounded-none shadow-sm">
+                  ★ Sponsored
+                </span>
+              </div>
+              {/* Hover Overlay */}
+              <div className="absolute inset-0 bg-black/25 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+              </div>
             </div>
 
-            {/* Content */}
-            <div className="relative z-10 flex flex-1 flex-col px-5 pb-5 -mt-3">
-              <div className="mb-2 flex items-start justify-between gap-3">
-                <h3 className="text-[18px] font-semibold tracking-tight text-white drop-shadow-sm leading-tight mt-1 max-w-[70%] line-clamp-1">
-                  {ad.lawyer.fullName}
-                </h3>
-                <div className="shrink-0 rounded-none bg-white/10 px-3 py-1.5 text-sm font-semibold text-white backdrop-blur-md border border-white/5">
-                  {ad.lawyer.baseFeeRange ? `LKR ${ad.lawyer.baseFeeRange.split('-')[0].trim()}` : 'TBD'}
-                </div>
-              </div>
-
-              <p className="line-clamp-2 text-[13px] text-white/70 leading-relaxed font-light mb-4 text-balance">
+            {/* Display Info below card */}
+            <div className="w-full pt-4 space-y-2 text-left">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-[#bfa37a]">
+                {ad.lawyer.practiceAreas[0] || 'Legal Counsel'}
+              </span>
+              <h4 className="text-neutral-900 font-serif font-bold text-base transition-colors group-hover:text-[#bfa37a]">
+                {ad.lawyer.fullName}
+              </h4>
+              <p className="text-neutral-500 text-xs font-light line-clamp-1">
                 {ad.title || ad.lawyer.bio || 'Experienced legal professional.'}
               </p>
-
-              <div className="mt-auto flex gap-2 overflow-x-hidden whitespace-nowrap mb-6">
+              
+              <div className="flex items-center gap-3 pt-2">
                 {ad.lawyer.district && (
-                  <div className="flex shrink-0 items-center rounded-none bg-white/10 px-3 py-[5px] text-xs font-medium backdrop-blur-md border border-white/5 text-white/90">
+                  <div className="text-[9px] font-bold uppercase tracking-widest text-neutral-400 bg-neutral-100 px-2 py-1">
                     {ad.lawyer.district}
                   </div>
                 )}
-                {ad.lawyer.practiceAreas.slice(0, 1).map((area) => (
-                  <div key={area} className="flex shrink-0 items-center rounded-none bg-white/10 px-3 py-[5px] text-xs font-medium backdrop-blur-md border border-white/5 text-white/90">{area}</div>
-                ))}
+                {ad.lawyer.baseFeeRange && (
+                  <div className="text-[9px] font-bold uppercase tracking-widest text-[#bfa37a] bg-[#bfa37a]/10 px-2 py-1">
+                    {ad.ctaText || 'View Profile'}
+                  </div>
+                )}
               </div>
-
-              <button className="w-full rounded-none bg-amber-500 py-3.5 text-[15px] font-bold text-white transition-colors hover:bg-amber-600 mt-auto">
-                {ad.ctaText || 'View Profile'}
-              </button>
             </div>
           </div>
         </Link>
