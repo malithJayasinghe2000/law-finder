@@ -259,46 +259,73 @@ export function SidebarAd({
   return (
     <div className={`space-y-4 ${className}`}>
       <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest">Sponsored Lawyers</p>
-      {ads.map((ad) => (
-        <Link
-          key={ad.id}
-          href={`/${locale}/lawyers/${ad.lawyer.id}`}
-          onClick={() => trackClick(ad.id)}
-          className="block group"
-        >
-          <div className="border border-neutral-200 rounded-lg p-4 hover:shadow-md hover:border-neutral-300 transition-all bg-white">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-full overflow-hidden bg-neutral-100 shrink-0">
-                {ad.lawyer.profileImageUrl ? (
-                  <img src={ad.lawyer.profileImageUrl} alt="" className="w-full h-full object-cover" />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-sm font-bold text-neutral-400">
-                    {ad.lawyer.fullName.charAt(0)}
+      {ads.map((ad) => {
+        const isBanner = ad.type === 'BANNER' || !!ad.imageUrl;
+        const linkHref = isBanner
+          ? (ad.targetUrl.startsWith('/') ? `/${locale}${ad.targetUrl}` : ad.targetUrl)
+          : `/${locale}/lawyers/${ad.lawyer.id}`;
+        const displayImage = ad.imageUrl || ad.lawyer.profileImageUrl || DEFAULT_LAWYER_IMAGE;
+
+        return (
+          <Link
+            key={ad.id}
+            href={linkHref}
+            onClick={() => trackClick(ad.id)}
+            className="block group"
+          >
+            {isBanner ? (
+              <div className="relative border border-neutral-200 rounded-lg overflow-hidden hover:shadow-md transition-all bg-white group h-[280px]">
+                <img 
+                  src={displayImage} 
+                  alt={ad.title || ad.lawyer.fullName} 
+                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+                <div className="absolute bottom-0 left-0 right-0 p-4 text-white">
+                  {ad.title && <h3 className="text-sm font-bold mb-1">{ad.title}</h3>}
+                  {ad.description && <p className="text-xs text-white/80 line-clamp-2 mb-2">{ad.description}</p>}
+                  <span className="text-xs font-bold text-[#bfa37a]">{ad.ctaText || 'Learn More'} →</span>
+                </div>
+                <span className="absolute top-2 right-2 text-[9px] font-bold uppercase tracking-widest text-white/60 bg-black/40 backdrop-blur-sm px-1.5 py-0.5 rounded">
+                  Sponsored
+                </span>
+              </div>
+            ) : (
+              <div className="border border-neutral-200 rounded-lg p-4 hover:shadow-md hover:border-neutral-300 transition-all bg-white">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-10 h-10 rounded-full overflow-hidden bg-neutral-100 shrink-0">
+                    {ad.lawyer.profileImageUrl ? (
+                      <img src={ad.lawyer.profileImageUrl} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-sm font-bold text-neutral-400">
+                        {ad.lawyer.fullName.charAt(0)}
+                      </div>
+                    )}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-neutral-900 truncate">{ad.lawyer.fullName}</p>
+                    <p className="text-xs text-neutral-500">{ad.lawyer.district || 'Sri Lanka'}</p>
+                  </div>
+                </div>
+                {ad.title && <p className="text-xs text-neutral-700 font-medium mb-2">{ad.title}</p>}
+                {ad.lawyer.practiceAreas.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mb-3">
+                    {ad.lawyer.practiceAreas.slice(0, 2).map((area) => (
+                      <span key={area} className="text-[10px] font-medium px-2 py-0.5 bg-neutral-100 text-neutral-600 rounded">
+                        {area}
+                      </span>
+                    ))}
                   </div>
                 )}
-              </div>
-              <div className="min-w-0">
-                <p className="text-sm font-semibold text-neutral-900 truncate">{ad.lawyer.fullName}</p>
-                <p className="text-xs text-neutral-500">{ad.lawyer.district || 'Sri Lanka'}</p>
-              </div>
-            </div>
-            {ad.title && <p className="text-xs text-neutral-700 font-medium mb-2">{ad.title}</p>}
-            {ad.lawyer.practiceAreas.length > 0 && (
-              <div className="flex flex-wrap gap-1 mb-3">
-                {ad.lawyer.practiceAreas.slice(0, 2).map((area) => (
-                  <span key={area} className="text-[10px] font-medium px-2 py-0.5 bg-neutral-100 text-neutral-600 rounded">
-                    {area}
-                  </span>
-                ))}
+                <div className="text-xs font-bold text-primary group-hover:underline">
+                  {ad.ctaText || 'View Profile'} →
+                </div>
+                <p className="text-[9px] text-neutral-400 mt-2">Sponsored</p>
               </div>
             )}
-            <div className="text-xs font-bold text-primary group-hover:underline">
-              {ad.ctaText || 'View Profile'} →
-            </div>
-            <p className="text-[9px] text-neutral-400 mt-2">Sponsored</p>
-          </div>
-        </Link>
-      ))}
+          </Link>
+        );
+      })}
     </div>
   );
 }
