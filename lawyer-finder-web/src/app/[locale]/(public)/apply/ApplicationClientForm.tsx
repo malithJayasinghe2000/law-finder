@@ -41,7 +41,7 @@ export default function ApplicationClientForm({ locale, initialStep, initialData
   // Local JSON state syncing with Postgres `draftData` JSON blob
   const [formData, setFormData] = useState<any>(initialData?.step1 ? initialData : {
     step1: { fullName: '', gender: '', languages: [], bio: '', phone: '', address: '', district: '', latitude: '', longitude: '' },
-    step2: { baslNumber: '', yearsOfExperience: '', practiceType: '', courts: '', isNotary: false },
+    step2: { baslNumber: '', yearsOfExperience: '', practiceType: 'Independent', courts: '', isNotary: false },
     step3: { practiceAreas: [], baseFeeRange: '' },
     step4: { licenseImage: '', identityImage: '' }
   });
@@ -458,29 +458,7 @@ export default function ApplicationClientForm({ locale, initialStep, initialData
                 />
                 <ErrorMessage field="yearsOfExperience" />
               </div>
-              <div>
-                <label className="block text-[13px] font-semibold mb-2 text-neutral-900 uppercase" htmlFor="practiceType">
-                  Practice Type <span className="text-red-500">*</span>
-                </label>
-                <select
-                  id="practiceType"
-                  value={formData.step2?.practiceType || ''}
-                  onChange={(e) => {
-                    setFormData({ ...formData, step2: { ...formData.step2, practiceType: e.target.value } });
-                    clearFieldError('practiceType');
-                  }}
-                  className={inputClass('practiceType')}
-                  aria-invalid={!!fieldErrors.practiceType}
-                >
-                  <option value="">Select Type</option>
-                  <option value="Independent">Independent Attorney</option>
-                  <option value="Law Firm">Law Firm Partner/Associate</option>
-                </select>
-                <ErrorMessage field="practiceType" />
-              </div>
-            </div>
-
-            {/* Courts */}
+              {/* Courts */}
             <div>
               <label className="block text-[13px] font-semibold mb-2 text-neutral-900 uppercase" htmlFor="courts">
                 Courts Practice In <span className="text-red-500">*</span>
@@ -502,6 +480,29 @@ export default function ApplicationClientForm({ locale, initialStep, initialData
               </select>
               <ErrorMessage field="courts" />
             </div>
+              {/* <div>
+                <label className="block text-[13px] font-semibold mb-2 text-neutral-900 uppercase" htmlFor="practiceType">
+                  Practice Type <span className="text-red-500">*</span>
+                </label>
+                <select
+                  id="practiceType"
+                  value={formData.step2?.practiceType || ''}
+                  onChange={(e) => {
+                    setFormData({ ...formData, step2: { ...formData.step2, practiceType: e.target.value } });
+                    clearFieldError('practiceType');
+                  }}
+                  className={inputClass('practiceType')}
+                  aria-invalid={!!fieldErrors.practiceType}
+                >
+                  <option value="">Select Type</option>
+                  <option value="Independent">Independent Attorney</option>
+                  <option value="Law Firm">Law Firm Partner/Associate</option>
+                </select>
+                <ErrorMessage field="practiceType" />
+              </div> */}
+            </div>
+
+            
 
             {/* Notary */}
             <div className="flex items-center gap-3 bg-neutral-50 p-4 border border-neutral-200">

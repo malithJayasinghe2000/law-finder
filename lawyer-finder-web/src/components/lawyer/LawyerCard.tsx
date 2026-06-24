@@ -36,7 +36,7 @@ export default function LawyerCard({
           <img
             src={profileImageUrl || 'https://images.unsplash.com/photo-1556157382-97eda2d62296?auto=format&fit=crop&w=800&q=80'}
             alt={fullName}
-            className="h-full w-full object-cover transition-all duration-750 group-hover:grayscale"
+            className="h-full w-full object-cover transition-all duration-750 "
           />
           {/* Languages - Always Visible */}
           <div className="absolute top-4 left-4 z-10 flex flex-wrap items-center gap-1.5">

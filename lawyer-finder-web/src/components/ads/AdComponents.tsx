@@ -173,7 +173,7 @@ export function SponsoredListing({
               <img
                 src={ad.lawyer.profileImageUrl || DEFAULT_LAWYER_IMAGE}
                 alt={ad.lawyer.fullName}
-                className="h-full w-full object-cover transition-all duration-750 group-hover:grayscale"
+                className="h-full w-full object-cover transition-all duration-750 "
               />
               {/* Sponsored Tag */}
               <div className="absolute top-4 left-4 z-10 flex flex-wrap items-center gap-1.5">
