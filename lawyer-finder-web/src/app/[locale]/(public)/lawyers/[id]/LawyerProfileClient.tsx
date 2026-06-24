@@ -31,6 +31,13 @@ interface Subscription {
   nextBilling: string;
 }
 
+interface ConsultationPricing {
+  pricingType: string;
+  physicalPrice: number;
+  onlinePrice: number;
+  currency: string;
+}
+
 interface LawyerData {
   id: string;
   fullName: string;
@@ -53,6 +60,7 @@ interface LawyerData {
   user: { id: string; createdAt: string } | null;
   reviews: Review[];
   subscription?: Subscription | null;
+  consultationPricing?: ConsultationPricing | null;
 }
 
 interface OtherLawyer {
@@ -305,12 +313,22 @@ export default function LawyerProfileClient({
             </div>
 
             {/* Fee Range */}
-            <div className="flex items-baseline gap-3 mb-8 pb-8 border-b border-[#efeae0]">
-              <span className="text-3xl font-serif font-bold text-[#1a1a1a]">
-                {lawyer.baseFeeRange ? `LKR ${lawyer.baseFeeRange}` : 'Contact for pricing'}
-              </span>
-              <span className="text-xs text-neutral-400 font-bold uppercase tracking-widest">consultation fee range</span>
-            </div>
+            {lawyer.consultationPricing && (
+              <div className="flex flex-col mb-8 pb-8 border-b border-[#efeae0]">
+                <div className="flex items-baseline gap-3">
+                  <span className="text-3xl font-serif font-bold text-[#1a1a1a]">
+                    {lawyer.consultationPricing.physicalPrice === lawyer.consultationPricing.onlinePrice
+                      ? `${lawyer.consultationPricing.currency} ${lawyer.consultationPricing.physicalPrice.toLocaleString()}`
+                      : `${lawyer.consultationPricing.currency} ${Math.min(lawyer.consultationPricing.onlinePrice, lawyer.consultationPricing.physicalPrice).toLocaleString()} - ${Math.max(lawyer.consultationPricing.onlinePrice, lawyer.consultationPricing.physicalPrice).toLocaleString()}`
+                    }
+                    <span className="text-sm font-sans font-normal text-neutral-500 ml-2">
+                      /{lawyer.consultationPricing.pricingType === 'HOURLY' ? 'hr' : 'session'}
+                    </span>
+                  </span>
+                </div>
+                <span className="text-xs text-neutral-400 font-bold uppercase tracking-widest mt-1">consultation fee range</span>
+              </div>
+            )}
 
             {/* Bio */}
             <div className="mb-8 pb-8 border-b border-[#efeae0]">

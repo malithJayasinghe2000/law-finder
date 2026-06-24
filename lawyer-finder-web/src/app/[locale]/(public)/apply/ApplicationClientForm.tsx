@@ -42,7 +42,7 @@ export default function ApplicationClientForm({ locale, initialStep, initialData
   const [formData, setFormData] = useState<any>(initialData?.step1 ? initialData : {
     step1: { fullName: '', gender: '', languages: [], bio: '', phone: '', address: '', district: '', latitude: '', longitude: '' },
     step2: { baslNumber: '', yearsOfExperience: '', practiceType: 'Independent', courts: '', isNotary: false },
-    step3: { practiceAreas: [], baseFeeRange: '' },
+    step3: { practiceAreas: [] },
     step4: { licenseImage: '', identityImage: '' }
   });
 
@@ -560,23 +560,6 @@ export default function ApplicationClientForm({ locale, initialStep, initialData
               <div className="w-full h-px bg-neutral-100 my-10" />
             </div>
 
-            {/* Fee Range */}
-            <div>
-              <label className="block text-[13px] font-semibold mb-2 text-neutral-900 uppercase" htmlFor="baseFeeRange">Consultation Fee Base (Optional)</label>
-              <input
-                id="baseFeeRange"
-                type="text"
-                placeholder="e.g. 5,000 LKR / hr"
-                maxLength={50}
-                value={formData.step3?.baseFeeRange || ''}
-                onChange={(e) => {
-                  setFormData({ ...formData, step3: { ...formData.step3, baseFeeRange: e.target.value } });
-                  clearFieldError('baseFeeRange');
-                }}
-                className={inputClass('baseFeeRange')}
-              />
-              <ErrorMessage field="baseFeeRange" />
-            </div>
 
             <div className="flex gap-4 mt-6">
               <Button onClick={() => handleSaveDraft(2)} variant="outline" disabled={loading} className="w-1/3 h-14 rounded-none font-semibold uppercase tracking-wide border-neutral-300">Back</Button>
