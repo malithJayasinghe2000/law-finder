@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { Search, MapPin, Languages, ShieldCheck, Briefcase } from 'lucide-react';
 import { SponsoredListing, AdBanner } from '@/components/ads/AdComponents';
 import LawyerCard from '@/components/lawyer/LawyerCard';
+import { DISTRICTS, PRACTICE_AREAS } from '@/schemas/profile.schema';
 
 export const metadata = { title: 'Lawyer Directory' };
 
@@ -66,7 +67,7 @@ export default async function LawyerDirectory({
               className="h-9 rounded-md border border-input bg-background px-3 text-sm ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2 outline-none"
             >
               <option value="">All Districts</option>
-              {['Colombo', 'Gampaha', 'Kalutara', 'Kandy', 'Matale', 'Nuwara Eliya', 'Galle', 'Matara', 'Hambantota', 'Jaffna', 'Kilinochchi', 'Mannar', 'Vavuniya', 'Mullaitivu', 'Batticaloa', 'Ampara', 'Trincomalee', 'Kurunegala', 'Puttalam', 'Anuradhapura', 'Polonnaruwa', 'Badulla', 'Monaragala', 'Ratnapura', 'Kegalle'].map((d) => (
+              {DISTRICTS.map((d) => (
                 <option key={d} value={d}>{d}</option>
               ))}
             </select>
@@ -76,7 +77,7 @@ export default async function LawyerDirectory({
               className="h-9 rounded-md border border-input bg-background px-3 text-sm ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2 outline-none"
             >
               <option value="">All Practice Areas</option>
-              {['Criminal Law', 'Family Law', 'Property Law', 'Labor Law', 'Corporate Law', 'Civil Law', 'Constitutional Law', 'Tax Law', 'Immigration Law', 'Environmental Law', 'Intellectual Property', 'Human Rights'].map((p) => (
+              {PRACTICE_AREAS.map((p) => (
                 <option key={p} value={p}>{p}</option>
               ))}
             </select>

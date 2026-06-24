@@ -7,21 +7,7 @@ import {
   User, Camera, Save, Loader2, Lock,
 } from 'lucide-react';
 
-const PRACTICE_AREAS = [
-  'Criminal Law', 'Family Law', 'Property Law', 'Labor Law', 'Corporate Law',
-  'Civil Law', 'Constitutional Law', 'Tax Law', 'Immigration Law',
-  'Environmental Law', 'Intellectual Property', 'Human Rights',
-];
-
-const LANGUAGES = ['Sinhala', 'Tamil', 'English'];
-
-const DISTRICTS = [
-  'Colombo', 'Gampaha', 'Kalutara', 'Kandy', 'Matale', 'Nuwara Eliya',
-  'Galle', 'Matara', 'Hambantota', 'Jaffna', 'Kilinochchi', 'Mannar',
-  'Vavuniya', 'Mullaitivu', 'Batticaloa', 'Ampara', 'Trincomalee',
-  'Kurunegala', 'Puttalam', 'Anuradhapura', 'Polonnaruwa', 'Badulla',
-  'Monaragala', 'Ratnapura', 'Kegalle',
-];
+import { PRACTICE_AREAS, LANGUAGES, DISTRICTS } from '@/schemas/profile.schema';
 
 export default function DashboardProfileSettings() {
   const { locale } = useParams();
