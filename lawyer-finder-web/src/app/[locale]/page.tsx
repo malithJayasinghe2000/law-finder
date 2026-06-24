@@ -52,6 +52,11 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
     orderBy: { reviews: { _count: 'desc' } }, // Just ordering by most reviewed for demo
   });
 
+  // Fetch actual active user count (Clients & Lawyers)
+  const userCount = await prisma.user.count({
+    where: { role: { in: ['LAWYER'] } }
+  });
+
   return (
     <div className="flex min-h-screen flex-col font-sans bg-white selection:bg-[#bfa37a]/30">
       <main className="flex-1">
@@ -99,11 +104,11 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
                     <img src="/assets/images/home1/author2.png" className="w-9 h-9 rounded-full border-2 border-white object-cover shadow-sm" alt="Client 2" />
                     <img src="/assets/images/home1/author3.png" className="w-9 h-9 rounded-full border-2 border-white object-cover shadow-sm" alt="Client 3" />
                     <div className="w-9 h-9 rounded-full border-2 border-white bg-[#bfa37a] text-white flex items-center justify-center text-[10px] font-bold font-sans">
-                      +48
+                      +{userCount}
                     </div>
                   </div>
                   <p className="text-[10px] font-bold uppercase tracking-wider text-neutral-400">
-                    48+ Vetted Clients
+                    {userCount}+ Lawyers
                   </p>
                 </div>
               </div>

@@ -41,8 +41,8 @@ export default function ApplicationClientForm({ locale, initialStep, initialData
   // Local JSON state syncing with Postgres `draftData` JSON blob
   const [formData, setFormData] = useState<any>(initialData?.step1 ? initialData : {
     step1: { fullName: '', gender: '', languages: [], bio: '', phone: '', address: '', district: '', latitude: '', longitude: '' },
-    step2: { baslNumber: '', yearsOfExperience: '', practiceType: '', courts: '', isNotary: false },
-    step3: { practiceAreas: [], baseFeeRange: '' },
+    step2: { baslNumber: '', yearsOfExperience: '', practiceType: 'Independent', courts: '', isNotary: false },
+    step3: { practiceAreas: [] },
     step4: { licenseImage: '', identityImage: '' }
   });
 
@@ -468,49 +468,29 @@ export default function ApplicationClientForm({ locale, initialStep, initialData
                 <ErrorMessage field="yearsOfExperience" />
               </div>
               <div>
-                <label className="block text-[11px] font-bold text-neutral-450 uppercase tracking-widest mb-2" htmlFor="practiceType">
-                  Practice Type <span className="text-[#bfa37a] font-bold">*</span>
+                <label className="block text-[11px] font-bold text-neutral-455 uppercase tracking-widest mb-2" htmlFor="courts">
+                  Courts Practice In <span className="text-[#bfa37a] font-bold">*</span>
                 </label>
                 <select
-                  id="practiceType"
-                  value={formData.step2?.practiceType || ''}
+                  id="courts"
+                  value={formData.step2?.courts || ''}
                   onChange={(e) => {
-                    setFormData({ ...formData, step2: { ...formData.step2, practiceType: e.target.value } });
-                    clearFieldError('practiceType');
+                    setFormData({ ...formData, step2: { ...formData.step2, courts: e.target.value } });
+                    clearFieldError('courts');
                   }}
-                  className={inputClass('practiceType')}
-                  aria-invalid={!!fieldErrors.practiceType}
+                  className={inputClass('courts')}
+                  aria-invalid={!!fieldErrors.courts}
                 >
-                  <option value="">Select Type</option>
-                  <option value="Independent">Independent Attorney</option>
-                  <option value="Law Firm">Law Firm Partner/Associate</option>
+                  <option value="">Select Courts</option>
+                  {COURT_OPTIONS.map((c) => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
                 </select>
-                <ErrorMessage field="practiceType" />
+                <ErrorMessage field="courts" />
               </div>
             </div>
 
-            {/* Courts */}
-            <div>
-              <label className="block text-[11px] font-bold text-neutral-455 uppercase tracking-widest mb-2" htmlFor="courts">
-                Courts Practice In <span className="text-[#bfa37a] font-bold">*</span>
-              </label>
-              <select
-                id="courts"
-                value={formData.step2?.courts || ''}
-                onChange={(e) => {
-                  setFormData({ ...formData, step2: { ...formData.step2, courts: e.target.value } });
-                  clearFieldError('courts');
-                }}
-                className={inputClass('courts')}
-                aria-invalid={!!fieldErrors.courts}
-              >
-                <option value="">Select Courts</option>
-                {COURT_OPTIONS.map((c) => (
-                  <option key={c} value={c}>{c}</option>
-                ))}
-              </select>
-              <ErrorMessage field="courts" />
-            </div>
+            
 
             {/* Notary */}
             <div className="flex items-center gap-3 bg-white p-4 border border-[#efeae0]">
@@ -568,23 +548,7 @@ export default function ApplicationClientForm({ locale, initialStep, initialData
               <div className="w-full h-px bg-[#efeae0] my-10" />
             </div>
 
-            {/* Fee Range */}
-            <div>
-              <label className="block text-[11px] font-bold text-neutral-455 uppercase tracking-widest mb-2" htmlFor="baseFeeRange">Consultation Fee Base (Optional)</label>
-              <input
-                id="baseFeeRange"
-                type="text"
-                placeholder="e.g. 5,000 LKR / hr"
-                maxLength={50}
-                value={formData.step3?.baseFeeRange || ''}
-                onChange={(e) => {
-                  setFormData({ ...formData, step3: { ...formData.step3, baseFeeRange: e.target.value } });
-                  clearFieldError('baseFeeRange');
-                }}
-                className={inputClass('baseFeeRange')}
-              />
-              <ErrorMessage field="baseFeeRange" />
-            </div>
+
 
             <div className="flex gap-4 mt-6">
               <button type="button" onClick={() => handleSaveDraft(2)} disabled={loading} className="w-1/3 h-14 border border-[#efeae0] text-neutral-500 hover:bg-[#faf8f6] rounded-none font-bold uppercase tracking-widest text-xs transition-colors disabled:opacity-75">Back</button>

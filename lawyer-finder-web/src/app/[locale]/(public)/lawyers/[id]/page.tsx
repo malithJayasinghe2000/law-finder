@@ -30,6 +30,7 @@ export default async function LawyerProfilePage({
         include: { plan: true, role: true },
         take: 1,
       },
+      consultationPricing: true,
     },
   });
 
@@ -64,6 +65,12 @@ export default async function LawyerProfilePage({
       billingCycle: lawyer.Subscription[0].billingCycle,
       startDate: lawyer.Subscription[0].startDate.toISOString(),
       nextBilling: lawyer.Subscription[0].nextBilling.toISOString(),
+    } : null,
+    consultationPricing: lawyer.consultationPricing ? {
+      pricingType: lawyer.consultationPricing.pricingType,
+      physicalPrice: lawyer.consultationPricing.physicalPrice,
+      onlinePrice: lawyer.consultationPricing.onlinePrice,
+      currency: lawyer.consultationPricing.currency,
     } : null,
   };
 

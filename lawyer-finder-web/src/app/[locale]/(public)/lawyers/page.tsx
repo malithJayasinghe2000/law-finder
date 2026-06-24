@@ -4,11 +4,14 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import Link from 'next/link';
-import { Search, MapPin, Languages, ShieldCheck, Briefcase } from 'lucide-react';
+import { Search, MapPin, Languages, ShieldCheck, Briefcase, ChevronLeft, ChevronRight } from 'lucide-react';
 import { SponsoredListing, AdBanner } from '@/components/ads/AdComponents';
 import LawyerCard from '@/components/lawyer/LawyerCard';
+import LawyerFilterForm from './LawyerFilterForm';
 
 export const metadata = { title: 'Lawyer Directory' };
+
+const PAGE_SIZE = 12;
 
 export default async function LawyerDirectory({
   params,
@@ -20,22 +23,50 @@ export default async function LawyerDirectory({
   const { locale } = await params;
   const filters = await searchParams;
 
+  // --- Build Prisma where clause ---
   const where: Record<string, unknown> = { isVerified: true };
   if (filters.district) where.district = filters.district;
   if (filters.practiceArea) where.practiceAreas = { has: filters.practiceArea };
   if (filters.language) where.languages = { has: filters.language };
   if (filters.search) {
+    const searchTerm = filters.search.trim();
     where.OR = [
-      { fullName: { contains: filters.search, mode: 'insensitive' } },
-      { bio: { contains: filters.search, mode: 'insensitive' } },
+      { fullName: { contains: searchTerm, mode: 'insensitive' } },
+      { bio: { contains: searchTerm, mode: 'insensitive' } },
+      { district: { contains: searchTerm, mode: 'insensitive' } },
+      { practiceAreas: { has: searchTerm } },
     ];
   }
 
-  const lawyers = await prisma.lawyerProfile.findMany({
-    where,
-    include: { reviews: { where: { isApproved: true } } },
-    orderBy: { fullName: 'asc' },
-  });
+  // --- Pagination ---
+  const currentPage = Math.max(1, parseInt(filters.page || '1', 10) || 1);
+  const skip = (currentPage - 1) * PAGE_SIZE;
+
+  const [lawyers, totalCount] = await Promise.all([
+    prisma.lawyerProfile.findMany({
+      where,
+      include: { reviews: { where: { isApproved: true } } },
+      orderBy: { fullName: 'asc' },
+      skip,
+      take: PAGE_SIZE,
+    }),
+    prisma.lawyerProfile.count({ where }),
+  ]);
+
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+  const hasFilters = !!(filters.search || filters.district || filters.practiceArea || filters.language);
+
+  // --- Build pagination URL helper ---
+  function buildPageUrl(page: number) {
+    const params = new URLSearchParams();
+    if (filters.search) params.set('search', filters.search);
+    if (filters.district) params.set('district', filters.district);
+    if (filters.practiceArea) params.set('practiceArea', filters.practiceArea);
+    if (filters.language) params.set('language', filters.language);
+    if (page > 1) params.set('page', String(page));
+    const qs = params.toString();
+    return `/${locale}/lawyers${qs ? `?${qs}` : ''}`;
+  }
 
   return (
     <div className="py-8 sm:py-9">
@@ -48,52 +79,18 @@ export default async function LawyerDirectory({
           </p>
         </div>
 
-        {/* Search + Filters */}
-        <form className="mb-10">
-          <div className="flex flex-col gap-3 sm:flex-row">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                name="search"
-                placeholder="Search by name or specialty..."
-                defaultValue={filters.search || ''}
-                className="pl-10 h-9"
-              />
-            </div>
-            <select
-              name="district"
-              defaultValue={filters.district || ''}
-              className="h-9 rounded-md border border-input bg-background px-3 text-sm ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2 outline-none"
-            >
-              <option value="">All Districts</option>
-              {['Colombo', 'Gampaha', 'Kalutara', 'Kandy', 'Matale', 'Nuwara Eliya', 'Galle', 'Matara', 'Hambantota', 'Jaffna', 'Kilinochchi', 'Mannar', 'Vavuniya', 'Mullaitivu', 'Batticaloa', 'Ampara', 'Trincomalee', 'Kurunegala', 'Puttalam', 'Anuradhapura', 'Polonnaruwa', 'Badulla', 'Monaragala', 'Ratnapura', 'Kegalle'].map((d) => (
-                <option key={d} value={d}>{d}</option>
-              ))}
-            </select>
-            <select
-              name="practiceArea"
-              defaultValue={filters.practiceArea || ''}
-              className="h-9 rounded-md border border-input bg-background px-3 text-sm ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2 outline-none"
-            >
-              <option value="">All Practice Areas</option>
-              {['Criminal Law', 'Family Law', 'Property Law', 'Labor Law', 'Corporate Law', 'Civil Law', 'Constitutional Law', 'Tax Law', 'Immigration Law', 'Environmental Law', 'Intellectual Property', 'Human Rights'].map((p) => (
-                <option key={p} value={p}>{p}</option>
-              ))}
-            </select>
-            <button type="submit" className="h-9 px-5 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors">
-              Filter
-            </button>
-            <button type="reset" className="h-9 px-5 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors">
-              Clear
-            </button>
-          </div>
-        </form>
+        <LawyerFilterForm locale={locale} filters={filters} />
 
         <Separator className="mb-8" />
 
         {/* Results count */}
         <p className="mb-6 text-sm text-muted-foreground">
-          {lawyers.length} verified {lawyers.length === 1 ? 'lawyer' : 'lawyers'} found
+          {totalCount} verified {totalCount === 1 ? 'lawyer' : 'lawyers'} found
+          {hasFilters && (
+            <span className="text-xs text-neutral-400 ml-2">
+              (Showing page {currentPage} of {totalPages})
+            </span>
+          )}
         </p>
 
         {/* Grid */}
@@ -111,8 +108,10 @@ export default async function LawyerDirectory({
           </Card>
         ) : (
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {/* Sponsored Listings at the top */}
-            <SponsoredListing placement="DIRECTORY_INLINE" locale={locale} imageHeight="h-[280px]" />
+            {/* Sponsored Listings at the top (only on page 1) */}
+            {currentPage === 1 && (
+              <SponsoredListing placement="DIRECTORY_INLINE" locale={locale} imageHeight="h-[280px]" />
+            )}
 
             {lawyers.map((lawyer) => {
               const avgRating =
@@ -137,6 +136,75 @@ export default async function LawyerDirectory({
               );
             })}
           </div>
+        )}
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <nav className="flex items-center justify-center gap-2 mt-12 pt-8 border-t border-neutral-100" aria-label="Pagination">
+            {/* Previous */}
+            {currentPage > 1 ? (
+              <Link
+                href={buildPageUrl(currentPage - 1)}
+                className="inline-flex items-center gap-1 h-9 px-4 rounded-md border border-input bg-background text-sm font-medium hover:bg-muted transition-colors"
+              >
+                <ChevronLeft className="h-4 w-4" /> Previous
+              </Link>
+            ) : (
+              <span className="inline-flex items-center gap-1 h-9 px-4 rounded-md border border-input bg-muted/50 text-sm font-medium text-muted-foreground cursor-not-allowed">
+                <ChevronLeft className="h-4 w-4" /> Previous
+              </span>
+            )}
+
+            {/* Page numbers */}
+            <div className="flex items-center gap-1">
+              {Array.from({ length: totalPages }, (_, i) => i + 1)
+                .filter((page) => {
+                  // Show: first, last, current, and ±1 neighbors
+                  if (page === 1 || page === totalPages) return true;
+                  if (Math.abs(page - currentPage) <= 1) return true;
+                  return false;
+                })
+                .reduce<(number | 'ellipsis')[]>((acc, page, idx, arr) => {
+                  if (idx > 0) {
+                    const prev = arr[idx - 1];
+                    if (page - prev > 1) acc.push('ellipsis');
+                  }
+                  acc.push(page);
+                  return acc;
+                }, [])
+                .map((item, idx) =>
+                  item === 'ellipsis' ? (
+                    <span key={`ellipsis-${idx}`} className="px-2 text-sm text-muted-foreground">…</span>
+                  ) : (
+                    <Link
+                      key={item}
+                      href={buildPageUrl(item)}
+                      className={`h-9 w-9 rounded-md inline-flex items-center justify-center text-sm font-medium transition-colors ${
+                        item === currentPage
+                          ? 'bg-primary text-primary-foreground'
+                          : 'border border-input bg-background hover:bg-muted'
+                      }`}
+                    >
+                      {item}
+                    </Link>
+                  )
+                )}
+            </div>
+
+            {/* Next */}
+            {currentPage < totalPages ? (
+              <Link
+                href={buildPageUrl(currentPage + 1)}
+                className="inline-flex items-center gap-1 h-9 px-4 rounded-md border border-input bg-background text-sm font-medium hover:bg-muted transition-colors"
+              >
+                Next <ChevronRight className="h-4 w-4" />
+              </Link>
+            ) : (
+              <span className="inline-flex items-center gap-1 h-9 px-4 rounded-md border border-input bg-muted/50 text-sm font-medium text-muted-foreground cursor-not-allowed">
+                Next <ChevronRight className="h-4 w-4" />
+              </span>
+            )}
+          </nav>
         )}
       </div>
     </div>
