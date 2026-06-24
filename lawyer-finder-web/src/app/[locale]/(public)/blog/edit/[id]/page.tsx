@@ -343,7 +343,7 @@ export default function EditPostPage() {
               Last saved: {new Date().toLocaleTimeString()}
             </p>
             <div className="flex gap-3">
-               <Link href={`/${locale}/blog/${slug || 'my-posts'}`}>
+               <Link href={slug ? `/${locale}/blog/${slug}` : `/${locale}/dashboard/blog/my-posts`}>
                 <Button variant="outline">Cancel</Button>
                </Link>
                {currentStatus === 'DRAFT' && (

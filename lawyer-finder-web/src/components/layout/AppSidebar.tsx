@@ -3,7 +3,7 @@
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { Sidebar, SidebarContent, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarGroup, SidebarGroupLabel, SidebarFooter, SidebarMenuSub, SidebarMenuSubItem, SidebarMenuSubButton } from '@/components/ui/sidebar';
-import { LayoutDashboard, Users, FileText, Settings, Star, ShieldCheck, LogOut, Megaphone, Image, ShieldPlus, ChevronDown, History, CreditCard, MessageCircle, Globe, PenSquare, Flag, CalendarDays, DollarSign, Banknote } from 'lucide-react';
+import { LayoutDashboard, Users, FileText, Settings, Star, ShieldCheck, LogOut, Megaphone, Image, ShieldPlus, ChevronDown, History, CreditCard, MessageCircle, Globe, PenSquare, Flag, CalendarDays, DollarSign, Banknote, BookOpen } from 'lucide-react';
 import ChatBadge from '@/components/chat/ChatBadge';
 import { toast } from 'sonner';
 import React, { useState } from 'react';
@@ -22,6 +22,7 @@ export function AppSidebar({ locale, role, userId }: { locale: string; role: str
     { href: `/${locale}/dashboard/admin/reviews`, icon: Star, label: 'Reviews' },
     { href: `/${locale}/dashboard/admin/communities`, icon: Globe, label: 'Communities' },
     { href: `/${locale}/dashboard/admin/content-moderation`, icon: Flag, label: 'Content Moderation' },
+    { href: `/${locale}/dashboard/admin/legal-documents`, icon: BookOpen, label: 'Legal Documents' },
     {
       href: `/${locale}/dashboard/admin/consultations`,
       icon: CalendarDays,
@@ -37,7 +38,7 @@ export function AppSidebar({ locale, role, userId }: { locale: string; role: str
   ];
 
   const lawyerLinks = [
-    { href: `/${locale}/dashboard/lawyer`, icon: LayoutDashboard, label: 'Overview' },
+    { href: `/${locale}/dashboard/lawyer`, icon: LayoutDashboard, label: 'Dashboard' },
     {
       href: `/${locale}/dashboard/lawyer/consultations`,
       icon: CalendarDays,
@@ -60,15 +61,15 @@ export function AppSidebar({ locale, role, userId }: { locale: string; role: str
         { href: `/${locale}/dashboard/lawyer/payments/history`, icon: History, label: 'Payment History' },
       ]
     },
-    { href: `/${locale}/blog/my-posts`, icon: PenSquare, label: 'Community Posts' },
-    { href: `/${locale}/profile`, icon: Settings, label: 'Profile Settings' },
+    { href: `/${locale}/dashboard/blog/my-posts`, icon: PenSquare, label: 'Community Posts' },
+    { href: `/${locale}/dashboard/profile`, icon: Settings, label: 'Profile Settings' },
   ];
 
   const clientLinks = [
-    { href: `/${locale}/dashboard/client`, icon: LayoutDashboard, label: 'Overview', exact: true },
+    { href: `/${locale}/dashboard/client`, icon: LayoutDashboard, label: 'Dashboard', exact: true },
     { href: `/${locale}/dashboard/client/consultations`, icon: CalendarDays, label: 'My Consultations' },
-    { href: `/${locale}/blog/my-posts`, icon: PenSquare, label: 'Community Posts' },
-    { href: `/${locale}/profile`, icon: Settings, label: 'Profile Settings' },
+    { href: `/${locale}/dashboard/blog/my-posts`, icon: PenSquare, label: 'Community Posts' },
+    { href: `/${locale}/dashboard/profile`, icon: Settings, label: 'Profile Settings' },
   ];
 
   const links = role === 'ADMIN' ? adminLinks : (role === 'LAWYER' ? lawyerLinks : clientLinks);

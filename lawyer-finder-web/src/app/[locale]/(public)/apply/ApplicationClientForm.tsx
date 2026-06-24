@@ -3,7 +3,7 @@
 import { useState, useRef, useCallback } from 'react';
 import { toast } from 'sonner';
 import { Scale, Camera as CameraIcon } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+
 import {
   applicationStep1Schema,
   applicationStep2Schema,
@@ -204,10 +204,10 @@ export default function ApplicationClientForm({ locale, initialStep, initialData
   // ── Shared styles ──────────────────────────────────────────────────────────
 
   const inputClass = (field: string) =>
-    `w-full bg-neutral-50 border p-4 rounded-none outline-none focus:ring-0 transition-all font-medium text-[#0a0a0a] ${
+    `w-full bg-white border p-4 rounded-none outline-none focus:ring-0 transition-all font-light text-[#0a0a0a] placeholder:text-neutral-300 ${
       fieldErrors[field]
-        ? 'border-red-400 focus:border-red-500 bg-red-50/30'
-        : 'border-neutral-200 focus:border-[#0a0a0a]'
+        ? 'border-red-300 focus:border-red-400 bg-red-50/10'
+        : 'border-[#efeae0] focus:border-[#bfa37a] focus:bg-[#faf8f6]/30'
     }`;
 
   const ErrorMessage = ({ field }: { field: string }) => {
@@ -224,20 +224,22 @@ export default function ApplicationClientForm({ locale, initialStep, initialData
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className="bg-white rounded-none shadow-md border border-neutral-200 p-8 sm:p-12 transition-all">
+    <div className="bg-[#faf8f6]/50 rounded-none border border-[#efeae0] p-8 sm:p-12 transition-all">
       <div className="mb-10 text-center">
-        <h1 className="text-[28px] font-semibold text-[#0a0a0a] tracking-tight">Attorney Application</h1>
-        <p className="text-neutral-500 mt-1 font-light">BASL Verified professionals only.</p>
+        <h1 className="text-3xl sm:text-4xl font-serif text-neutral-900 mb-2">
+          Attorney Application
+        </h1>
+        <p className="text-xs uppercase font-bold tracking-widest text-[#bfa37a] mt-2">BASL Verified professionals only</p>
       </div>
 
       {/* Progress visualizer block */}
-      <div className="flex items-center justify-between mb-12 relative before:absolute before:inset-0 before:top-1/2 before:-translate-y-1/2 before:h-[2px] before:bg-neutral-100 before:z-0">
+      <div className="flex items-center justify-between mb-12 relative before:absolute before:inset-0 before:top-1/2 before:-translate-y-1/2 before:h-[1px] before:bg-[#efeae0] before:z-0">
         {[{ s: 1, label: 'Profile' },
         { s: 2, label: 'Credentials' },
         { s: 3, label: 'Specializations' },
         { s: 4, label: 'Verification' }].map(i => (
-          <div key={i.s} className={`relative z-10 flex flex-col items-center gap-3 transition-colors ${step >= i.s ? 'text-[#0a0a0a]' : 'text-neutral-400'}`}>
-            <div className={`w-10 h-10 rounded-none flex items-center justify-center font-bold border-4 border-white transition-all duration-300 ${step >= i.s ? 'bg-[#0a0a0a] text-white scale-110' : 'bg-neutral-200 text-neutral-500'}`}>
+          <div key={i.s} className={`relative z-10 flex flex-col items-center gap-3 transition-colors ${step >= i.s ? 'text-[#bfa37a]' : 'text-neutral-400'}`}>
+            <div className={`w-10 h-10 rounded-none flex items-center justify-center font-bold border-2 transition-all duration-300 ${step >= i.s ? 'bg-[#bfa37a] text-white border-[#bfa37a] scale-110 shadow-sm' : 'bg-white text-neutral-400 border-[#efeae0]'}`}>
               {i.s}
             </div>
           </div>
@@ -248,12 +250,12 @@ export default function ApplicationClientForm({ locale, initialStep, initialData
       <div className="min-h-[350px]">
         {step === 1 && (
           <div className="animate-in fade-in zoom-in-95 duration-500 flex flex-col gap-5">
-            <h2 className="text-xl font-semibold tracking-tight uppercase text-neutral-800">1. Basic Profile & Contact</h2>
+            <h2 className="text-lg font-serif font-bold tracking-tight text-neutral-900 uppercase">1. Basic Profile & Contact</h2>
 
             {/* Full Name */}
             <div>
-              <label className="block text-[13px] font-semibold mb-2 text-neutral-900 uppercase" htmlFor="fullName">
-                Full Name (As Registered) <span className="text-red-500">*</span>
+              <label className="block text-[11px] font-bold text-neutral-450 uppercase tracking-widest mb-2" htmlFor="fullName">
+                Full Name (As Registered) <span className="text-[#bfa37a] font-bold">*</span>
               </label>
               <input
                 id="fullName"
@@ -274,8 +276,8 @@ export default function ApplicationClientForm({ locale, initialStep, initialData
             {/* Phone + Gender */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-[13px] font-semibold mb-2 text-neutral-900 uppercase" htmlFor="phone">
-                  Mobile Number <span className="text-red-500">*</span>
+                <label className="block text-[11px] font-bold text-neutral-450 uppercase tracking-widest mb-2" htmlFor="phone">
+                  Mobile Number <span className="text-[#bfa37a] font-bold">*</span>
                 </label>
                 <input
                   id="phone"
@@ -293,7 +295,7 @@ export default function ApplicationClientForm({ locale, initialStep, initialData
                 <ErrorMessage field="phone" />
               </div>
               <div>
-                <label className="block text-[13px] font-semibold mb-2 text-neutral-900 uppercase" htmlFor="gender">Gender (Optional)</label>
+                <label className="block text-[11px] font-bold text-neutral-455 uppercase tracking-widest mb-2" htmlFor="gender">Gender (Optional)</label>
                 <select
                   id="gender"
                   value={formData.step1?.gender || ''}
@@ -314,8 +316,8 @@ export default function ApplicationClientForm({ locale, initialStep, initialData
             {/* Languages */}
             <div className="grid grid-cols-1 gap-4">
               <div>
-                <label className="block text-[11px] font-bold mb-4 text-neutral-900 uppercase tracking-widest font-sans">
-                  Languages <span className="text-red-500">*</span>
+                <label className="block text-[11px] font-bold text-neutral-450 uppercase tracking-widest mb-2">
+                  Languages <span className="text-[#bfa37a] font-bold">*</span>
                 </label>
                 <div className="flex flex-wrap gap-2">
                   {(LANGUAGES as readonly string[]).map((lang) => (
@@ -330,9 +332,9 @@ export default function ApplicationClientForm({ locale, initialStep, initialData
                         setFormData({ ...formData, step1: { ...formData.step1, languages: next } });
                         clearFieldError('languages');
                       }}
-                      className={`px-6 py-3 text-sm font-medium transition-all duration-200 border-none rounded-none shadow-none focus:outline-none ${(formData.step1.languages || []).includes(lang)
-                          ? 'bg-[#0a0a0a] text-white'
-                          : 'bg-neutral-100 text-neutral-500 hover:bg-neutral-200'
+                      className={`px-6 py-3 text-xs font-bold uppercase tracking-widest transition-all duration-200 border rounded-none shadow-none focus:outline-none ${(formData.step1.languages || []).includes(lang)
+                          ? 'bg-[#bfa37a] text-white border-[#bfa37a]'
+                          : 'bg-transparent text-neutral-500 border-[#efeae0] hover:bg-[#faf8f6]'
                         }`}
                     >
                       {lang}
@@ -344,8 +346,8 @@ export default function ApplicationClientForm({ locale, initialStep, initialData
 
               {/* District */}
               <div className="mt-2">
-                <label className="block text-[11px] font-bold mb-2 text-neutral-900 uppercase tracking-widest font-sans" htmlFor="district">
-                  District / Service Area <span className="text-red-500">*</span>
+                <label className="block text-[11px] font-bold text-neutral-450 uppercase tracking-widest mb-2" htmlFor="district">
+                  District / Service Area <span className="text-[#bfa37a] font-bold">*</span>
                 </label>
                 <select
                   id="district"
@@ -368,8 +370,8 @@ export default function ApplicationClientForm({ locale, initialStep, initialData
 
             {/* Address */}
             <div>
-              <label className="block text-[13px] font-semibold mb-2 text-neutral-900 uppercase" htmlFor="address">
-                Office / Physical Address (Legally Required) <span className="text-red-500">*</span>
+              <label className="block text-[11px] font-bold text-neutral-450 uppercase tracking-widest mb-2" htmlFor="address">
+                Office / Physical Address (Legally Required) <span className="text-[#bfa37a] font-bold">*</span>
               </label>
               <input
                 id="address"
@@ -388,7 +390,7 @@ export default function ApplicationClientForm({ locale, initialStep, initialData
 
             {/* Bio */}
             <div>
-              <label className="block text-[13px] font-semibold mb-2 text-neutral-900 uppercase" htmlFor="bio">Short Bio / Description</label>
+              <label className="block text-[11px] font-bold text-neutral-455 uppercase tracking-widest mb-2" htmlFor="bio">Short Bio / Description</label>
               <textarea
                 id="bio"
                 placeholder="Brief summary of your legal profile..."
@@ -408,18 +410,25 @@ export default function ApplicationClientForm({ locale, initialStep, initialData
               </div>
             </div>
 
-            <Button onClick={() => handleSaveDraft(2)} disabled={loading} className="w-full h-14 text-sm font-semibold mt-4 bg-[#0a0a0a] hover:bg-neutral-800 rounded-none uppercase tracking-wide">Save & Continue</Button>
+            <button
+              type="button"
+              onClick={() => handleSaveDraft(2)}
+              disabled={loading}
+              className="w-full h-14 text-xs font-bold uppercase tracking-widest text-white mt-4 bg-[#bfa37a] hover:bg-[#a68d67] rounded-none transition-colors disabled:opacity-75"
+            >
+              Save & Continue
+            </button>
           </div>
         )}
 
         {step === 2 && (
           <div className="animate-in fade-in zoom-in-95 duration-500 flex flex-col gap-5">
-            <h2 className="text-xl font-semibold tracking-tight uppercase text-neutral-800">2. Professional Credentials</h2>
+            <h2 className="text-lg font-serif font-bold tracking-tight text-neutral-900 uppercase">2. Professional Credentials</h2>
 
             {/* BASL Number */}
             <div>
-              <label className="block text-[13px] font-semibold mb-2 text-neutral-900 uppercase" htmlFor="baslNumber">
-                BASL Registration / License <span className="text-red-500">*</span>
+              <label className="block text-[11px] font-bold text-neutral-450 uppercase tracking-widest mb-2" htmlFor="baslNumber">
+                BASL Registration / License <span className="text-[#bfa37a] font-bold">*</span>
               </label>
               <input
                 id="baslNumber"
@@ -439,8 +448,8 @@ export default function ApplicationClientForm({ locale, initialStep, initialData
             {/* Years of Experience + Practice Type */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-[13px] font-semibold mb-2 text-neutral-900 uppercase" htmlFor="yearsOfExperience">
-                  Years of Experience <span className="text-red-500">*</span>
+                <label className="block text-[11px] font-bold text-neutral-450 uppercase tracking-widest mb-2" htmlFor="yearsOfExperience">
+                  Years of Experience <span className="text-[#bfa37a] font-bold">*</span>
                 </label>
                 <input
                   id="yearsOfExperience"
@@ -459,8 +468,8 @@ export default function ApplicationClientForm({ locale, initialStep, initialData
                 <ErrorMessage field="yearsOfExperience" />
               </div>
               <div>
-                <label className="block text-[13px] font-semibold mb-2 text-neutral-900 uppercase" htmlFor="practiceType">
-                  Practice Type <span className="text-red-500">*</span>
+                <label className="block text-[11px] font-bold text-neutral-450 uppercase tracking-widest mb-2" htmlFor="practiceType">
+                  Practice Type <span className="text-[#bfa37a] font-bold">*</span>
                 </label>
                 <select
                   id="practiceType"
@@ -482,8 +491,8 @@ export default function ApplicationClientForm({ locale, initialStep, initialData
 
             {/* Courts */}
             <div>
-              <label className="block text-[13px] font-semibold mb-2 text-neutral-900 uppercase" htmlFor="courts">
-                Courts Practice In <span className="text-red-500">*</span>
+              <label className="block text-[11px] font-bold text-neutral-455 uppercase tracking-widest mb-2" htmlFor="courts">
+                Courts Practice In <span className="text-[#bfa37a] font-bold">*</span>
               </label>
               <select
                 id="courts"
@@ -504,26 +513,26 @@ export default function ApplicationClientForm({ locale, initialStep, initialData
             </div>
 
             {/* Notary */}
-            <div className="flex items-center gap-3 bg-neutral-50 p-4 border border-neutral-200">
-              <input type="checkbox" checked={formData.step2?.isNotary} onChange={(e) => setFormData({ ...formData, step2: { ...formData.step2, isNotary: e.target.checked } })} className="w-5 h-5 accent-[#0a0a0a]" id="isNotary" />
-              <label htmlFor="isNotary" className="text-[13px] font-bold text-neutral-900 uppercase cursor-pointer">I am a sworn Notary Public</label>
+            <div className="flex items-center gap-3 bg-white p-4 border border-[#efeae0]">
+              <input type="checkbox" checked={formData.step2?.isNotary} onChange={(e) => setFormData({ ...formData, step2: { ...formData.step2, isNotary: e.target.checked } })} className="w-4 h-4 accent-[#bfa37a]" id="isNotary" />
+              <label htmlFor="isNotary" className="text-[11px] font-bold text-neutral-450 uppercase tracking-widest cursor-pointer">I am a sworn Notary Public</label>
             </div>
 
             <div className="flex gap-4 mt-6">
-              <Button onClick={() => handleSaveDraft(1)} variant="outline" disabled={loading} className="w-1/3 h-14 rounded-none font-semibold uppercase tracking-wide border-neutral-300">Back</Button>
-              <Button onClick={() => handleSaveDraft(3)} disabled={loading} className="w-2/3 h-14 text-sm font-semibold bg-[#0a0a0a] hover:bg-neutral-800 rounded-none uppercase tracking-wide">Save & Continue</Button>
+              <button type="button" onClick={() => handleSaveDraft(1)} disabled={loading} className="w-1/3 h-14 border border-[#efeae0] text-neutral-500 hover:bg-[#faf8f6] rounded-none font-bold uppercase tracking-widest text-xs transition-colors disabled:opacity-75">Back</button>
+              <button type="button" onClick={() => handleSaveDraft(3)} disabled={loading} className="w-2/3 h-14 bg-[#bfa37a] text-white hover:bg-[#a68d67] rounded-none font-bold uppercase tracking-widest text-xs transition-colors disabled:opacity-75">Save & Continue</button>
             </div>
           </div>
         )}
 
         {step === 3 && (
           <div className="animate-in fade-in zoom-in-95 duration-500 flex flex-col gap-6">
-            <h2 className="text-xl font-semibold tracking-tight uppercase text-neutral-800">3. Specializations Data</h2>
+            <h2 className="text-lg font-serif font-bold tracking-tight text-neutral-900 uppercase">3. Specializations Data</h2>
 
             {/* Practice Areas */}
             <div>
-              <label className="block text-[11px] font-bold mb-6 text-neutral-900 uppercase tracking-[0.2em] font-sans">
-                Practice Areas <span className="text-red-500">*</span>
+              <label className="block text-[11px] font-bold text-neutral-455 uppercase tracking-widest mb-4">
+                Practice Areas <span className="text-[#bfa37a] font-bold">*</span>
                 <span className="ml-2 text-neutral-400 font-normal normal-case tracking-normal">
                   ({(formData.step3.practiceAreas || []).length}/6 selected)
                 </span>
@@ -546,9 +555,9 @@ export default function ApplicationClientForm({ locale, initialStep, initialData
                       setFormData({ ...formData, step3: { ...formData.step3, practiceAreas: next } });
                       clearFieldError('practiceAreas');
                     }}
-                    className={`px-5 py-3 text-sm font-medium transition-all duration-200 border-none rounded-none shadow-none focus:outline-none ${(formData.step3.practiceAreas || []).includes(area)
-                        ? 'bg-[#0a0a0a] text-white'
-                        : 'bg-neutral-50 text-neutral-500 hover:bg-neutral-100'
+                    className={`px-5 py-3 text-xs font-bold uppercase tracking-widest transition-all duration-200 border rounded-none shadow-none focus:outline-none ${(formData.step3.practiceAreas || []).includes(area)
+                        ? 'bg-[#bfa37a] text-white border-[#bfa37a]'
+                        : 'bg-transparent text-neutral-500 border-[#efeae0] hover:bg-[#faf8f6]'
                       }`}
                   >
                     {area}
@@ -556,12 +565,12 @@ export default function ApplicationClientForm({ locale, initialStep, initialData
                 ))}
               </div>
               <ErrorMessage field="practiceAreas" />
-              <div className="w-full h-px bg-neutral-100 my-10" />
+              <div className="w-full h-px bg-[#efeae0] my-10" />
             </div>
 
             {/* Fee Range */}
             <div>
-              <label className="block text-[13px] font-semibold mb-2 text-neutral-900 uppercase" htmlFor="baseFeeRange">Consultation Fee Base (Optional)</label>
+              <label className="block text-[11px] font-bold text-neutral-455 uppercase tracking-widest mb-2" htmlFor="baseFeeRange">Consultation Fee Base (Optional)</label>
               <input
                 id="baseFeeRange"
                 type="text"
@@ -578,46 +587,46 @@ export default function ApplicationClientForm({ locale, initialStep, initialData
             </div>
 
             <div className="flex gap-4 mt-6">
-              <Button onClick={() => handleSaveDraft(2)} variant="outline" disabled={loading} className="w-1/3 h-14 rounded-none font-semibold uppercase tracking-wide border-neutral-300">Back</Button>
-              <Button onClick={() => handleSaveDraft(4)} disabled={loading} className="w-2/3 h-14 text-sm font-semibold bg-[#0a0a0a] hover:bg-neutral-800 rounded-none uppercase tracking-wide">Save Securely</Button>
+              <button type="button" onClick={() => handleSaveDraft(2)} disabled={loading} className="w-1/3 h-14 border border-[#efeae0] text-neutral-500 hover:bg-[#faf8f6] rounded-none font-bold uppercase tracking-widest text-xs transition-colors disabled:opacity-75">Back</button>
+              <button type="button" onClick={() => handleSaveDraft(4)} disabled={loading} className="w-2/3 h-14 bg-[#bfa37a] text-white hover:bg-[#a68d67] rounded-none font-bold uppercase tracking-widest text-xs transition-colors disabled:opacity-75">Save Securely</button>
             </div>
           </div>
         )}
 
         {step === 4 && (
           <div className="animate-in fade-in zoom-in-95 duration-500 flex flex-col gap-6">
-            <h2 className="text-xl font-semibold tracking-tight uppercase text-neutral-800">4. Final Verification</h2>
+            <h2 className="text-lg font-serif font-bold tracking-tight text-neutral-900 uppercase">4. Final Verification</h2>
 
             {/* License Upload */}
-            <div className={`p-6 border bg-neutral-50 flex flex-col gap-4 ${fieldErrors.licenseImage ? 'border-red-400' : 'border-neutral-200'}`}>
+            <div className={`p-6 border bg-white flex flex-col gap-4 ${fieldErrors.licenseImage ? 'border-red-300' : 'border-[#efeae0]'}`}>
               <div>
-                <h3 className="font-semibold text-sm uppercase mb-1 flex items-center gap-2"><Scale className="w-4 h-4" /> Attorney License Document <span className="text-red-500">*</span></h3>
-                <p className="text-xs text-neutral-600 mb-3">Upload a clean image or PDF scan of your verified License certificate. Max 5 MB.</p>
-                <input type="file" accept="image/*,application/pdf" onChange={handleLicenseUpload} className="text-sm file:mr-4 file:py-2 file:px-4 file:rounded-none file:border-0 file:text-sm file:font-semibold file:bg-[#0a0a0a] file:text-white hover:file:bg-neutral-800 transition-all cursor-pointer" />
-                {formData.step4?.licenseImage && <span className="ml-3 text-xs font-bold text-green-700">✓ Attached</span>}
+                <h3 className="font-bold text-[11px] tracking-widest text-neutral-455 uppercase mb-2 flex items-center gap-2"><Scale className="w-4 h-4 text-[#bfa37a]" /> Attorney License Document <span className="text-[#bfa37a]">*</span></h3>
+                <p className="text-xs text-neutral-500 mb-4 font-light">Upload a clean image or PDF scan of your verified License certificate. Max 5 MB.</p>
+                <input type="file" accept="image/*,application/pdf" onChange={handleLicenseUpload} className="text-xs file:mr-4 file:py-2.5 file:px-5 file:rounded-none file:border-0 file:text-xs file:font-bold file:uppercase file:tracking-wider file:bg-[#bfa37a] file:text-white hover:file:bg-[#a68d67] transition-all cursor-pointer" />
+                {formData.step4?.licenseImage && <span className="ml-3 text-xs font-bold text-[#bfa37a]">✓ Attached</span>}
               </div>
               <ErrorMessage field="licenseImage" />
             </div>
 
             {/* Face Capture */}
-            <div className={`p-6 border bg-neutral-50 flex flex-col items-center gap-4 text-center ${fieldErrors.identityImage ? 'border-red-400' : 'border-neutral-200'}`}>
+            <div className={`p-6 border bg-white flex flex-col items-center gap-4 text-center ${fieldErrors.identityImage ? 'border-red-300' : 'border-[#efeae0]'}`}>
               <div>
-                <h3 className="font-semibold text-sm uppercase mb-1 flex items-center justify-center gap-2"><CameraIcon className="w-4 h-4" /> Live Identity Verification <span className="text-red-500">*</span></h3>
-                <p className="text-xs text-neutral-600 mb-3">Please grant camera access to match your ID with a live face image.</p>
+                <h3 className="font-bold text-[11px] tracking-widest text-neutral-455 uppercase mb-2 flex items-center justify-center gap-2"><CameraIcon className="w-4 h-4 text-[#bfa37a]" /> Live Identity Verification <span className="text-[#bfa37a]">*</span></h3>
+                <p className="text-xs text-neutral-500 mb-4 font-light">Please grant camera access to match your ID with a live face image.</p>
               </div>
 
               {!stream && !formData.step4?.identityImage && (
-                <Button type="button" onClick={startCamera} variant="outline" className="rounded-none border-[#0a0a0a] text-[#0a0a0a] font-bold h-12 px-6">
+                <button type="button" onClick={startCamera} className="rounded-none border border-[#bfa37a] text-[#bfa37a] hover:bg-[#bfa37a]/5 font-bold uppercase tracking-widest text-xs h-12 px-6 transition-all">
                   Launch Secure Camera
-                </Button>
+                </button>
               )}
 
               {stream && (
                 <div className="flex flex-col items-center gap-4">
                   <video ref={videoRef} autoPlay playsInline muted className="w-64 h-48 bg-black object-cover border-4 border-white shadow-xl" />
                   <div className="flex gap-2">
-                    <Button type="button" onClick={captureFace} className="rounded-none bg-[#0a0a0a] text-white">Capture Match</Button>
-                    <Button type="button" variant="outline" onClick={stopCamera} className="rounded-none">Discard</Button>
+                    <button type="button" onClick={captureFace} className="rounded-none bg-[#bfa37a] hover:bg-[#a68d67] text-white font-bold uppercase tracking-widest text-xs px-6 py-3 transition-colors">Capture Match</button>
+                    <button type="button" onClick={stopCamera} className="rounded-none border border-[#efeae0] text-neutral-500 hover:bg-[#faf8f6] font-bold uppercase tracking-widest text-xs px-6 py-3 transition-colors">Discard</button>
                   </div>
                 </div>
               )}
@@ -625,16 +634,16 @@ export default function ApplicationClientForm({ locale, initialStep, initialData
               {formData.step4?.identityImage && !stream && (
                 <div className="flex flex-col items-center gap-3">
                   <img src={formData.step4.identityImage} alt="Identity Secure Match" className="w-32 h-32 object-cover border-4 border-white shadow-sm" />
-                  <span className="text-xs font-bold text-green-700 uppercase tracking-wide">✓ Authorized Face Match</span>
-                  <button type="button" onClick={() => setFormData((p: any) => ({ ...p, step4: { ...p.step4, identityImage: '' } }))} className="text-xs font-semibold underline text-red-600">Retake</button>
+                  <span className="text-xs font-bold text-[#bfa37a] uppercase tracking-wider">✓ Authorized Face Match</span>
+                  <button type="button" onClick={() => setFormData((p: any) => ({ ...p, step4: { ...p.step4, identityImage: '' } }))} className="text-xs font-semibold underline text-red-500">Retake</button>
                 </div>
               )}
               <ErrorMessage field="identityImage" />
             </div>
 
             <div className="flex gap-4 mt-6">
-              <Button onClick={() => handleSaveDraft(3)} variant="outline" disabled={loading} className="w-1/3 h-14 rounded-none font-semibold uppercase tracking-wide border-neutral-300">Back</Button>
-              <Button onClick={handleSubmitFinal} disabled={loading} className="w-2/3 h-14 text-sm font-semibold bg-[#0a0a0a] hover:bg-neutral-800 text-white rounded-none uppercase tracking-wide">Submit Verification</Button>
+              <button type="button" onClick={() => handleSaveDraft(3)} disabled={loading} className="w-1/3 h-14 border border-[#efeae0] text-neutral-500 hover:bg-[#faf8f6] rounded-none font-bold uppercase tracking-widest text-xs transition-colors disabled:opacity-75">Back</button>
+              <button type="button" onClick={handleSubmitFinal} disabled={loading} className="w-2/3 h-14 bg-[#bfa37a] text-white hover:bg-[#a68d67] rounded-none font-bold uppercase tracking-widest text-xs transition-colors disabled:opacity-75">Submit Verification</button>
             </div>
           </div>
         )}

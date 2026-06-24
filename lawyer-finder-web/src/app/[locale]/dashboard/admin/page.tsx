@@ -70,154 +70,143 @@ export default function AdminDashboard() {
   ];
 
   return (
-    <div className="space-y-8 max-w-7xl mx-auto">
+    <div className="w-full space-y-8">
       {/* Page Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[#efeae0] pb-6">
-        <div className="flex items-center gap-4">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#faf8f6] border border-[#efeae0] text-[#bfa37a]">
-            <LayoutDashboard className="h-5 w-5" />
-          </div>
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight font-serif text-neutral-900">Dashboard</h1>
-            <p className="text-xs font-bold uppercase tracking-widest text-neutral-450 mt-1">Platform overview and analytics</p>
-          </div>
+      <div className="flex items-center gap-4">
+        <div className="flex h-11 w-11 items-center justify-center bg-[#0a0a0a] text-white">
+          <LayoutDashboard className="h-5 w-5" />
+        </div>
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-neutral-900">Dashboard</h1>
+          <p className="text-sm text-neutral-500 font-medium">Platform overview and analytics</p>
         </div>
       </div>
- 
+
       {/* Stats Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {statCards.map((stat) => (
-          <div key={stat.label} className="bg-white border border-[#efeae0] p-6 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.01)] hover:shadow-md transition-all duration-300 flex flex-col justify-between">
-            <div className="flex items-start justify-between mb-4">
-              <div className="w-11 h-11 bg-[#faf8f6] border border-[#efeae0] flex items-center justify-center rounded-xl text-[#bfa37a]">
-                <stat.icon className="h-5 w-5" />
+          <div key={stat.label} className="bg-white border border-neutral-200 p-5 hover:shadow-sm transition-shadow">
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 bg-neutral-100 flex items-center justify-center">
+                  <stat.icon className="h-4 w-4 text-neutral-600" />
+                </div>
               </div>
-              <span className={`text-[9px] font-bold uppercase tracking-wider rounded-full px-2.5 py-0.5 border ${
-                stat.up 
-                  ? 'bg-emerald-50 text-emerald-800 border-emerald-150' 
-                  : 'bg-amber-50 text-amber-800 border-amber-150'
-              }`}>
+              <span className={`text-[11px] font-semibold flex items-center gap-0.5 ${stat.up ? 'text-emerald-600' : 'text-amber-600'}`}>
+                {stat.up ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
                 {stat.trend}
               </span>
             </div>
-            <div>
-              <p className="text-3xl font-extrabold text-neutral-900 tracking-tight font-serif">{stat.value}</p>
-              <p className="text-[10px] text-neutral-450 font-bold uppercase tracking-widest mt-1.5">{stat.label}</p>
+            <div className="mt-3">
+              <p className="text-2xl font-bold text-neutral-900 tracking-tight">{stat.value}</p>
+              <p className="text-[11px] text-neutral-500 font-medium mt-0.5 uppercase tracking-wide">{stat.label}</p>
             </div>
           </div>
         ))}
       </div>
- 
+
       {/* Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Lawyers Monthly Chart */}
-        <div className="bg-white border border-[#efeae0] p-6 rounded-2xl shadow-sm">
-          <div className="mb-6 border-b border-[#efeae0] pb-4">
-            <h3 className="text-base font-bold uppercase tracking-widest text-neutral-800 font-serif">Lawyers Registered</h3>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-neutral-400 mt-1.5">Monthly lawyer registrations (last 12 months)</p>
+        <div className="bg-white border border-neutral-200 p-6">
+          <div className="mb-6">
+            <h3 className="text-sm font-bold text-neutral-900 uppercase tracking-wide">Lawyers Registered</h3>
+            <p className="text-xs text-neutral-500 mt-0.5">Monthly lawyer registrations (last 12 months)</p>
           </div>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={data.monthlyData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f5f0eb" />
-                <XAxis dataKey="month" tick={{ fontSize: 10, fill: '#8c8c8c', fontFamily: 'Outfit' }} stroke="#efeae0" />
-                <YAxis tick={{ fontSize: 10, fill: '#8c8c8c', fontFamily: 'Outfit' }} stroke="#efeae0" allowDecimals={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#999' }} />
+                <YAxis tick={{ fontSize: 11, fill: '#999' }} allowDecimals={false} />
                 <Tooltip
                   contentStyle={{
-                    backgroundColor: '#fff',
-                    border: '1px solid #efeae0',
-                    borderRadius: '12px',
-                    color: '#161616',
-                    fontSize: '11px',
-                    fontFamily: 'Outfit, sans-serif',
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.05)'
+                    backgroundColor: '#0a0a0a',
+                    border: 'none',
+                    borderRadius: '0',
+                    color: '#fff',
+                    fontSize: '12px',
+                    fontWeight: '600'
                   }}
                 />
-                <Bar dataKey="lawyers" fill="#bfa37a" name="Lawyers" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="lawyers" fill="#0a0a0a" name="Lawyers" radius={[0, 0, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
- 
+
         {/* Clients Monthly Chart */}
-        <div className="bg-white border border-[#efeae0] p-6 rounded-2xl shadow-sm">
-          <div className="mb-6 border-b border-[#efeae0] pb-4">
-            <h3 className="text-base font-bold uppercase tracking-widest text-neutral-800 font-serif">Clients Registered</h3>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-neutral-400 mt-1.5">Monthly client registrations (last 12 months)</p>
+        <div className="bg-white border border-neutral-200 p-6">
+          <div className="mb-6">
+            <h3 className="text-sm font-bold text-neutral-900 uppercase tracking-wide">Clients Registered</h3>
+            <p className="text-xs text-neutral-500 mt-0.5">Monthly client registrations (last 12 months)</p>
           </div>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={data.monthlyData}>
-                <defs>
-                  <linearGradient id="colorClients" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#bfa37a" stopOpacity={0.2}/>
-                    <stop offset="95%" stopColor="#bfa37a" stopOpacity={0.0}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f5f0eb" />
-                <XAxis dataKey="month" tick={{ fontSize: 10, fill: '#8c8c8c', fontFamily: 'Outfit' }} stroke="#efeae0" />
-                <YAxis tick={{ fontSize: 10, fill: '#8c8c8c', fontFamily: 'Outfit' }} stroke="#efeae0" allowDecimals={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#999' }} />
+                <YAxis tick={{ fontSize: 11, fill: '#999' }} allowDecimals={false} />
                 <Tooltip
                   contentStyle={{
-                    backgroundColor: '#fff',
-                    border: '1px solid #efeae0',
-                    borderRadius: '12px',
-                    color: '#161616',
-                    fontSize: '11px',
-                    fontFamily: 'Outfit, sans-serif',
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.05)'
+                    backgroundColor: '#0a0a0a',
+                    border: 'none',
+                    borderRadius: '0',
+                    color: '#fff',
+                    fontSize: '12px',
+                    fontWeight: '600'
                   }}
                 />
-                <Area type="monotone" dataKey="clients" stroke="#bfa37a" fill="url(#colorClients)" name="Clients" strokeWidth={2.5} />
+                <Area type="monotone" dataKey="clients" stroke="#0a0a0a" fill="#0a0a0a" fillOpacity={0.08} name="Clients" strokeWidth={2} />
               </AreaChart>
             </ResponsiveContainer>
           </div>
         </div>
       </div>
- 
+
       {/* Quick Summary Cards */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Pending Approvals Summary */}
-        <div className="bg-white border border-[#efeae0] p-6 rounded-2xl shadow-sm">
-          <h3 className="text-base font-bold uppercase tracking-widest text-neutral-800 mb-6 flex items-center gap-2 font-serif border-b border-[#efeae0] pb-4">
-            <Shield className="w-4.5 h-4.5 text-[#bfa37a]" />
+        <div className="bg-white border border-neutral-200 p-6">
+          <h3 className="text-sm font-bold text-neutral-900 uppercase tracking-wide mb-4 flex items-center gap-2">
+            <Shield className="w-4 h-4" />
             Pending Verifications
           </h3>
           {data.pendingLawyers.length === 0 ? (
-            <p className="text-xs text-neutral-400 py-12 text-center font-light">No pending verifications</p>
+            <p className="text-xs text-neutral-500 py-4 text-center">No pending verifications</p>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-2">
               {data.pendingLawyers.slice(0, 3).map((lawyer: any) => (
-                <div key={lawyer.id} className="flex items-center justify-between border border-[#efeae0]/60 p-4 rounded-xl hover:border-[#bfa37a]/30 hover:shadow-md transition-all duration-300">
+                <div key={lawyer.id} className="flex items-center justify-between border border-neutral-100 p-3">
                   <div>
-                    <p className="text-sm font-bold font-serif text-neutral-900">{lawyer.fullName}</p>
-                    <p className="text-[10px] text-neutral-450 uppercase tracking-widest mt-0.5">BASL: {lawyer.baslNumber}</p>
+                    <p className="text-sm font-semibold text-neutral-900">{lawyer.fullName}</p>
+                    <p className="text-[11px] text-neutral-500">{lawyer.baslNumber}</p>
                   </div>
-                  <span className="text-[9px] font-bold bg-amber-50 text-amber-800 border border-amber-200 px-2.5 py-0.5 rounded-full uppercase tracking-wider">PENDING</span>
+                  <span className="text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 px-2 py-1">PENDING</span>
                 </div>
               ))}
               {data.pendingLawyers.length > 3 && (
-                <p className="text-xs text-[#bfa37a] font-semibold text-center pt-2 cursor-pointer hover:underline">+{data.pendingLawyers.length - 3} more records</p>
+                <p className="text-xs text-neutral-500 text-center pt-1">+{data.pendingLawyers.length - 3} more</p>
               )}
             </div>
           )}
         </div>
- 
+
         {/* Pending Reviews Summary */}
-        <div className="bg-white border border-[#efeae0] p-6 rounded-2xl shadow-sm">
-          <h3 className="text-base font-bold uppercase tracking-widest text-neutral-800 mb-6 flex items-center gap-2 font-serif border-b border-[#efeae0] pb-4">
-            <Star className="w-4.5 h-4.5 text-[#bfa37a]" />
+        <div className="bg-white border border-neutral-200 p-6">
+          <h3 className="text-sm font-bold text-neutral-900 uppercase tracking-wide mb-4 flex items-center gap-2">
+            <Star className="w-4 h-4" />
             Pending Reviews
           </h3>
           {data.pendingReviews.length === 0 ? (
-            <p className="text-xs text-neutral-400 py-12 text-center font-light">No pending reviews</p>
+            <p className="text-xs text-neutral-500 py-4 text-center">No pending reviews</p>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-2">
               {data.pendingReviews.slice(0, 3).map((review: any) => (
-                <div key={review.id} className="flex items-center justify-between border border-[#efeae0]/60 p-4 rounded-xl hover:border-[#bfa37a]/30 hover:shadow-md transition-all duration-300">
+                <div key={review.id} className="flex items-center justify-between border border-neutral-100 p-3">
                   <div>
-                    <p className="text-sm font-bold font-serif text-neutral-900">{review.reviewerName}</p>
-                    <p className="text-[10px] text-neutral-450 uppercase tracking-widest mt-0.5">For: {review.lawyer.fullName}</p>
+                    <p className="text-sm font-semibold text-neutral-900">{review.reviewerName}</p>
+                    <p className="text-[11px] text-neutral-500">For: {review.lawyer.fullName}</p>
                   </div>
                   <div className="flex items-center gap-0.5">
                     {Array.from({ length: 5 }).map((_, i) => (
@@ -229,29 +218,29 @@ export default function AdminDashboard() {
             </div>
           )}
         </div>
- 
+
         {/* System Overview */}
-        <div className="bg-[#161616] text-white p-6 rounded-2xl flex flex-col shadow-md">
-          <h3 className="text-base font-bold uppercase tracking-widest mb-6 flex items-center gap-2 font-serif text-white border-b border-neutral-800 pb-4">
-            <TrendingUp className="w-4.5 h-4.5 text-[#bfa37a]" />
+        <div className="bg-[#0a0a0a] text-white p-6">
+          <h3 className="text-sm font-bold uppercase tracking-wide mb-4 flex items-center gap-2">
+            <TrendingUp className="w-4 h-4" />
             System Overview
           </h3>
-          <div className="space-y-4 flex-1 justify-center flex flex-col">
-            <div className="flex items-center justify-between py-3.5 border-b border-neutral-800">
-              <span className="text-[10px] text-neutral-400 uppercase tracking-widest font-bold">Lawyers Registered</span>
-              <span className="text-lg font-bold text-[#bfa37a] font-serif">{data.stats.totalLawyers}</span>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between py-2 border-b border-neutral-800">
+              <span className="text-xs text-neutral-400 uppercase tracking-wide">Lawyers Registered</span>
+              <span className="text-lg font-bold">{data.stats.totalLawyers}</span>
             </div>
-            <div className="flex items-center justify-between py-3.5 border-b border-neutral-800">
-              <span className="text-[10px] text-neutral-400 uppercase tracking-widest font-bold">Active Clients</span>
-              <span className="text-lg font-bold text-[#bfa37a] font-serif">{data.stats.totalClients}</span>
+            <div className="flex items-center justify-between py-2 border-b border-neutral-800">
+              <span className="text-xs text-neutral-400 uppercase tracking-wide">Active Clients</span>
+              <span className="text-lg font-bold">{data.stats.totalClients}</span>
             </div>
-            <div className="flex items-center justify-between py-3.5 border-b border-neutral-800">
-              <span className="text-[10px] text-neutral-400 uppercase tracking-widest font-bold">Total Inquiries</span>
-              <span className="text-lg font-bold text-[#bfa37a] font-serif">{data.stats.totalInquiries}</span>
+            <div className="flex items-center justify-between py-2 border-b border-neutral-800">
+              <span className="text-xs text-neutral-400 uppercase tracking-wide">Total Inquiries</span>
+              <span className="text-lg font-bold">{data.stats.totalInquiries}</span>
             </div>
-            <div className="flex items-center justify-between py-3.5">
-              <span className="text-[10px] text-neutral-400 uppercase tracking-widest font-bold">Articles Published</span>
-              <span className="text-lg font-bold text-[#bfa37a] font-serif">{data.stats.totalArticles}</span>
+            <div className="flex items-center justify-between py-2">
+              <span className="text-xs text-neutral-400 uppercase tracking-wide">Articles Published</span>
+              <span className="text-lg font-bold">{data.stats.totalArticles}</span>
             </div>
           </div>
         </div>

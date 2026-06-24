@@ -11,10 +11,14 @@ load_dotenv()
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
 VECTORDB_DIR = DATA_DIR / "vectordb"
+GRAPH_DIR = DATA_DIR / "graph"
+UPLOADS_DIR = DATA_DIR / "uploads"
 
 # Ensure directories exist
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 VECTORDB_DIR.mkdir(parents=True, exist_ok=True)
+GRAPH_DIR.mkdir(parents=True, exist_ok=True)
+UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 
 
 class Config:
@@ -22,7 +26,7 @@ class Config:
 
     # Ollama
     OLLAMA_BASE_URL: str = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-    LLM_MODEL: str = os.getenv("LLM_MODEL", "gemma4:e2b")
+    LLM_MODEL: str = os.getenv("LLM_MODEL", "qwen3.5:9b")
     EMBEDDING_MODEL: str = os.getenv("EMBEDDING_MODEL", "nomic-embed-text")
 
     # ChromaDB
@@ -45,6 +49,25 @@ class Config:
     LLM_TEMPERATURE: float = 0.1  # Low temperature for factual legal responses
     LLM_TOP_P: float = 0.9
     LLM_NUM_CTX: int = 8192  # Context window size
+
+    # Graph RAG
+    ENABLE_GRAPH_RAG: bool = os.getenv("ENABLE_GRAPH_RAG", "true").lower() == "true"
+    GRAPH_PERSIST_PATH: str = os.getenv("GRAPH_PERSIST_PATH", str(GRAPH_DIR / "knowledge_graph.json"))
+    GRAPH_TRAVERSAL_DEPTH: int = int(os.getenv("GRAPH_TRAVERSAL_DEPTH", "2"))
+    GRAPH_EXPANSION_K: int = int(os.getenv("GRAPH_EXPANSION_K", "3"))
+
+    # Upload directory for admin-uploaded documents
+    UPLOADS_DIR: str = os.getenv("UPLOADS_DIR", str(UPLOADS_DIR))
+
+    # Legal Document Categories
+    DOCUMENT_CATEGORIES = [
+        "Sri Lanka Law Reports",
+        "Acts & Ordinances",
+        "Amendment Acts",
+        "Gazette Notifications",
+        "Supreme Court Decisions",
+        "Court of Appeal Decisions",
+    ]
 
 
 config = Config()

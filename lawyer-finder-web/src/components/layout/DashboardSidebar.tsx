@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Scale, User, Inbox, FileText, LogOut, LayoutDashboard, Shield, Star, Menu } from 'lucide-react';
+import { Scale, User, Inbox, FileText, LogOut, LayoutDashboard, Shield, Star, Menu, BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from '@/components/ui/sheet';
@@ -30,6 +30,7 @@ export default function DashboardSidebar({ role, locale }: DashboardSidebarProps
     { href: `/${locale}/dashboard/admin/lawyers`, label: 'Manage Lawyers', icon: Shield },
     { href: `/${locale}/dashboard/admin/reviews`, label: 'Manage Reviews', icon: Star },
     { href: `/${locale}/dashboard/admin/subscription-conf`, label: 'Subscription Config', icon: Star },
+    { href: `/${locale}/dashboard/admin/legal-documents`, label: 'Legal Documents', icon: BookOpen },
   ];
 
   const links = role === 'ADMIN' ? adminLinks : lawyerLinks;

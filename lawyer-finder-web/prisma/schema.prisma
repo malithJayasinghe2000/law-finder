@@ -809,6 +809,62 @@ model Report {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+// ============= Legal Document Management System =============
+
+enum LegalDocumentCategory {
+  SRI_LANKA_LAW_REPORTS
+  ACTS_AND_ORDINANCES
+  AMENDMENT_ACTS
+  GAZETTE_NOTIFICATIONS
+  SUPREME_COURT_DECISIONS
+  COURT_OF_APPEAL_DECISIONS
+}
+
+enum LegalDocumentStatus {
+  PROCESSING
+  ACTIVE
+  FAILED
+  ARCHIVED
+}
+
+model LegalDocument {
+  id              String                  @id @default(uuid())
+  title           String
+  category        LegalDocumentCategory
+  description     String?
+
+  // Sri Lanka specific metadata
+  actNumber       String?
+  year            Int?
+  courtName       String?
+  caseNumber      String?
+  gazetteNumber   String?
+
+  // File info
+  fileName        String
+  fileSize        Int                     // bytes
+  pageCount       Int?
+
+  // RAG metadata
+  ragDocumentName String?                 // Name in ChromaDB
+  chunksCount     Int                     @default(0)
+  graphEntities   Int                     @default(0)
+
+  // Status
+  status          LegalDocumentStatus     @default(PROCESSING)
+  errorMessage    String?
+
+  // Admin tracking
+  uploadedById    String?
+
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
+
+  @@index([category])
+  @@index([status])
+  @@index([year])
+}
+
 // ============= AI Chat System =============
 
 model AiConversation {

@@ -212,8 +212,9 @@ export default function BookingWizardClient({ lawyerId, lawyerName, lawyerImage,
         const fieldErrors = result.error.flatten().fieldErrors;
         const formattedErrors: Record<string, string> = {};
         for (const key in fieldErrors) {
-          if (fieldErrors[key] && fieldErrors[key]!.length > 0) {
-            formattedErrors[key] = fieldErrors[key]![0];
+          const errorVal = fieldErrors[key as keyof typeof fieldErrors];
+          if (errorVal && errorVal.length > 0) {
+            formattedErrors[key] = errorVal[0];
           }
         }
         setErrors(formattedErrors);
@@ -237,8 +238,9 @@ export default function BookingWizardClient({ lawyerId, lawyerName, lawyerImage,
         const fieldErrors = result.error.flatten().fieldErrors;
         const formattedErrors: Record<string, string> = {};
         for (const key in fieldErrors) {
-          if (fieldErrors[key] && fieldErrors[key]!.length > 0) {
-            formattedErrors[key] = fieldErrors[key]![0];
+          const errorVal = fieldErrors[key as keyof typeof fieldErrors];
+          if (errorVal && errorVal.length > 0) {
+            formattedErrors[key] = errorVal[0];
           }
         }
         setErrors(formattedErrors);

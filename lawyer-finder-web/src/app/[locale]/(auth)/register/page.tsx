@@ -16,7 +16,6 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
 
 interface ModalState {
   isOpen: boolean;
@@ -196,64 +195,64 @@ export default function RegisterPage() {
 
       {/* Success Modal */}
       <Dialog open={modal.isOpen && modal.type === 'success'} onOpenChange={handleModalClose}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md rounded-none border border-[#efeae0] p-8 bg-[#faf8f6] shadow-2xl">
           <DialogHeader className="text-center">
             <div className="flex justify-center mb-4">
-              <div className="bg-green-50 p-3 rounded-full">
-                <CheckCircle2 className="h-8 w-8 text-green-600" />
+              <div className="bg-[#bfa37a]/10 p-3 rounded-full">
+                <CheckCircle2 className="h-8 w-8 text-[#bfa37a]" />
               </div>
             </div>
-            <DialogTitle className="text-center text-2xl font-bold text-green-700">
+            <DialogTitle className="text-center text-2xl font-serif font-bold text-neutral-900">
               {modal.title}
             </DialogTitle>
-            <DialogDescription className="text-center text-base text-neutral-600 mt-2">
+            <DialogDescription className="text-center text-sm text-neutral-500 mt-2 font-light">
               {modal.message}
             </DialogDescription>
           </DialogHeader>
           {modal.details && (
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-sm text-neutral-700">
+            <div className="bg-white border border-[#efeae0] rounded-none p-4 text-xs font-light text-neutral-600 mt-2">
               {modal.details}
             </div>
           )}
-          <DialogFooter className="flex justify-center mt-6">
-            <Button
+          <DialogFooter className="flex justify-center mt-6 bg-transparent border-none p-0 rounded-none sm:justify-center">
+            <button
               onClick={handleModalClose}
-              className="bg-green-600 hover:bg-green-700 text-white px-8"
+              className="w-full sm:w-auto bg-[#bfa37a] text-white py-3.5 px-8 rounded-none font-bold uppercase tracking-widest text-xs hover:bg-[#a68d67] transition-colors"
             >
               Go to Login
-            </Button>
+            </button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* Error Modal */}
       <Dialog open={modal.isOpen && modal.type === 'error'} onOpenChange={closeModal}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md rounded-none border border-[#efeae0] p-8 bg-[#faf8f6] shadow-2xl">
           <DialogHeader className="text-center">
             <div className="flex justify-center mb-4">
-              <div className="bg-red-50 p-3 rounded-full">
+              <div className="bg-red-50/50 p-3 rounded-full">
                 <AlertCircle className="h-8 w-8 text-red-600" />
               </div>
             </div>
-            <DialogTitle className="text-center text-2xl font-bold text-red-700">
+            <DialogTitle className="text-center text-2xl font-serif font-bold text-neutral-900">
               {modal.title}
             </DialogTitle>
-            <DialogDescription className="text-center text-base text-neutral-600 mt-2">
+            <DialogDescription className="text-center text-sm text-neutral-500 mt-2 font-light">
               {modal.message}
             </DialogDescription>
           </DialogHeader>
           {modal.details && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-neutral-700">
+            <div className="bg-white border border-[#efeae0] rounded-none p-4 text-xs font-light text-neutral-600 mt-2">
               {modal.details}
             </div>
           )}
-          <DialogFooter className="flex justify-center mt-6">
-            <Button
+          <DialogFooter className="flex justify-center mt-6 bg-transparent border-none p-0 rounded-none sm:justify-center">
+            <button
               onClick={closeModal}
-              className="bg-red-600 hover:bg-red-700 text-white px-8"
+              className="w-full sm:w-auto bg-[#bfa37a] text-white py-3.5 px-8 rounded-none font-bold uppercase tracking-widest text-xs hover:bg-[#a68d67] transition-colors"
             >
               Close
-            </Button>
+            </button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

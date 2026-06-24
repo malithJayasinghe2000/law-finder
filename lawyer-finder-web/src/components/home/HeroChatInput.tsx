@@ -52,7 +52,7 @@ export default function HeroChatInput({ locale }: { locale: string }) {
       </div>
 
       {/* Simple Search Input Box */}
-      <form onSubmit={handleSubmit} className="w-full relative shadow-md rounded-full bg-white border border-neutral-200 focus-within:border-[#bfa37a] focus-within:shadow-[0_0_15px_rgba(191,163,122,0.15)] transition-all p-1.5 flex items-center">
+      <form onSubmit={handleSubmit} className="w-full relative shadow-md bg-white border border-neutral-200 focus-within:border-[#bfa37a] focus-within:shadow-[0_0_15px_rgba(191,163,122,0.15)] transition-all p-1.5 flex items-center">
         <div className="pl-4 pr-1 text-neutral-400 shrink-0">
           {mode === 'chat' ? (
             <MessageSquare className="w-4 h-4 text-[#bfa37a]" />
@@ -72,7 +72,7 @@ export default function HeroChatInput({ locale }: { locale: string }) {
         <button
           type="submit"
           disabled={!query.trim()}
-          className="group bg-[#bfa37a] text-white hover:bg-[#a68d67] hover:scale-[1.02] text-xs font-bold uppercase tracking-widest px-6 py-3.5 rounded-full transition-all shrink-0 flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+          className="group bg-[#bfa37a] text-white hover:bg-[#a68d67] hover:scale-[1.02] text-xs font-bold uppercase tracking-widest px-6 py-3.5 transition-all shrink-0 flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
         >
           {mode === 'chat' ? 'Ask AI' : 'Search'}
           <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />

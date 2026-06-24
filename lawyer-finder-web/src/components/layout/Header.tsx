@@ -34,7 +34,8 @@ export default function Header({ locale, userRole = null, appStatus = null, user
   const navLinks = [
     { href: `/${locale}/lawyers`, label: t('directory'), icon: Search },
     { href: `/${locale}/chat`, label: t('chat'), icon: MessageCircle },
-    { href: `/${locale}/blog`, label: t('blog'), icon: BookOpen },
+    { href: `/${locale}/legal-library`, label: t('legalLibrary'), icon: BookOpen },
+    { href: `/${locale}/blog`, label: t('blog'), icon: FileText },
     { href: `/${locale}/about`, label: t('about'), icon: Scale },
   ];
 
@@ -166,7 +167,7 @@ export default function Header({ locale, userRole = null, appStatus = null, user
           </div>
 
           <div className="py-1">
-            <Link href={`/${locale}/profile`}>
+            <Link href={`/${locale}/dashboard/profile`}>
               <DropdownMenuItem className="cursor-pointer font-medium py-3 px-6 rounded-none focus:bg-neutral-50 group">
                 <UserCircle className="mr-3 h-4 w-4 text-neutral-400 group-hover:text-neutral-900 transition-colors" /> Profile Settings
               </DropdownMenuItem>
@@ -335,7 +336,7 @@ export default function Header({ locale, userRole = null, appStatus = null, user
                     <p className="text-[9px] font-bold text-neutral-400 uppercase tracking-[0.2em] mb-1">Account Menu</p>
                     
                     <Link
-                      href={`/${locale}/profile`}
+                      href={`/${locale}/dashboard/profile`}
                       onClick={() => setOpen(false)}
                       className="flex items-center gap-3 text-xs font-bold uppercase tracking-widest text-neutral-600 hover:text-[#bfa37a] py-1 transition-colors"
                     >
