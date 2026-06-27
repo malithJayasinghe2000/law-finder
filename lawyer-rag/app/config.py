@@ -13,12 +13,14 @@ DATA_DIR = BASE_DIR / "data"
 VECTORDB_DIR = DATA_DIR / "vectordb"
 GRAPH_DIR = DATA_DIR / "graph"
 UPLOADS_DIR = DATA_DIR / "uploads"
+CHAT_LOG_DIR = DATA_DIR / "chat_logs"
 
 # Ensure directories exist
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 VECTORDB_DIR.mkdir(parents=True, exist_ok=True)
 GRAPH_DIR.mkdir(parents=True, exist_ok=True)
 UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
+CHAT_LOG_DIR.mkdir(parents=True, exist_ok=True)
 
 
 class Config:
@@ -58,6 +60,9 @@ class Config:
 
     # Upload directory for admin-uploaded documents
     UPLOADS_DIR: str = os.getenv("UPLOADS_DIR", str(UPLOADS_DIR))
+
+    # Chat Log Directory
+    CHAT_LOG_DIR: str = os.getenv("CHAT_LOG_DIR", str(CHAT_LOG_DIR))
 
     # Legal Document Categories
     DOCUMENT_CATEGORIES = [

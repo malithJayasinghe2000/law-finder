@@ -55,7 +55,7 @@ interface ConversationSummary {
   updatedAt: string;
 }
 
-const RAG_API_URL = process.env.NEXT_PUBLIC_RAG_API_URL || 'http://localhost:5000';
+const RAG_API_URL = process.env.NEXT_PUBLIC_RAG_API_URL || 'http://localhost:5001';
 const GUEST_QUERY_LIMIT = 5;
 
 // ─── Component ─────────────────────────────────────────────────────────
