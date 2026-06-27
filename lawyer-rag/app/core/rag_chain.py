@@ -22,6 +22,7 @@ from app.core.vectorstore import search_documents
 from app.core.web_search import web_search, format_web_results
 from app.core.graph_store import get_knowledge_graph
 from app.core.entity_extractor import extract_entities_regex
+from app.core.query_router import classify_intent, rewrite_query, generate_conversational_response
 from app.config import config
 
 logger = logging.getLogger(__name__)
@@ -323,9 +324,32 @@ def query_rag(
 
     logger.info(f"RAG Query: '{question[:100]}...' (top_k={top_k})")
 
+    # Step 0: Intent Routing
+    intent = classify_intent(question, chat_history)
+    logger.info(f"Detected intent: {intent}")
+    
+    if intent == "conversational":
+        # Fast path: Bypass RAG entirely
+        answer = generate_conversational_response(question, chat_history)
+        return {
+            "answer": answer,
+            "sources": [],
+            "web_sources": [],
+            "chunks_retrieved": 0,
+            "detected_practice_areas": [],
+            "graph_entities": [],
+            "related_documents": [],
+        }
+        
+    elif intent == "follow_up":
+        # Rewrite query using history before searching
+        search_query = rewrite_query(question, chat_history)
+    else:
+        search_query = question
+
     # Step 1: Retrieve relevant documents (vector search)
     docs_with_scores = search_documents(
-        query=question,
+        query=search_query,
         top_k=top_k,
         filter_metadata=filter_metadata,
     )
@@ -333,14 +357,14 @@ def query_rag(
     logger.info(f"Vector search: {len(docs_with_scores)} chunks retrieved")
 
     # Step 2: Graph expansion — find related entities and documents
-    graph_entities, related_doc_names = _graph_expand_retrieval(question, docs_with_scores)
+    graph_entities, related_doc_names = _graph_expand_retrieval(search_query, docs_with_scores)
 
     # Step 3: Retrieve additional chunks from graph-discovered documents
     if related_doc_names and config.ENABLE_GRAPH_RAG:
         for doc_name in list(related_doc_names)[:config.GRAPH_EXPANSION_K]:
             try:
                 expanded_docs = search_documents(
-                    query=question,
+                    query=search_query,
                     top_k=2,  # Get top 2 chunks from each related doc
                     filter_metadata={"document_name": doc_name},
                 )
@@ -357,11 +381,11 @@ def query_rag(
     graph_context = format_graph_context(graph_entities, related_doc_names)
 
     # Step 6: Web search for additional context
-    web_results = web_search(question, max_results=3)
+    web_results = web_search(search_query, max_results=3)
     web_context = format_web_results(web_results) if web_results else ""
 
     # Step 7: Detect practice areas for lawyer suggestions
-    detected_areas = detect_practice_areas(question, context)
+    detected_areas = detect_practice_areas(search_query, context)
     logger.info(f"Detected practice areas: {detected_areas}")
 
     # Step 8: Build prompt and invoke LLM
