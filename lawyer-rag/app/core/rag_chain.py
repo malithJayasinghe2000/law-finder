@@ -324,9 +324,11 @@ def query_rag(
 
     logger.info(f"RAG Query: '{question[:100]}...' (top_k={top_k})")
 
-    # Step 0: Intent Routing
-    intent = classify_intent(question, chat_history)
-    logger.info(f"Detected intent: {intent}")
+    # Step 0: Intent Routing + Smart Document Filter
+    routing = classify_intent(question, chat_history)
+    intent = routing["intent"]
+    document_filter = routing["document_filter"]
+    logger.info(f"Detected intent: {intent}, document_filter: {document_filter}")
     
     if intent == "conversational":
         # Fast path: Bypass RAG entirely
@@ -347,12 +349,28 @@ def query_rag(
     else:
         search_query = question
 
-    # Step 1: Retrieve relevant documents (vector search)
+    # Build metadata filter from Smart Router's document_filter
+    smart_filter = filter_metadata  # Preserve any user-provided filter
+    if document_filter and document_filter != "All":
+        smart_filter = smart_filter.copy() if smart_filter else {}
+        smart_filter["document_name"] = document_filter
+        logger.info(f"Smart filter applied: searching only '{document_filter}'")
+
+    # Step 1: Retrieve relevant documents (vector search with smart filter)
     docs_with_scores = search_documents(
         query=search_query,
         top_k=top_k,
-        filter_metadata=filter_metadata,
+        filter_metadata=smart_filter,
     )
+
+    # If smart filter returned too few results, fall back to unfiltered search
+    if len(docs_with_scores) < 2 and document_filter != "All":
+        logger.info(f"Smart filter '{document_filter}' returned only {len(docs_with_scores)} results, falling back to unfiltered search")
+        docs_with_scores = search_documents(
+            query=search_query,
+            top_k=top_k,
+            filter_metadata=filter_metadata,  # Use original filter (or None)
+        )
 
     logger.info(f"Vector search: {len(docs_with_scores)} chunks retrieved")
 
