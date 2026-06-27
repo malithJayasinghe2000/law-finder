@@ -36,8 +36,16 @@ Respond politely and concisely as an AI assistant. Do NOT provide legal advice o
 If they say thanks, say you're welcome. If they say hello, ask how you can help them with Sri Lankan law today.
 """
 
+import re
+
 def classify_intent(question: str, chat_history: list) -> str:
     """Classifies the user query intent to decide the RAG flow."""
+    # Fast heuristic for common conversational phrases to avoid LLM confusion
+    clean_text = re.sub(r'[^a-zA-Z\s]', '', question.lower()).strip()
+    conversational_phrases = {"hi", "hello", "hey", "thanks", "thank you", "ok", "okay", "okay thanks", "got it", "good morning", "good evening", "bye", "goodbye", "cool", "awesome", "great"}
+    if clean_text in conversational_phrases:
+        return "conversational"
+        
     try:
         llm = get_llm()
         

@@ -678,7 +678,7 @@ export default function ChatClient({
                     )}
 
                     {/* Web Sources */}
-                    {message.webSources && message.webSources.length > 0 && (
+                    {false && message.webSources && message.webSources.length > 0 && (
                       <div className="flex flex-col gap-1.5">
                         <button
                           onClick={() => toggleSources(`web-${message.id}`)}
