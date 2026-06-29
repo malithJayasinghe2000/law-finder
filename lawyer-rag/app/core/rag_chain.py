@@ -22,7 +22,7 @@ from app.core.vectorstore import search_documents
 from app.core.web_search import web_search, format_web_results
 from app.core.graph_store import get_knowledge_graph
 from app.core.entity_extractor import extract_entities_regex
-from app.core.query_router import classify_intent, rewrite_query, generate_conversational_response
+from app.core.query_router import classify_intent, rewrite_query, generate_conversational_response, generate_lawyer_response
 from app.config import config
 
 logger = logging.getLogger(__name__)
@@ -31,22 +31,22 @@ logger = logging.getLogger(__name__)
 # Practice Areas Mapping — for lawyer suggestion matching
 # ---------------------------------------------------------------------------
 PRACTICE_AREA_KEYWORDS = {
-    "Criminal Law": ["criminal", "penal", "offence", "murder", "theft", "robbery", "assault", "bail", "arrest"],
-    "Civil Litigation": ["civil", "procedure", "plaint", "defendant", "plaintiff", "suit", "decree", "appeal"],
+    "Criminal Law": ["criminal", "penal", "murder", "theft", "robbery", "assault", "bail", "arrest", "prison", "sentence"],
+    "Civil Litigation": ["civil", "plaint", "defendant", "plaintiff", "suit", "decree", "appeal", "court case", "file a case"],
     "Corporate Law": ["company", "companies", "director", "shareholder", "incorporation", "corporate", "board", "dividend"],
     "Family Law": ["marriage", "divorce", "custody", "maintenance", "adoption", "matrimonial", "dowry"],
-    "Property Law": ["property", "land", "deed", "title", "lease", "rent", "tenant", "landlord", "partition"],
+    "Property Law": ["property", "property dispute", "land", "deed", "title", "lease", "rent", "tenant", "landlord", "partition", "tree", "boundary", "fence"],
     "Labour Law": ["labour", "labor", "employment", "worker", "wages", "termination", "industrial", "workmen"],
     "Tax Law": ["tax", "revenue", "income tax", "vat", "customs", "duty", "fiscal"],
     "Constitutional Law": ["constitution", "fundamental rights", "supreme court", "constitutional"],
     "Environmental Law": ["environment", "pollution", "forest", "wildlife", "conservation", "ecological"],
     "Intellectual Property": ["patent", "copyright", "trademark", "intellectual property", "ip rights"],
-    "Motor Traffic Law": ["motor", "traffic", "vehicle", "driving", "license", "road", "accident"],
+    "Motor Traffic Law": ["motor", "traffic", "vehicle", "driving", "license", "road", "accident", "bike", "speed", "speeding", "pedestrian", "drunk driving", "hit and run", "collision"],
     "Banking Law": ["banking", "bank", "finance", "loan", "mortgage", "financial", "cheque"],
     "Immigration Law": ["immigration", "visa", "passport", "citizenship", "alien", "deportation"],
     "Insurance Law": ["insurance", "claim", "policy", "premium", "indemnity"],
-    "Real Estate": ["real estate", "property", "conveyance", "deed", "land registry", "notary"],
-    "Notary Services": ["notary", "attestation", "affidavit", "power of attorney", "deed"],
+    "Real Estate": ["real estate", "property", "conveyance", "land registry", "property transaction"],
+    "Notary Services": ["notary", "attestation", "affidavit", "power of attorney"],
 }
 
 # ---------------------------------------------------------------------------
@@ -345,6 +345,11 @@ def query_rag(
             "related_documents": [],
         }
 
+    elif intent == "lawyer_request":
+        # Fast path: Bypass RAG — use conversation context to recommend lawyers
+        logger.info("Handling lawyer_request intent via dedicated handler")
+        return generate_lawyer_response(question, chat_history)
+
     elif intent == "follow_up":
         # Rewrite query using history before passing to agent/pipeline
         search_query = rewrite_query(question, chat_history)
@@ -397,7 +402,7 @@ def _query_rag_agentic(
 
         result = run_legal_agent(
             question=enriched_question,
-            chat_history=[],
+            chat_history=chat_history[-4:],
         )
 
         # Strip internal debug keys before returning to the API

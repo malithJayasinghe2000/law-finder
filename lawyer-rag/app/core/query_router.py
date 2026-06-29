@@ -16,6 +16,7 @@ Your job is to analyze the user's latest message and produce a JSON object with 
 FIELD 1 — "intent" (required):
 - "conversational": The user is greeting, saying thanks, acknowledging, saying goodbye, or engaging in small talk.
 - "follow_up": The user is asking a question that relies on the previous conversation to make sense (e.g., "what about that?", "explain the second point", "does this apply to minors?").
+- "lawyer_request": The user is asking for a lawyer, requesting a recommendation, wanting legal consultation, or asking to be connected to a lawyer.
 - "legal_query": The user is asking a clear, standalone legal question.
 
 FIELD 2 — "document_filter" (required):
@@ -29,7 +30,7 @@ Choose from:
 
 RULES:
 - Return ONLY a valid JSON object, nothing else. No markdown, no explanation.
-- If intent is "conversational", always set document_filter to "All".
+- If intent is "conversational" or "lawyer_request", always set document_filter to "All".
 - Example output: {{"intent": "legal_query", "document_filter": "Motor Traffic Act"}}
 """
 
@@ -65,6 +66,12 @@ CONVERSATIONAL_PHRASES = {
     "how do you know", "is this correct", "can i trust this",
 }
 
+# Regex to catch various ways users ask for a lawyer (e.g. "need a lawyer", "want consulting from a lawyer")
+LAWYER_REQUEST_REGEX = re.compile(
+    r'\b(need|want|find|recommend|suggest|get|looking for|require)\b.*\b(lawyer|attorney|counsel|counsil|consultation|consulting|legal advice)\b',
+    re.IGNORECASE
+)
+
 
 def classify_intent(question: str, chat_history: list) -> dict:
     """
@@ -72,7 +79,7 @@ def classify_intent(question: str, chat_history: list) -> dict:
     
     Returns:
         dict with keys:
-            - "intent": "conversational" | "follow_up" | "legal_query"
+            - "intent": "conversational" | "follow_up" | "legal_query" | "lawyer_request"
             - "document_filter": A specific act name or "All"
     """
     # Fast heuristic for common conversational phrases — zero latency
@@ -80,6 +87,11 @@ def classify_intent(question: str, chat_history: list) -> dict:
     if clean_text in CONVERSATIONAL_PHRASES:
         logger.info(f"Fast heuristic: '{clean_text}' -> conversational")
         return {"intent": "conversational", "document_filter": "All"}
+
+    # Fast heuristic for lawyer requests — regex match
+    if LAWYER_REQUEST_REGEX.search(question):
+        logger.info(f"Fast heuristic: matched lawyer regex -> lawyer_request")
+        return {"intent": "lawyer_request", "document_filter": "All"}
 
     try:
         llm = get_llm()
@@ -133,11 +145,13 @@ def _parse_router_response(raw: str) -> dict:
         doc_filter = parsed.get("document_filter", "All").strip()
 
         # Validate intent
-        if intent not in ("conversational", "follow_up", "legal_query"):
+        if intent not in ("conversational", "follow_up", "legal_query", "lawyer_request"):
             if "conversational" in intent:
                 intent = "conversational"
             elif "follow_up" in intent:
                 intent = "follow_up"
+            elif "lawyer" in intent:
+                intent = "lawyer_request"
             else:
                 intent = "legal_query"
 
@@ -160,6 +174,8 @@ def _parse_router_response(raw: str) -> dict:
             intent = "conversational"
         elif "follow_up" in lower:
             intent = "follow_up"
+        elif "lawyer" in lower:
+            intent = "lawyer_request"
 
         return {"intent": intent, "document_filter": "All"}
 
@@ -214,3 +230,124 @@ def generate_conversational_response(question: str, chat_history: list) -> str:
     except Exception as e:
         logger.error(f"Error generating conversational response: {e}")
         return "Hello! How can I assist you with Sri Lankan law today?"
+
+
+def generate_lawyer_response(question: str, chat_history: list) -> dict:
+    """
+    Handle lawyer recommendation requests by extracting practice areas from
+    the conversation context and generating a recommendation — WITHOUT
+    doing a vector search on the legislation database.
+
+    Returns:
+        Dict matching the standard query_rag return format.
+    """
+    from app.core.rag_chain import detect_practice_areas, PRACTICE_AREA_KEYWORDS
+    from app.core.agent_tools import lawyer_recommend_tool
+
+    # Build context from USER messages only — bot responses contain legal
+    # citation text (e.g. "injury to person, animal or property") that causes
+    # false positive matches for Property Law, Real Estate, Criminal Law etc.
+    user_history_text = " ".join(
+        msg.get("content", "")
+        for msg in (chat_history or [])[-8:]
+        if msg.get("role") == "user"
+    )
+    combined_context = f"{question} {user_history_text}"
+
+    # Detect practice areas from the user's own words
+    detected_areas = detect_practice_areas(combined_context, combined_context)
+    logger.info(f"[lawyer_response] Detected areas from user context: {detected_areas}")
+
+    if not detected_areas:
+        # Fallback: ask the user to describe their situation
+        return {
+            "answer": (
+                "I'd be happy to help you find the right type of lawyer! "
+                "Could you briefly describe your legal situation or the topic you need help with? "
+                "For example: a road accident, a property dispute, an employment issue, etc. "
+                "This will help me recommend the most suitable specialist for you."
+            ),
+            "sources": [],
+            "web_sources": [],
+            "chunks_retrieved": 0,
+            "detected_practice_areas": [],
+            "graph_entities": [],
+            "related_documents": [],
+        }
+
+    # Build a situation summary from the chat history
+    user_messages = [
+        msg.get("content", "") for msg in (chat_history or [])[-6:]
+        if msg.get("role") == "user"
+    ]
+    situation_summary = "; ".join(user_messages[-3:]) if user_messages else question
+
+    # Generate the recommendation using the tool logic
+    try:
+        recommendation_text = lawyer_recommend_tool.invoke({
+            "practice_areas": ", ".join(detected_areas),
+            "user_situation": situation_summary,
+        })
+    except Exception as e:
+        logger.warning(f"[lawyer_response] Tool invocation failed: {e}")
+        recommendation_text = ""
+
+    # Build a natural-language response using the LLM
+    area_descriptions = {
+        "Criminal Law": "a Criminal Defense Lawyer",
+        "Civil Litigation": "a Civil Litigation Lawyer",
+        "Corporate Law": "a Corporate / Commercial Lawyer",
+        "Family Law": "a Family Law Specialist",
+        "Property Law": "a Conveyancing / Property Lawyer",
+        "Labour Law": "an Employment / Labour Lawyer",
+        "Tax Law": "a Tax Lawyer",
+        "Constitutional Law": "a Constitutional Lawyer",
+        "Environmental Law": "an Environmental Lawyer",
+        "Intellectual Property": "an IP Lawyer",
+        "Motor Traffic Law": "a Motor Traffic / Personal Injury Lawyer",
+        "Banking Law": "a Banking & Finance Lawyer",
+        "Immigration Law": "an Immigration Lawyer",
+        "Insurance Law": "an Insurance Claims Lawyer",
+        "Real Estate": "a Real Estate / Conveyancing Lawyer",
+        "Notary Services": "a Notary Public",
+    }
+
+    # Build a clear, friendly answer
+    answer_parts = [
+        "Based on our conversation, I can help you find the right type of lawyer.",
+        "",
+    ]
+
+    if len(detected_areas) == 1:
+        area = detected_areas[0]
+        desc = area_descriptions.get(area, f"a {area} Specialist")
+        answer_parts.append(
+            f"For your situation, I would recommend consulting **{desc}** "
+            f"who specializes in **{area}**."
+        )
+    else:
+        answer_parts.append("For your situation, I would recommend consulting:")
+        for area in detected_areas:
+            desc = area_descriptions.get(area, f"a {area} Specialist")
+            answer_parts.append(f"- **{desc}** (specializing in {area})")
+
+    answer_parts.extend([
+        "",
+        "You can browse lawyers matching these practice areas on our platform. "
+        "Each lawyer's profile includes their qualifications, experience, and availability for consultations.",
+        "",
+        "⚠️ *Please note: Always verify a lawyer's credentials and discuss your specific "
+        "situation during an initial consultation before engaging their services.*",
+    ])
+
+    answer = "\n".join(answer_parts)
+
+    return {
+        "answer": answer,
+        "sources": [],
+        "web_sources": [],
+        "chunks_retrieved": 0,
+        "detected_practice_areas": detected_areas,
+        "graph_entities": [],
+        "related_documents": [],
+    }
