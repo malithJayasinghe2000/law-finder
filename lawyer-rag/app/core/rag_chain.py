@@ -297,20 +297,22 @@ def query_rag(
     filter_metadata: Optional[dict] = None,
 ) -> dict:
     """
-    Execute the full hybrid Graph + Vector RAG pipeline:
-    1. Retrieve relevant chunks from ChromaDB (vector search)
-    2. Extract entities and traverse knowledge graph for related context
-    3. Expand retrieval with graph-discovered documents
-    4. Search the web for additional context
-    5. Format all context in an AI-readable structure
-    6. Generate response using Ollama LLM
-    7. Return answer + sources + graph context + practice areas
+    Main entry point for the RAG pipeline. Dispatches to either the
+    LangGraph ReAct agentic orchestrator (default) or the original linear
+    pipeline (fallback / when ENABLE_AGENTIC_RAG=false).
+
+    Agentic path: The LLM agent decides which tools (vector search, graph
+    lookup, web search) to call and in what order, iterating until it has
+    enough context to produce a high-quality answer.
+
+    Linear path: Fixed sequence — vector search → graph expand → web search
+    → LLM generate. Kept as a reliable fallback.
 
     Args:
         question: User's legal question
         chat_history: Previous conversation messages
-        top_k: Number of chunks to retrieve
-        filter_metadata: Additional metadata filters
+        top_k: Number of chunks to retrieve (linear path only)
+        filter_metadata: Additional metadata filters (linear path only)
 
     Returns:
         Dict with 'answer', 'sources', 'chunks_retrieved', 'web_sources',
@@ -329,9 +331,9 @@ def query_rag(
     intent = routing["intent"]
     document_filter = routing["document_filter"]
     logger.info(f"Detected intent: {intent}, document_filter: {document_filter}")
-    
+
     if intent == "conversational":
-        # Fast path: Bypass RAG entirely
+        # Fast path: Bypass RAG entirely — no agent spin-up needed
         answer = generate_conversational_response(question, chat_history)
         return {
             "answer": answer,
@@ -342,13 +344,91 @@ def query_rag(
             "graph_entities": [],
             "related_documents": [],
         }
-        
+
     elif intent == "follow_up":
-        # Rewrite query using history before searching
+        # Rewrite query using history before passing to agent/pipeline
         search_query = rewrite_query(question, chat_history)
+        logger.info(f"Follow-up rewritten: '{search_query[:80]}'")
     else:
         search_query = question
 
+    # ── Agentic Path (LangGraph ReAct Orchestrator) ───────────────────────────
+    if config.ENABLE_AGENTIC_RAG:
+        return _query_rag_agentic(
+            question=question,
+            search_query=search_query,
+            chat_history=chat_history,
+            document_filter=document_filter,
+        )
+
+    # ── Linear Fallback Path (original pipeline) ──────────────────────────────
+    return _query_rag_linear(
+        question=question,
+        search_query=search_query,
+        chat_history=chat_history,
+        document_filter=document_filter,
+        top_k=top_k,
+        filter_metadata=filter_metadata,
+    )
+
+
+def _query_rag_agentic(
+    question: str,
+    search_query: str,
+    chat_history: list[dict],
+    document_filter: str,
+) -> dict:
+    """
+    Agentic path: delegates to the LangGraph ReAct orchestrator.
+    The agent decides which tools to call and in what order.
+    Falls back to the linear pipeline if the agent raises an exception.
+    """
+    from app.core.legal_agent import run_legal_agent
+
+    try:
+        # Enrich the question with the document filter hint so the agent
+        # can pass it directly to vector_search without extra reasoning steps
+        enriched_question = search_query
+        if document_filter and document_filter != "All":
+            enriched_question = (
+                f"{search_query}\n\n[Hint: This question is likely covered by the "
+                f"'{document_filter}'. Use it as the document_filter in vector_search.]"
+            )
+
+        result = run_legal_agent(
+            question=enriched_question,
+            chat_history=[],
+        )
+
+        # Strip internal debug keys before returning to the API
+        result.pop("_agent_tool_calls", None)
+        return result
+
+    except Exception as e:
+        logger.error(f"Agentic pipeline failed, falling back to linear: {e}")
+        # Graceful degradation — fall through to the linear pipeline
+        return _query_rag_linear(
+            question=question,
+            search_query=search_query,
+            chat_history=chat_history,
+            document_filter=document_filter,
+            top_k=config.TOP_K_RESULTS,
+            filter_metadata=None,
+        )
+
+
+def _query_rag_linear(
+    question: str,
+    search_query: str,
+    chat_history: list[dict],
+    document_filter: str,
+    top_k: int,
+    filter_metadata: Optional[dict],
+) -> dict:
+    """
+    Original linear RAG pipeline — kept as a reliable fallback.
+    Runs when ENABLE_AGENTIC_RAG=false or when the agent raises an exception.
+    """
     # Build metadata filter from Smart Router's document_filter
     smart_filter = filter_metadata  # Preserve any user-provided filter
     if document_filter and document_filter != "All":

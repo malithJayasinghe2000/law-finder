@@ -58,6 +58,13 @@ class Config:
     GRAPH_TRAVERSAL_DEPTH: int = int(os.getenv("GRAPH_TRAVERSAL_DEPTH", "2"))
     GRAPH_EXPANSION_K: int = int(os.getenv("GRAPH_EXPANSION_K", "3"))
 
+    # Agentic RAG (LangGraph ReAct Orchestrator)
+    # Set ENABLE_AGENTIC_RAG=false to fall back to the linear pipeline
+    ENABLE_AGENTIC_RAG: bool = os.getenv("ENABLE_AGENTIC_RAG", "true").lower() == "true"
+    # Max LangGraph recursion steps — prevents infinite tool-call loops
+    # Each tool call + LLM response counts as 2 steps; 10 = ~5 tool calls max
+    AGENT_MAX_ITERATIONS: int = int(os.getenv("AGENT_MAX_ITERATIONS", "10"))
+
     # Upload directory for admin-uploaded documents
     UPLOADS_DIR: str = os.getenv("UPLOADS_DIR", str(UPLOADS_DIR))
 

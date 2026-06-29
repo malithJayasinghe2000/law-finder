@@ -30,7 +30,7 @@ Choose from:
 RULES:
 - Return ONLY a valid JSON object, nothing else. No markdown, no explanation.
 - If intent is "conversational", always set document_filter to "All".
-- Example output: {"intent": "legal_query", "document_filter": "Motor Traffic Act"}
+- Example output: {{"intent": "legal_query", "document_filter": "Motor Traffic Act"}}
 """
 
 REWRITE_PROMPT = """You are a helpful assistant for a legal AI. 
@@ -45,9 +45,11 @@ User's follow-up question: {question}
 """
 
 CONVERSATIONAL_PROMPT = """You are LawyerAI, an expert legal assistant specialized in Sri Lankan law.
-The user just sent a conversational message, greeting, or acknowledgement.
+The user just sent a conversational message, greeting, acknowledgement, expressed confusion, or asked a meta-question about how you work.
 Respond politely and concisely as an AI assistant. Do NOT provide legal advice or invent legal context.
 If they say thanks, say you're welcome. If they say hello, ask how you can help them with Sri Lankan law today.
+If they say they don't understand, politely apologize and ask them which specific part of the previous answer they would like you to clarify or explain in simpler terms.
+If they ask how you verify information or if they can trust you, explain that you retrieve answers directly from a verified vector database of Sri Lankan legislation and use an internal verification tool to self-check citations before answering, but they should always consult a human lawyer for official advice.
 """
 
 # ---------------------------------------------------------------------------
@@ -57,7 +59,10 @@ CONVERSATIONAL_PHRASES = {
     "hi", "hello", "hey", "thanks", "thank you", "ok", "okay",
     "okay thanks", "got it", "good morning", "good evening",
     "bye", "goodbye", "cool", "awesome", "great", "nice",
-    "ok thanks", "thank u", "thx", "cheers",
+    "i dont understand", "i cant understand", "what", "explain",
+    "what do you mean", "can you explain", "i do not understand",
+    "how you verify", "how do you verify", "are you sure",
+    "how do you know", "is this correct", "can i trust this",
 }
 
 
