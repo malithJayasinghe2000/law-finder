@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import prisma from '@/lib/db';
 
-const RAG_API_URL = process.env.RAG_API_URL || 'http://localhost:5000';
+const RAG_API_URL = process.env.RAG_API_URL || 'http://localhost:5001';
 
 // GET: Get single document details
 export async function GET(

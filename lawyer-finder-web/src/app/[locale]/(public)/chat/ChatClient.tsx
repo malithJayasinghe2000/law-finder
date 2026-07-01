@@ -55,7 +55,7 @@ interface ConversationSummary {
   updatedAt: string;
 }
 
-const RAG_API_URL = process.env.NEXT_PUBLIC_RAG_API_URL || 'http://localhost:5000';
+const RAG_API_URL = process.env.NEXT_PUBLIC_RAG_API_URL || 'http://localhost:5001';
 const GUEST_QUERY_LIMIT = 5;
 
 // ─── Component ─────────────────────────────────────────────────────────
@@ -678,7 +678,7 @@ export default function ChatClient({
                     )}
 
                     {/* Web Sources */}
-                    {message.webSources && message.webSources.length > 0 && (
+                    {false && message.webSources && message.webSources.length > 0 && (
                       <div className="flex flex-col gap-1.5">
                         <button
                           onClick={() => toggleSources(`web-${message.id}`)}

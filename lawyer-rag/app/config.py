@@ -13,12 +13,14 @@ DATA_DIR = BASE_DIR / "data"
 VECTORDB_DIR = DATA_DIR / "vectordb"
 GRAPH_DIR = DATA_DIR / "graph"
 UPLOADS_DIR = DATA_DIR / "uploads"
+CHAT_LOG_DIR = DATA_DIR / "chat_logs"
 
 # Ensure directories exist
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 VECTORDB_DIR.mkdir(parents=True, exist_ok=True)
 GRAPH_DIR.mkdir(parents=True, exist_ok=True)
 UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
+CHAT_LOG_DIR.mkdir(parents=True, exist_ok=True)
 
 
 class Config:
@@ -56,8 +58,18 @@ class Config:
     GRAPH_TRAVERSAL_DEPTH: int = int(os.getenv("GRAPH_TRAVERSAL_DEPTH", "2"))
     GRAPH_EXPANSION_K: int = int(os.getenv("GRAPH_EXPANSION_K", "3"))
 
+    # Agentic RAG (LangGraph ReAct Orchestrator)
+    # Set ENABLE_AGENTIC_RAG=false to fall back to the linear pipeline
+    ENABLE_AGENTIC_RAG: bool = os.getenv("ENABLE_AGENTIC_RAG", "true").lower() == "true"
+    # Max LangGraph recursion steps — prevents infinite tool-call loops
+    # Each tool call + LLM response counts as 2 steps; 10 = ~5 tool calls max
+    AGENT_MAX_ITERATIONS: int = int(os.getenv("AGENT_MAX_ITERATIONS", "10"))
+
     # Upload directory for admin-uploaded documents
     UPLOADS_DIR: str = os.getenv("UPLOADS_DIR", str(UPLOADS_DIR))
+
+    # Chat Log Directory
+    CHAT_LOG_DIR: str = os.getenv("CHAT_LOG_DIR", str(CHAT_LOG_DIR))
 
     # Legal Document Categories
     DOCUMENT_CATEGORIES = [

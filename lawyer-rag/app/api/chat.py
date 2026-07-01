@@ -10,6 +10,7 @@ import traceback
 from flask import Blueprint, request, jsonify
 
 from app.core.rag_chain import query_rag
+from app.utils.chat_logger import chat_logger
 
 logger = logging.getLogger(__name__)
 
@@ -55,6 +56,13 @@ def chat():
         result = query_rag(
             question=message,
             chat_history=conversation_history,
+        )
+
+        # Log the chat interaction for future review and improvements
+        chat_logger.log_interaction(
+            user_message=message,
+            response=result,
+            conversation_history=conversation_history
         )
 
         return jsonify(result), 200
