@@ -46,7 +46,7 @@ export function LawyerInvoicesTable({ defaultTab = 'all' }: { defaultTab?: 'all'
   const fetchInvoices = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch(`/api/invoices/my-invoices?page=${page}&limit=10&filter=${activeTab}`);
+      const response = await fetch(`/api/invoices/my-invoices?page=${page}&limit=10&filter=${activeTab}&`);
       const data = await response.json();
 
       if (!response.ok) {

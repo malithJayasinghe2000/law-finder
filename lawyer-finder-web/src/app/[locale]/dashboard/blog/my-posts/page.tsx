@@ -45,7 +45,7 @@ export default async function MyPostsPage({
         {/* Header */}
         <div className="flex items-center justify-between mb-8 pb-6 border-b border-neutral-100">
           <div>
-            <h1 className="text-2xl font-serif font-bold tracking-tight text-neutral-900">Community Posts</h1>
+            <h1 className="text-4xl font-serif font-normal tracking-tight text-neutral-900">Community Posts</h1>
             <p className="text-sm text-neutral-500 font-medium mt-0.5">Manage your shared posts and insights</p>
           </div>
           <Link href={`/${locale}/blog/create`}>

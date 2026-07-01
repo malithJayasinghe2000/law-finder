@@ -83,8 +83,8 @@ export default function RegisterPage() {
 
       showModal(
         'success',
-        'Account Created Successfully! ✓',
-        'Please check your email to verify your account before logging in.'
+        'Account Created Successfully',
+        `A verification email has been sent to ${data.email}. Please verify your account before logging in.`
       );
     } catch (err: any) {
       showModal(
@@ -105,7 +105,7 @@ export default function RegisterPage() {
 
         <div className="bg-[#faf8f6]/50 p-10 rounded-none border border-[#efeae0]">
           <div className="mb-8 text-center">
-            <h1 className="text-3xl font-serif font-bold tracking-tight text-neutral-900 mb-2">Create Account</h1>
+            <h1 className="text-3xl font-serif font-normal tracking-tight text-neutral-900 mb-2">Create Account</h1>
             <p className="text-xs uppercase font-bold tracking-widest text-neutral-400">Join the digital legal network</p>
           </div>
 
@@ -194,7 +194,7 @@ export default function RegisterPage() {
                 <CheckCircle2 className="h-8 w-8 text-[#bfa37a]" />
               </div>
             </div>
-            <DialogTitle className="text-center text-2xl font-serif font-bold text-neutral-900">
+            <DialogTitle className="text-center text-2xl font-serif font-normal text-neutral-900">
               {modal.title}
             </DialogTitle>
             <DialogDescription className="text-center text-sm text-neutral-500 mt-2 font-light">
@@ -226,7 +226,7 @@ export default function RegisterPage() {
                 <AlertCircle className="h-8 w-8 text-red-600" />
               </div>
             </div>
-            <DialogTitle className="text-center text-2xl font-serif font-bold text-neutral-900">
+            <DialogTitle className="text-center text-2xl font-serif font-normal text-neutral-900">
               {modal.title}
             </DialogTitle>
             <DialogDescription className="text-center text-sm text-neutral-500 mt-2 font-light">

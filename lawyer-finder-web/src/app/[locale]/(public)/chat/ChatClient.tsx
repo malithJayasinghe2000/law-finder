@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import ReactMarkdown from 'react-markdown';
+import { SidebarAd } from '@/components/ads/AdComponents';
 
 // ─── Types ─────────────────────────────────────────────────────────────
 interface Source {
@@ -678,19 +679,19 @@ export default function ChatClient({
                     )}
 
                     {/* Web Sources */}
-                    {false && message.webSources && message.webSources.length > 0 && (
+                    {false && (message.webSources?.length ?? 0) > 0 && (
                       <div className="flex flex-col gap-1.5">
                         <button
                           onClick={() => toggleSources(`web-${message.id}`)}
                           className="flex items-center gap-2 text-[10px] font-bold text-neutral-500 hover:text-[#bfa37a] uppercase tracking-widest transition-colors self-start"
                         >
                           <Globe className="w-3.5 h-3.5" />
-                          {expandedSources.has(`web-${message.id}`) ? 'Hide' : 'View'} {message.webSources.length} Web Sources
+                          {expandedSources.has(`web-${message.id}`) ? 'Hide' : 'View'} {(message.webSources || []).length} Web Sources
                         </button>
 
                         {expandedSources.has(`web-${message.id}`) && (
                           <div className="flex flex-col gap-2 mt-1">
-                            {message.webSources.map((ws, idx) => (
+                            {message.webSources?.map((ws, idx) => (
                               <a
                                 key={idx}
                                 href={ws.url}
@@ -916,6 +917,10 @@ export default function ChatClient({
           </div>
         </div>
       </div>
+      {/* Right Sidebar Ad Area */}
+      <aside className="hidden lg:block w-80 border-l border-[#efeae0] p-6 bg-[#faf8f6] h-[calc(100vh-96px)] sticky top-24 shrink-0 overflow-y-auto">
+        <SidebarAd placement="CHAT_RIGHT_SIDEBAR" locale={locale} />
+      </aside>
     </div>
     </div>
   );

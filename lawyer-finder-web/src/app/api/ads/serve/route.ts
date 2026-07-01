@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import type { AdPlacement } from '@prisma/client';
 import prisma from '@/lib/db';
 
-// GET /api/ads/serve?placement=HOMEPAGE_HERO&district=Colombo&practiceArea=Criminal+Law
+// GET /api/ads/serve?placement=HOMEPAGE_BELOW_HERO&district=Colombo&practiceArea=Criminal+Law
 // Public endpoint: serves active ads for a specific placement zone
 export async function GET(req: Request) {
   try {
@@ -16,16 +16,19 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: 'Placement is required.' }, { status: 400 });
     }
 
+    // Adjust to Sri Lankan timezone (GMT +5:30) to get matching local calendar date
     const now = new Date();
-    const todayUTCMidnight = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+    const lkrOffset = 5.5 * 60 * 60 * 1000;
+    const lkrNow = new Date(now.getTime() + lkrOffset);
+    const lkrTodayMidnight = new Date(Date.UTC(lkrNow.getUTCFullYear(), lkrNow.getUTCMonth(), lkrNow.getUTCDate()));
 
     // Fetch active campaigns for the requested placement
     const campaigns = await prisma.adCampaign.findMany({
       where: {
         placement: placement as AdPlacement,
         status: 'ACTIVE',
-        startDate: { lte: now },
-        endDate: { gte: todayUTCMidnight }, // Inclusive of the final day
+        startDate: { lte: lkrTodayMidnight },
+        endDate: { gte: lkrTodayMidnight },
       },
       include: {
         lawyer: {
@@ -49,7 +52,7 @@ export async function GET(req: Request) {
       take: limit,
     });
 
-    // Filter by targeting (post-query for flexibility)
+    // Filter by targeting
     let filtered = campaigns;
 
     if (district) {
@@ -64,7 +67,7 @@ export async function GET(req: Request) {
       );
     }
 
-    // Return only what the client needs (no internal fields)
+    // Map properties for final view layer
     const ads = filtered.map((c) => {
       const { user, ...lawyer } = c.lawyer;
 

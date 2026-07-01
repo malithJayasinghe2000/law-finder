@@ -121,7 +121,7 @@ export default function LawyerBookingsPage() {
           <CalendarDays className="h-5 w-5" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-neutral-900">Consultation Bookings</h1>
+          <h1 className="text-4xl font-normal tracking-tight text-neutral-900">Consultation Bookings</h1>
           <p className="text-sm text-neutral-500 font-medium">Manage your client consultation appointments</p>
         </div>
       </div>

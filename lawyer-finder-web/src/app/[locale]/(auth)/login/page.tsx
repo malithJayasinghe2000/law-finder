@@ -122,12 +122,11 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-[85vh] items-center justify-center px-4 bg-background pt-16 pb-16">
       <div className="w-full max-w-[420px]">
-        {/* Logo */}
-       
+  
 
         <div className="bg-[#faf8f6]/50 p-10 rounded-none border border-[#efeae0]">
           <div className="mb-8 text-center">
-            <h1 className="text-3xl font-serif font-bold tracking-tight text-neutral-900 mb-2">Welcome Back</h1>
+            <h1 className="text-3xl font-serif font-normal tracking-tight text-neutral-900 mb-2">Welcome Back</h1>
             <p className="text-xs uppercase font-bold tracking-widest text-neutral-400">Sign in to your account</p>
           </div>
 

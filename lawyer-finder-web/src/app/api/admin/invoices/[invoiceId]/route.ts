@@ -3,12 +3,15 @@ import prisma from '@/lib/db';
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { isValidUUID, sanitizeString } from '@/lib/security';
+import { EmailService } from '@/lib/email/EmailService';
 
 // ── Invoice Update Schema ─────────────────────────────────────────────────
 const AdminUpdateInvoiceSchema = z.object({
   status: z.enum(['PAID', 'PENDING', 'RESUBMIT', 'CANCELLED'] as const),
   remark: z.string().trim().max(1000, 'Remark cannot exceed 1000 characters.').optional(),
   adminNotes: z.string().trim().max(1000, 'Admin notes cannot exceed 1000 characters.').optional(),
+  paymentDetails: z.any().optional(),
+  receiptImageUrl: z.string().optional(),
 });
 
 export async function PUT(
@@ -39,7 +42,7 @@ export async function PUT(
       );
     }
 
-    const { status, remark, adminNotes } = parsed.data;
+    const { status, remark, adminNotes, paymentDetails, receiptImageUrl } = parsed.data;
     const sanitizedRemark = remark ? sanitizeString(remark, 1000) : undefined;
     const sanitizedNotes = adminNotes ? sanitizeString(adminNotes, 1000) : sanitizedRemark;
 
@@ -50,6 +53,8 @@ export async function PUT(
         status,
         adminNotes: sanitizedNotes,
         updatedAt: new Date(),
+        ...(paymentDetails ? { paymentDetails } : {}),
+        ...(receiptImageUrl ? { receiptImageUrl } : {}),
       },
       include: {
         remarks: true,
@@ -93,6 +98,48 @@ export async function PUT(
           where: { id: linkedSubscription.id },
           data: { status: 'PAST_DUE' },
         });
+      }
+    }
+
+    // Handle Ad Campaign status based on invoice action
+    const linkedCampaign = await prisma.adCampaign.findFirst({
+      where: { invoiceId },
+    });
+
+    if (linkedCampaign) {
+      if (status === 'PAID') {
+        await prisma.adCampaign.update({
+          where: { id: linkedCampaign.id },
+          data: { status: 'ACTIVE' },
+        });
+      } else if (status === 'CANCELLED') {
+        await prisma.adCampaign.update({
+          where: { id: linkedCampaign.id },
+          data: { status: 'REJECTED', rejectionReason: 'Invoice cancelled or rejected.' },
+        });
+      }
+    }
+
+    if (status === 'PAID') {
+      const fullInvoice = await prisma.invoice.findUnique({
+        where: { id: invoiceId },
+        include: {
+          lawyer: {
+            include: {
+              user: true,
+            },
+          },
+        },
+      });
+
+      if (fullInvoice?.lawyer?.user?.email) {
+        EmailService.sendInvoicePaidReceipt(
+          fullInvoice.lawyer.user.email,
+          fullInvoice.lawyer.user.fullName || 'Valued Lawyer',
+          invoiceId,
+          fullInvoice.amount,
+          fullInvoice.paymentReason
+        ).catch(err => console.error('Failed to send invoice receipt email:', err));
       }
     }
 

@@ -13,7 +13,7 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
   return {
     title: {
       default: t('title'),
-      template: '%s | TheLawyr SL',
+      template: '%s | TheLawyr',
     },
     description: t('subtitle'),
     keywords: ['Sri Lanka', 'lawyer', 'legal', 'attorney', 'BASL', 'thelawyr', 'legal help'],
@@ -22,7 +22,7 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
       description: t('subtitle'),
       type: 'website',
       locale: locale,
-      siteName: 'TheLawyr SL',
+      siteName: 'TheLawyr',
     },
   };
 }

@@ -40,27 +40,66 @@ export default function AdminInvoiceDetailClient({
   const [action, setAction] = useState<'approve' | 'cancel' | 'resubmit' | null>(null);
   const [adminRemark, setAdminRemark] = useState('');
   const [actionTaken, setActionTaken] = useState<string | null>(invoice.status !== 'PENDING' ? invoice.status : null);
+  const [adminFill, setAdminFill] = useState({
+    bankName: '',
+    accountHolder: '',
+    accountNumber: '',
+    transactionId: '',
+    transactionDate: '',
+    amount: invoice.amount.toString(),
+    notes: 'Filled by Admin Override',
+  });
 
   const handleAction = async (actionType: 'PAID' | 'CANCELLED' | 'RESUBMIT') => {
-    if (!adminRemark.trim()) {
+    // Only require remark for rejection or resubmission
+    if (actionType !== 'PAID' && !adminRemark.trim()) {
       toast({
         title: 'Error',
-        description: 'Please add a remark before taking action',
+        description: 'Please add a remark before rejecting or requesting resubmission',
         variant: 'destructive',
       });
       return;
     }
 
+    const isFillingDetails = Object.keys(invoice.paymentDetails || {}).length === 0;
+    const hasAnyAdminFill = !!(adminFill.bankName.trim() || adminFill.accountHolder.trim() || adminFill.accountNumber.trim() || adminFill.transactionId.trim() || adminFill.transactionDate.trim());
+
+    if (actionType === 'PAID' && isFillingDetails && hasAnyAdminFill) {
+      if (!adminFill.bankName.trim() || !adminFill.accountHolder.trim() || !adminFill.accountNumber.trim() || !adminFill.transactionId.trim() || !adminFill.transactionDate.trim() || !adminFill.amount.trim()) {
+        toast({
+          title: 'Details Required',
+          description: 'Please fill out all bank transfer details before approving this invoice.',
+          variant: 'destructive',
+        });
+        return;
+      }
+    }
+
     setIsLoading(true);
     try {
+      const bodyPayload: any = {
+        status: actionType,
+        adminNotes: adminRemark || 'Payment approved by admin',
+        remark: adminRemark || 'Payment approved by admin',
+      };
+
+      if (actionType === 'PAID' && isFillingDetails && hasAnyAdminFill) {
+        bodyPayload.paymentDetails = {
+          bankName: adminFill.bankName,
+          accountHolder: adminFill.accountHolder,
+          accountNumber: adminFill.accountNumber,
+          transactionId: adminFill.transactionId,
+          transactionDate: adminFill.transactionDate,
+          amount: Number(adminFill.amount),
+          notes: adminFill.notes,
+          submittedAt: new Date().toISOString(),
+        };
+      }
+
       const response = await fetch(`/api/admin/invoices/${invoice.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          status: actionType,
-          adminNotes: adminRemark,
-          remark: adminRemark,
-        }),
+        body: JSON.stringify(bodyPayload),
       });
 
       if (!response.ok) {
@@ -221,6 +260,87 @@ export default function AdminInvoiceDetailClient({
                       </div>
                     </div>
                   )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {Object.keys(paymentDetails).length === 0 && (invoice.status !== 'PAID' && invoice.status !== 'CANCELLED') && (
+            <Card className="overflow-hidden border-none shadow-md bg-white">
+              <CardHeader className="bg-amber-50/50 pb-4 border-b">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <CreditCard className="h-5 w-5 text-amber-600" />
+                  Manual Bank Transfer Override (Fill details to approve)
+                </CardTitle>
+                <CardDescription>Lawyer did not submit offline details. You can enter details on their behalf.</CardDescription>
+              </CardHeader>
+              <CardContent className="p-6 space-y-4">
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="adminBankName" className="text-xs font-semibold">Bank Name *</Label>
+                    <Input
+                      id="adminBankName"
+                      value={adminFill.bankName}
+                      onChange={(e) => setAdminFill(prev => ({ ...prev, bankName: e.target.value }))}
+                      placeholder="e.g. BOC, Commercial Bank"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="adminAccountHolder" className="text-xs font-semibold">Account Holder *</Label>
+                    <Input
+                      id="adminAccountHolder"
+                      value={adminFill.accountHolder}
+                      onChange={(e) => setAdminFill(prev => ({ ...prev, accountHolder: e.target.value }))}
+                      placeholder="Name on transfer"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="adminAccountNumber" className="text-xs font-semibold">Account Number *</Label>
+                    <Input
+                      id="adminAccountNumber"
+                      value={adminFill.accountNumber}
+                      onChange={(e) => setAdminFill(prev => ({ ...prev, accountNumber: e.target.value }))}
+                      placeholder="Account number"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="adminTransactionId" className="text-xs font-semibold">Transaction ID / Reference *</Label>
+                    <Input
+                      id="adminTransactionId"
+                      value={adminFill.transactionId}
+                      onChange={(e) => setAdminFill(prev => ({ ...prev, transactionId: e.target.value }))}
+                      placeholder="e.g. TX123456789"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="adminTransactionDate" className="text-xs font-semibold">Transfer Date *</Label>
+                    <Input
+                      id="adminTransactionDate"
+                      type="datetime-local"
+                      value={adminFill.transactionDate}
+                      onChange={(e) => setAdminFill(prev => ({ ...prev, transactionDate: e.target.value }))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="adminAmount" className="text-xs font-semibold">Amount Paid (LKR) *</Label>
+                    <Input
+                      id="adminAmount"
+                      type="number"
+                      value={adminFill.amount}
+                      onChange={(e) => setAdminFill(prev => ({ ...prev, amount: e.target.value }))}
+                      placeholder={invoice.amount.toString()}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="adminNotes" className="text-xs font-semibold">Notes</Label>
+                  <Textarea
+                    id="adminNotes"
+                    value={adminFill.notes}
+                    onChange={(e) => setAdminFill(prev => ({ ...prev, notes: e.target.value }))}
+                    placeholder="Any notes regarding the manual override..."
+                    rows={2}
+                  />
                 </div>
               </CardContent>
             </Card>

@@ -170,11 +170,10 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
             </div>
           )} */}
           
-          <AdBanner placement="HOMEPAGE_HERO" locale={locale} className="w-full max-w-4xl mx-auto mt-8 rounded-none overflow-hidden shadow-sm border border-neutral-100" />
+          <AdBanner placement="HOMEPAGE_BELOW_HERO" locale={locale} className="w-full max-w-4xl mx-auto mt-8 rounded-none overflow-hidden shadow-sm border border-neutral-100" />
         </section>
 
-        {/* Mid-Page Ad Banner */}
-        <AdBanner placement="HOMEPAGE_MID" locale={locale} className="mx-auto max-w-[1200px] px-6 lg:px-12 xl:px-24 py-6" />
+        
 
         {/* 3. The Legal Advisory section (Charcoal background with round-br wave curve) */}
         <section className="relative bg-[#161616] text-white pt-24 pb-32 px-6 lg:px-12 xl:px-24 rounded-br-[120px] md:rounded-br-[220px] z-10">
@@ -208,6 +207,54 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
                   More About Us
                 </Button>
               </Link>
+            </div>
+          </div>
+        </section>
+
+        {/* 5. The Best Lawyers In Our House (Dynamic dynamic database list B&W) */}
+        <section className="bg-neutral-100 py-24 px-6 lg:px-12 xl:px-24 border-t border-neutral-100">
+          <div className="max-w-[1400px] mx-auto space-y-16">
+            
+            {/* Header */}
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-neutral-200 pb-8">
+              <div className="space-y-3">
+                <span className="text-[10px] text-[#bfa37a] uppercase tracking-[0.2em] font-bold">Expert Panel</span>
+                <h2 className="text-3xl md:text-4xl font-serif text-neutral-900">
+                  The Best Lawyers In <br /> Our House
+                </h2>
+              </div>
+              <p className="text-neutral-500 text-sm max-w-md font-light leading-relaxed">
+                Connect with our top-tier legal counselors, fully verified and ready to assist you.
+              </p>
+            </div>
+
+            {/* Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
+              {/* Ad/Sponsored placement */}
+              <SponsoredListing placement="DIRECTORY_TOP" locale={locale} />
+
+              {topLawyers.map((lawyer) => {
+                const avgRating =
+                  lawyer.reviews.length > 0
+                    ? lawyer.reviews.reduce((sum, r) => sum + r.rating, 0) / lawyer.reviews.length
+                    : 0;
+
+                return (
+                  <LawyerCard
+                    key={lawyer.id}
+                    id={lawyer.id}
+                    fullName={lawyer.fullName}
+                    profileImageUrl={lawyer.profileImageUrl}
+                    bio={lawyer.bio}
+                    practiceAreas={lawyer.practiceAreas}
+                    languages={lawyer.languages}
+                    district={lawyer.district}
+                    avgRating={avgRating}
+                    locale={locale}
+                    imageHeight="h-[360px]"
+                  />
+                );
+              })}
             </div>
           </div>
         </section>
@@ -268,58 +315,12 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
           </div>
         </section>
 
-        {/* 5. The Best Lawyers In Our House (Dynamic dynamic database list B&W) */}
-        <section className="bg-neutral-50 py-24 px-6 lg:px-12 xl:px-24 border-t border-neutral-100">
-          <div className="max-w-[1200px] mx-auto space-y-16">
-            
-            {/* Header */}
-            <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-neutral-200 pb-8">
-              <div className="space-y-3">
-                <span className="text-[10px] text-[#bfa37a] uppercase tracking-[0.2em] font-bold">Expert Panel</span>
-                <h2 className="text-3xl md:text-4xl font-serif text-neutral-900">
-                  The Best Lawyers In <br /> Our House
-                </h2>
-              </div>
-              <p className="text-neutral-500 text-sm max-w-md font-light leading-relaxed">
-                Connect with our top-tier legal counselors, fully verified and ready to assist you.
-              </p>
-            </div>
-
-            {/* Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-              {/* Ad/Sponsored placement */}
-              <SponsoredListing placement="DIRECTORY_TOP" locale={locale} />
-
-              {topLawyers.map((lawyer) => {
-                const avgRating =
-                  lawyer.reviews.length > 0
-                    ? lawyer.reviews.reduce((sum, r) => sum + r.rating, 0) / lawyer.reviews.length
-                    : 0;
-
-                return (
-                  <LawyerCard
-                    key={lawyer.id}
-                    id={lawyer.id}
-                    fullName={lawyer.fullName}
-                    profileImageUrl={lawyer.profileImageUrl}
-                    bio={lawyer.bio}
-                    practiceAreas={lawyer.practiceAreas}
-                    languages={lawyer.languages}
-                    district={lawyer.district}
-                    avgRating={avgRating}
-                    locale={locale}
-                    imageHeight="h-[360px]"
-                  />
-                );
-              })}
-            </div>
-          </div>
-        </section>
+        
 
       </main>
 
       {/* Persistent AI Chat Widget */}
-      <ChatWidget />
+      {/* <ChatWidget /> */}
 
       <Footer locale={locale} />
     </div>

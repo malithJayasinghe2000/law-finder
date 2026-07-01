@@ -231,7 +231,7 @@ export default function ProfileSettingsPage() {
             <User className="h-6 w-6" />
           </div>
           <div>
-            <h1 className="text-2xl font-serif font-bold tracking-tight text-neutral-900">Profile Settings</h1>
+            <h1 className="text-4xl font-serif font-normal tracking-tight text-neutral-900">Profile Settings</h1>
             <p className="text-sm text-neutral-500 font-medium mt-0.5">Manage your account information</p>
           </div>
         </div>

@@ -2,10 +2,64 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { LawyerCreateAdSchema, LawyerCreateAdBaseSchema, formatZodFieldErrors, AdStatusSchema } from '@/schemas/ad.schema';
+import { isValidUUID } from '@/lib/security';
+import type { AdPlacement, AdType } from '@prisma/client';
 
 const LawyerUpdateAdSchema = LawyerCreateAdBaseSchema.extend({
   status: AdStatusSchema.optional(),
 }).partial();
+
+// Helper to validate slot availability and book dates
+async function validateAndBookSlots(
+  campaignId: string,
+  placement: AdPlacement,
+  startDate: Date,
+  endDate: Date,
+  config: { maxAdsPerSlot: number }
+) {
+  // Generate all dates between startDate and endDate in UTC
+  const dates: Date[] = [];
+  const start = new Date(Date.UTC(startDate.getUTCFullYear(), startDate.getUTCMonth(), startDate.getUTCDate()));
+  const end = new Date(Date.UTC(endDate.getUTCFullYear(), endDate.getUTCMonth(), endDate.getUTCDate()));
+  
+  const tempDate = new Date(start);
+  while (tempDate <= end) {
+    dates.push(new Date(tempDate));
+    tempDate.setUTCDate(tempDate.getUTCDate() + 1);
+  }
+
+  // Check bookings for each date (excluding this campaign's own bookings)
+  for (const date of dates) {
+    const bookedCount = await prisma.adSlotBooking.count({
+      where: {
+        placement,
+        date,
+        campaignId: { not: campaignId },
+      },
+    });
+
+    if (bookedCount >= config.maxAdsPerSlot) {
+      const dateStr = date.toISOString().slice(0, 10);
+      throw new Error(`The placement is fully booked on ${dateStr}. Please select different dates.`);
+    }
+  }
+
+  // Clear existing bookings for this campaign
+  await prisma.adSlotBooking.deleteMany({
+    where: { campaignId },
+  });
+
+  // Create new bookings
+  const bookingsData = dates.map((date) => ({
+    campaignId,
+    placement,
+    date,
+  }));
+
+  await prisma.adSlotBooking.createMany({
+    data: bookingsData,
+  });
+}
 
 // GET /api/lawyer/ads — Get lawyer's own campaigns
 export async function GET() {
@@ -15,7 +69,6 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
 
-    // Get the lawyer profile for this user
     const profile = await prisma.lawyerProfile.findUnique({
       where: { userId: session.userId },
       select: { id: true },
@@ -36,7 +89,6 @@ export async function GET() {
       orderBy: { createdAt: 'desc' },
     });
 
-    // Calculate summary stats
     const totalImpressions = campaigns.reduce((sum, c) => sum + c.impressions, 0);
     const totalClicks = campaigns.reduce((sum, c) => sum + c.clicks, 0);
     const activeCampaigns = campaigns.filter((c) => c.status === 'ACTIVE').length;
@@ -74,7 +126,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Lawyer profile not found.' }, { status: 404 });
     }
 
-    const parsed = LawyerCreateAdSchema.safeParse(await req.json());
+    const json = await req.json();
+    const parsed = LawyerCreateAdSchema.safeParse(json);
 
     if (!parsed.success) {
       return NextResponse.json(
@@ -86,19 +139,36 @@ export async function POST(req: Request) {
     const {
       name, type, placement, title, description, imageUrl,
       targetUrl, ctaText, targetDistricts, targetPracticeAreas,
-      startDate, endDate, totalBudget,
+      startDate, endDate,
     } = parsed.data;
 
+    // Get config for slot limit & price
+    const config = await prisma.adPlacementConfig.findUnique({
+      where: { placement: placement as AdPlacement },
+    });
+
+    if (!config) {
+      return NextResponse.json({ error: 'Placement configuration not found.' }, { status: 404 });
+    }
+
+    if (!config.isActive) {
+      return NextResponse.json({ error: 'This placement is currently disabled.' }, { status: 400 });
+    }
+
+    // Auto-calculate budget from dates and config
     const start = new Date(startDate);
     const end = new Date(endDate);
+    const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+    const computedTotal = config.pricePerDay * Math.max(1, days);
 
+    // Create the campaign in PENDING_REVIEW
     const campaign = await prisma.adCampaign.create({
       data: {
         lawyerId: profile.id,
         name,
-        type,
-        placement,
-        status: 'PENDING_REVIEW', // Lawyers always submit for review
+        type: type as AdType,
+        placement: placement as AdPlacement,
+        status: 'PENDING_REVIEW',
         title: title || null,
         description: description || null,
         imageUrl: imageUrl || null,
@@ -108,10 +178,19 @@ export async function POST(req: Request) {
         targetPracticeAreas: targetPracticeAreas || [],
         startDate: start,
         endDate: end,
-        totalBudget,
-        pricePerDay: null,
+        totalBudget: computedTotal,
+        pricePerDay: config.pricePerDay,
       },
     });
+
+    // Check slot availability and book dates
+    try {
+      await validateAndBookSlots(campaign.id, placement as AdPlacement, start, end, config);
+    } catch (bookingError: any) {
+      // Rollback campaign creation if bookings conflict
+      await prisma.adCampaign.delete({ where: { id: campaign.id } });
+      return NextResponse.json({ error: bookingError.message }, { status: 400 });
+    }
 
     return NextResponse.json({ campaign, message: 'Campaign submitted for review!' }, { status: 201 });
   } catch (error) {
@@ -120,9 +199,7 @@ export async function POST(req: Request) {
   }
 }
 
-// PATCH /api/lawyer/ads — Lawyer can pause their own active campaign or edit a draft
-import { isValidUUID } from '@/lib/security';
-
+// PATCH /api/lawyer/ads — Lawyer pauses/resumes their campaign or updates a draft
 export async function PATCH(req: Request) {
   try {
     const session = await getSession();
@@ -173,7 +250,7 @@ export async function PATCH(req: Request) {
     const whitelistFields = [
       'name', 'type', 'placement', 'title', 'description', 'imageUrl',
       'targetUrl', 'ctaText', 'targetDistricts', 'targetPracticeAreas',
-      'totalBudget', 'status'
+      'status'
     ];
 
     for (const key of whitelistFields) {
@@ -182,8 +259,34 @@ export async function PATCH(req: Request) {
       }
     }
 
-    if (validatedData.startDate) dbUpdateData.startDate = new Date(validatedData.startDate);
-    if (validatedData.endDate) dbUpdateData.endDate = new Date(validatedData.endDate);
+    let start = existing.startDate;
+    let end = existing.endDate;
+    let placement = existing.placement;
+
+    if (validatedData.startDate) {
+      start = new Date(validatedData.startDate);
+      dbUpdateData.startDate = start;
+    }
+    if (validatedData.endDate) {
+      end = new Date(validatedData.endDate);
+      dbUpdateData.endDate = end;
+    }
+    if (validatedData.placement) {
+      placement = validatedData.placement as AdPlacement;
+      dbUpdateData.placement = placement;
+    }
+
+    // Auto-calculate budget if dates/placement changes
+    if (validatedData.startDate || validatedData.endDate || validatedData.placement) {
+      const config = await prisma.adPlacementConfig.findUnique({
+        where: { placement },
+      });
+      if (config) {
+        const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+        dbUpdateData.pricePerDay = config.pricePerDay;
+        dbUpdateData.totalBudget = config.pricePerDay * Math.max(1, days);
+      }
+    }
 
     // Lawyers can only pause active campaigns or edit drafts/rejected
     if (validatedData.status) {
@@ -215,6 +318,28 @@ export async function PATCH(req: Request) {
 
       if (existing.status === 'PAUSED' && validatedData.status === 'ACTIVE') {
         dbUpdateData.pausedBy = null;
+      }
+
+      // If status transitions to DRAFT or REJECTED, release bookings
+      if (['DRAFT', 'REJECTED'].includes(validatedData.status)) {
+        await prisma.adSlotBooking.deleteMany({ where: { campaignId: id } });
+      }
+    }
+
+    // If active dates/placement changes, validate and update bookings
+    if (
+      (validatedData.startDate || validatedData.endDate || validatedData.placement) &&
+      !['DRAFT', 'REJECTED'].includes(validatedData.status || existing.status)
+    ) {
+      const config = await prisma.adPlacementConfig.findUnique({
+        where: { placement },
+      });
+      if (config) {
+        try {
+          await validateAndBookSlots(id, placement, start, end, config);
+        } catch (bookingError: any) {
+          return NextResponse.json({ error: bookingError.message }, { status: 400 });
+        }
       }
     }
 

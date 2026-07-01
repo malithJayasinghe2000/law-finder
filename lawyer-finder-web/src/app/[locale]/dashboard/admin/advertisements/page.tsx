@@ -1,10 +1,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter, useParams } from 'next/navigation';
 import { toast } from 'sonner';
 import {
   Image as ImageIcon, Plus, Loader2, Trash2, Eye,
-  CheckCircle2, XCircle, Clock, Pause,
+  CheckCircle2, XCircle, Clock, Pause, Settings,
   ChevronDown, ChevronUp, Filter, FileText, ImagePlus
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
@@ -20,7 +21,10 @@ import {
   getComputedTotalBudget,
   getPlacementsForType,
   isImageRequiredType,
+  formatAdLabel,
   type AdPlacementValue,
+  type AdTypeValue,
+  type PlacementConfigClient,
 } from '@/schemas/ad.schema';
 
 interface Campaign {
@@ -81,15 +85,6 @@ interface LawyerApiItem {
 
 const AD_STATUSES = ['DRAFT', 'PENDING_REVIEW', 'APPROVED', 'ACTIVE', 'PAUSED', 'EXPIRED', 'REJECTED'];
 
-function formatLabel(str: string) {
-  return str.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
-}
-
-function ctr(impressions: number, clicks: number) {
-  if (impressions === 0) return '0.00';
-  return ((clicks / impressions) * 100).toFixed(2);
-}
-
 const statusConfig: Record<string, { color: string; icon: LucideIcon }> = {
   DRAFT: { color: 'bg-neutral-100 text-neutral-600 border-neutral-200', icon: Clock },
   PENDING_REVIEW: { color: 'bg-amber-50 text-amber-700 border-amber-200', icon: Clock },
@@ -101,10 +96,17 @@ const statusConfig: Record<string, { color: string; icon: LucideIcon }> = {
 };
 
 export default function AdvertisementsPage() {
+  const router = useRouter();
+  const params = useParams();
+  const locale = params.locale as string || 'en';
+
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
   const [lawyers, setLawyers] = useState<Lawyer[]>([]);
+  const [configs, setConfigs] = useState<PlacementConfigClient[]>([]);
+  const [selectedConfig, setSelectedConfig] = useState<PlacementConfigClient | null>(null);
+  
   const [showCreate, setShowCreate] = useState(false);
   const [createLoading, setCreateLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -118,8 +120,8 @@ export default function AdvertisementsPage() {
   const [form, setForm] = useState({
     lawyerId: '',
     name: '',
-    type: 'BANNER',
-    placement: 'HOMEPAGE_HERO',
+    type: 'BANNER_IMAGE' as AdTypeValue,
+    placement: 'HOMEPAGE_BELOW_HERO' as AdPlacementValue,
     title: '',
     description: '',
     imageUrl: '',
@@ -134,12 +136,32 @@ export default function AdvertisementsPage() {
     status: 'DRAFT',
   });
 
-  const validPlacements = getPlacementsForType(form.type);
-  const placementDetails = PLACEMENT_DETAILS[form.placement as AdPlacementValue];
+  const validPlacements = selectedConfig ? [selectedConfig.placement] : configs.map(c => c.placement);
+  const placementDetails = PLACEMENT_DETAILS[form.placement];
   const imageRequired = isImageRequiredType(form.type);
-  const computedTotalBudget = getComputedTotalBudget(form.pricePerDay, form.startDate, form.endDate);
+  const computedTotalBudget = getComputedTotalBudget(form.pricePerDay || selectedConfig?.pricePerDay, form.startDate, form.endDate);
 
-  const updateForm = (field: keyof typeof form, value: string) => {
+  const fetchConfigs = async () => {
+    try {
+      const res = await fetch('/api/admin/ad-config');
+      const data = await res.json();
+      setConfigs(data.configs || []);
+      if (data.configs && data.configs.length > 0) {
+        const firstConf = data.configs[0] as PlacementConfigClient;
+        setSelectedConfig(firstConf);
+        setForm(prev => ({
+          ...prev,
+          placement: firstConf.placement,
+          type: firstConf.allowedAdTypes[0] || 'BANNER_IMAGE',
+          pricePerDay: String(firstConf.pricePerDay),
+        }));
+      }
+    } catch {
+      toast.error('Failed to load ad placement configurations.');
+    }
+  };
+
+  const updateForm = (field: keyof typeof form, value: any) => {
     setFormErrors((prev) => {
       const next = { ...prev };
       delete next[field];
@@ -147,11 +169,29 @@ export default function AdvertisementsPage() {
     });
 
     setForm((prev) => {
+      const updated = { ...prev, [field]: value };
+      
       if (field === 'type') {
-        const [nextPlacement] = getPlacementsForType(value);
-        return { ...prev, type: value, placement: nextPlacement || prev.placement };
+        const compatibleConfigs = configs.filter(c => c.allowedAdTypes.includes(value));
+        if (compatibleConfigs.length > 0) {
+          updated.placement = compatibleConfigs[0].placement;
+          setSelectedConfig(compatibleConfigs[0]);
+          updated.pricePerDay = String(compatibleConfigs[0].pricePerDay);
+        }
       }
-      return { ...prev, [field]: value };
+
+      if (field === 'placement') {
+        const conf = configs.find(c => c.placement === value);
+        if (conf) {
+          setSelectedConfig(conf);
+          updated.pricePerDay = String(conf.pricePerDay);
+          if (!conf.allowedAdTypes.includes(updated.type)) {
+            updated.type = conf.allowedAdTypes[0] || 'BANNER_IMAGE';
+          }
+        }
+      }
+
+      return updated;
     });
   };
 
@@ -188,6 +228,7 @@ export default function AdvertisementsPage() {
   useEffect(() => {
     fetchCampaigns();
     fetchLawyers();
+    fetchConfigs();
   }, [filterStatus]);
 
   const handleImageUpload = async () => {
@@ -225,7 +266,11 @@ export default function AdvertisementsPage() {
   };
 
   const handleCreate = async () => {
-    const parsed = AdminCreateAdSchema.safeParse(form);
+    const dataToSend = {
+      ...form,
+      pricePerDay: Number(form.pricePerDay),
+    };
+    const parsed = AdminCreateAdSchema.safeParse(dataToSend);
     if (!parsed.success) {
       setFormErrors(formatZodFieldErrors(parsed.error));
       toast.error('Please fix the highlighted fields.');
@@ -238,7 +283,7 @@ export default function AdvertisementsPage() {
       const res = await fetch('/api/admin/ads', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
+        body: JSON.stringify(dataToSend),
       });
       const result = await res.json();
       if (!res.ok) {
@@ -248,10 +293,10 @@ export default function AdvertisementsPage() {
       toast.success('Campaign created successfully.');
       setShowCreate(false);
       setForm({
-        lawyerId: '', name: '', type: 'BANNER', placement: 'HOMEPAGE_HERO',
+        lawyerId: '', name: '', type: 'BANNER_IMAGE', placement: 'HOMEPAGE_BELOW_HERO',
         title: '', description: '', imageUrl: '', targetUrl: '', ctaText: 'View Profile',
         targetDistricts: [], targetPracticeAreas: [], startDate: '', endDate: '',
-        totalBudget: '', pricePerDay: '', status: 'DRAFT',
+        totalBudget: '', pricePerDay: String(selectedConfig?.pricePerDay || 2000), status: 'DRAFT',
       });
       fetchCampaigns();
     } catch (e) {
@@ -269,11 +314,12 @@ export default function AdvertisementsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, status: newStatus }),
       });
-      if (!res.ok) throw new Error('Failed.');
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed.');
       toast.success(`Campaign ${newStatus.toLowerCase().replace('_', ' ')}.`);
       fetchCampaigns();
-    } catch {
-      toast.error('Failed to update status.');
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to update status.');
     } finally {
       setActionLoading(null);
     }
@@ -347,12 +393,21 @@ export default function AdvertisementsPage() {
             <p className="text-sm text-neutral-500 font-medium">Manage lawyer advertisements & promotions</p>
           </div>
         </div>
-        <Button
-          onClick={() => setShowCreate(!showCreate)}
-          className="bg-[#0a0a0a] hover:bg-neutral-800 text-white text-xs font-bold uppercase tracking-wide"
-        >
-          <Plus className="w-3.5 h-3.5 mr-2" /> New Campaign
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={() => router.push(`/${locale}/dashboard/admin/ad-config`)}
+            className="text-xs font-bold uppercase tracking-wide"
+          >
+            <Settings className="w-3.5 h-3.5 mr-2" /> Configure Placements
+          </Button>
+          <Button
+            onClick={() => setShowCreate(!showCreate)}
+            className="bg-[#0a0a0a] hover:bg-neutral-800 text-white text-xs font-bold uppercase tracking-wide"
+          >
+            <Plus className="w-3.5 h-3.5 mr-2" /> New Campaign
+          </Button>
+        </div>
       </div>
 
       {/* Stats Cards */}
@@ -387,7 +442,7 @@ export default function AdvertisementsPage() {
         >
           <option value="">All Statuses</option>
           {AD_STATUSES.map((s) => (
-            <option key={s} value={s}>{formatLabel(s)}</option>
+            <option key={s} value={s}>{formatAdLabel(s)}</option>
           ))}
         </select>
         {filterStatus && (
@@ -420,25 +475,22 @@ export default function AdvertisementsPage() {
                   <FieldError message={formErrors.lawyerId} />
                 </div>
                 <div>
+                  <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5">Placement *</label>
+                  <select value={form.placement} onChange={(e) => updateForm('placement', e.target.value)} className="w-full py-2.5 px-3 bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-900 outline-none focus:border-[#0a0a0a]">
+                    {configs.map((c) => (
+                      <option key={c.placement} value={c.placement}>{c.displayName}</option>
+                    ))}
+                  </select>
+                  <FieldError message={formErrors.placement} />
+                </div>
+                <div>
                   <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5">Ad Type *</label>
                   <select value={form.type} onChange={(e) => updateForm('type', e.target.value)} className="w-full py-2.5 px-3 bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-900 outline-none focus:border-[#0a0a0a]">
-                    {AD_TYPES.map((t) => (
-                      <option key={t} value={t}>{formatLabel(t)}</option>
+                    {selectedConfig?.allowedAdTypes.map((t) => (
+                      <option key={t} value={t}>{formatAdLabel(t)}</option>
                     ))}
                   </select>
                   <FieldError message={formErrors.type} />
-                </div>
-                <div>
-                  <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5">Placement *</label>
-                  <select value={form.placement} onChange={(e) => updateForm('placement', e.target.value)} className="w-full py-2.5 px-3 bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-900 outline-none focus:border-[#0a0a0a]">
-                    {validPlacements.map((p) => (
-                      <option key={p} value={p}>{formatLabel(p)}</option>
-                    ))}
-                  </select>
-                  {placementDetails && (
-                    <p className="text-[11px] text-neutral-500 mt-1">{placementDetails.description} • {placementDetails.dimensions}</p>
-                  )}
-                  <FieldError message={formErrors.placement} />
                 </div>
               </div>
             </section>
@@ -457,7 +509,7 @@ export default function AdvertisementsPage() {
                   <FieldError message={formErrors.name} />
                 </div>
                 <div>
-                  <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5">Ad Title {form.type === 'BANNER' ? '*' : ''}</label>
+                  <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5">Ad Title {form.type === 'BANNER_IMAGE' ? '*' : ''}</label>
                   <input type="text" placeholder="Headline text" value={form.title} onChange={(e) => updateForm('title', e.target.value)} className="w-full py-2.5 px-3 bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-900 outline-none focus:border-[#0a0a0a]" />
                   <FieldError message={formErrors.title} />
                 </div>
@@ -520,7 +572,7 @@ export default function AdvertisementsPage() {
                 </div>
                 <div>
                   <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5">Price / Day (LKR) *</label>
-                  <input type="number" min="1" placeholder="500" value={form.pricePerDay} onChange={(e) => updateForm('pricePerDay', e.target.value)} className="w-full py-2.5 px-3 bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-900 outline-none focus:border-[#0a0a0a]" />
+                  <input type="number" min="0" placeholder="500" value={form.pricePerDay} onChange={(e) => updateForm('pricePerDay', e.target.value)} className="w-full py-2.5 px-3 bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-900 outline-none focus:border-[#0a0a0a]" />
                   <FieldError message={formErrors.pricePerDay} />
                 </div>
                 <div>
@@ -528,11 +580,6 @@ export default function AdvertisementsPage() {
                   <div className="w-full py-2.5 px-3 bg-neutral-100 border border-neutral-200 text-sm font-bold text-neutral-900 min-h-[42px]">
                     {computedTotalBudget ? `LKR ${computedTotalBudget.toLocaleString()}` : 'Set dates and rate'}
                   </div>
-                </div>
-                <div>
-                  <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5">Override Total</label>
-                  <input type="number" min="1" placeholder="Optional" value={form.totalBudget} onChange={(e) => updateForm('totalBudget', e.target.value)} className="w-full py-2.5 px-3 bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-900 outline-none focus:border-[#0a0a0a]" />
-                  <FieldError message={formErrors.totalBudget} />
                 </div>
                 <div>
                   <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5">Initial Status</label>
@@ -607,7 +654,6 @@ export default function AdvertisementsPage() {
                   className="flex items-center gap-4 px-5 py-4 cursor-pointer"
                   onClick={() => setExpandedId(isExpanded ? null : campaign.id)}
                 >
-                  {/* Preview */}
                   <div className="w-12 h-12 rounded bg-neutral-100 flex items-center justify-center shrink-0 overflow-hidden">
                     {campaign.imageUrl ? (
                       <img src={campaign.imageUrl} alt="" className="w-full h-full object-cover" />
@@ -616,21 +662,19 @@ export default function AdvertisementsPage() {
                     )}
                   </div>
 
-                  {/* Info */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-0.5">
                       <p className="text-sm font-bold text-neutral-900 truncate">{campaign.name}</p>
                       <span className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 border ${sc.color} inline-flex items-center gap-1`}>
                         <StatusIcon className="w-3 h-3" />
-                        {formatLabel(campaign.status)}
+                        {formatAdLabel(campaign.status)}
                       </span>
                     </div>
                     <p className="text-xs text-neutral-500">
-                      {campaign.lawyer.fullName} • {formatLabel(campaign.type)} • {formatLabel(campaign.placement)}
+                      {campaign.lawyer.fullName} • {formatAdLabel(campaign.type)} • {formatAdLabel(campaign.placement)}
                     </p>
                   </div>
 
-                  {/* Metrics */}
                   <div className="hidden sm:flex items-center gap-6 text-xs text-neutral-600">
                     <div className="text-center">
                       <p className="font-bold text-neutral-900">{campaign.impressions.toLocaleString()}</p>
@@ -640,10 +684,6 @@ export default function AdvertisementsPage() {
                       <p className="font-bold text-neutral-900">{campaign.clicks.toLocaleString()}</p>
                       <p className="text-[10px] text-neutral-400">Clicks</p>
                     </div>
-                    <div className="text-center">
-                      <p className="font-bold text-neutral-900">{ctr(campaign.impressions, campaign.clicks)}%</p>
-                      <p className="text-[10px] text-neutral-400">CTR</p>
-                    </div>
                     {campaign.status === 'ACTIVE' && (
                       <div className="text-center">
                         <p className="font-bold text-blue-600">{daysLeft}d</p>
@@ -652,7 +692,6 @@ export default function AdvertisementsPage() {
                     )}
                   </div>
 
-                  {/* Expand Arrow */}
                   {isExpanded ? <ChevronUp className="w-4 h-4 text-neutral-400" /> : <ChevronDown className="w-4 h-4 text-neutral-400" />}
                 </div>
 
@@ -660,7 +699,6 @@ export default function AdvertisementsPage() {
                 {isExpanded && (
                   <div className="border-t border-neutral-100 px-5 py-5 bg-neutral-50/50 space-y-4 animate-in fade-in duration-200">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                      {/* Schedule */}
                       <div>
                         <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1">Schedule</p>
                         <p className="text-neutral-700">
@@ -670,7 +708,6 @@ export default function AdvertisementsPage() {
                         </p>
                       </div>
 
-                      {/* Budget */}
                       <div>
                         <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1">Pricing</p>
                         <p className="text-neutral-700">
@@ -684,7 +721,6 @@ export default function AdvertisementsPage() {
                         )}
                       </div>
 
-                      {/* Targeting */}
                       <div>
                         <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1">Targeting</p>
                         <p className="text-neutral-700">
@@ -694,7 +730,6 @@ export default function AdvertisementsPage() {
                         </p>
                       </div>
 
-                      {/* Creative */}
                       {campaign.title && (
                         <div className="md:col-span-2">
                           <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1">Creative</p>
@@ -703,7 +738,6 @@ export default function AdvertisementsPage() {
                         </div>
                       )}
 
-                      {/* Rejection Reason */}
                       {campaign.rejectionReason && (
                         <div className="md:col-span-3 bg-red-50 border border-red-200 p-3 rounded">
                           <p className="text-[10px] font-bold text-red-600 uppercase tracking-wider mb-1">Rejection Reason</p>
@@ -715,7 +749,6 @@ export default function AdvertisementsPage() {
                     {/* Action Buttons */}
                     <Separator />
                     <div className="flex flex-wrap gap-2">
-                      {/* Approve */}
                       {['DRAFT', 'PENDING_REVIEW'].includes(campaign.status) && (
                         <Button
                           size="sm"
@@ -727,7 +760,6 @@ export default function AdvertisementsPage() {
                         </Button>
                       )}
 
-                      {/* Activate */}
                       {['APPROVED', 'PAUSED'].includes(campaign.status) && (
                         <Button
                           size="sm"
@@ -739,7 +771,6 @@ export default function AdvertisementsPage() {
                         </Button>
                       )}
 
-                      {/* Pause */}
                       {campaign.status === 'ACTIVE' && (
                         <Button
                           size="sm"
@@ -752,7 +783,6 @@ export default function AdvertisementsPage() {
                         </Button>
                       )}
 
-                      {/* Reject */}
                       {!['REJECTED', 'EXPIRED'].includes(campaign.status) && (
                         <Button
                           size="sm"
@@ -764,7 +794,6 @@ export default function AdvertisementsPage() {
                         </Button>
                       )}
 
-                      {/* Generate Invoice */}
                       {!campaign.invoiceId && ['APPROVED', 'ACTIVE'].includes(campaign.status) && (
                         <Button
                           size="sm"
@@ -778,7 +807,6 @@ export default function AdvertisementsPage() {
                         </Button>
                       )}
 
-                      {/* Delete */}
                       <Button
                         size="sm"
                         variant="ghost"

@@ -4,9 +4,10 @@ import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { AdminCreateAdSchema, formatZodFieldErrors, getComputedTotalBudget, AdTypeSchema, AdPlacementSchema, AdStatusSchema } from '@/schemas/ad.schema';
 import { isValidUUID, validatePaginationParams } from '@/lib/security';
+import { EmailService } from '@/lib/email/EmailService';
 import { z } from 'zod';
 
-// ── Admin Update Ad Schema ────────────────────────────────────────────────
+// Admin Update Ad Schema
 const AdminUpdateAdSchema = z.object({
   id: z.string().uuid('Invalid campaign ID'),
   name: z.string().trim().min(3).max(100).optional(),
@@ -27,7 +28,55 @@ const AdminUpdateAdSchema = z.object({
   status: AdStatusSchema.optional(),
 });
 
-// GET /api/admin/ads — List all campaigns with optional filters
+// Helper to validate slot availability and book dates
+async function validateAndBookSlots(
+  campaignId: string,
+  placement: AdPlacement,
+  startDate: Date,
+  endDate: Date,
+  config: { maxAdsPerSlot: number }
+) {
+  const dates: Date[] = [];
+  const start = new Date(Date.UTC(startDate.getUTCFullYear(), startDate.getUTCMonth(), startDate.getUTCDate()));
+  const end = new Date(Date.UTC(endDate.getUTCFullYear(), endDate.getUTCMonth(), endDate.getUTCDate()));
+  
+  const tempDate = new Date(start);
+  while (tempDate <= end) {
+    dates.push(new Date(tempDate));
+    tempDate.setUTCDate(tempDate.getUTCDate() + 1);
+  }
+
+  for (const date of dates) {
+    const bookedCount = await prisma.adSlotBooking.count({
+      where: {
+        placement,
+        date,
+        campaignId: { not: campaignId },
+      },
+    });
+
+    if (bookedCount >= config.maxAdsPerSlot) {
+      const dateStr = date.toISOString().slice(0, 10);
+      throw new Error(`The placement is fully booked on ${dateStr}. Please select different dates.`);
+    }
+  }
+
+  await prisma.adSlotBooking.deleteMany({
+    where: { campaignId },
+  });
+
+  const bookingsData = dates.map((date) => ({
+    campaignId,
+    placement,
+    date,
+  }));
+
+  await prisma.adSlotBooking.createMany({
+    data: bookingsData,
+  });
+}
+
+// GET /api/admin/ads — List all campaigns with filters
 export async function GET(req: Request) {
   try {
     const session = await getSession();
@@ -70,7 +119,6 @@ export async function GET(req: Request) {
       prisma.adCampaign.count({ where }),
     ]);
 
-    // Get aggregate stats
     const stats = await prisma.adCampaign.groupBy({
       by: ['status'],
       _count: { id: true },
@@ -97,7 +145,7 @@ export async function GET(req: Request) {
       },
     });
   } catch (error) {
-    console.error('[ADMIN_ADS_GET]', error instanceof Error ? error.message : 'Failed');
+    console.error('[ADMIN_ADS_GET]', error);
     return NextResponse.json({ error: 'Failed to fetch campaigns.' }, { status: 500 });
   }
 }
@@ -110,7 +158,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
 
-    const parsed = AdminCreateAdSchema.safeParse(await req.json());
+    const json = await req.json();
+    const parsed = AdminCreateAdSchema.safeParse(json);
 
     if (!parsed.success) {
       return NextResponse.json(
@@ -133,24 +182,33 @@ export async function POST(req: Request) {
       targetPracticeAreas,
       startDate,
       endDate,
-      totalBudget,
-      dailyBudget,
       pricePerDay,
       status,
     } = parsed.data;
 
-    // Verify the lawyer exists
     const lawyer = await prisma.lawyerProfile.findUnique({ where: { id: lawyerId } });
     if (!lawyer) {
       return NextResponse.json({ error: 'Lawyer not found.' }, { status: 404 });
     }
 
+    const config = await prisma.adPlacementConfig.findUnique({
+      where: { placement: placement as AdPlacement },
+    });
+
+    if (!config) {
+      return NextResponse.json({ error: 'Placement configuration not found.' }, { status: 404 });
+    }
+
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    const computedTotal = pricePerDay ? getComputedTotalBudget(pricePerDay, startDate, endDate) : getComputedTotalBudget(config.pricePerDay, startDate, endDate);
+
     const campaign = await prisma.adCampaign.create({
       data: {
         lawyerId,
         name,
-        type,
-        placement,
+        type: type as AdType,
+        placement: placement as AdPlacement,
         title: title || null,
         description: description || null,
         imageUrl: imageUrl || null,
@@ -158,26 +216,32 @@ export async function POST(req: Request) {
         ctaText: ctaText || 'View Profile',
         targetDistricts: targetDistricts || [],
         targetPracticeAreas: targetPracticeAreas || [],
-        startDate: new Date(startDate),
-        endDate: new Date(endDate),
-        totalBudget: totalBudget || getComputedTotalBudget(pricePerDay, startDate, endDate),
-        dailyBudget: dailyBudget || null,
-        pricePerDay,
+        startDate: start,
+        endDate: end,
+        totalBudget: computedTotal,
+        pricePerDay: pricePerDay || config.pricePerDay,
         status: status || 'DRAFT',
-      },
-      include: {
-        lawyer: { select: { fullName: true, baslNumber: true } },
       },
     });
 
+    // Book slots immediately if created in ACTIVE, APPROVED, or PENDING_REVIEW status
+    if (['ACTIVE', 'APPROVED', 'PENDING_REVIEW'].includes(campaign.status)) {
+      try {
+        await validateAndBookSlots(campaign.id, placement as AdPlacement, start, end, config);
+      } catch (bookingError: any) {
+        await prisma.adCampaign.delete({ where: { id: campaign.id } });
+        return NextResponse.json({ error: bookingError.message }, { status: 400 });
+      }
+    }
+
     return NextResponse.json({ campaign, message: 'Campaign created successfully.' }, { status: 201 });
   } catch (error) {
-    console.error('[ADMIN_ADS_POST]', error instanceof Error ? error.message : 'Failed');
+    console.error('[ADMIN_ADS_POST]', error);
     return NextResponse.json({ error: 'Failed to create campaign.' }, { status: 500 });
   }
 }
 
-// PATCH /api/admin/ads — Update a campaign (approve, reject, pause, activate, edit)
+// PATCH /api/admin/ads — Update/approve/reject campaigns
 export async function PATCH(req: Request) {
   try {
     const session = await getSession();
@@ -202,7 +266,6 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: 'Campaign not found.' }, { status: 404 });
     }
 
-    // Build safe update data from validated fields only
     const updateData: Record<string, unknown> = {};
 
     if (validatedData.name !== undefined) updateData.name = validatedData.name;
@@ -215,15 +278,108 @@ export async function PATCH(req: Request) {
     if (validatedData.ctaText !== undefined) updateData.ctaText = validatedData.ctaText;
     if (validatedData.targetDistricts !== undefined) updateData.targetDistricts = validatedData.targetDistricts;
     if (validatedData.targetPracticeAreas !== undefined) updateData.targetPracticeAreas = validatedData.targetPracticeAreas;
-    if (validatedData.startDate) updateData.startDate = new Date(validatedData.startDate);
-    if (validatedData.endDate) updateData.endDate = new Date(validatedData.endDate);
-    if (validatedData.totalBudget !== undefined) updateData.totalBudget = validatedData.totalBudget;
-    if (validatedData.dailyBudget !== undefined) updateData.dailyBudget = validatedData.dailyBudget;
-    if (validatedData.pricePerDay !== undefined) updateData.pricePerDay = validatedData.pricePerDay;
+    
+    let start = existing.startDate;
+    let end = existing.endDate;
+    let placement = existing.placement;
+
+    if (validatedData.startDate) {
+      start = new Date(validatedData.startDate);
+      updateData.startDate = start;
+    }
+    if (validatedData.endDate) {
+      end = new Date(validatedData.endDate);
+      updateData.endDate = end;
+    }
+    if (validatedData.placement) {
+      placement = validatedData.placement as AdPlacement;
+      updateData.placement = placement;
+    }
+
+    // Auto-calculate budget if price details change
+    if (validatedData.startDate || validatedData.endDate || validatedData.placement || validatedData.pricePerDay) {
+      const activePlacement = placement;
+      const rate = validatedData.pricePerDay !== undefined ? validatedData.pricePerDay : existing.pricePerDay;
+      if (rate) {
+        const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+        updateData.pricePerDay = rate;
+        updateData.totalBudget = rate * Math.max(1, days);
+      }
+    }
+
     if (validatedData.status) {
       updateData.status = validatedData.status;
       if (validatedData.status === 'PAUSED') updateData.pausedBy = 'ADMIN';
-      if (validatedData.status === 'ACTIVE') updateData.pausedBy = null;
+      
+      if (validatedData.status === 'ACTIVE') {
+        updateData.pausedBy = null;
+        if (existing.invoiceId) {
+          const linkedInvoice = await prisma.invoice.findUnique({
+            where: { id: existing.invoiceId }
+          });
+          if (linkedInvoice && linkedInvoice.status !== 'PAID') {
+            return NextResponse.json({ error: 'Cannot activate campaign. Linked invoice must be PAID.' }, { status: 400 });
+          }
+        }
+      }
+
+      // Generate invoice on approval
+      if (validatedData.status === 'APPROVED' && !existing.invoiceId) {
+        let amount = 0;
+        const rate = (updateData.pricePerDay as number) || existing.pricePerDay;
+        const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+        amount = rate ? rate * Math.max(1, days) : 0;
+
+        if (amount > 0) {
+          const invoice = await prisma.invoice.create({
+            data: {
+              lawyerId: existing.lawyerId,
+              amount,
+              status: 'PENDING',
+              paymentReason: `Ad Campaign: ${existing.name}`,
+            },
+          });
+          updateData.invoiceId = invoice.id;
+
+          const lawyerProfile = await prisma.lawyerProfile.findUnique({
+            where: { id: existing.lawyerId },
+            include: { user: true },
+          });
+
+          if (lawyerProfile?.user?.email) {
+            EmailService.sendInvoiceCreated(
+              lawyerProfile.user.email,
+              lawyerProfile.user.fullName || 'Valued Lawyer',
+              invoice.id,
+              invoice.amount,
+              invoice.paymentReason
+            ).catch(err => console.error('Failed to send invoice creation email:', err));
+          }
+        }
+      }
+
+      // Handle bookings cleanup for released statuses
+      if (['DRAFT', 'REJECTED', 'EXPIRED'].includes(validatedData.status)) {
+        await prisma.adSlotBooking.deleteMany({ where: { campaignId: id } });
+      }
+    }
+
+    // Verify bookings when slots are modified or campaign is activated
+    const finalStatus = validatedData.status || existing.status;
+    if (
+      !['DRAFT', 'REJECTED', 'EXPIRED'].includes(finalStatus) &&
+      (validatedData.startDate || validatedData.endDate || validatedData.placement || validatedData.status === 'ACTIVE' || validatedData.status === 'APPROVED')
+    ) {
+      const config = await prisma.adPlacementConfig.findUnique({
+        where: { placement },
+      });
+      if (config) {
+        try {
+          await validateAndBookSlots(id, placement, start, end, config);
+        } catch (bookingError: any) {
+          return NextResponse.json({ error: bookingError.message }, { status: 400 });
+        }
+      }
     }
 
     const campaign = await prisma.adCampaign.update({
@@ -236,12 +392,12 @@ export async function PATCH(req: Request) {
 
     return NextResponse.json({ campaign, message: 'Campaign updated.' });
   } catch (error) {
-    console.error('[ADMIN_ADS_PATCH]', error instanceof Error ? error.message : 'Failed');
+    console.error('[ADMIN_ADS_PATCH]', error);
     return NextResponse.json({ error: 'Failed to update campaign.' }, { status: 500 });
   }
 }
 
-// DELETE /api/admin/ads?id=xyz — Delete a campaign
+// DELETE /api/admin/ads?id=xyz — Delete campaign and bookings
 export async function DELETE(req: Request) {
   try {
     const session = await getSession();
@@ -256,12 +412,11 @@ export async function DELETE(req: Request) {
       return NextResponse.json({ error: 'A valid campaign ID is required.' }, { status: 400 });
     }
 
+    await prisma.adSlotBooking.deleteMany({ where: { campaignId: id } });
     await prisma.adCampaign.delete({ where: { id } });
     return NextResponse.json({ message: 'Campaign deleted.' });
   } catch (error) {
-    console.error('[ADMIN_ADS_DELETE]', error instanceof Error ? error.message : 'Failed');
+    console.error('[ADMIN_ADS_DELETE]', error);
     return NextResponse.json({ error: 'Failed to delete campaign.' }, { status: 500 });
   }
 }
-
-

@@ -10,7 +10,7 @@
   --color-foreground: var(--foreground);
   --font-sans: 'Outfit', ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono);
-  --font-heading: 'Outfit', ui-sans-serif, system-ui, sans-serif;
+  --font-heading: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
   --animate-marquee: marquee 30s linear infinite;
   --animate-marquee2: marquee2 30s linear infinite;
   --color-sidebar-ring: var(--sidebar-ring);
@@ -129,6 +129,9 @@
   }
   html {
     @apply font-sans scroll-smooth;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-heading;
   }
 }
 @keyframes marquee {

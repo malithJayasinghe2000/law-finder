@@ -49,7 +49,7 @@ export default function LawyerEarningsPage() {
           <Banknote className="h-5 w-5" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-neutral-900">Earnings & Retained Fees</h1>
+          <h1 className="text-4xl font-normal tracking-tight text-neutral-900">Earnings & Retained Fees</h1>
           <p className="text-sm text-neutral-500 font-medium">Overview of your consultation payouts and cancellation penalties</p>
         </div>
       </div>
