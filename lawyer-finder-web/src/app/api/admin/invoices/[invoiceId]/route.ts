@@ -1,6 +1,15 @@
 import { getSession } from '@/lib/auth';
 import prisma from '@/lib/db';
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
+import { isValidUUID, sanitizeString } from '@/lib/security';
+
+// ── Invoice Update Schema ─────────────────────────────────────────────────
+const AdminUpdateInvoiceSchema = z.object({
+  status: z.enum(['PAID', 'PENDING', 'RESUBMIT', 'CANCELLED'] as const),
+  remark: z.string().trim().max(1000, 'Remark cannot exceed 1000 characters.').optional(),
+  adminNotes: z.string().trim().max(1000, 'Admin notes cannot exceed 1000 characters.').optional(),
+});
 
 export async function PUT(
   req: NextRequest,
@@ -14,16 +23,32 @@ export async function PUT(
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  // Validate invoiceId format
+  if (!isValidUUID(invoiceId)) {
+    return NextResponse.json({ error: 'Invalid invoice ID.' }, { status: 400 });
+  }
+
   try {
     const body = await req.json();
-    const { status, remark, adminNotes } = body;
+    const parsed = AdminUpdateInvoiceSchema.safeParse(body);
+
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: parsed.error.issues[0]?.message || 'Invalid update data.' },
+        { status: 400 }
+      );
+    }
+
+    const { status, remark, adminNotes } = parsed.data;
+    const sanitizedRemark = remark ? sanitizeString(remark, 1000) : undefined;
+    const sanitizedNotes = adminNotes ? sanitizeString(adminNotes, 1000) : sanitizedRemark;
 
     // Update invoice status
     const updated = await prisma.invoice.update({
       where: { id: invoiceId },
       data: {
         status,
-        adminNotes: adminNotes || remark,
+        adminNotes: sanitizedNotes,
         updatedAt: new Date(),
       },
       include: {
@@ -33,11 +58,11 @@ export async function PUT(
     });
 
     // Add remark if provided
-    if (remark) {
+    if (sanitizedRemark) {
       await prisma.invoiceRemark.create({
         data: {
           invoiceId,
-          remark,
+          remark: sanitizedRemark,
           isForLawyer: true,
         },
       });
@@ -73,11 +98,10 @@ export async function PUT(
 
     return NextResponse.json(updated);
   } catch (error) {
-    console.error('Error updating invoice:', error);
+    console.error('[ADMIN_INVOICE_UPDATE]', error instanceof Error ? error.message : 'Failed');
     return NextResponse.json(
       { error: 'Failed to update invoice' },
       { status: 500 }
     );
   }
 }
-

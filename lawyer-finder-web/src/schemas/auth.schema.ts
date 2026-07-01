@@ -1,13 +1,18 @@
 import { z } from 'zod';
+import { sanitizeString } from '@/lib/sanitize';
 
 export const loginSchema = z.object({
-  email: z.string().email("Please enter a valid email address."),
+  email: z.string().trim().toLowerCase().email("Please enter a valid email address."),
   password: z.string().min(8, "Password must be at least 8 characters long.")
 });
 
 export const registerSchema = z.object({
-  fullName: z.string().min(3, "Full Name must be at least 3 characters."),
-  email: z.string().email("Please enter a valid email address."),
+  fullName: z.string()
+    .min(3, "Full Name must be at least 3 characters.")
+    .max(120, "Full Name cannot exceed 120 characters.")
+    .transform((val) => sanitizeString(val))
+    .refine((val) => val.length >= 3, "Full Name must be at least 3 characters."),
+  email: z.string().trim().toLowerCase().email("Please enter a valid email address."),
   password: z.string()
   .min(8, "Password must be at least 8 characters long.")
   .max(100, "Password cannot be longer than 100 characters.")

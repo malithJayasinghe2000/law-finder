@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { Scale, User, Inbox, FileText, LogOut, LayoutDashboard, Shield, Star, Menu, BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -49,13 +50,14 @@ export default function DashboardSidebar({ role, locale }: DashboardSidebarProps
 
   const SidebarContent = () => (
     <div className="flex h-full flex-col">
-      <div className="flex h-16 items-center gap-2 border-b px-5 bg-card">
-        <div className="flex items-center justify-center text-[#bfa37a]">
-          <Scale className="h-5 w-5 stroke-[1.5]" />
-        </div>
-        <span className="text-sm font-serif tracking-[0.15em] font-medium uppercase text-neutral-800">
-          LAWFINDER
-        </span>
+      <div className="flex h-16 items-center border-b px-5 bg-card">
+        <Image
+          src="/logo.png"
+          alt="TheLawyr Logo"
+          width={110}
+          height={28}
+          className="h-7 w-auto object-contain"
+        />
       </div>
 
       {/* Nav */}

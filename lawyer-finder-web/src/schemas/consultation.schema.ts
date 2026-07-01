@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { sanitizeString } from '@/lib/sanitize';
 
 // ============= Enums =============
 
@@ -52,7 +53,10 @@ export const AvailabilityOverrideSchema = z.object({
   isBlocked: z.boolean().default(false),
   startTime: TimeString.optional(),
   endTime: TimeString.optional(),
-  reason: z.string().max(200).optional(),
+  reason: z.preprocess(
+    (val) => typeof val === 'string' ? sanitizeString(val) : val,
+    z.string().max(200).optional()
+  ),
 }).refine(
   (data) => {
     if (!data.isBlocked) {
@@ -102,9 +106,18 @@ export const CreateBookingSchema = z.object({
   startTime: TimeString,
   endTime: TimeString,
   mode: z.enum(['PHYSICAL', 'ONLINE']),
-  subject: z.string().min(3, 'Subject must be at least 3 characters').max(200),
-  description: z.string().min(10, 'Please describe your legal issue in at least 10 characters').max(2000),
-  practiceArea: z.string().optional(),
+  subject: z.preprocess(
+    (val) => typeof val === 'string' ? sanitizeString(val) : val,
+    z.string().min(3, 'Subject must be at least 3 characters').max(200)
+  ),
+  description: z.preprocess(
+    (val) => typeof val === 'string' ? sanitizeString(val) : val,
+    z.string().min(10, 'Please describe your legal issue in at least 10 characters').max(2000)
+  ),
+  practiceArea: z.preprocess(
+    (val) => typeof val === 'string' ? sanitizeString(val) : val,
+    z.string().optional()
+  ),
   paymentMethod: BookingPaymentMethodEnum,
 });
 
@@ -113,7 +126,10 @@ export type CreateBookingInput = z.infer<typeof CreateBookingSchema>;
 // ============= Cancel Booking =============
 
 export const CancelBookingSchema = z.object({
-  reason: z.string().min(5, 'Please provide a reason for cancellation').max(500),
+  reason: z.preprocess(
+    (val) => typeof val === 'string' ? sanitizeString(val) : val,
+    z.string().min(5, 'Please provide a reason for cancellation').max(500)
+  ),
 });
 
 export type CancelBookingInput = z.infer<typeof CancelBookingSchema>;
@@ -121,10 +137,22 @@ export type CancelBookingInput = z.infer<typeof CancelBookingSchema>;
 // ============= Booking Payment (Bank Transfer) =============
 
 export const BankTransferPaymentSchema = z.object({
-  bankName: z.string().min(1, 'Bank name is required'),
-  accountHolder: z.string().min(1, 'Account holder name is required'),
-  transactionRef: z.string().min(1, 'Transaction reference is required'),
-  receiptImageUrl: z.string().optional(),
+  bankName: z.preprocess(
+    (val) => typeof val === 'string' ? sanitizeString(val) : val,
+    z.string().min(1, 'Bank name is required')
+  ),
+  accountHolder: z.preprocess(
+    (val) => typeof val === 'string' ? sanitizeString(val) : val,
+    z.string().min(1, 'Account holder name is required')
+  ),
+  transactionRef: z.preprocess(
+    (val) => typeof val === 'string' ? sanitizeString(val) : val,
+    z.string().min(1, 'Transaction reference is required')
+  ),
+  receiptImageUrl: z.preprocess(
+    (val) => typeof val === 'string' ? sanitizeString(val) : val,
+    z.string().optional()
+  ),
 });
 
 export type BankTransferPaymentInput = z.infer<typeof BankTransferPaymentSchema>;
@@ -132,7 +160,10 @@ export type BankTransferPaymentInput = z.infer<typeof BankTransferPaymentSchema>
 // ============= Complete Booking (Lawyer post-consultation) =============
 
 export const CompleteBookingSchema = z.object({
-  lawyerNotes: z.string().max(2000).optional(),
+  lawyerNotes: z.preprocess(
+    (val) => typeof val === 'string' ? sanitizeString(val) : val,
+    z.string().max(2000).optional()
+  ),
 });
 
 export type CompleteBookingInput = z.infer<typeof CompleteBookingSchema>;
@@ -141,7 +172,10 @@ export type CompleteBookingInput = z.infer<typeof CompleteBookingSchema>;
 
 export const BookingRatingSchema = z.object({
   rating: z.number().int().min(1).max(5),
-  feedback: z.string().max(1000).optional(),
+  feedback: z.preprocess(
+    (val) => typeof val === 'string' ? sanitizeString(val) : val,
+    z.string().max(1000).optional()
+  ),
 });
 
 export type BookingRatingInput = z.infer<typeof BookingRatingSchema>;
@@ -170,7 +204,10 @@ export type AvailableSlotsQuery = z.infer<typeof AvailableSlotsQuerySchema>;
 
 export const AdminVerifyPaymentSchema = z.object({
   status: z.enum(['PAID', 'RESUBMIT', 'CANCELLED']),
-  adminNotes: z.string().max(500).optional(),
+  adminNotes: z.preprocess(
+    (val) => typeof val === 'string' ? sanitizeString(val) : val,
+    z.string().max(500).optional()
+  ),
 });
 
 export type AdminVerifyPaymentInput = z.infer<typeof AdminVerifyPaymentSchema>;

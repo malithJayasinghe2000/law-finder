@@ -67,7 +67,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
               <div className="max-w-3xl">
                 <h1 className="text-5xl sm:text-6xl md:text-[5.5rem] font-light leading-[1.05] tracking-tight text-white mb-0 md:-mb-4">
                   About<br />
-                  LawFinder
+                  TheLawyr
                 </h1>
               </div>
 
@@ -134,7 +134,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
                 {
                   icon: ShieldCheck,
                   title: 'BASL Verified Attorneys',
-                  desc: 'Every lawyer on LawFinder is verified against the Bar Association of Sri Lanka registry. No fake profiles, guaranteed authenticity.',
+                  desc: 'Every lawyer on TheLawyr is verified against the Bar Association of Sri Lanka registry. No fake profiles, guaranteed authenticity.',
                 },
                 {
                   icon: Search,
@@ -186,7 +186,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
               Are you a legal professional?
             </h2>
             <p className="mx-auto mt-4 max-w-xl text-lg text-muted-foreground">
-              Join hundreds of Sri Lankan attorneys already using LawFinder to grow their practice, publish insights, and connect with clients.
+              Join hundreds of Sri Lankan attorneys already using TheLawyr to grow their practice, publish insights, and connect with clients.
             </p>
             <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
               <Link href={`/${locale}/register`}>

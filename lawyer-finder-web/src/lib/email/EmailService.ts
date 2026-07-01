@@ -10,7 +10,7 @@ const transporter = nodemailer.createTransport({
   }
 });
 
-const FROM_EMAIL = process.env.SMTP_FROM_EMAIL || '"LawFinder SL" <noreply@lawfinder.lk>';
+const FROM_EMAIL = process.env.SMTP_FROM_EMAIL || '"TheLawyr SL" <noreply@thelawyr.lk>';
 
 async function getAdminEmails(): Promise<string[]> {
   try {
@@ -41,7 +41,7 @@ async function sendMailSafe(to: string | string[], subject: string, html: string
 export const EmailService = {
   async sendEmailVerification(email: string, token: string, fullName: string) {
     const url = `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/verify-email?token=${token}`;
-    await sendMailSafe(email, 'Verify your email address - LawFinder SL', template('Welcome to LawFinder SL!', `
+    await sendMailSafe(email, 'Verify your email address - TheLawyr SL', template('Welcome to TheLawyr SL!', `
       <p>Dear ${fullName},</p>
       <p>Please click the button below to verify your email address.</p>
       <div style="text-align: center; margin: 30px 0;">

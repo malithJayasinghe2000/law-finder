@@ -69,10 +69,10 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
               <h1 className="text-4xl sm:text-6xl font-serif text-neutral-900 leading-[1.1] tracking-tight">
                 Defending Your Rights <br />
                 Delivering 
-                <span className="inline-flex items-center mx-3 px-3 py-1 bg-neutral-900 rounded-full h-9 w-20 sm:h-12 sm:w-24 overflow-hidden relative align-middle">
+                <span className="inline-flex items-center mx-3 bg-neutral-500 rounded-full h-9 w-20 sm:h-12 sm:w-24 overflow-hidden relative align-middle">
                   <img 
-                    src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=200&h=100&q=80" 
-                    className="object-cover w-full h-full scale-125 opacity-80" 
+                    src="/justieswomen.png" 
+                    className="object-cover object-top w-full h-full scale-125 opacity-80 bg-white" 
                     alt="Justice Decor" 
                   />
                 </span>
@@ -201,7 +201,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
             {/* Right */}
             <div className="flex flex-col justify-between items-start space-y-8 lg:space-y-0">
               <p className="text-neutral-400 text-sm font-light max-w-lg leading-relaxed">
-                From simple consultations to complex litigation support, LawFinder delivers accessibility. Start your conversation with our AI tool, download documents or coordinate directly with our active directory of vetted advocates.
+                From simple consultations to complex litigation support, TheLawyr delivers accessibility. Start your conversation with our AI tool, download documents or coordinate directly with our active directory of vetted advocates.
               </p>
               <Link href={`/${locale}/about`}>
                 <Button className="bg-[#bfa37a] text-white hover:bg-[#a68d67] rounded-none px-8 py-6 text-xs font-bold uppercase tracking-widest transition-all">

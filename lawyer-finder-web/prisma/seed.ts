@@ -19,10 +19,10 @@ async function main() {
 
   // 1. Create Admin
   const admin = await prisma.user.upsert({
-    where: { email: 'admin@lawfinder.lk' },
+    where: { email: 'admin@thelawyr.lk' },
     update: {},
     create: {
-      email: 'admin@lawfinder.lk',
+      email: 'admin@thelawyr.lk',
       passwordHash,
       role: 'ADMIN',
     },
@@ -30,10 +30,10 @@ async function main() {
 
   // 2. Create Lawyer
   const lawyer = await prisma.user.upsert({
-    where: { email: 'lawyer@lawfinder.lk' },
+    where: { email: 'lawyer@thelawyr.lk' },
     update: {},
     create: {
-      email: 'lawyer@lawfinder.lk',
+      email: 'lawyer@thelawyr.lk',
       passwordHash,
       role: 'LAWYER',
       profile: {
@@ -53,10 +53,10 @@ async function main() {
 
   // 3. Create Client
   const client = await prisma.user.upsert({
-    where: { email: 'citizen@lawfinder.lk' },
+    where: { email: 'citizen@thelawyr.lk' },
     update: {},
     create: {
-      email: 'citizen@lawfinder.lk',
+      email: 'citizen@thelawyr.lk',
       passwordHash,
       role: 'CLIENT',
     },
@@ -64,10 +64,10 @@ async function main() {
 
   // 3.5 Create Second Lawyer (With Subscription intended)
   const lawyer2 = await prisma.user.upsert({
-    where: { email: 'lawyer2@lawfinder.lk' },
+    where: { email: 'lawyer2@thelawyr.lk' },
     update: {},
     create: {
-      email: 'lawyer2@lawfinder.lk',
+      email: 'lawyer2@thelawyr.lk',
       passwordHash,
       role: 'LAWYER',
       profile: {

@@ -10,7 +10,7 @@ const transporter = nodemailer.createTransport({
   }
 });
 
-const FROM_EMAIL = process.env.SMTP_FROM_EMAIL || '"LawFinder SL" <noreply@lawfinder.lk>';
+const FROM_EMAIL = process.env.SMTP_FROM_EMAIL || '"TheLawyr SL" <noreply@thelawyr.lk>';
 
 async function testMail() {
   console.log('Using SMTP Configuration:');
@@ -28,7 +28,7 @@ async function testMail() {
     const info = await transporter.sendMail({
       from: FROM_EMAIL,
       to: process.env.SMTP_USER || 'test@example.com',
-      subject: 'LawFinder SMTP Test Email',
+      subject: 'TheLawyr SMTP Test Email',
       html: '<p>If you see this, your SMTP configuration is correct!</p>'
     });
 

@@ -1,7 +1,11 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
-import { LawyerCreateAdSchema, formatZodFieldErrors } from '@/schemas/ad.schema';
+import { LawyerCreateAdSchema, LawyerCreateAdBaseSchema, formatZodFieldErrors, AdStatusSchema } from '@/schemas/ad.schema';
+
+const LawyerUpdateAdSchema = LawyerCreateAdBaseSchema.extend({
+  status: AdStatusSchema.optional(),
+}).partial();
 
 // GET /api/lawyer/ads — Get lawyer's own campaigns
 export async function GET() {
@@ -117,6 +121,8 @@ export async function POST(req: Request) {
 }
 
 // PATCH /api/lawyer/ads — Lawyer can pause their own active campaign or edit a draft
+import { isValidUUID } from '@/lib/security';
+
 export async function PATCH(req: Request) {
   try {
     const session = await getSession();
@@ -134,12 +140,25 @@ export async function PATCH(req: Request) {
     }
 
     const body = await req.json();
-    const { id, ...updateData } = body;
+    const { id } = body;
+
+    if (!id || typeof id !== 'string' || !isValidUUID(id)) {
+      return NextResponse.json({ error: 'A valid campaign ID is required.' }, { status: 400 });
+    }
+
+    const updateData = { ...body };
+    delete updateData.id;
     delete updateData.pausedBy;
 
-    if (!id) {
-      return NextResponse.json({ error: 'Campaign ID is required.' }, { status: 400 });
+    const parsed = LawyerUpdateAdSchema.safeParse(updateData);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: 'Please fix the validation errors.', fieldErrors: formatZodFieldErrors(parsed.error) },
+        { status: 400 }
+      );
     }
+
+    const validatedData = parsed.data;
 
     // Verify ownership
     const existing = await prisma.adCampaign.findFirst({
@@ -150,8 +169,24 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: 'Campaign not found.' }, { status: 404 });
     }
 
+    const dbUpdateData: Record<string, any> = {};
+    const whitelistFields = [
+      'name', 'type', 'placement', 'title', 'description', 'imageUrl',
+      'targetUrl', 'ctaText', 'targetDistricts', 'targetPracticeAreas',
+      'totalBudget', 'status'
+    ];
+
+    for (const key of whitelistFields) {
+      if (validatedData[key as keyof typeof validatedData] !== undefined) {
+        dbUpdateData[key] = validatedData[key as keyof typeof validatedData];
+      }
+    }
+
+    if (validatedData.startDate) dbUpdateData.startDate = new Date(validatedData.startDate);
+    if (validatedData.endDate) dbUpdateData.endDate = new Date(validatedData.endDate);
+
     // Lawyers can only pause active campaigns or edit drafts/rejected
-    if (updateData.status) {
+    if (validatedData.status) {
       const allowed: Record<string, string[]> = {
         ACTIVE: ['PAUSED'],
         PAUSED: ['ACTIVE'],
@@ -160,40 +195,37 @@ export async function PATCH(req: Request) {
       };
 
       const validTransitions = allowed[existing.status] || [];
-      if (!validTransitions.includes(updateData.status)) {
+      if (!validTransitions.includes(validatedData.status)) {
         return NextResponse.json(
-          { error: `Cannot transition from ${existing.status} to ${updateData.status}.` },
+          { error: `Cannot transition from ${existing.status} to ${validatedData.status}.` },
           { status: 400 }
         );
       }
 
-      if (existing.status === 'PAUSED' && updateData.status === 'ACTIVE' && existing.pausedBy !== 'LAWYER') {
+      if (existing.status === 'PAUSED' && validatedData.status === 'ACTIVE' && existing.pausedBy !== 'LAWYER') {
         return NextResponse.json(
           { error: 'This campaign was paused by an admin and can only be resumed by an admin.' },
           { status: 403 }
         );
       }
 
-      if (existing.status === 'ACTIVE' && updateData.status === 'PAUSED') {
-        updateData.pausedBy = 'LAWYER';
+      if (existing.status === 'ACTIVE' && validatedData.status === 'PAUSED') {
+        dbUpdateData.pausedBy = 'LAWYER';
       }
 
-      if (existing.status === 'PAUSED' && updateData.status === 'ACTIVE') {
-        updateData.pausedBy = null;
+      if (existing.status === 'PAUSED' && validatedData.status === 'ACTIVE') {
+        dbUpdateData.pausedBy = null;
       }
     }
 
-    if (updateData.startDate) updateData.startDate = new Date(updateData.startDate);
-    if (updateData.endDate) updateData.endDate = new Date(updateData.endDate);
-
     const campaign = await prisma.adCampaign.update({
       where: { id },
-      data: updateData,
+      data: dbUpdateData,
     });
 
     return NextResponse.json({ campaign, message: 'Campaign updated.' });
   } catch (error) {
-    console.error('[LAWYER_ADS_PATCH]', error);
+    console.error('[LAWYER_ADS_PATCH]', error instanceof Error ? error.message : 'Unknown error');
     return NextResponse.json({ error: 'Failed to update campaign.' }, { status: 500 });
   }
 }

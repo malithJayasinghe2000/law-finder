@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { moderatePostSchema } from '@/schemas/community.schema';
+import { validatePaginationParams } from '@/lib/security';
 
 // GET /api/admin/posts — List posts pending review
 export async function GET(req: Request) {
@@ -13,8 +14,12 @@ export async function GET(req: Request) {
 
     const { searchParams } = new URL(req.url);
     const status = searchParams.get('status') || 'PENDING_REVIEW';
-    const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '20');
+    
+    // Clamp pagination parameters
+    const { page, limit } = validatePaginationParams(
+      searchParams.get('page'),
+      searchParams.get('limit')
+    );
 
     const where: Record<string, unknown> = {};
     if (status !== 'all') {

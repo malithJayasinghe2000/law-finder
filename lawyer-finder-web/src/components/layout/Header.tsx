@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useState, useEffect } from 'react';
@@ -248,12 +249,14 @@ export default function Header({ locale, userRole = null, appStatus = null, user
     <header className={`${isPremiumDesign ? 'absolute top-0 w-full z-50 bg-transparent border-none' : 'sticky top-0 z-50 border-b bg-background/80 backdrop-blur-xl'}`}>
       <div className={`mx-auto flex h-24 max-w-[1400px] items-center justify-between px-6 lg:px-12 xl:px-24 ${isPremiumDesign ? 'border-b border-neutral-100' : ''}`}>
         <Link href={`/${locale}`} className="flex items-center gap-2 group">
-          <div className="flex items-center justify-center text-[#bfa37a] transition-transform group-hover:scale-105">
-            <Scale className="h-7 w-7 stroke-[1.5]" />
-          </div>
-          <span className={`text-xl font-serif tracking-[0.15em] font-medium uppercase ${isPremiumDesign ? 'text-neutral-900' : 'text-foreground'}`}>
-            LAWFINDER
-          </span>
+          <Image
+            src="/logo.png"
+            alt="TheLawyr Logo"
+            width={160}
+            height={55}
+            className="h-14 w-auto object-contain transition-transform group-hover:scale-105"
+            priority
+          />
         </Link>
 
         {/* Desktop Nav - Centered */}
@@ -304,9 +307,14 @@ export default function Header({ locale, userRole = null, appStatus = null, user
           </SheetTrigger>
           <SheetContent side="right" className="w-72 bg-[#fbf9f6] border-l border-[#efeae0] p-6 flex flex-col justify-between">
             <div className="flex flex-col flex-1">
-              <SheetTitle className="flex items-center gap-2 px-1 mb-6 font-serif text-[#bfa37a] tracking-[0.15em] uppercase text-sm font-medium">
-                <Scale className="h-5 w-5 stroke-[1.5]" />
-                LAWFINDER
+              <SheetTitle className="flex items-center gap-2 px-1 mb-6">
+                <Image
+                  src="/logo.png"
+                  alt="TheLawyr Logo"
+                  width={110}
+                  height={28}
+                  className="h-7 w-auto object-contain"
+                />
               </SheetTitle>
               <SheetDescription className="sr-only">Mobile navigation menu</SheetDescription>
               

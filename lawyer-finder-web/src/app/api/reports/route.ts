@@ -60,6 +60,8 @@ export async function POST(req: Request) {
   }
 }
 
+import { validatePaginationParams } from '@/lib/security';
+
 // GET /api/reports — Admin: List reports
 export async function GET(req: Request) {
   try {
@@ -70,8 +72,12 @@ export async function GET(req: Request) {
 
     const { searchParams } = new URL(req.url);
     const status = searchParams.get('status') || 'PENDING';
-    const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '20');
+    
+    // Clamp pagination parameters
+    const { page, limit } = validatePaginationParams(
+      searchParams.get('page'),
+      searchParams.get('limit')
+    );
 
     const where: Record<string, unknown> = {};
     if (status !== 'all') where.status = status;

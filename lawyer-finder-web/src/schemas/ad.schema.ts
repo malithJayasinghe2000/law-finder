@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { sanitizeString } from '@/lib/sanitize';
 
 export const AD_TYPES = ['BANNER', 'SPONSORED_LISTING', 'FEATURED_PROFILE', 'IN_FEED', 'SIDEBAR'] as const;
 export const AD_PLACEMENTS = [
@@ -59,23 +60,29 @@ export const AdTypeSchema = z.enum(AD_TYPES);
 export const AdPlacementSchema = z.enum(AD_PLACEMENTS);
 export const AdStatusSchema = z.enum(['DRAFT', 'PENDING_REVIEW', 'APPROVED', 'ACTIVE', 'PAUSED', 'EXPIRED', 'REJECTED']);
 
-const emptyToUndefined = (value: unknown) => (value === '' || value === null ? undefined : value);
-const optionalText = z.preprocess(emptyToUndefined, z.string().trim().optional());
+const optionalText = z.string().trim().optional()
+  .transform((val) => {
+    const res = val === '' || val === null ? undefined : val;
+    return res ? sanitizeString(res) : res;
+  });
 const optionalPositiveInt = z.preprocess(
-  emptyToUndefined,
+  (value) => value === '' || value === null ? undefined : value,
   z.coerce.number().int('Must be a whole number').positive('Must be greater than 0').optional()
 );
 const requiredPositiveInt = z.coerce.number().int('Must be a whole number').positive('Must be greater than 0');
 
 export const AdCampaignBaseSchema = z.object({
-  name: z.string().trim().min(3, 'Campaign name must be at least 3 characters').max(100, 'Campaign name must be 100 characters or fewer'),
+  name: z.string().trim()
+    .min(3, 'Campaign name must be at least 3 characters')
+    .max(100, 'Campaign name must be 100 characters or fewer')
+    .transform((val) => sanitizeString(val)),
   type: AdTypeSchema,
   placement: AdPlacementSchema,
   title: optionalText,
   description: optionalText,
   imageUrl: optionalText,
   targetUrl: optionalText,
-  ctaText: z.preprocess(emptyToUndefined, z.string().trim().default('View Profile')),
+  ctaText: z.string().trim().default('View Profile').transform((val) => sanitizeString(val)),
   targetDistricts: z.array(z.string()).default([]),
   targetPracticeAreas: z.array(z.string()).default([]),
   startDate: z.string().min(1, 'Start date is required'),
@@ -196,9 +203,11 @@ export const AdminCreateAdSchema = AdCampaignBaseSchema.extend({
   validateSharedCampaignRules(value, ctx, { requireFutureStart: false, requireLawyerBudget: false });
 });
 
-export const LawyerCreateAdSchema = AdCampaignBaseSchema.omit({ dailyBudget: true }).extend({
+export const LawyerCreateAdBaseSchema = AdCampaignBaseSchema.omit({ dailyBudget: true }).extend({
   pricePerDay: optionalPositiveInt,
-}).superRefine((value, ctx) => {
+});
+
+export const LawyerCreateAdSchema = LawyerCreateAdBaseSchema.superRefine((value, ctx) => {
   validateSharedCampaignRules(value, ctx, { requireFutureStart: true, requireLawyerBudget: true });
 });
 

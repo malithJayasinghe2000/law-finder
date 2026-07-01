@@ -3,14 +3,20 @@ import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { createCommunitySchema } from '@/schemas/community.schema';
 
+import { validatePaginationParams, sanitizeString } from '@/lib/security';
+
 // GET /api/communities — List communities with search/pagination
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
-    const search = searchParams.get('search') || '';
+    const search = searchParams.get('search') ? sanitizeString(searchParams.get('search') || '', 100) : '';
     const category = searchParams.get('category') || '';
-    const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '20');
+    
+    // Clamp pagination parameters
+    const { page, limit } = validatePaginationParams(
+      searchParams.get('page'),
+      searchParams.get('limit')
+    );
     const sort = searchParams.get('sort') || 'popular'; // popular, newest, alphabetical
 
     const where: Record<string, unknown> = {
