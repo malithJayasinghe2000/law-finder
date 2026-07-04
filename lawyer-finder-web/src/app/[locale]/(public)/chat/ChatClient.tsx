@@ -918,9 +918,11 @@ export default function ChatClient({
         </div>
       </div>
       {/* Right Sidebar Ad Area */}
-      <aside className="hidden lg:block w-80 border-l border-[#efeae0] p-6 bg-[#faf8f6] h-[calc(100vh-96px)] sticky top-24 shrink-0 overflow-y-auto">
-        <SidebarAd placement="CHAT_RIGHT_SIDEBAR" locale={locale} />
-      </aside>
+      <SidebarAd 
+        placement="CHAT_RIGHT_SIDEBAR" 
+        locale={locale} 
+        className="hidden lg:block w-80 border-l border-[#efeae0] p-6 bg-[#faf8f6] h-[calc(100vh-96px)] sticky top-24 shrink-0 overflow-y-auto"
+      />
     </div>
     </div>
   );
