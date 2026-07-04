@@ -113,6 +113,9 @@ enum ConsultationMode {
 enum BookingStatus {
   PENDING_PAYMENT
   AWAITING_BANK_TRANSFER_VERIFICATION
+  AWAITING_LAWYER_APPROVAL
+  RESCHEDULE_REQUESTED
+  REJECTED_BY_LAWYER
   CONFIRMED
   IN_PROGRESS
   COMPLETED
@@ -237,6 +240,7 @@ model LawyerProfile {
   availabilityOverrides AvailabilityOverride[]
   consultationPricing   ConsultationPricing?
   bookings              Booking[]
+  withdrawRequests      WithdrawRequest[]
 }
 
 model SubscriptionPlan {
@@ -892,9 +896,13 @@ model LegalDocument {
   pageCount       Int?
 
   // RAG metadata
-  ragDocumentName String?                 // Name in ChromaDB
-  chunksCount     Int                     @default(0)
-  graphEntities   Int                     @default(0)
+  ragDocumentName    String?                 // Name in ChromaDB
+  chunksCount        Int                     @default(0)
+  graphEntities      Int                     @default(0)
+  graphRelationships Int                     @default(0)
+
+  // AI-generated document outline (JSON array of section summaries)
+  outline            Json?
 
   // Status
   status          LegalDocumentStatus     @default(PROCESSING)
@@ -1040,6 +1048,12 @@ model Booking {
   clientRating    Int?
   clientFeedback  String?
 
+  // Lawyer workflow
+  lawyerRemarks   String?
+  rescheduleProposedDate DateTime?
+  rescheduleProposedTime String?
+  adminRemarks    String?
+
   // Cancellation
   cancelledAt     DateTime?
   cancelledBy     String?
@@ -1088,8 +1102,11 @@ model BookingPayment {
   // Bank transfer fields
   bankName        String?
   accountHolder   String?
+  accountNumber   String?
+  transactionDate String?
   transactionRef  String?
   receiptImageUrl String?
+  notes           String?
 
   // PayHere fields
   payhereOrderId  String?
@@ -1103,4 +1120,25 @@ model BookingPayment {
 
   createdAt       DateTime             @default(now())
   updatedAt       DateTime             @updatedAt
+}
+
+enum WithdrawStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model WithdrawRequest {
+  id                 String         @id @default(uuid())
+  lawyerId           String
+  lawyer             LawyerProfile  @relation(fields: [lawyerId], references: [id], onDelete: Cascade)
+  amount             Int
+  status             WithdrawStatus @default(PENDING)
+  bankName           String
+  accountNumber      String
+  accountHolder      String
+  adminNotes         String?
+  referenceImageUrl  String?
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
 }

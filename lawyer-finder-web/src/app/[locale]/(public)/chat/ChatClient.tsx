@@ -769,7 +769,7 @@ export default function ChatClient({
                 <div className="max-w-[80%]">
                   <div className="flex items-center gap-3 p-5 bg-[#fdfbf7] border border-[#efeae0] shadow-sm rounded-2xl rounded-tl-none">
                     <Loader2 className="h-5 w-5 animate-spin text-[#bfa37a]" />
-                    <span className="text-xs text-neutral-400 font-light">Searching legal database & web...</span>
+                    <span className="text-xs text-neutral-400 font-light">Thinking...</span>
                   </div>
                 </div>
               </div>

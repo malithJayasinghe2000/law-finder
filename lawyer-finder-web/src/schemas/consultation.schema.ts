@@ -10,7 +10,7 @@ export const DayOfWeekEnum = z.enum([
 export const ConsultationModeEnum = z.enum(['PHYSICAL', 'ONLINE', 'BOTH']);
 
 export const BookingStatusEnum = z.enum([
-  'PENDING_PAYMENT', 'AWAITING_BANK_TRANSFER_VERIFICATION', 'CONFIRMED', 'IN_PROGRESS', 'COMPLETED',
+  'PENDING_PAYMENT', 'AWAITING_BANK_TRANSFER_VERIFICATION', 'AWAITING_LAWYER_APPROVAL', 'RESCHEDULE_REQUESTED', 'REJECTED_BY_LAWYER', 'CONFIRMED', 'IN_PROGRESS', 'COMPLETED',
   'CANCELLED_BY_CLIENT', 'CANCELLED_BY_LAWYER', 'NO_SHOW', 'DISPUTED',
 ]);
 
@@ -145,13 +145,22 @@ export const BankTransferPaymentSchema = z.object({
     (val) => typeof val === 'string' ? sanitizeString(val) : val,
     z.string().min(1, 'Account holder name is required')
   ),
+  accountNumber: z.preprocess(
+    (val) => typeof val === 'string' ? sanitizeString(val) : val,
+    z.string().min(1, 'Account number is required')
+  ),
+  transactionDate: z.string().min(1, 'Transaction date is required'),
   transactionRef: z.preprocess(
     (val) => typeof val === 'string' ? sanitizeString(val) : val,
-    z.string().min(1, 'Transaction reference is required')
+    z.string().min(1, 'Transaction reference/ID is required')
   ),
   receiptImageUrl: z.preprocess(
     (val) => typeof val === 'string' ? sanitizeString(val) : val,
     z.string().optional()
+  ),
+  notes: z.preprocess(
+    (val) => typeof val === 'string' ? sanitizeString(val) : val,
+    z.string().max(1000).optional()
   ),
 });
 
@@ -217,6 +226,9 @@ export type AdminVerifyPaymentInput = z.infer<typeof AdminVerifyPaymentSchema>;
 export const BOOKING_STATUS_COLORS: Record<string, string> = {
   PENDING_PAYMENT: 'bg-amber-100 text-amber-800',
   AWAITING_BANK_TRANSFER_VERIFICATION: 'bg-sky-100 text-sky-800',
+  AWAITING_LAWYER_APPROVAL: 'bg-indigo-100 text-indigo-800',
+  RESCHEDULE_REQUESTED: 'bg-teal-100 text-teal-800',
+  REJECTED_BY_LAWYER: 'bg-rose-100 text-rose-800',
   CONFIRMED: 'bg-blue-100 text-blue-800',
   IN_PROGRESS: 'bg-purple-100 text-purple-800',
   COMPLETED: 'bg-green-100 text-green-800',
@@ -229,6 +241,9 @@ export const BOOKING_STATUS_COLORS: Record<string, string> = {
 export const BOOKING_STATUS_LABELS: Record<string, string> = {
   PENDING_PAYMENT: 'Pending Payment',
   AWAITING_BANK_TRANSFER_VERIFICATION: 'Pending Bank Transfer Verification',
+  AWAITING_LAWYER_APPROVAL: 'Awaiting Lawyer Approval',
+  RESCHEDULE_REQUESTED: 'Reschedule Requested',
+  REJECTED_BY_LAWYER: 'Rejected by Lawyer',
   CONFIRMED: 'Confirmed',
   IN_PROGRESS: 'In Progress',
   COMPLETED: 'Completed',

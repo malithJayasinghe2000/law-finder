@@ -283,19 +283,20 @@ export default function Header({ locale, userRole = null, appStatus = null, user
             renderAuthAction(false)
           ) : (
             <div className="flex items-center gap-6">
-              <Link
-                href={`/${locale}/login`}
-                className={`text-xs font-bold uppercase tracking-widest transition-colors ${
-                  isPremiumDesign ? 'text-white/80 hover:text-white' : 'text-neutral-600 hover:text-[#bfa37a]'
-                }`}
-              >
-                Sign In
-              </Link>
-              <Link href={`/${locale}/register`}>
-                <Button className="bg-[#1a1a1a] text-white hover:bg-neutral-800 rounded-none px-6 py-6 text-xs font-bold uppercase tracking-widest transition-all">
-                  Sign Up
-                </Button>
-              </Link>
+              {!(pathname === `/${locale}/login` || pathname === '/login') && (
+                <Link href={`/${locale}/login`}>
+                  <Button className="bg-[#1a1a1a] text-white hover:bg-neutral-800 rounded-none px-6 py-6 text-xs font-bold uppercase tracking-widest transition-all">
+                    Sign In
+                  </Button>
+                </Link>
+              )}
+              {(pathname === `/${locale}/login` || pathname === '/login') && (
+                <Link href={`/${locale}/register`}>
+                  <Button className="bg-[#1a1a1a] text-white hover:bg-neutral-800 rounded-none px-6 py-6 text-xs font-bold uppercase tracking-widest transition-all">
+                    Sign Up
+                  </Button>
+                </Link>
+              )}
             </div>
           )}
         </div>
@@ -424,16 +425,20 @@ export default function Header({ locale, userRole = null, appStatus = null, user
                   </div>
                 ) : (
                   <div className="flex flex-col gap-2 mt-4">
-                    <Link href={`/${locale}/login`} onClick={() => setOpen(false)} className="w-full">
-                      <button className="w-full py-3 border border-[#efeae0] text-neutral-700 hover:bg-neutral-50 text-xs font-bold uppercase tracking-widest transition-colors rounded-none">
-                        Sign In
-                      </button>
-                    </Link>
-                    <Link href={`/${locale}/register`} onClick={() => setOpen(false)} className="w-full">
-                      <button className="w-full py-3 bg-[#1a1a1a] text-white hover:bg-neutral-800 text-xs font-bold uppercase tracking-widest transition-colors rounded-none">
-                        Sign Up
-                      </button>
-                    </Link>
+                    {!(pathname === `/${locale}/login` || pathname === '/login') && (
+                      <Link href={`/${locale}/login`} onClick={() => setOpen(false)} className="w-full">
+                        <button className="w-full py-3 bg-[#1a1a1a] text-white hover:bg-neutral-800 text-xs font-bold uppercase tracking-widest transition-colors rounded-none">
+                          Sign In
+                        </button>
+                      </Link>
+                    )}
+                    {(pathname === `/${locale}/login` || pathname === '/login') && (
+                      <Link href={`/${locale}/register`} onClick={() => setOpen(false)} className="w-full">
+                        <button className="w-full py-3 bg-[#1a1a1a] text-white hover:bg-neutral-800 text-xs font-bold uppercase tracking-widest transition-colors rounded-none">
+                          Sign Up
+                        </button>
+                      </Link>
+                    )}
                   </div>
                 )}
               </nav>

@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
-import { Scale, User, Inbox, FileText, LogOut, LayoutDashboard, Shield, Star, Menu, BookOpen } from 'lucide-react';
+import { Scale, User, Inbox, FileText, LogOut, LayoutDashboard, Shield, Star, Menu, BookOpen, Banknote, Landmark, ArrowRightLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from '@/components/ui/sheet';
@@ -24,6 +24,7 @@ export default function DashboardSidebar({ role, locale }: DashboardSidebarProps
     { href: `/${locale}/dashboard/lawyer/profile`, label: 'My Profile', icon: User },
     { href: `/${locale}/dashboard/lawyer/inquiries`, label: 'Inquiries', icon: Inbox },
     { href: `/${locale}/dashboard/lawyer/articles`, label: 'Articles', icon: FileText },
+    { href: `/${locale}/dashboard/lawyer/consultations/earnings`, label: 'Earnings & Payouts', icon: Banknote },
   ];
 
   const adminLinks = [
@@ -32,6 +33,8 @@ export default function DashboardSidebar({ role, locale }: DashboardSidebarProps
     { href: `/${locale}/dashboard/admin/reviews`, label: 'Manage Reviews', icon: Star },
     { href: `/${locale}/dashboard/admin/subscription-conf`, label: 'Subscription Config', icon: Star },
     { href: `/${locale}/dashboard/admin/legal-documents`, label: 'Legal Documents', icon: BookOpen },
+    { href: `/${locale}/dashboard/admin/finances`, label: 'Financial Reports', icon: Landmark },
+    { href: `/${locale}/dashboard/admin/withdrawals`, label: 'Payout Approvals', icon: ArrowRightLeft },
   ];
 
   const links = role === 'ADMIN' ? adminLinks : lawyerLinks;

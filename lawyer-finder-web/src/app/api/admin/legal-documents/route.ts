@@ -23,6 +23,11 @@ import { sanitizeString, sanitizeFilename, validatePaginationParams } from '@/li
 
 
 
+const preprocessOptionalString = (val: unknown) => {
+  if (val === null || val === undefined || val === '') return undefined;
+  return typeof val === 'string' ? sanitizeString(val) : val;
+};
+
 const LegalDocIngestSchema = z.object({
   title: z.preprocess(
     (val) => typeof val === 'string' ? sanitizeString(val) : val,
@@ -33,11 +38,11 @@ const LegalDocIngestSchema = z.object({
     z.string().min(1, 'Category is required.')
   ),
   description: z.preprocess(
-    (val) => typeof val === 'string' ? sanitizeString(val) : val,
+    preprocessOptionalString,
     z.string().max(1000, 'Description cannot exceed 1000 characters.').optional().default('')
   ),
   actNumber: z.preprocess(
-    (val) => typeof val === 'string' ? sanitizeString(val) : val,
+    preprocessOptionalString,
     z.string().max(50, 'Act number cannot exceed 50 characters.').optional().default('')
   ),
   year: z.preprocess(
@@ -45,15 +50,15 @@ const LegalDocIngestSchema = z.object({
     z.number().int().min(1800, 'Year must be after 1800').max(2100, 'Year must be before 2100').optional()
   ),
   courtName: z.preprocess(
-    (val) => typeof val === 'string' ? sanitizeString(val) : val,
+    preprocessOptionalString,
     z.string().max(100, 'Court name cannot exceed 100 characters.').optional().default('')
   ),
   caseNumber: z.preprocess(
-    (val) => typeof val === 'string' ? sanitizeString(val) : val,
+    preprocessOptionalString,
     z.string().max(50, 'Case number cannot exceed 50 characters.').optional().default('')
   ),
   gazetteNumber: z.preprocess(
-    (val) => typeof val === 'string' ? sanitizeString(val) : val,
+    preprocessOptionalString,
     z.string().max(50, 'Gazette number cannot exceed 50 characters.').optional().default('')
   ),
 });
@@ -227,7 +232,9 @@ export async function POST(req: Request) {
             ragDocumentName: ragData.document_name || title,
             chunksCount: ragData.chunks_added || 0,
             graphEntities: ragData.graph_stats?.entity_count || 0,
+            graphRelationships: ragData.graph_stats?.relationship_count || 0,
             pageCount: ragData.pdf_info?.page_count || null,
+            outline: ragData.outline || null,
           },
         });
       } else {

@@ -199,20 +199,18 @@ export default function OfflinePaymentClient({ locale, invoice }: OfflinePayment
         <div className="mx-auto text-[#0a0a0a] font-sans w-full max-w-[850px] flex flex-col print:max-w-none print:w-full">
           
           {/* Header Section */}
-          <div className="flex justify-between items-start mb-8 border-b-2 border-black pb-8">
+          <div className="flex flex-col sm:flex-row justify-between items-start gap-4 sm:gap-2 mb-8 border-b-2 border-black pb-8">
             <div>
-              <div className="flex items-center gap-2 mb-1">
-                <div className=" text-white p-2 shrink-0 flex items-center justify-center" style={{ width: '40px', height: '40px' }}>
-                 <Image src="" alt="TheLawyr" width={100} height={100} />
-                </div>
-                <h1 className="text-xl sm:text-2xl font-bold tracking-tight uppercase text-black font-serif">TheLawyr</h1>
+              <div className="flex items-center gap-3 mb-1">
+                <img src="/logo.png" alt="TheLawyr Logo" className="h-10 w-auto object-contain" />
+                <h1 className="text-xl sm:text-2xl font-normal tracking-tight uppercase text-black font-serif">TheLawyr</h1>
               </div>
-              <p className="text-[9px] sm:text-[10px] uppercase tracking-[0.2em] font-bold text-neutral-400">
+              <p className="text-[9px] sm:text-[10px] uppercase tracking-[0.2em] font-normal text-neutral-400">
                 FiveNeurals (PVT) Ltd · Legal Tech Division
               </p>
             </div>
             
-            <div className="text-right">
+            <div className="text-left sm:text-right w-full sm:w-auto">
               <h2 className="text-2xl sm:text-3xl font-light tracking-tighter mb-0 text-neutral-900 uppercase font-serif">
                 {invoice.status === 'PAID' ? 'Receipt' : 'Invoice'}
               </h2>
@@ -334,7 +332,7 @@ export default function OfflinePaymentClient({ locale, invoice }: OfflinePayment
 
           {/* Submitted Bank Transfer Slip Information (Readonly) */}
           {isReadonly && invoice.paymentDetails && typeof invoice.paymentDetails === 'object' && (
-            <div className="border border-neutral-200 p-6 bg-neutral-50/50 mt-4 rounded-none">
+            <div className="border border-neutral-200 p-6 bg-neutral-50/50 mt-4 rounded-none print:hidden">
               <h3 className="font-serif font-medium text-md uppercase tracking-wider text-black border-b pb-2 mb-4 flex items-center gap-2">
                 <FileText className="w-4 h-4 text-[#bfa37a]" /> Submitted Offline Payment Details
               </h3>
@@ -710,6 +708,42 @@ export default function OfflinePaymentClient({ locale, invoice }: OfflinePayment
           </div>
         </div>
       )}
+
+      <style dangerouslySetInnerHTML={{__html: `
+        @media print {
+          @page {
+            size: A4 portrait;
+            margin: 10mm;
+          }
+          html, body {
+            margin: 0 !important;
+            padding: 0 !important;
+            background: white !important;
+            height: auto !important;
+          }
+          body * {
+            box-sizing: border-box !important;
+          }
+          aside, nav, header, footer, .print\\:hidden, div[class*="Sidebar"], button, .no-print, [class*="RightColumn"], .submit-details-panel {
+             display: none !important;
+             height: 0 !important;
+             width: 0 !important;
+             visibility: hidden !important;
+             opacity: 0 !important;
+          }
+          .print-area {
+            display: block !important;
+            width: 100% !important;
+            max-width: none !important;
+            margin: 0 !important;
+            padding: 0 !important;
+          }
+          * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+        }
+      `}} />
     </div>
   );
 }

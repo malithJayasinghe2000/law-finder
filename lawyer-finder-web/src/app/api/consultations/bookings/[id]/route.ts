@@ -224,6 +224,154 @@ export async function PATCH(
         });
       }
 
+      case 'approve': {
+        if (!isLawyer && !isAdmin) {
+          return NextResponse.json({ error: 'Only the lawyer or admin can approve the booking' }, { status: 403 });
+        }
+        if (booking.status !== 'AWAITING_LAWYER_APPROVAL') {
+          return NextResponse.json({ error: 'This booking is not awaiting approval' }, { status: 400 });
+        }
+        const remarks = body.remarks || '';
+        const updated = await prisma.booking.update({
+          where: { id },
+          data: {
+            status: 'CONFIRMED',
+            lawyerRemarks: remarks,
+          },
+        });
+        await EmailService.sendBookingApprovedClient(
+          booking.client.email,
+          booking.client.fullName || 'Client',
+          booking.bookingNumber,
+          booking.lawyer.fullName,
+          formatSriLankaDateIso(booking.date),
+          `${booking.startTime} - ${booking.endTime}`
+        );
+        return NextResponse.json({ success: true, booking: { ...updated, date: formatSriLankaDateIso(updated.date) } });
+      }
+
+      case 'reject': {
+        if (!isLawyer && !isAdmin) {
+          return NextResponse.json({ error: 'Only the lawyer or admin can reject the booking' }, { status: 403 });
+        }
+        if (booking.status !== 'AWAITING_LAWYER_APPROVAL') {
+          return NextResponse.json({ error: 'This booking is not awaiting approval' }, { status: 400 });
+        }
+        const remarks = body.remarks || 'Rejected by lawyer';
+        const updated = await prisma.booking.update({
+          where: { id },
+          data: {
+            status: 'REJECTED_BY_LAWYER',
+            lawyerRemarks: remarks,
+            refundAmount: booking.totalAmount,
+            refundStatus: 'PENDING',
+          },
+        });
+        await EmailService.sendBookingRejectedClient(
+          booking.client.email,
+          booking.client.fullName || 'Client',
+          booking.bookingNumber,
+          booking.lawyer.fullName,
+          remarks
+        );
+        return NextResponse.json({ success: true, booking: { ...updated, date: formatSriLankaDateIso(updated.date) } });
+      }
+
+      case 'reschedule': {
+        if (!isLawyer && !isAdmin) {
+          return NextResponse.json({ error: 'Only the lawyer or admin can reschedule' }, { status: 403 });
+        }
+        const { newDate, newTime, remarks } = body;
+        if (!newDate || !newTime) {
+          return NextResponse.json({ error: 'Proposed date and time are required' }, { status: 400 });
+        }
+        const updated = await prisma.booking.update({
+          where: { id },
+          data: {
+            status: 'RESCHEDULE_REQUESTED',
+            rescheduleProposedDate: new Date(newDate),
+            rescheduleProposedTime: newTime,
+            lawyerRemarks: remarks || '',
+          },
+        });
+        await EmailService.sendBookingRescheduledClient(
+          booking.client.email,
+          booking.client.fullName || 'Client',
+          booking.bookingNumber,
+          booking.lawyer.fullName,
+          newDate,
+          newTime,
+          remarks || ''
+        );
+        return NextResponse.json({ success: true, booking: { ...updated, date: formatSriLankaDateIso(updated.date) } });
+      }
+
+      case 'accept_reschedule': {
+        if (!isClient) {
+          return NextResponse.json({ error: 'Only the client can accept the reschedule' }, { status: 403 });
+        }
+        if (booking.status !== 'RESCHEDULE_REQUESTED' || !booking.rescheduleProposedDate || !booking.rescheduleProposedTime) {
+          return NextResponse.json({ error: 'No reschedule requested' }, { status: 400 });
+        }
+        const newStartTime = booking.rescheduleProposedTime;
+        const [sh, sm] = newStartTime.split(':').map(Number);
+        const totalMinutes = sh * 60 + sm + booking.duration;
+        const eh = Math.floor(totalMinutes / 60) % 24;
+        const em = totalMinutes % 60;
+        const newEndTime = `${String(eh).padStart(2, '0')}:${String(em).padStart(2, '0')}`;
+
+        const updated = await prisma.booking.update({
+          where: { id },
+          data: {
+            status: 'CONFIRMED',
+            date: booking.rescheduleProposedDate,
+            startTime: newStartTime,
+            endTime: newEndTime,
+            rescheduleProposedDate: null,
+            rescheduleProposedTime: null,
+          },
+        });
+        await EmailService.sendBookingApprovedClient(
+          booking.client.email,
+          booking.client.fullName || 'Client',
+          booking.bookingNumber,
+          booking.lawyer.fullName,
+          formatSriLankaDateIso(updated.date),
+          `${newStartTime} - ${newEndTime}`
+        );
+        return NextResponse.json({ success: true, booking: { ...updated, date: formatSriLankaDateIso(updated.date) } });
+      }
+
+      case 'decline_reschedule': {
+        if (!isClient) {
+          return NextResponse.json({ error: 'Only the client can decline the reschedule' }, { status: 403 });
+        }
+        if (booking.status !== 'RESCHEDULE_REQUESTED') {
+          return NextResponse.json({ error: 'No reschedule requested' }, { status: 400 });
+        }
+        const updated = await prisma.booking.update({
+          where: { id },
+          data: {
+            status: 'CANCELLED_BY_CLIENT',
+            cancelReason: 'Client declined reschedule proposed by lawyer',
+            cancelledAt: new Date(),
+            cancelledBy: session.userId,
+            refundAmount: booking.totalAmount,
+            refundStatus: 'PENDING',
+            rescheduleProposedDate: null,
+            rescheduleProposedTime: null,
+          },
+        });
+        await EmailService.sendBookingCancelledClient(
+          booking.client.email,
+          booking.client.fullName || 'Client',
+          booking.bookingNumber,
+          'Reschedule request declined by client',
+          booking.totalAmount
+        );
+        return NextResponse.json({ success: true, booking: { ...updated, date: formatSriLankaDateIso(updated.date) } });
+      }
+
       default:
         return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
     }

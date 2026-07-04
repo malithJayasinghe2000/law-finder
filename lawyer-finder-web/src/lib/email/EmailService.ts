@@ -330,5 +330,43 @@ export const EmailService = {
       </div>
       `
     ));
+  },
+
+  async sendPaymentApprovedAwaitingLawyerClient(email: string, clientName: string, bookingNumber: string, lawyerName: string) {
+    await sendMailSafe(email, `Payment Approved: Booking Awaiting Lawyer Confirmation - ${bookingNumber}`, template('Payment Approved', `
+      <p>Dear ${clientName},</p>
+      <p>Your payment for booking <strong>${bookingNumber}</strong> has been successfully verified and approved.</p>
+      <p>The booking request has been forwarded to <strong>${lawyerName}</strong> for confirmation. You will receive an email once the lawyer approves or updates the booking.</p>
+    `));
+  },
+
+  async sendBookingApprovedClient(email: string, clientName: string, bookingNumber: string, lawyerName: string, date: string, time: string) {
+    await sendMailSafe(email, `Booking Confirmed: ${bookingNumber}`, template('Booking Confirmed', `
+      <p>Dear ${clientName},</p>
+      <p>Great news! <strong>${lawyerName}</strong> has approved your booking <strong>${bookingNumber}</strong>.</p>
+      <p><strong>Scheduled Date:</strong> ${date}</p>
+      <p><strong>Scheduled Time:</strong> ${time}</p>
+      <p>Please log in to your dashboard to view meeting details or physical office location.</p>
+    `));
+  },
+
+  async sendBookingRescheduledClient(email: string, clientName: string, bookingNumber: string, lawyerName: string, newDate: string, newTime: string, remarks: string) {
+    await sendMailSafe(email, `Booking Reschedule Proposed - ${bookingNumber}`, template('Booking Reschedule Proposed', `
+      <p>Dear ${clientName},</p>
+      <p><strong>${lawyerName}</strong> has proposed a reschedule for booking <strong>${bookingNumber}</strong>.</p>
+      <p><strong>Proposed New Date:</strong> ${newDate}</p>
+      <p><strong>Proposed New Time:</strong> ${newTime}</p>
+      <p><strong>Lawyer Remarks:</strong> ${remarks || 'No remarks provided.'}</p>
+      <p>Please log in to your client dashboard to accept or decline this reschedule request.</p>
+    `));
+  },
+
+  async sendBookingRejectedClient(email: string, clientName: string, bookingNumber: string, lawyerName: string, remarks: string) {
+    await sendMailSafe(email, `Booking Rejected by Lawyer - ${bookingNumber}`, template('Booking Rejected', `
+      <p>Dear ${clientName},</p>
+      <p>We regret to inform you that <strong>${lawyerName}</strong> has rejected your booking <strong>${bookingNumber}</strong>.</p>
+      <p><strong>Reason/Remarks:</strong> ${remarks || 'No remarks provided.'}</p>
+      <p>A refund of the booking amount will be processed to your account. You can check the status of your refund in your dashboard.</p>
+    `));
   }
 };

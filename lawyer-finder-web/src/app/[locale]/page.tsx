@@ -170,7 +170,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
             </div>
           )} */}
           
-          <AdBanner placement="HOMEPAGE_BELOW_HERO" locale={locale} className="w-full max-w-4xl mx-auto mt-8 rounded-none overflow-hidden shadow-sm border border-neutral-100" />
+          <AdBanner placement="HOMEPAGE_BELOW_HERO" locale={locale} className="w-full max-w-[1200px] mx-auto mt-8 rounded-none overflow-hidden shadow-sm border border-neutral-100" />
         </section>
 
         

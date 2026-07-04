@@ -54,8 +54,11 @@ export async function POST(
             status: 'PENDING',
             bankName: validated.data.bankName,
             accountHolder: validated.data.accountHolder,
+            accountNumber: validated.data.accountNumber,
+            transactionDate: validated.data.transactionDate,
             transactionRef: validated.data.transactionRef,
             receiptImageUrl: validated.data.receiptImageUrl,
+            notes: validated.data.notes,
           },
         }),
         prisma.booking.update({

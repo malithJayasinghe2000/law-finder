@@ -17,10 +17,6 @@ const nextConfig: NextConfig = {
             value: 'nosniff',
           },
           {
-            key: 'X-Frame-Options',
-            value: 'DENY',
-          },
-          {
             key: 'X-XSS-Protection',
             value: '1; mode=block',
           },
@@ -34,7 +30,7 @@ const nextConfig: NextConfig = {
           },
           {
             key: 'Content-Security-Policy',
-            value: "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://res.cloudinary.com https://images.unsplash.com https://*.googleusercontent.com; connect-src 'self' ws: wss: http://localhost:5000 http://127.0.0.1:5000; frame-ancestors 'none';",
+            value: "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://res.cloudinary.com https://images.unsplash.com https://*.googleusercontent.com; connect-src 'self' ws: wss: http://localhost:5000 http://127.0.0.1:5000; frame-ancestors 'self'; object-src 'self' blob:; frame-src 'self' blob:; worker-src 'self' blob:;",
           }
         ],
       },
