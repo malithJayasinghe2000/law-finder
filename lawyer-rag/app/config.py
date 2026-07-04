@@ -71,6 +71,10 @@ class Config:
     # Chat Log Directory
     CHAT_LOG_DIR: str = os.getenv("CHAT_LOG_DIR", str(CHAT_LOG_DIR))
 
+    # LangSmith Tracing
+    LANGCHAIN_TRACING_V2: bool = os.getenv("LANGCHAIN_TRACING_V2", "false").lower() == "true"
+    LANGCHAIN_PROJECT: str = os.getenv("LANGCHAIN_PROJECT", "lawyer-rag")
+
     # Legal Document Categories
     DOCUMENT_CATEGORIES = [
         "Sri Lanka Law Reports",

@@ -16,6 +16,7 @@ import logging
 from typing import Optional
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.messages import HumanMessage, AIMessage
+from langsmith import traceable
 
 from app.core.llm import get_llm
 from app.core.vectorstore import search_documents
@@ -204,6 +205,7 @@ def detect_practice_areas(question: str, context: str) -> list[str]:
     return detected[:5]  # Limit to top 5 areas
 
 
+@traceable(name="Graph Expansion Retrieval")
 def _graph_expand_retrieval(question: str, initial_docs: list) -> tuple[list, list[str]]:
     """
     Use the knowledge graph to expand retrieval beyond vector search results.
@@ -290,6 +292,7 @@ def _graph_expand_retrieval(question: str, initial_docs: list) -> tuple[list, li
         return [], []
 
 
+@traceable(name="RAG Query Dispatcher")
 def query_rag(
     question: str,
     chat_history: Optional[list[dict]] = None,
@@ -377,6 +380,7 @@ def query_rag(
     )
 
 
+@traceable(name="Agentic RAG Pipeline")
 def _query_rag_agentic(
     question: str,
     search_query: str,
@@ -422,6 +426,7 @@ def _query_rag_agentic(
         )
 
 
+@traceable(name="Linear RAG Pipeline")
 def _query_rag_linear(
     question: str,
     search_query: str,

@@ -8,6 +8,7 @@ Key feature: supports status-based filtering to distinguish Active vs Repealed s
 import logging
 from typing import Optional
 from langchain_chroma import Chroma
+from langsmith import traceable
 from app.config import config
 from app.core.embeddings import get_embeddings
 
@@ -58,6 +59,7 @@ def add_documents(documents: list, batch_size: int = 50) -> int:
     return total_added
 
 
+@traceable(name="Vector Store Search")
 def search_documents(
     query: str,
     top_k: int = None,
@@ -84,6 +86,11 @@ def search_documents(
         filter_metadata = {"status": "Active"}
     elif "status" not in filter_metadata:
         filter_metadata["status"] = "Active"
+
+    # Fix for ChromaDB multiple conditions
+    if filter_metadata and len(filter_metadata) > 1:
+        if "$and" not in filter_metadata and "$or" not in filter_metadata:
+            filter_metadata = {"$and": [{k: v} for k, v in filter_metadata.items()]}
 
     try:
         results = vs.similarity_search_with_relevance_scores(

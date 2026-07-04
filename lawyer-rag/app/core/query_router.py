@@ -54,6 +54,38 @@ If they ask how you verify information or if they can trust you, explain that yo
 """
 
 # ---------------------------------------------------------------------------
+# LLM-based practice area extraction for lawyer recommendations
+# ---------------------------------------------------------------------------
+LAWYER_AREA_EXTRACTION_PROMPT = """You are a legal classification assistant. Analyze the conversation below and identify which practice areas are most relevant to the user's legal situation.
+
+Choose ONLY from this list:
+- Criminal Law
+- Civil Litigation
+- Corporate Law
+- Family Law
+- Property Law
+- Labour Law
+- Tax Law
+- Constitutional Law
+- Environmental Law
+- Intellectual Property
+- Motor Traffic Law
+- Banking Law
+- Immigration Law
+- Insurance Law
+- Real Estate
+- Notary Services
+
+RULES:
+- Pick 1 to 3 areas that BEST match the user's actual legal situation, not just keywords.
+- Consider the legal advice already given in the conversation to determine the correct areas.
+- For example, if the discussion involves trespass and property damage, "Property Law" and "Civil Litigation" are more relevant than "Real Estate".
+- "Real Estate" is for property transactions (buying, selling, conveyancing), NOT for property damage or trespass disputes.
+- Return ONLY a valid JSON array of strings. No markdown, no explanation.
+- Example: ["Property Law", "Civil Litigation"]
+"""
+
+# ---------------------------------------------------------------------------
 # Fast heuristic phrases — these bypass the LLM entirely
 # ---------------------------------------------------------------------------
 CONVERSATIONAL_PHRASES = {
@@ -234,32 +266,42 @@ def generate_conversational_response(question: str, chat_history: list) -> str:
 
 def generate_lawyer_response(question: str, chat_history: list) -> dict:
     """
-    Handle lawyer recommendation requests by extracting practice areas from
-    the conversation context and generating a recommendation — WITHOUT
-    doing a vector search on the legislation database.
+    Handle lawyer recommendation requests by using an LLM to extract
+    practice areas from the full conversation context and generating a
+    natural, context-aware bridging response.
 
     Returns:
         Dict matching the standard query_rag return format.
     """
-    from app.core.rag_chain import detect_practice_areas, PRACTICE_AREA_KEYWORDS
-    from app.core.agent_tools import lawyer_recommend_tool
+    from app.core.rag_chain import detect_practice_areas
 
-    # Build context from USER messages only — bot responses contain legal
-    # citation text (e.g. "injury to person, animal or property") that causes
-    # false positive matches for Property Law, Real Estate, Criminal Law etc.
-    user_history_text = " ".join(
-        msg.get("content", "")
-        for msg in (chat_history or [])[-8:]
-        if msg.get("role") == "user"
-    )
-    combined_context = f"{question} {user_history_text}"
+    # ── Step 1: Build full conversation context (both user AND bot) ────────
+    # Include bot responses so the LLM can see what legal areas were discussed
+    conversation_text_parts = []
+    for msg in (chat_history or [])[-8:]:
+        role = msg.get("role", "user")
+        content = msg.get("content", "")
+        conversation_text_parts.append(f"{role.upper()}: {content}")
+    conversation_text_parts.append(f"USER: {question}")
+    conversation_text = "\n\n".join(conversation_text_parts)
 
-    # Detect practice areas from the user's own words
-    detected_areas = detect_practice_areas(combined_context, combined_context)
-    logger.info(f"[lawyer_response] Detected areas from user context: {detected_areas}")
+    # ── Step 2: LLM-based practice area extraction ─────────────────────────
+    detected_areas = _extract_practice_areas_llm(conversation_text)
+    logger.info(f"[lawyer_response] LLM detected areas: {detected_areas}")
+
+    # Fallback to keyword-based detection if LLM returns nothing
+    if not detected_areas:
+        user_history_text = " ".join(
+            msg.get("content", "")
+            for msg in (chat_history or [])[-8:]
+            if msg.get("role") == "user"
+        )
+        combined_context = f"{question} {user_history_text}"
+        detected_areas = detect_practice_areas(combined_context, combined_context)
+        logger.info(f"[lawyer_response] Keyword fallback areas: {detected_areas}")
 
     if not detected_areas:
-        # Fallback: ask the user to describe their situation
+        # No practice areas detected at all — ask the user
         return {
             "answer": (
                 "I'd be happy to help you find the right type of lawyer! "
@@ -275,30 +317,97 @@ def generate_lawyer_response(question: str, chat_history: list) -> dict:
             "related_documents": [],
         }
 
-    # Build a situation summary from the chat history
-    user_messages = [
-        msg.get("content", "") for msg in (chat_history or [])[-6:]
-        if msg.get("role") == "user"
-    ]
-    situation_summary = "; ".join(user_messages[-3:]) if user_messages else question
+    # ── Step 3: Generate a natural, context-aware response ─────────────────
+    answer = _generate_lawyer_bridging_response(
+        conversation_text, detected_areas, chat_history
+    )
 
-    # Generate the recommendation using the tool logic
+    return {
+        "answer": answer,
+        "sources": [],
+        "web_sources": [],
+        "chunks_retrieved": 0,
+        "detected_practice_areas": detected_areas,
+        "graph_entities": [],
+        "related_documents": [],
+    }
+
+
+def _strip_think_tags(text: str) -> str:
+    """Strip DeepSeek-R1's <think>...</think> reasoning tags from output."""
+    cleaned = re.sub(r'<think>.*?</think>', '', text, flags=re.DOTALL).strip()
+    return cleaned if cleaned else text
+
+
+def _extract_practice_areas_llm(conversation_text: str) -> list[str]:
+    """
+    Use the LLM to extract the most relevant practice areas from the full
+    conversation context, instead of naive keyword matching.
+    """
+    import json as _json
+
+    valid_areas = {
+        "Criminal Law", "Civil Litigation", "Corporate Law", "Family Law",
+        "Property Law", "Labour Law", "Tax Law", "Constitutional Law",
+        "Environmental Law", "Intellectual Property", "Motor Traffic Law",
+        "Banking Law", "Immigration Law", "Insurance Law", "Real Estate",
+        "Notary Services",
+    }
+
     try:
-        recommendation_text = lawyer_recommend_tool.invoke({
-            "practice_areas": ", ".join(detected_areas),
-            "user_situation": situation_summary,
-        })
-    except Exception as e:
-        logger.warning(f"[lawyer_response] Tool invocation failed: {e}")
-        recommendation_text = ""
+        llm = get_llm()
+        prompt = ChatPromptTemplate.from_messages([
+            ("system", LAWYER_AREA_EXTRACTION_PROMPT),
+            ("human", "{conversation}"),
+        ])
 
-    # Build a natural-language response using the LLM
+        response = llm.invoke(prompt.invoke({"conversation": conversation_text}))
+        raw = response.content.strip()
+        logger.info(f"[_extract_practice_areas_llm] Raw: {raw}")
+
+        # Strip DeepSeek-R1 <think>...</think> reasoning tags
+        cleaned = _strip_think_tags(raw)
+
+        # Strip markdown fences if present
+        if cleaned.startswith("```"):
+            cleaned = re.sub(r'^```(?:json)?\s*', '', cleaned)
+            cleaned = re.sub(r'\s*```$', '', cleaned)
+
+        # Try to find a JSON array in the output
+        json_match = re.search(r'\[.*?\]', cleaned, re.DOTALL)
+        if json_match:
+            cleaned = json_match.group(0)
+
+        areas = _json.loads(cleaned)
+        if isinstance(areas, list):
+            # Validate each area against the allowed set
+            return [a for a in areas if a in valid_areas][:3]
+
+    except Exception as e:
+        logger.warning(f"[_extract_practice_areas_llm] Failed: {e}")
+
+    return []
+
+
+def _generate_lawyer_bridging_response(
+    conversation_text: str,
+    detected_areas: list[str],
+    chat_history: list,
+) -> str:
+    """
+    Generate a short, deterministic response that bridges to the lawyer
+    suggestions the frontend will display.
+
+    We deliberately avoid an LLM call here because reasoning models like
+    DeepSeek-R1 ignore brevity instructions and produce long legal answers
+    instead of the required 2-3 sentence bridging text.
+    """
     area_descriptions = {
         "Criminal Law": "a Criminal Defense Lawyer",
         "Civil Litigation": "a Civil Litigation Lawyer",
         "Corporate Law": "a Corporate / Commercial Lawyer",
         "Family Law": "a Family Law Specialist",
-        "Property Law": "a Conveyancing / Property Lawyer",
+        "Property Law": "a Property Lawyer",
         "Labour Law": "an Employment / Labour Lawyer",
         "Tax Law": "a Tax Lawyer",
         "Constitutional Law": "a Constitutional Lawyer",
@@ -312,42 +421,21 @@ def generate_lawyer_response(question: str, chat_history: list) -> dict:
         "Notary Services": "a Notary Public",
     }
 
-    # Build a clear, friendly answer
-    answer_parts = [
-        "Based on our conversation, I can help you find the right type of lawyer.",
-        "",
-    ]
+    # Build a natural specialist description
+    specialist_parts = []
+    for area in detected_areas:
+        desc = area_descriptions.get(area, f"a {area} specialist")
+        specialist_parts.append(f"**{desc}**")
 
-    if len(detected_areas) == 1:
-        area = detected_areas[0]
-        desc = area_descriptions.get(area, f"a {area} Specialist")
-        answer_parts.append(
-            f"For your situation, I would recommend consulting **{desc}** "
-            f"who specializes in **{area}**."
-        )
+    if len(specialist_parts) == 1:
+        specialists_text = specialist_parts[0]
+    elif len(specialist_parts) == 2:
+        specialists_text = f"{specialist_parts[0]} or {specialist_parts[1]}"
     else:
-        answer_parts.append("For your situation, I would recommend consulting:")
-        for area in detected_areas:
-            desc = area_descriptions.get(area, f"a {area} Specialist")
-            answer_parts.append(f"- **{desc}** (specializing in {area})")
+        specialists_text = ", ".join(specialist_parts[:-1]) + f", or {specialist_parts[-1]}"
 
-    answer_parts.extend([
-        "",
-        "You can browse lawyers matching these practice areas on our platform. "
-        "Each lawyer's profile includes their qualifications, experience, and availability for consultations.",
-        "",
-        "⚠️ *Please note: Always verify a lawyer's credentials and discuss your specific "
-        "situation during an initial consultation before engaging their services.*",
-    ])
-
-    answer = "\n".join(answer_parts)
-
-    return {
-        "answer": answer,
-        "sources": [],
-        "web_sources": [],
-        "chunks_retrieved": 0,
-        "detected_practice_areas": detected_areas,
-        "graph_entities": [],
-        "related_documents": [],
-    }
+    return (
+        f"Based on our conversation, I'd recommend consulting {specialists_text} "
+        f"for your situation. I've found some matching lawyers on our platform below "
+        f"who may be able to help you."
+    )
