@@ -11,13 +11,40 @@ import React, { useState } from 'react';
 export function AppSidebar({ locale, role, userId }: { locale: string; role: string; userId?: string }) {
   const pathname = usePathname();
   const [openSubmenus, setOpenSubmenus] = useState<string[]>(['Payments','Consultations']); // Default open for better UX, or empty
+  const [counts, setCounts] = useState({ pendingInvoicesCount: 0, pendingAdCampaignsCount: 0 });
+
+  React.useEffect(() => {
+    const fetchCounts = async () => {
+      try {
+        const res = await fetch('/api/dashboard/sidebar-counts');
+        if (res.ok) {
+          const data = await res.json();
+          setCounts(data);
+        }
+      } catch (err) {
+        console.error('Failed to fetch sidebar counts:', err);
+      }
+    };
+
+    fetchCounts();
+    const interval = setInterval(fetchCounts, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   const adminLinks = [
     { href: `/${locale}/dashboard/admin`, icon: LayoutDashboard, label: 'Dashboard', exact: true },
     { href: `/${locale}/dashboard/admin/verification`, icon: ShieldCheck, label: 'Verification' },
     { href: `/${locale}/dashboard/admin/invoices`, icon: FileText, label: 'Invoices' },
     // { href: `/${locale}/dashboard/admin/paymentTemplate`, icon: ShieldCheck, label: 'Payment Templates' },
-    { href: `/${locale}/dashboard/admin/advertisements`, icon: Image, label: 'Ad Campaigns' },
+    {
+      href: `/${locale}/dashboard/admin/advertisements`,
+      icon: Image,
+      label: 'Ad Campaigns',
+      subLinks: [
+        { href: `/${locale}/dashboard/admin/advertisements`, icon: Image, label: 'Campaigns' },
+        { href: `/${locale}/dashboard/admin/ad-config`, icon: Settings, label: 'Placement Config' },
+      ]
+    },
     { href: `/${locale}/dashboard/admin/users`, icon: Users, label: 'User Management' },
     { href: `/${locale}/dashboard/admin/reviews`, icon: Star, label: 'Reviews' },
     { href: `/${locale}/dashboard/admin/communities`, icon: Globe, label: 'Communities' },
@@ -33,6 +60,8 @@ export function AppSidebar({ locale, role, userId }: { locale: string; role: str
         { href: `/${locale}/dashboard/admin/consultations/refunds`, icon: Banknote, label: 'Refunds' },
       ]
     },
+    { href: `/${locale}/dashboard/admin/finances`, icon: DollarSign, label: 'Financial Reports' },
+    { href: `/${locale}/dashboard/admin/withdrawals`, icon: Banknote, label: 'Payout Approvals' },
     { href: `/${locale}/dashboard/admin/settings`, icon: Settings, label: 'Settings' },
     { href: `/${locale}/dashboard/admin/subscriptions`, icon: ShieldPlus, label: 'Subscription Config' },
   ];
@@ -47,7 +76,7 @@ export function AppSidebar({ locale, role, userId }: { locale: string; role: str
         { href: `/${locale}/dashboard/lawyer/consultations`, icon: CalendarDays, label: 'Bookings' },
         { href: `/${locale}/dashboard/lawyer/consultations/availability`, icon: History, label: 'Set Availability' },
         { href: `/${locale}/dashboard/lawyer/consultations/pricing`, icon: DollarSign, label: 'Pricing' },
-        { href: `/${locale}/dashboard/lawyer/consultations/earnings`, icon: Banknote, label: 'Earnings' },
+        { href: `/${locale}/dashboard/lawyer/consultations/earnings`, icon: Banknote, label: 'Earnings & Payouts' },
       ]
     },
     { href: `/${locale}/dashboard/lawyer/chat`, icon: MessageCircle, label: 'Messages', hasBadge: true },
@@ -119,8 +148,18 @@ export function AppSidebar({ locale, role, userId }: { locale: string; role: str
                         }`}
                       >
                         <div className="flex items-center gap-3 w-full px-1.5">
-                          <link.icon className={`w-[18px] h-[18px] shrink-0 ${active ? 'text-[#bfa37a]' : 'text-neutral-400 group-hover:text-neutral-700'}`} />
+                          <link.icon className={`w-[18px] h-[18px] shrink-0 ${active ? 'text-[#bfa37a]' : 'text-neutral-400'}`} />
                           <span className="text-[13px] tracking-tight">{link.label}</span>
+                          {link.label === 'Payments' && role === 'LAWYER' && counts.pendingInvoicesCount > 0 && (
+                            <span className="ml-2 bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full flex items-center justify-center min-w-[16px] h-[16px]">
+                              {counts.pendingInvoicesCount}
+                            </span>
+                          )}
+                          {link.label === 'Ad Campaigns' && role === 'ADMIN' && counts.pendingAdCampaignsCount > 0 && (
+                            <span className="ml-2 bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full flex items-center justify-center min-w-[16px] h-[16px]">
+                              {counts.pendingAdCampaignsCount}
+                            </span>
+                          )}
                           <ChevronDown className={`w-4 h-4 ml-auto transition-transform ${openSubmenus.includes(link.label) ? 'rotate-180' : ''}`} />
                         </div>
                       </SidebarMenuButton>
@@ -145,6 +184,16 @@ export function AppSidebar({ locale, role, userId }: { locale: string; role: str
                                 >
                                   <sub.icon className={`w-3.5 h-3.5 ${subActive ? 'text-[#bfa37a]' : 'text-neutral-400'}`} />
                                   <span>{sub.label}</span>
+                                  {sub.label === 'Invoices' && role === 'LAWYER' && counts.pendingInvoicesCount > 0 && (
+                                    <span className="ml-auto bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full flex items-center justify-center min-w-[16px] h-[16px]">
+                                      {counts.pendingInvoicesCount}
+                                    </span>
+                                  )}
+                                  {sub.label === 'Campaigns' && role === 'ADMIN' && counts.pendingAdCampaignsCount > 0 && (
+                                    <span className="ml-auto bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full flex items-center justify-center min-w-[16px] h-[16px]">
+                                      {counts.pendingAdCampaignsCount}
+                                    </span>
+                                  )}
                                 </SidebarMenuSubButton>
                               </SidebarMenuSubItem>
                             );
@@ -164,6 +213,11 @@ export function AppSidebar({ locale, role, userId }: { locale: string; role: str
                     >
                       <link.icon className={`w-[18px] h-[18px] shrink-0 ${active ? 'text-[#bfa37a]' : 'text-neutral-400'}`} />
                       <span className="text-[13px] tracking-tight">{link.label}</span>
+                      {link.label === 'Ad Campaigns' && role === 'ADMIN' && counts.pendingAdCampaignsCount > 0 && (
+                        <span className="ml-auto bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full flex items-center justify-center min-w-[18px] h-[18px]">
+                          {counts.pendingAdCampaignsCount}
+                        </span>
+                      )}
                       {('hasBadge' in link) && link.hasBadge && userId && (
                         <div className="ml-auto flex items-center">
                           <ChatBadge userId={userId} isSidebar={true} />

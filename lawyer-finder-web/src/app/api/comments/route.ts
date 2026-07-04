@@ -3,17 +3,24 @@ import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { createCommentSchema } from '@/schemas/community.schema';
 
+import { validatePaginationParams, isValidUUID } from '@/lib/security';
+
 // GET /api/comments?postId=xxx — Get threaded comments for a post
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const postId = searchParams.get('postId');
     const sort = searchParams.get('sort') || 'best'; // best, new, old
-    const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '50');
+    
+    // Clamp pagination parameters
+    const { page, limit } = validatePaginationParams(
+      searchParams.get('page'),
+      searchParams.get('limit'),
+      { page: 1, limit: 50, maxLimit: 100 }
+    );
 
-    if (!postId) {
-      return NextResponse.json({ error: 'postId is required.' }, { status: 400 });
+    if (!postId || !isValidUUID(postId)) {
+      return NextResponse.json({ error: 'A valid postId is required.' }, { status: 400 });
     }
 
     let orderBy: Record<string, string>;

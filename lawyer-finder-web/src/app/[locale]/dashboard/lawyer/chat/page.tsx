@@ -14,7 +14,7 @@ export default async function LawyerChatPage({ params }: { params: Promise<{ loc
   return (
     <div className="w-full max-w-6xl mx-auto py-6">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold tracking-tight text-neutral-900">Client Conversations</h1>
+        <h1 className="text-4xl font-normal tracking-tight text-neutral-900">Client Conversations</h1>
         <p className="text-sm text-neutral-500 mt-1">Manage all your client communications in one place.</p>
       </div>
       <Suspense fallback={<div className="flex items-center justify-center p-8 h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-neutral-900"></div></div>}>

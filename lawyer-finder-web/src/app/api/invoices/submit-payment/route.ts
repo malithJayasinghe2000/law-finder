@@ -67,6 +67,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    if (amount < invoice.amount) {
+      return NextResponse.json(
+        { error: `Amount cannot be lower than the invoice amount of LKR ${invoice.amount}` },
+        { status: 400 }
+      );
+    }
+
     // Update invoice with payment details
     const updatedInvoice = await prisma.invoice.update({
       where: { id: invoiceId },

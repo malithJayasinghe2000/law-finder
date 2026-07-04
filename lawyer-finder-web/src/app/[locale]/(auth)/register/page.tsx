@@ -6,6 +6,7 @@ import { registerSchema, RegisterFormValues } from '@/schemas/auth.schema';
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import { Scale, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
 import { FieldError } from '@/components/ui/FieldError';
 import {
@@ -82,8 +83,8 @@ export default function RegisterPage() {
 
       showModal(
         'success',
-        'Account Created Successfully! ✓',
-        'Please check your email to verify your account before logging in.'
+        'Account Created Successfully',
+        `A verification email has been sent to ${data.email}. Please verify your account before logging in.`
       );
     } catch (err: any) {
       showModal(
@@ -100,20 +101,11 @@ export default function RegisterPage() {
     <div className="flex min-h-[85vh] items-center justify-center px-4 bg-background pt-16 pb-16">
       <div className="w-full max-w-[420px]">
         {/* Logo */}
-        <div className="mb-10 flex flex-col items-center gap-3">
-          <Link href={`/${locale}`} className="flex items-center gap-2.5 group">
-            <div className="flex items-center justify-center text-[#bfa37a] transition-transform group-hover:scale-105">
-              <Scale className="h-7 w-7 stroke-[1.8]" />
-            </div>
-            <span className="text-xl font-serif tracking-[0.15em] font-medium uppercase text-neutral-900">
-              LAWFINDER
-            </span>
-          </Link>
-        </div>
+        
 
         <div className="bg-[#faf8f6]/50 p-10 rounded-none border border-[#efeae0]">
           <div className="mb-8 text-center">
-            <h1 className="text-3xl font-serif font-bold tracking-tight text-neutral-900 mb-2">Create Account</h1>
+            <h1 className="text-3xl font-serif font-normal tracking-tight text-neutral-900 mb-2">Create Account</h1>
             <p className="text-xs uppercase font-bold tracking-widest text-neutral-400">Join the digital legal network</p>
           </div>
 
@@ -202,7 +194,7 @@ export default function RegisterPage() {
                 <CheckCircle2 className="h-8 w-8 text-[#bfa37a]" />
               </div>
             </div>
-            <DialogTitle className="text-center text-2xl font-serif font-bold text-neutral-900">
+            <DialogTitle className="text-center text-2xl font-serif font-normal text-neutral-900">
               {modal.title}
             </DialogTitle>
             <DialogDescription className="text-center text-sm text-neutral-500 mt-2 font-light">
@@ -234,7 +226,7 @@ export default function RegisterPage() {
                 <AlertCircle className="h-8 w-8 text-red-600" />
               </div>
             </div>
-            <DialogTitle className="text-center text-2xl font-serif font-bold text-neutral-900">
+            <DialogTitle className="text-center text-2xl font-serif font-normal text-neutral-900">
               {modal.title}
             </DialogTitle>
             <DialogDescription className="text-center text-sm text-neutral-500 mt-2 font-light">

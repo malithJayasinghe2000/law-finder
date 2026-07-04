@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import ReactMarkdown from 'react-markdown';
+import { SidebarAd } from '@/components/ads/AdComponents';
 
 // ─── Types ─────────────────────────────────────────────────────────────
 interface Source {
@@ -678,19 +679,19 @@ export default function ChatClient({
                     )}
 
                     {/* Web Sources */}
-                    {false && message.webSources && message.webSources.length > 0 && (
+                    {false && (message.webSources?.length ?? 0) > 0 && (
                       <div className="flex flex-col gap-1.5">
                         <button
                           onClick={() => toggleSources(`web-${message.id}`)}
                           className="flex items-center gap-2 text-[10px] font-bold text-neutral-500 hover:text-[#bfa37a] uppercase tracking-widest transition-colors self-start"
                         >
                           <Globe className="w-3.5 h-3.5" />
-                          {expandedSources.has(`web-${message.id}`) ? 'Hide' : 'View'} {message.webSources.length} Web Sources
+                          {expandedSources.has(`web-${message.id}`) ? 'Hide' : 'View'} {(message.webSources || []).length} Web Sources
                         </button>
 
                         {expandedSources.has(`web-${message.id}`) && (
                           <div className="flex flex-col gap-2 mt-1">
-                            {message.webSources.map((ws, idx) => (
+                            {message.webSources?.map((ws, idx) => (
                               <a
                                 key={idx}
                                 href={ws.url}
@@ -768,7 +769,7 @@ export default function ChatClient({
                 <div className="max-w-[80%]">
                   <div className="flex items-center gap-3 p-5 bg-[#fdfbf7] border border-[#efeae0] shadow-sm rounded-2xl rounded-tl-none">
                     <Loader2 className="h-5 w-5 animate-spin text-[#bfa37a]" />
-                    <span className="text-xs text-neutral-400 font-light">Searching legal database & web...</span>
+                    <span className="text-xs text-neutral-400 font-light">Thinking...</span>
                   </div>
                 </div>
               </div>
@@ -916,6 +917,12 @@ export default function ChatClient({
           </div>
         </div>
       </div>
+      {/* Right Sidebar Ad Area */}
+      <SidebarAd 
+        placement="CHAT_RIGHT_SIDEBAR" 
+        locale={locale} 
+        className="hidden lg:block w-80 border-l border-[#efeae0] p-6 bg-[#faf8f6] h-[calc(100vh-96px)] sticky top-24 shrink-0 overflow-y-auto"
+      />
     </div>
     </div>
   );

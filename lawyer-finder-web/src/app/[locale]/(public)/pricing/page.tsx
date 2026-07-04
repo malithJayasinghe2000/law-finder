@@ -2,7 +2,7 @@ import { getSession } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import PricingPageClient from './PricingPageClient';
 
-export const metadata = { title: 'Premium Pricing | LawFinder' };
+export const metadata = { title: 'Premium Pricing | TheLawyr' };
 
 export default async function PricingPage({
   params,

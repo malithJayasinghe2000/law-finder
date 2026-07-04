@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { sanitizeString } from '@/lib/sanitize';
 
 // ============= Enums =============
 
@@ -9,7 +10,7 @@ export const DayOfWeekEnum = z.enum([
 export const ConsultationModeEnum = z.enum(['PHYSICAL', 'ONLINE', 'BOTH']);
 
 export const BookingStatusEnum = z.enum([
-  'PENDING_PAYMENT', 'AWAITING_BANK_TRANSFER_VERIFICATION', 'CONFIRMED', 'IN_PROGRESS', 'COMPLETED',
+  'PENDING_PAYMENT', 'AWAITING_BANK_TRANSFER_VERIFICATION', 'AWAITING_LAWYER_APPROVAL', 'RESCHEDULE_REQUESTED', 'REJECTED_BY_LAWYER', 'CONFIRMED', 'IN_PROGRESS', 'COMPLETED',
   'CANCELLED_BY_CLIENT', 'CANCELLED_BY_LAWYER', 'NO_SHOW', 'DISPUTED',
 ]);
 
@@ -52,7 +53,10 @@ export const AvailabilityOverrideSchema = z.object({
   isBlocked: z.boolean().default(false),
   startTime: TimeString.optional(),
   endTime: TimeString.optional(),
-  reason: z.string().max(200).optional(),
+  reason: z.preprocess(
+    (val) => typeof val === 'string' ? sanitizeString(val) : val,
+    z.string().max(200).optional()
+  ),
 }).refine(
   (data) => {
     if (!data.isBlocked) {
@@ -102,9 +106,18 @@ export const CreateBookingSchema = z.object({
   startTime: TimeString,
   endTime: TimeString,
   mode: z.enum(['PHYSICAL', 'ONLINE']),
-  subject: z.string().min(3, 'Subject must be at least 3 characters').max(200),
-  description: z.string().min(10, 'Please describe your legal issue in at least 10 characters').max(2000),
-  practiceArea: z.string().optional(),
+  subject: z.preprocess(
+    (val) => typeof val === 'string' ? sanitizeString(val) : val,
+    z.string().min(3, 'Subject must be at least 3 characters').max(200)
+  ),
+  description: z.preprocess(
+    (val) => typeof val === 'string' ? sanitizeString(val) : val,
+    z.string().min(10, 'Please describe your legal issue in at least 10 characters').max(2000)
+  ),
+  practiceArea: z.preprocess(
+    (val) => typeof val === 'string' ? sanitizeString(val) : val,
+    z.string().optional()
+  ),
   paymentMethod: BookingPaymentMethodEnum,
 });
 
@@ -113,7 +126,10 @@ export type CreateBookingInput = z.infer<typeof CreateBookingSchema>;
 // ============= Cancel Booking =============
 
 export const CancelBookingSchema = z.object({
-  reason: z.string().min(5, 'Please provide a reason for cancellation').max(500),
+  reason: z.preprocess(
+    (val) => typeof val === 'string' ? sanitizeString(val) : val,
+    z.string().min(5, 'Please provide a reason for cancellation').max(500)
+  ),
 });
 
 export type CancelBookingInput = z.infer<typeof CancelBookingSchema>;
@@ -121,10 +137,31 @@ export type CancelBookingInput = z.infer<typeof CancelBookingSchema>;
 // ============= Booking Payment (Bank Transfer) =============
 
 export const BankTransferPaymentSchema = z.object({
-  bankName: z.string().min(1, 'Bank name is required'),
-  accountHolder: z.string().min(1, 'Account holder name is required'),
-  transactionRef: z.string().min(1, 'Transaction reference is required'),
-  receiptImageUrl: z.string().optional(),
+  bankName: z.preprocess(
+    (val) => typeof val === 'string' ? sanitizeString(val) : val,
+    z.string().min(1, 'Bank name is required')
+  ),
+  accountHolder: z.preprocess(
+    (val) => typeof val === 'string' ? sanitizeString(val) : val,
+    z.string().min(1, 'Account holder name is required')
+  ),
+  accountNumber: z.preprocess(
+    (val) => typeof val === 'string' ? sanitizeString(val) : val,
+    z.string().min(1, 'Account number is required')
+  ),
+  transactionDate: z.string().min(1, 'Transaction date is required'),
+  transactionRef: z.preprocess(
+    (val) => typeof val === 'string' ? sanitizeString(val) : val,
+    z.string().min(1, 'Transaction reference/ID is required')
+  ),
+  receiptImageUrl: z.preprocess(
+    (val) => typeof val === 'string' ? sanitizeString(val) : val,
+    z.string().optional()
+  ),
+  notes: z.preprocess(
+    (val) => typeof val === 'string' ? sanitizeString(val) : val,
+    z.string().max(1000).optional()
+  ),
 });
 
 export type BankTransferPaymentInput = z.infer<typeof BankTransferPaymentSchema>;
@@ -132,7 +169,10 @@ export type BankTransferPaymentInput = z.infer<typeof BankTransferPaymentSchema>
 // ============= Complete Booking (Lawyer post-consultation) =============
 
 export const CompleteBookingSchema = z.object({
-  lawyerNotes: z.string().max(2000).optional(),
+  lawyerNotes: z.preprocess(
+    (val) => typeof val === 'string' ? sanitizeString(val) : val,
+    z.string().max(2000).optional()
+  ),
 });
 
 export type CompleteBookingInput = z.infer<typeof CompleteBookingSchema>;
@@ -141,7 +181,10 @@ export type CompleteBookingInput = z.infer<typeof CompleteBookingSchema>;
 
 export const BookingRatingSchema = z.object({
   rating: z.number().int().min(1).max(5),
-  feedback: z.string().max(1000).optional(),
+  feedback: z.preprocess(
+    (val) => typeof val === 'string' ? sanitizeString(val) : val,
+    z.string().max(1000).optional()
+  ),
 });
 
 export type BookingRatingInput = z.infer<typeof BookingRatingSchema>;
@@ -170,7 +213,10 @@ export type AvailableSlotsQuery = z.infer<typeof AvailableSlotsQuerySchema>;
 
 export const AdminVerifyPaymentSchema = z.object({
   status: z.enum(['PAID', 'RESUBMIT', 'CANCELLED']),
-  adminNotes: z.string().max(500).optional(),
+  adminNotes: z.preprocess(
+    (val) => typeof val === 'string' ? sanitizeString(val) : val,
+    z.string().max(500).optional()
+  ),
 });
 
 export type AdminVerifyPaymentInput = z.infer<typeof AdminVerifyPaymentSchema>;
@@ -180,6 +226,9 @@ export type AdminVerifyPaymentInput = z.infer<typeof AdminVerifyPaymentSchema>;
 export const BOOKING_STATUS_COLORS: Record<string, string> = {
   PENDING_PAYMENT: 'bg-amber-100 text-amber-800',
   AWAITING_BANK_TRANSFER_VERIFICATION: 'bg-sky-100 text-sky-800',
+  AWAITING_LAWYER_APPROVAL: 'bg-indigo-100 text-indigo-800',
+  RESCHEDULE_REQUESTED: 'bg-teal-100 text-teal-800',
+  REJECTED_BY_LAWYER: 'bg-rose-100 text-rose-800',
   CONFIRMED: 'bg-blue-100 text-blue-800',
   IN_PROGRESS: 'bg-purple-100 text-purple-800',
   COMPLETED: 'bg-green-100 text-green-800',
@@ -192,6 +241,9 @@ export const BOOKING_STATUS_COLORS: Record<string, string> = {
 export const BOOKING_STATUS_LABELS: Record<string, string> = {
   PENDING_PAYMENT: 'Pending Payment',
   AWAITING_BANK_TRANSFER_VERIFICATION: 'Pending Bank Transfer Verification',
+  AWAITING_LAWYER_APPROVAL: 'Awaiting Lawyer Approval',
+  RESCHEDULE_REQUESTED: 'Reschedule Requested',
+  REJECTED_BY_LAWYER: 'Rejected by Lawyer',
   CONFIRMED: 'Confirmed',
   IN_PROGRESS: 'In Progress',
   COMPLETED: 'Completed',

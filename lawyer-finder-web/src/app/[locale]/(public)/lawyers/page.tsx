@@ -73,7 +73,7 @@ export default async function LawyerDirectory({
       <div className="mx-auto max-w-[1400px] px-6 lg:px-12 xl:px-24">
         {/* Header */}
         <div className="mb-10 max-w-2xl">
-          <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Lawyer Directory</h1>
+          <h1 className="text-3xl font-light tracking-tight sm:text-4xl">Lawyer Directory</h1>
           <p className="mt-3 text-muted-foreground">
             Browse verified Sri Lankan legal professionals. Use the filters to find the right match.
           </p>
@@ -179,11 +179,10 @@ export default async function LawyerDirectory({
                     <Link
                       key={item}
                       href={buildPageUrl(item)}
-                      className={`h-9 w-9 rounded-md inline-flex items-center justify-center text-sm font-medium transition-colors ${
-                        item === currentPage
-                          ? 'bg-primary text-primary-foreground'
-                          : 'border border-input bg-background hover:bg-muted'
-                      }`}
+                      className={`h-9 w-9 rounded-md inline-flex items-center justify-center text-sm font-medium transition-colors ${item === currentPage
+                        ? 'bg-primary text-primary-foreground'
+                        : 'border border-input bg-background hover:bg-muted'
+                        }`}
                     >
                       {item}
                     </Link>

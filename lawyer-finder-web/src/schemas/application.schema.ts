@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { PRACTICE_AREAS, LANGUAGES, DISTRICTS } from '@/schemas/profile.schema';
+import { sanitizeString } from '@/lib/sanitize';
 
 // ── Step 1: Basic Profile & Contact ──────────────────────────────────────────
 
@@ -7,7 +8,8 @@ export const applicationStep1Schema = z.object({
   fullName: z.string()
     .min(3, 'Full name must be at least 3 characters.')
     .max(120, 'Full name must not exceed 120 characters.')
-    .regex(/^[a-zA-Z\s.\-']+$/, 'Full name may only contain letters, spaces, hyphens, apostrophes, and periods.'),
+    .regex(/^[a-zA-Z\s.\-']+$/, 'Full name may only contain letters, spaces, hyphens, apostrophes, and periods.')
+    .transform((val) => sanitizeString(val)),
   gender: z.enum(['MALE', 'FEMALE', ''], {
     message: 'Please select a valid gender option.',
   }).optional().or(z.literal('')),
@@ -16,13 +18,16 @@ export const applicationStep1Schema = z.object({
   bio: z.string()
     .max(2000, 'Bio must not exceed 2,000 characters.')
     .optional()
-    .or(z.literal('')),
+    .or(z.literal(''))
+    .transform((val) => val ? sanitizeString(val) : val),
   phone: z.string()
     .min(1, 'Mobile number is required.')
     .regex(/^(?:0|(?:\+94))7[0-9]{8}$/, 'Enter a valid Sri Lankan mobile number (e.g. 07XXXXXXXX or +947XXXXXXXX).'),
   address: z.string()
     .min(10, 'Office address must be at least 10 characters for accuracy.')
-    .max(300, 'Address must not exceed 300 characters.'),
+    .max(300, 'Address must not exceed 300 characters.')
+    .transform((val) => sanitizeString(val))
+    .refine((val) => val.length >= 10, 'Office address must be at least 10 characters for accuracy.'),
   district: z.enum(DISTRICTS as unknown as [string, ...string[]], {
     message: 'Please select a valid district.',
   }),
@@ -70,7 +75,8 @@ export const applicationStep3Schema = z.object({
   baseFeeRange: z.string()
     .max(50, 'Fee description must not exceed 50 characters.')
     .optional()
-    .or(z.literal('')),
+    .or(z.literal(''))
+    .transform((val) => val ? sanitizeString(val) : val),
 });
 
 // ── Step 4: Verification ─────────────────────────────────────────────────────

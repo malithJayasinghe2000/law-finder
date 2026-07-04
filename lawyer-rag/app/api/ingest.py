@@ -25,10 +25,127 @@ from app.ingestion.metadata_builder import (
     build_metadata_manual,
 )
 from app.ingestion.amendment_processor import process_amendment
+import fitz
+import re
+from app.core.llm import get_llm
 
 logger = logging.getLogger(__name__)
 
 ingest_bp = Blueprint("ingest", __name__)
+
+
+def _generate_document_outline(pdf_path: str, title: str) -> list[dict]:
+    """
+    Generate a dynamic, structured outline for a legal document using programmatic
+    extraction of Part/Chapter markers and LLM-based summarization (with fallback).
+    """
+    try:
+        doc = fitz.open(pdf_path)
+        part_pattern = re.compile(r"^\s*(PART\s+[IVXLCDM\d]+)\s*$", re.IGNORECASE)
+        chapter_pattern = re.compile(r"^\s*(CHAPTER\s+[IVXLCDM\d]+)\s*$", re.IGNORECASE)
+        
+        candidates = []
+        for page_num in range(len(doc)):
+            page = doc[page_num]
+            text = page.get_text("text")
+            lines = [l.strip() for l in text.split("\n") if l.strip()]
+            
+            for i, line in enumerate(lines):
+                is_part = part_pattern.match(line)
+                is_chap = chapter_pattern.match(line)
+                
+                if is_part or is_chap:
+                    full_title = line
+                    # Look ahead to grab the subtitle
+                    subtitle_parts = []
+                    for j in range(1, 3):
+                        if i + j < len(lines):
+                            next_line = lines[i+j]
+                            if part_pattern.match(next_line) or chapter_pattern.match(next_line):
+                                break
+                            if re.match(r"^\d+[\.\s]", next_line):
+                                break
+                            if len(next_line) < 60:
+                                subtitle_parts.append(next_line)
+                            else:
+                                break
+                    
+                    if subtitle_parts:
+                        full_title = f"{line}: {' '.join(subtitle_parts)}"
+                    
+                    # Grab subsequent lines for context
+                    context_lines = []
+                    start_idx = i + 1 + len(subtitle_parts)
+                    for next_line in lines[start_idx:start_idx+12]:
+                        if part_pattern.match(next_line) or chapter_pattern.match(next_line):
+                            break
+                        context_lines.append(next_line)
+                    
+                    following_text = " ".join(context_lines).strip()
+                    candidates.append({
+                        "page": page_num + 1,
+                        "type": "PART" if is_part else "CHAPTER",
+                        "title": full_title,
+                        "context": following_text
+                    })
+        
+        doc.close()
+        
+        # Deduplicate candidates
+        filtered = []
+        seen_titles = set()
+        for c in candidates:
+            clean_title = re.sub(r'[^a-zA-Z0-9]', '', c['title'].lower())
+            if clean_title in seen_titles:
+                continue
+            seen_titles.add(clean_title)
+            filtered.append(c)
+            
+        # Inherit empty context from next item
+        for idx, c in enumerate(filtered):
+            if not c["context"]:
+                for k in range(idx + 1, len(filtered)):
+                    if filtered[k]["context"]:
+                        c["context"] = filtered[k]["context"]
+                        break
+        
+        # Generate summaries using LLM (with robust fallback)
+        outline = []
+        for c in filtered[:15]:  # Generate up to 15 items
+            summary = ""
+            if c["context"]:
+                try:
+                    llm = get_llm()
+                    prompt = (
+                        f"Write a concise, 1-sentence summary (max 20 words) for the following legal section:\n"
+                        f"Heading: {c['title']}\n"
+                        f"Content: {c['context'][:500]}\n\n"
+                        f"Summary:"
+                    )
+                    response = llm.invoke(prompt)
+                    summary = response.content.strip()
+                except Exception as e:
+                    logger.warning(f"LLM outline summary failed for {c['title']}: {e}")
+            
+            # Programmatic fallback summary
+            if not summary:
+                raw_summary = c["context"] or ""
+                raw_summary = re.sub(r'^\s*\d+\.\s*', '', raw_summary)
+                if len(raw_summary) > 150:
+                    summary = raw_summary[:150].strip() + "..."
+                else:
+                    summary = raw_summary.strip()
+            
+            outline.append({
+                "title": c["title"],
+                "page": c["page"],
+                "summary": summary
+            })
+            
+        return outline
+    except Exception as e:
+        logger.error(f"Failed to generate outline: {e}")
+        return []
 
 
 def _build_knowledge_graph(chunks: list, document_name: str) -> dict:
@@ -187,6 +304,9 @@ def ingest_document():
             document_name=base_metadata.get("document_name", filename),
         )
 
+        # Generate outline
+        outline = _generate_document_outline(pdf_path, base_metadata.get("document_name", filename))
+
         result = {
             "success": True,
             "message": f"Successfully ingested '{filename}'",
@@ -195,6 +315,7 @@ def ingest_document():
             "chunks_created": len(chunks),
             "chunks_added": chunks_added,
             "graph_stats": graph_stats,
+            "outline": outline,
         }
 
         logger.info(f"Ingestion complete: {result}")
@@ -297,6 +418,9 @@ def upload_and_ingest():
             document_name=title,
         )
 
+        # Generate outline
+        outline = _generate_document_outline(pdf_path, title)
+
         return jsonify({
             "success": True,
             "message": f"Successfully uploaded and ingested '{title}'",
@@ -306,6 +430,7 @@ def upload_and_ingest():
             "chunks_created": len(chunks),
             "chunks_added": chunks_added,
             "graph_stats": graph_stats,
+            "outline": outline,
         }), 200
 
     except Exception as e:

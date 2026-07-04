@@ -7,6 +7,7 @@ import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -121,21 +122,11 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-[85vh] items-center justify-center px-4 bg-background pt-16 pb-16">
       <div className="w-full max-w-[420px]">
-        {/* Logo */}
-        <div className="mb-10 flex flex-col items-center gap-3">
-          <Link href={`/${locale}`} className="flex items-center gap-2.5 group">
-            <div className="flex items-center justify-center text-[#bfa37a] transition-transform group-hover:scale-105">
-              <Scale className="h-7 w-7 stroke-[1.8]" />
-            </div>
-            <span className="text-xl font-serif tracking-[0.15em] font-medium uppercase text-neutral-900">
-              LAWFINDER
-            </span>
-          </Link>
-        </div>
+  
 
         <div className="bg-[#faf8f6]/50 p-10 rounded-none border border-[#efeae0]">
           <div className="mb-8 text-center">
-            <h1 className="text-3xl font-serif font-bold tracking-tight text-neutral-900 mb-2">Welcome Back</h1>
+            <h1 className="text-3xl font-serif font-normal tracking-tight text-neutral-900 mb-2">Welcome Back</h1>
             <p className="text-xs uppercase font-bold tracking-widest text-neutral-400">Sign in to your account</p>
           </div>
 

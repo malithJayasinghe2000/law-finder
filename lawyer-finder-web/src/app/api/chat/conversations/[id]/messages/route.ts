@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { isValidUUID, sanitizeString } from '@/lib/security';
 
 export async function GET(request: Request, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
@@ -9,6 +10,9 @@ export async function GET(request: Request, props: { params: Promise<{ id: strin
     if (!session?.userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const conversationId = params.id;
+    if (!conversationId || !isValidUUID(conversationId)) {
+      return NextResponse.json({ error: 'A valid conversation ID is required.' }, { status: 400 });
+    }
 
     // Verify participant
     const participant = await prisma.conversationParticipant.findFirst({
@@ -26,7 +30,7 @@ export async function GET(request: Request, props: { params: Promise<{ id: strin
 
     return NextResponse.json(messages);
   } catch (error) {
-    console.error('Fetch messages error:', error);
+    console.error('Fetch messages error:', error instanceof Error ? error.message : 'Fetch failed');
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
@@ -38,10 +42,15 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
     if (!session?.userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const conversationId = params.id;
-    const { content } = await request.json();
+    if (!conversationId || !isValidUUID(conversationId)) {
+      return NextResponse.json({ error: 'A valid conversation ID is required.' }, { status: 400 });
+    }
 
-    if (!content?.trim()) {
-      return NextResponse.json({ error: 'Message cannot be empty' }, { status: 400 });
+    const { content } = await request.json();
+    const sanitizedContent = content ? sanitizeString(content, 5000) : '';
+
+    if (!sanitizedContent || sanitizedContent.trim().length === 0) {
+      return NextResponse.json({ error: 'Message cannot be empty and must be valid plain text.' }, { status: 400 });
     }
 
     // Verify participant
@@ -57,7 +66,7 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
       data: {
         conversationId,
         senderId: session.userId,
-        content
+        content: sanitizedContent
       }
     });
 
@@ -83,7 +92,7 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
       receiverId: otherParticipant?.userId 
     });
   } catch (error) {
-    console.error('Send message error:', error);
+    console.error('Send message error:', error instanceof Error ? error.message : 'Send failed');
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

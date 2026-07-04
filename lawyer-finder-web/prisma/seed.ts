@@ -19,24 +19,28 @@ async function main() {
 
   // 1. Create Admin
   const admin = await prisma.user.upsert({
-    where: { email: 'admin@lawfinder.lk' },
+    where: { email: 'admin@thelawyr.lk' },
     update: {},
     create: {
-      email: 'admin@lawfinder.lk',
+      email: 'admin@thelawyr.lk',
       passwordHash,
       role: 'ADMIN',
     },
   })
 
   // 2. Create Lawyer
+  const existingProfile1 = await prisma.lawyerProfile.findUnique({
+    where: { baslNumber: 'BASL-2024-0451' },
+  });
+
   const lawyer = await prisma.user.upsert({
-    where: { email: 'lawyer@lawfinder.lk' },
+    where: { email: 'lawyer@thelawyr.lk' },
     update: {},
     create: {
-      email: 'lawyer@lawfinder.lk',
+      email: 'lawyer@thelawyr.lk',
       passwordHash,
       role: 'LAWYER',
-      profile: {
+      profile: existingProfile1 ? undefined : {
         create: {
           fullName: 'Kavindu Perera',
           baslNumber: 'BASL-2024-0451',
@@ -53,24 +57,28 @@ async function main() {
 
   // 3. Create Client
   const client = await prisma.user.upsert({
-    where: { email: 'citizen@lawfinder.lk' },
+    where: { email: 'citizen@thelawyr.lk' },
     update: {},
     create: {
-      email: 'citizen@lawfinder.lk',
+      email: 'citizen@thelawyr.lk',
       passwordHash,
       role: 'CLIENT',
     },
   })
 
   // 3.5 Create Second Lawyer (With Subscription intended)
+  const existingProfile2 = await prisma.lawyerProfile.findUnique({
+    where: { baslNumber: 'BASL-2024-0899' },
+  });
+
   const lawyer2 = await prisma.user.upsert({
-    where: { email: 'lawyer2@lawfinder.lk' },
+    where: { email: 'lawyer2@thelawyr.lk' },
     update: {},
     create: {
-      email: 'lawyer2@lawfinder.lk',
+      email: 'lawyer2@thelawyr.lk',
       passwordHash,
       role: 'LAWYER',
-      profile: {
+      profile: existingProfile2 ? undefined : {
         create: {
           fullName: 'Nuwan Senanayake',
           baslNumber: 'BASL-2024-0899',
@@ -404,6 +412,128 @@ async function main() {
     }
   }
 
+  // ============= AD SYSTEM PLACEMENT CONFIGS SEED =============
+  console.log('Seeding Ad Placement Configurations...')
+  
+  const placements = [
+    {
+      placement: 'HOMEPAGE_BELOW_HERO',
+      displayName: 'Homepage — Below Hero Section',
+      description: 'Slider banner below the hero, above "The Legal Advisory Is" section',
+      pricePerDay: 2000,
+      isSlider: true,
+      sliderInterval: 3000,
+      maxAdsPerSlot: 3,
+      recommendedWidth: 1200,
+      recommendedHeight: 400,
+      allowedAdTypes: ['BANNER_IMAGE', 'PROFILE_CARD'],
+    },
+    {
+      placement: 'CHAT_RIGHT_SIDEBAR',
+      displayName: 'AI Chat — Right Sidebar',
+      description: 'Right sidebar ads alongside the AI chat interface',
+      pricePerDay: 1500,
+      isSlider: true,
+      sliderInterval: 3000,
+      maxAdsPerSlot: 3,
+      recommendedWidth: 300,
+      recommendedHeight: 250,
+      allowedAdTypes: ['SIDEBAR_CARD'],
+    },
+    {
+      placement: 'BLOG_TOP_BANNER',
+      displayName: 'Blog — Top Banner',
+      description: 'Slider banner above category cards on the blog listing page',
+      pricePerDay: 1500,
+      isSlider: true,
+      sliderInterval: 3000,
+      maxAdsPerSlot: 3,
+      recommendedWidth: 728,
+      recommendedHeight: 90,
+      allowedAdTypes: ['BANNER_IMAGE'],
+    },
+    {
+      placement: 'BLOG_RIGHT_SIDEBAR',
+      displayName: 'Blog — Right Sidebar (Sticky)',
+      description: 'Sticky sidebar ads that stay visible while scrolling blog posts',
+      pricePerDay: 1200,
+      isSlider: true,
+      sliderInterval: 3000,
+      maxAdsPerSlot: 5,
+      recommendedWidth: 300,
+      recommendedHeight: 250,
+      allowedAdTypes: ['SIDEBAR_CARD'],
+    },
+    {
+      placement: 'BLOG_BOTTOM_STICKY',
+      displayName: 'Blog — Bottom Sticky Bar',
+      description: 'Fixed bar at the bottom of the blog page, stays visible while scrolling',
+      pricePerDay: 1000,
+      isSlider: false,
+      sliderInterval: 5000,
+      maxAdsPerSlot: 1,
+      recommendedWidth: 728,
+      recommendedHeight: 90,
+      allowedAdTypes: ['STICKY_BAR'],
+    },
+    {
+      placement: 'BLOG_POST_SIDEBAR',
+      displayName: 'Blog Post — Right Sidebar',
+      description: 'Sidebar ads alongside individual blog post content',
+      pricePerDay: 1000,
+      isSlider: true,
+      sliderInterval: 3000,
+      maxAdsPerSlot: 3,
+      recommendedWidth: 300,
+      recommendedHeight: 250,
+      allowedAdTypes: ['SIDEBAR_CARD'],
+    },
+    {
+      placement: 'BLOG_POST_BOTTOM',
+      displayName: 'Blog Post — Below Article',
+      description: 'Banner below the blog article content',
+      pricePerDay: 800,
+      isSlider: false,
+      sliderInterval: 3000,
+      maxAdsPerSlot: 1,
+      recommendedWidth: 728,
+      recommendedHeight: 90,
+      allowedAdTypes: ['BANNER_IMAGE'],
+    },
+    {
+      placement: 'DIRECTORY_TOP',
+      displayName: 'Lawyer Directory — Top',
+      description: 'Pinned at the top of lawyer search results',
+      pricePerDay: 2500,
+      isSlider: false,
+      sliderInterval: 3000,
+      maxAdsPerSlot: 2,
+      recommendedWidth: null,
+      recommendedHeight: null,
+      allowedAdTypes: ['PROFILE_CARD'],
+    },
+    {
+      placement: 'DIRECTORY_INLINE',
+      displayName: 'Lawyer Directory — Inline',
+      description: 'Interspersed within lawyer search results',
+      pricePerDay: 1500,
+      isSlider: false,
+      sliderInterval: 3000,
+      maxAdsPerSlot: 3,
+      recommendedWidth: null,
+      recommendedHeight: null,
+      allowedAdTypes: ['PROFILE_CARD'],
+    },
+  ]
+
+  for (const p of placements) {
+    await prisma.adPlacementConfig.upsert({
+      where: { placement: p.placement as any },
+      update: {},
+      create: p as any,
+    })
+  }
+
   console.log('-------------------------------------------')
   console.log('Database seeded successfully.')
   console.log('Login Credentials (Password for all: password123):')
@@ -415,6 +545,7 @@ async function main() {
   console.log(`Created ${permissions.length} permissions`)
   console.log('Set up feature limits for all roles')
   console.log(`Seeded ${communitiesData.length} communities`)
+  console.log('Seeded 9 Ad Placement Configurations')
   console.log('-------------------------------------------')
 }
 

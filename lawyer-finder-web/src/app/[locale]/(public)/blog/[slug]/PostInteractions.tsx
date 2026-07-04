@@ -295,7 +295,7 @@ export default function PostInteractions({
       {/* Mobile Inline Ads (Only shows on mobile, hidden on desktop since they appear in the real sidebar there) */}
       <div className="block lg:hidden my-8">
         <SidebarAd 
-          placement="BLOG_SIDEBAR" 
+          placement="BLOG_POST_SIDEBAR" 
           locale={locale} 
           practiceArea={post.communityName} 
         />

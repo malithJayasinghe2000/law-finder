@@ -56,8 +56,11 @@ export default function BookingWizardClient({ lawyerId, lawyerName, lawyerImage,
   // Bank Transfer Form
   const [bankName, setBankName] = useState('');
   const [accountHolder, setAccountHolder] = useState('');
+  const [accountNumber, setAccountNumber] = useState('');
+  const [transactionDate, setTransactionDate] = useState(new Date().toISOString().split('T')[0]);
   const [transactionRef, setTransactionRef] = useState('');
   const [receiptImageUrl, setReceiptImageUrl] = useState('');
+  const [notes, setNotes] = useState('');
   const [receiptUploading, setReceiptUploading] = useState(false);
 
   // Call to Book Modal
@@ -233,7 +236,7 @@ export default function BookingWizardClient({ lawyerId, lawyerName, lawyerImage,
   const submitBooking = async () => {
     setErrors({});
     if (paymentMethod === 'BANK_TRANSFER_NOW') {
-      const result = BankTransferPaymentSchema.safeParse({ bankName, accountHolder, transactionRef });
+      const result = BankTransferPaymentSchema.safeParse({ bankName, accountHolder, accountNumber, transactionDate, transactionRef, notes, receiptImageUrl });
       if (!result.success) {
         const fieldErrors = result.error.flatten().fieldErrors;
         const formattedErrors: Record<string, string> = {};
@@ -288,7 +291,7 @@ export default function BookingWizardClient({ lawyerId, lawyerName, lawyerImage,
       // 2. Submit Payment (If not PAY LATER)
       if (paymentMethod !== 'BANK_TRANSFER_LATER') {
         const paymentPayload = paymentMethod === 'BANK_TRANSFER_NOW' 
-          ? { method: 'BANK_TRANSFER', bankName, accountHolder, transactionRef, receiptImageUrl }
+          ? { method: 'BANK_TRANSFER', bankName, accountHolder, accountNumber, transactionDate, transactionRef, receiptImageUrl, notes }
           : { method: 'PAYHERE' };
 
         const paymentRes = await fetch(`/api/consultations/bookings/${bookingId}/payment`, {
@@ -603,7 +606,7 @@ export default function BookingWizardClient({ lawyerId, lawyerName, lawyerImage,
                       </ul>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-1">
                         <label className="text-[10px] font-bold text-neutral-500 uppercase">Your Bank Name <span className="text-red-500">*</span></label>
                         <Input value={bankName} onChange={e => { setBankName(e.target.value); setErrors(prev => ({ ...prev, bankName: '' })); }} className={`h-9 rounded-none text-xs ${errors.bankName ? 'border-red-500' : 'border-neutral-200'}`} placeholder="e.g. HNB" />
@@ -614,11 +617,25 @@ export default function BookingWizardClient({ lawyerId, lawyerName, lawyerImage,
                         <Input value={accountHolder} onChange={e => { setAccountHolder(e.target.value); setErrors(prev => ({ ...prev, accountHolder: '' })); }} className={`h-9 rounded-none text-xs ${errors.accountHolder ? 'border-red-500' : 'border-neutral-200'}`} placeholder="e.g. John Doe" />
                         {errors.accountHolder && <p className="text-[10px] text-red-500">{errors.accountHolder}</p>}
                       </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-neutral-500 uppercase">Account Number <span className="text-red-500">*</span></label>
+                        <Input value={accountNumber} onChange={e => { setAccountNumber(e.target.value); setErrors(prev => ({ ...prev, accountNumber: '' })); }} className={`h-9 rounded-none text-xs ${errors.accountNumber ? 'border-red-500' : 'border-neutral-200'}`} placeholder="e.g. 123456789" />
+                        {errors.accountNumber && <p className="text-[10px] text-red-500">{errors.accountNumber}</p>}
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-neutral-500 uppercase">Transaction Date <span className="text-red-500">*</span></label>
+                        <Input type="date" value={transactionDate} onChange={e => { setTransactionDate(e.target.value); setErrors(prev => ({ ...prev, transactionDate: '' })); }} className={`h-9 rounded-none text-xs ${errors.transactionDate ? 'border-red-500' : 'border-neutral-200'}`} />
+                        {errors.transactionDate && <p className="text-[10px] text-red-500">{errors.transactionDate}</p>}
+                      </div>
                     </div>
                     <div className="space-y-1">
                       <label className="text-[10px] font-bold text-neutral-500 uppercase">Transaction Reference Number <span className="text-red-500">*</span></label>
                       <Input value={transactionRef} onChange={e => { setTransactionRef(e.target.value); setErrors(prev => ({ ...prev, transactionRef: '' })); }} className={`h-9 rounded-none text-xs ${errors.transactionRef ? 'border-red-500' : 'border-neutral-200'}`} />
                       {errors.transactionRef && <p className="text-[10px] text-red-500">{errors.transactionRef}</p>}
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-neutral-500 uppercase">Notes (Optional)</label>
+                      <Textarea value={notes} onChange={e => setNotes(e.target.value)} className="min-h-[60px] rounded-none text-xs border-neutral-200" placeholder="Any additional information..." />
                     </div>
 
                     <div>

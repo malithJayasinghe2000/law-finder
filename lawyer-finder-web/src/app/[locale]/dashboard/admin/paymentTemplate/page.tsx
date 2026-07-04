@@ -25,10 +25,8 @@ export default function PaymentTemplatePage() {
           {/* Header Section */}
           <div className="flex justify-between items-start mb-8 border-b-2 border-black pb-8">
             <div>
-              <div className="flex items-center gap-2 mb-1">
-                <div className="bg-black text-white p-2 print:bg-black print:text-white shrink-0" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                   <ShieldCheck className="w-5 h-5 text-white" />
-                </div>
+              <div className="flex items-center gap-3 mb-1">
+                <img src="/logo.png" alt="TheLawyr Logo" className="h-10 w-auto object-contain" />
                 <h1 className="text-xl sm:text-2xl font-black tracking-tight uppercase text-black">Lawyer.ai</h1>
               </div>
               <p className="text-[9px] sm:text-[10px] uppercase tracking-[0.2em] font-bold text-neutral-400">

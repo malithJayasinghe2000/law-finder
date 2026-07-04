@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Image from 'next/image';
 import { Scale, Mail, MapPin, Phone, Facebook, Youtube, Instagram, Twitter, Send } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 
@@ -12,16 +13,19 @@ export default function Footer({ locale }: { locale: string }) {
         <div className="flex flex-col md:flex-row items-center justify-between gap-8 pb-12 border-b border-white/10">
           <div className="flex flex-col items-center md:items-start text-center md:text-left">
             <span className="text-[10px] uppercase tracking-[0.2em] text-[#bfa37a] font-bold mb-2">Send Email</span>
-            <a href="mailto:hello@lawfinder.lk" className="text-lg font-serif text-white hover:text-[#bfa37a] transition-colors">
-              hello@lawfinder.lk
+            <a href="mailto:hello@thelawyr.lk" className="text-lg font-serif text-white hover:text-[#bfa37a] transition-colors">
+              hello@thelawyr.lk
             </a>
           </div>
 
           <div className="flex items-center gap-2">
-            <Scale className="h-6 w-6 text-[#bfa37a]" />
-            <span className="text-xl font-serif tracking-[0.15em] font-medium uppercase text-white">
-              LAWFINDER
-            </span>
+            <Image
+              src="/logowhite.png"
+              alt="TheLawyr Logo"
+              width={200}
+              height={35}
+              className="h-18 w-auto object-contain"
+            />
           </div>
 
           <div className="flex flex-col items-center md:items-end text-center md:text-right">
@@ -125,7 +129,7 @@ export default function Footer({ locale }: { locale: string }) {
 
       {/* Gold bottom banner */}
       <div className="bg-[#bfa37a] py-6 text-center text-xs tracking-wider uppercase font-bold text-neutral-900">
-        Copyright © LawFinder {year}. All Rights Reserved. Powered by FiveNeurals.
+        Copyright © TheLawyr {year}. All Rights Reserved. Powered by FiveNeurals.
       </div>
     </footer>
   );

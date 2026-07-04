@@ -1,6 +1,15 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { z } from 'zod';
+import { sanitizeString, isValidUUID } from '@/lib/security';
+
+// ── Review Schema ─────────────────────────────────────────────────────────
+const createReviewSchema = z.object({
+  lawyerId: z.string().uuid('Invalid lawyer reference.'),
+  rating: z.coerce.number().int('Rating must be a whole number.').min(1, 'Rating must be at least 1.').max(5, 'Rating cannot exceed 5.'),
+  comment: z.string().min(5, 'Review must be at least 5 characters.').max(2000, 'Review cannot exceed 2000 characters.'),
+});
 
 // POST: Submit a review (must be logged in)
 export async function POST(req: Request) {
@@ -11,14 +20,17 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { lawyerId, rating, comment } = body;
+    const parsed = createReviewSchema.safeParse(body);
 
-    if (!lawyerId || !rating || !comment) {
-      return NextResponse.json({ error: 'Missing required fields.' }, { status: 400 });
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error.issues[0]?.message || 'Invalid review data.' }, { status: 400 });
     }
 
-    if (rating < 1 || rating > 5) {
-      return NextResponse.json({ error: 'Rating must be between 1 and 5.' }, { status: 400 });
+    const { lawyerId, rating, comment } = parsed.data;
+    const sanitizedComment = sanitizeString(comment, 2000);
+
+    if (!sanitizedComment || sanitizedComment.length < 5) {
+      return NextResponse.json({ error: 'Review comment must contain at least 5 valid characters.' }, { status: 400 });
     }
 
     // Get user's display name
@@ -46,16 +58,16 @@ export async function POST(req: Request) {
       data: {
         lawyerId,
         reviewerId: session.userId,
-        reviewerName: user.fullName || user.email.split('@')[0],
-        rating: parseInt(String(rating)),
-        comment,
+        reviewerName: sanitizeString(user.fullName || user.email.split('@')[0], 120),
+        rating,
+        comment: sanitizedComment,
         isApproved: false, // needs admin approval
       },
     });
 
-    return NextResponse.json({ success: true, review }, { status: 201 });
+    return NextResponse.json({ success: true, reviewId: review.id }, { status: 201 });
   } catch (error) {
-    console.error('[REVIEW_POST_ERROR]', error);
+    console.error('[REVIEW_POST_ERROR]', error instanceof Error ? error.message : 'Review submission failed');
     return NextResponse.json({ error: 'Failed to submit review.' }, { status: 500 });
   }
 }
@@ -66,8 +78,8 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const lawyerId = searchParams.get('lawyerId');
 
-    if (!lawyerId) {
-      return NextResponse.json({ error: 'lawyerId is required.' }, { status: 400 });
+    if (!lawyerId || !isValidUUID(lawyerId)) {
+      return NextResponse.json({ error: 'A valid lawyerId is required.' }, { status: 400 });
     }
 
     const reviews = await prisma.review.findMany({
@@ -77,7 +89,8 @@ export async function GET(req: Request) {
 
     return NextResponse.json(reviews, { status: 200 });
   } catch (error) {
-    console.error('[REVIEW_GET_ERROR]', error);
+    console.error('[REVIEW_GET_ERROR]', error instanceof Error ? error.message : 'Review fetch failed');
     return NextResponse.json({ error: 'Failed to fetch reviews.' }, { status: 500 });
   }
 }
+

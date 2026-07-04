@@ -12,9 +12,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { FieldError } from '@/components/ui/FieldError';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Upload, Banknote, ShieldCheck, CheckCircle2, Clock, Calendar, Hash, CreditCard, Info, MessageSquare } from 'lucide-react';
+import { ArrowLeft, Upload, Banknote, ShieldCheck, CheckCircle2, Clock, Calendar, Hash, CreditCard, Info, MessageSquare, Printer, X, FileText } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import Image from 'next/image';
 
 interface OfflinePaymentClientProps {
   locale: string;
@@ -29,7 +30,12 @@ export default function OfflinePaymentClient({ locale, invoice }: OfflinePayment
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
 
-  const isReadonly = invoice.status !== 'UNPAID' && invoice.status !== 'RESUBMIT';
+  const isReadonly = invoice.status === 'PAID' || 
+                     invoice.status === 'CANCELLED' || 
+                     (invoice.status === 'PENDING' && (!!invoice.receiptImageUrl || (invoice.paymentDetails && typeof invoice.paymentDetails === 'object' && Object.keys(invoice.paymentDetails).length > 0)));
+
+  const [showOfflineForm, setShowOfflineForm] = useState(isReadonly);
+  const [isOfflineModalOpen, setIsOfflineModalOpen] = useState(false);
 
   const {
     register,
@@ -102,6 +108,14 @@ export default function OfflinePaymentClient({ locale, invoice }: OfflinePayment
   };
 
   const onSubmit = async (data: SubmitPayment) => {
+    if (data.amount < invoice.amount) {
+      toast({
+        title: 'Amount Too Low',
+        description: `The actual amount paid cannot be lower than the payable amount of LKR ${invoice.amount.toLocaleString()}.00`,
+        variant: 'destructive',
+      });
+      return;
+    }
     setIsSubmitting(true);
     try {
       let receiptImageUrl = data.receiptImageUrl;
@@ -146,11 +160,10 @@ export default function OfflinePaymentClient({ locale, invoice }: OfflinePayment
       reset();
       setSelectedFile(null);
       setUploadProgress(0);
+      setIsOfflineModalOpen(false);
 
-      // Redirect after 2 seconds
-      setTimeout(() => {
-        router.push(`/${locale}/dashboard/lawyer/payments/invoices`);
-      }, 2000);
+      // Refresh page to show newly submitted details
+      router.refresh();
     } catch (error) {
       console.error('Error submitting payment:', error);
       toast({
@@ -164,392 +177,573 @@ export default function OfflinePaymentClient({ locale, invoice }: OfflinePayment
     }
   };
 
+  // Format dates for display
+  const createdDate = new Date(invoice.createdAt).toLocaleDateString('en-US', {
+    month: 'long',
+    day: '2-digit',
+    year: 'numeric',
+  });
+  const dueDate = new Date(new Date(invoice.createdAt).getTime() + 15 * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', {
+    month: 'long',
+    day: '2-digit',
+    year: 'numeric',
+  });
+  const invoiceNumber = `LAI-${new Date(invoice.createdAt).getFullYear()}-${invoice.id.substring(0, 8).toUpperCase()}`;
+
   return (
-    <div className="pb-20">
-      {/* Page Header - Clean style matching other dashboard pages */}
-      <div className="mb-8">
-        <Button
-          variant="ghost"
-          onClick={() => router.back()}
-          className="mb-4 text-neutral-500 hover:text-black px-0 hover:bg-transparent"
-        >
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Back to Invoice
-        </Button>
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-3 mb-1">
-              <h1 className="text-2xl font-bold tracking-tight">Offline Payment Submission</h1>
-            </div>
-            <p className="text-sm text-muted-foreground">
-              Provide your bank transfer details. Our team will verify within 24–48 hours.
-            </p>
-          </div>
-          <div className="flex items-center gap-3 bg-neutral-50 border border-neutral-200 px-5 py-3">
+    <div className="p-4 sm:p-6 lg:p-10 max-w-[1400px] mx-auto min-h-screen bg-neutral-50 flex gap-6 flex-col xl:flex-row print:p-0 print:m-0 print:border-none print:w-full print:max-w-none print:bg-white print:block">
+      <title>{invoice.status === 'PAID' ? 'Payment Receipt' : 'Invoice'} | TheLawyr</title>
+
+      {/* LEFT COLUMN: Standard Invoice Sheet */}
+      <div className="flex-1 bg-white shadow-xl p-6 sm:p-10 border border-neutral-200 print:border-none print:p-0 print:shadow-none print:m-0 rounded-none relative print:overflow-visible print:block print:w-full print:max-w-none">
+        <div className="mx-auto text-[#0a0a0a] font-sans w-full max-w-[850px] flex flex-col print:max-w-none print:w-full">
+          
+          {/* Header Section */}
+          <div className="flex flex-col sm:flex-row justify-between items-start gap-4 sm:gap-2 mb-8 border-b-2 border-black pb-8">
             <div>
-              <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest">Payable Amount</p>
-              <p className="text-xl font-bold tracking-tight text-[#0a0a0a]">LKR {invoice.amount.toLocaleString()}.00</p>
+              <div className="flex items-center gap-3 mb-1">
+                <img src="/logo.png" alt="TheLawyr Logo" className="h-10 w-auto object-contain" />
+                <h1 className="text-xl sm:text-2xl font-normal tracking-tight uppercase text-black font-serif">TheLawyr</h1>
+              </div>
+              <p className="text-[9px] sm:text-[10px] uppercase tracking-[0.2em] font-normal text-neutral-400">
+                FiveNeurals (PVT) Ltd · Legal Tech Division
+              </p>
             </div>
-            <div className="text-[9px] text-neutral-400 font-medium">
-              #{invoice.id.substring(0, 8).toUpperCase()}
+            
+            <div className="text-left sm:text-right w-full sm:w-auto">
+              <h2 className="text-2xl sm:text-3xl font-light tracking-tighter mb-0 text-neutral-900 uppercase font-serif">
+                {invoice.status === 'PAID' ? 'Receipt' : 'Invoice'}
+              </h2>
+              <p className="text-[9px] sm:text-[10px] font-mono text-neutral-500 uppercase tracking-wider">#{invoiceNumber}</p>
+              
+              <div className="mt-2">
+                {invoice.status === 'PAID' ? (
+                  <span className="text-[10px] font-bold text-green-700 bg-green-50 border border-green-200 px-2.5 py-1 uppercase tracking-widest inline-block">
+                    PAID
+                  </span>
+                ) : invoice.status === 'PENDING' && isReadonly ? (
+                  <span className="text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 uppercase tracking-widest inline-block">
+                    AWAITING VERIFICATION
+                  </span>
+                ) : invoice.status === 'RESUBMIT' ? (
+                  <span className="text-[10px] font-bold text-orange-700 bg-orange-50 border border-orange-200 px-2.5 py-1 uppercase tracking-widest inline-block">
+                    RE-SUBMISSION REQUIRED
+                  </span>
+                ) : invoice.status === 'CANCELLED' ? (
+                  <span className="text-[10px] font-bold text-red-700 bg-red-50 border border-red-200 px-2.5 py-1 uppercase tracking-widest inline-block">
+                    CANCELLED
+                  </span>
+                ) : (
+                  <span className="text-[10px] font-bold text-red-600 bg-red-50 border border-red-150 px-2.5 py-1 uppercase tracking-widest inline-block">
+                    UNPAID
+                  </span>
+                )}
+              </div>
             </div>
           </div>
+
+          {/* Contact Details Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 mb-8 text-[13px] print:grid-cols-2">
+            <div>
+              <h4 className="text-[9px] font-bold text-neutral-400 uppercase tracking-widest mb-3">Issued By</h4>
+              <div className="font-medium text-neutral-800">
+                <p className="font-bold text-black border-l-2 border-black pl-3 mb-1">FiveNeurals (PVT) LTD</p>
+                <div className="pl-3 opacity-80 leading-snug text-[12px]">
+                  <p>No 12, Flower Road, Colombo 07</p>
+                  <p>contact@thelawyr.lk | +94 11 234 5678</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="text-left sm:text-right print:text-right">
+              <h4 className="text-[9px] font-bold text-neutral-400 uppercase tracking-widest mb-3">Bill To</h4>
+              <div className="font-medium text-neutral-800">
+                <p className="font-bold text-black border-l-2 sm:border-l-0 sm:border-r-2 print:border-l-0 print:border-r-2 border-black pl-3 sm:pl-0 pr-0 sm:pr-3 print:pl-0 print:pr-3 mb-1">
+                  {invoice.lawyer?.user?.fullName || 'Valued Lawyer'}
+                </p>
+                <div className="pl-3 sm:pl-0 pr-0 sm:pr-3 print:pl-0 print:pr-3 opacity-80 leading-snug text-[12px]">
+                  <p>{invoice.lawyer?.user?.email}</p>
+                  <p>Client ID: LAI-USR-{invoice.lawyer?.user?.id?.substring(0, 8).toUpperCase()}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Date & Meta Info Row */}
+          <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-6 bg-neutral-50 border-y border-neutral-100 py-3 px-3 sm:px-4" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
+            <div>
+              <span className="text-[8px] sm:text-[9px] font-bold text-neutral-400 uppercase tracking-widest block mb-0.5">Date Issued</span>
+              <span className="text-[10px] sm:text-xs font-bold text-neutral-900 tracking-tight">{createdDate}</span>
+            </div>
+            <div>
+              <span className="text-[8px] sm:text-[9px] font-bold text-neutral-400 uppercase tracking-widest block mb-0.5">Payment Terms</span>
+              <span className="text-[10px] sm:text-xs font-bold text-neutral-900 tracking-tight">Net 15 Days</span>
+            </div>
+            <div className="text-right">
+              <span className="text-[8px] sm:text-[9px] font-bold text-neutral-400 uppercase tracking-widest block mb-0.5">Due Date</span>
+              <span className="text-[10px] sm:text-xs font-bold text-red-600 tracking-tight">{dueDate}</span>
+            </div>
+          </div>
+
+          {/* Items Table */}
+          <div className="mb-8 overflow-x-auto print:overflow-visible">
+            <table className="w-full text-left min-w-[500px] print:min-w-0">
+              <thead>
+                <tr className="border-b-2 border-black text-[10px] text-black font-extrabold uppercase tracking-widest">
+                  <th className="py-3 pr-4">Description</th>
+                  <th className="py-3 text-center w-28">Rate (LKR)</th>
+                  <th className="py-3 text-center w-20">Qty</th>
+                  <th className="py-3 text-right w-32">Amount</th>
+                </tr>
+              </thead>
+              <tbody className="text-[12px] sm:text-[13px]">
+                <tr className="border-b border-neutral-100">
+                  <td className="py-4 pr-4 align-top">
+                    <p className="font-bold text-black mb-0.5">{invoice.paymentReason || 'Subscription Payment'}</p>
+                    <p className="text-[10px] sm:text-[11px] text-neutral-400 font-medium leading-relaxed italic">
+                      {invoice.plan ? 'Access to professional legal platform features.' : 'Paid promotional advertisement placement services.'}
+                    </p>
+                  </td>
+                  <td className="py-4 text-center font-medium">{invoice.amount.toLocaleString()}.00</td>
+                  <td className="py-4 text-center font-medium text-neutral-400">1</td>
+                  <td className="py-4 text-right font-bold tracking-tight">{invoice.amount.toLocaleString()}.00</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          {/* Totals Section */}
+          <div className="flex justify-end mb-10">
+            <div className="w-full max-w-[320px] text-sm">
+              <div className="flex justify-between py-2 border-b border-neutral-100 text-neutral-500">
+                <span className="uppercase tracking-widest text-[10px] font-bold">Subtotal</span>
+                <span className="font-medium text-neutral-800">LKR {invoice.amount.toLocaleString()}.00</span>
+              </div>
+              <div className="flex justify-between py-2 border-b border-neutral-100 text-neutral-500">
+                <span className="uppercase tracking-widest text-[10px] font-bold">Tax / VAT (0%)</span>
+                <span className="font-medium text-neutral-800">LKR 0.00</span>
+              </div>
+              <div className="flex justify-between py-3 border-b-2 border-black text-black font-bold text-base" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
+                <span className="uppercase tracking-widest text-xs font-black">Total Due</span>
+                <span className="text-[#bfa37a] tracking-tight font-black">LKR {invoice.amount.toLocaleString()}.00</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Submitted Bank Transfer Slip Information (Readonly) */}
+          {isReadonly && invoice.paymentDetails && typeof invoice.paymentDetails === 'object' && (
+            <div className="border border-neutral-200 p-6 bg-neutral-50/50 mt-4 rounded-none print:hidden">
+              <h3 className="font-serif font-medium text-md uppercase tracking-wider text-black border-b pb-2 mb-4 flex items-center gap-2">
+                <FileText className="w-4 h-4 text-[#bfa37a]" /> Submitted Offline Payment Details
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                <div>
+                  <span className="text-neutral-400 block mb-0.5 uppercase tracking-wider text-[9px] font-bold">Sender's Bank Name</span>
+                  <span className="font-bold text-neutral-900">{(invoice.paymentDetails as any).bankName}</span>
+                </div>
+                <div>
+                  <span className="text-neutral-400 block mb-0.5 uppercase tracking-wider text-[9px] font-bold">Account Holder Name</span>
+                  <span className="font-bold text-neutral-900">{(invoice.paymentDetails as any).accountHolder}</span>
+                </div>
+                <div>
+                  <span className="text-neutral-400 block mb-0.5 uppercase tracking-wider text-[9px] font-bold">Account Number</span>
+                  <span className="font-bold text-neutral-900">{(invoice.paymentDetails as any).accountNumber}</span>
+                </div>
+                <div>
+                  <span className="text-neutral-400 block mb-0.5 uppercase tracking-wider text-[9px] font-bold">Transaction Reference ID</span>
+                  <span className="font-mono font-bold text-neutral-900">{(invoice.paymentDetails as any).transactionId}</span>
+                </div>
+                <div>
+                  <span className="text-neutral-400 block mb-0.5 uppercase tracking-wider text-[9px] font-bold">Actual Amount Paid</span>
+                  <span className="font-bold text-neutral-900">LKR {Number((invoice.paymentDetails as any).amount || invoice.amount).toLocaleString()}.00</span>
+                </div>
+                <div>
+                  <span className="text-neutral-400 block mb-0.5 uppercase tracking-wider text-[9px] font-bold">Submission Date</span>
+                  <span className="font-bold text-neutral-900">
+                    {new Date((invoice.paymentDetails as any).submittedAt || invoice.updatedAt).toLocaleString('en-US', {
+                      month: 'long',
+                      day: '2-digit',
+                      year: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </span>
+                </div>
+              </div>
+              
+              {invoice.receiptImageUrl && (
+                <div className="mt-6 border-t border-neutral-100 pt-4">
+                  <span className="text-neutral-400 block mb-2 uppercase tracking-wider text-[9px] font-bold">Uploaded Deposit Slip</span>
+                  <div className="relative border border-neutral-200 inline-block bg-white p-2">
+                    <img 
+                      src={invoice.receiptImageUrl} 
+                      alt="Deposit Slip Reference" 
+                      className="max-h-48 object-contain" 
+                    />
+                    <a 
+                      href={invoice.receiptImageUrl} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="absolute bottom-4 right-4 bg-black/70 hover:bg-black text-white px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider transition-colors"
+                    >
+                      View Full Size
+                    </a>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Admin Remarks Notice History */}
+          {invoice.remarks && invoice.remarks.length > 0 && (
+            <div className="mt-8 border border-yellow-200 bg-yellow-50/50 p-6 rounded-none print:hidden">
+              <h4 className="text-yellow-800 text-[10px] font-black uppercase tracking-widest mb-3 flex items-center gap-1.5">
+                <MessageSquare className="w-3.5 h-3.5" /> Reviews & Admin Notices
+              </h4>
+              <div className="space-y-3">
+                {invoice.remarks.slice(0, 3).map((r: any) => (
+                  <div key={r.id} className="bg-white border border-yellow-100 p-4 text-xs shadow-sm">
+                    <p className="text-neutral-700 leading-relaxed whitespace-pre-wrap">{r.remark}</p>
+                    <time className="block text-[9px] text-neutral-400 uppercase font-bold mt-2">
+                      {new Date(r.createdAt).toLocaleString()}
+                    </time>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Terms Footer */}
+          <div className="border-t border-neutral-200 pt-6 mt-16 text-center text-[10px] text-neutral-400 uppercase tracking-widest print:mt-10">
+            <p className="font-bold text-neutral-700">Thank you for your business with TheLawyr.</p>
+            <p className="mt-1">For any queries, please email contact@thelawyr.lk</p>
+          </div>
+
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+      {/* RIGHT COLUMN: Action Controls Sidebar */}
+      <div className="w-full xl:w-96 bg-white border border-neutral-200 shadow-md p-6 sticky top-24 self-start space-y-6 print:hidden">
+        <h3 className="font-serif font-medium text-lg border-b pb-3 text-black">Payment Details</h3>
+        
+        <div className="space-y-4">
+          <div className="flex justify-between text-xs text-neutral-500 uppercase font-bold">
+            <span>Invoice Status</span>
+            <span className={`font-black ${invoice.status === 'PAID' ? 'text-green-600' : 'text-[#bfa37a]'}`}>
+              {invoice.status}
+            </span>
+          </div>
+          <div className="flex justify-between text-xs text-neutral-500 uppercase font-bold">
+            <span>Payment Method</span>
+            <span className="text-black font-black">BANK TRANSFER</span>
+          </div>
+          <Separator className="bg-neutral-100" />
+          <div className="flex justify-between text-sm font-black text-black">
+            <span className="uppercase tracking-widest text-xs">Total due</span>
+            <span>LKR {invoice.amount.toLocaleString()}.00</span>
+          </div>
+        </div>
+
+        <div className="space-y-3 pt-4 border-t">
+          {!isReadonly ? (
+            <>
+              <Button 
+                onClick={() => setIsOfflineModalOpen(true)}
+                className="w-full h-14 bg-black text-white hover:bg-neutral-800 rounded-none uppercase tracking-widest text-xs font-black transition-all flex items-center justify-center gap-2 border border-black shadow-md"
+              >
+                <Banknote className="w-4 h-4" /> Submit Payment (Offline)
+              </Button>
+              <Button 
+                disabled
+                className="w-full h-14 border border-neutral-200 bg-neutral-50 text-neutral-400 cursor-not-allowed rounded-none uppercase tracking-widest text-xs font-black flex items-center justify-center gap-2"
+              >
+                <CreditCard className="w-4 h-4" /> Pay Online (Card) [Disabled]
+              </Button>
+            </>
+          ) : (
+            <div className="bg-neutral-50 border border-neutral-200 p-4 text-center">
+              <p className="text-xs font-bold text-neutral-500 uppercase tracking-widest mb-1">Payment Status</p>
+              {invoice.status === 'PAID' ? (
+                <p className="text-sm font-black text-green-600 uppercase tracking-wider">Verified / Approved</p>
+              ) : (
+                <p className="text-sm font-black text-amber-600 uppercase tracking-wider">Awaiting Verification</p>
+              )}
+            </div>
+          )}
           
-          {/* LEFT COLUMN: Form */}
-          <div className="lg:col-span-8 flex flex-col gap-8">
-            <Card className="rounded-none border-none shadow-2xl overflow-hidden">
-              <div className="h-2 bg-black w-full" />
-              <CardHeader className="bg-white pb-8 pt-10 border-b border-neutral-100">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="text-xl font-black uppercase tracking-tight text-black">Submission Form</CardTitle>
-                    <CardDescription className="text-neutral-500 mt-1 font-medium">
-                      Enter accurate transaction details for faster verification
-                    </CardDescription>
-                  </div>
-                  <ShieldCheck className="w-10 h-10 text-neutral-100" />
+          <Button 
+            onClick={() => window.print()}
+            variant="outline"
+            className="w-full h-12 border border-neutral-200 bg-white text-neutral-800 hover:bg-neutral-50 rounded-none uppercase tracking-widest text-[10px] font-black flex items-center justify-center gap-2 transition-all shadow-sm"
+          >
+            <Printer className="w-4 h-4" /> Print / Save PDF
+          </Button>
+
+          <Button 
+            onClick={() => router.push(`/${locale}/dashboard/lawyer/payments/invoices`)}
+            variant="outline"
+            className="w-full h-12 border border-neutral-200 bg-white text-neutral-800 hover:bg-neutral-50 rounded-none uppercase tracking-widest text-[10px] font-black flex items-center justify-center gap-2 transition-all shadow-sm"
+          >
+            <ArrowLeft className="w-4 h-4" /> Back to Invoices
+          </Button>
+        </div>
+      </div>
+
+      {/* POPUP OVERLAY MODAL: Offline Payment Submission Form */}
+      {isOfflineModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto">
+          <div className="bg-white rounded-none border border-neutral-200 shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto relative animate-in zoom-in-95 duration-200 my-8">
+            
+            {/* Close Button */}
+            <button 
+              onClick={() => setIsOfflineModalOpen(false)}
+              disabled={isSubmitting}
+              className="absolute top-5 right-5 text-neutral-400 hover:text-black transition-colors disabled:opacity-50"
+            >
+              <X className="w-6 h-6" />
+            </button>
+
+            <div className="h-1.5 bg-[#bfa37a] w-full" />
+            
+            <div className="p-8 sm:p-10">
+              <div className="mb-6">
+                <h2 className="text-xl font-normal tracking-tight font-serif text-black uppercase">Submit Bank Transfer Slip</h2>
+                <p className="text-xs text-neutral-500 mt-1">Provide your bank deposit slip details below to initiate manual payment verification.</p>
+              </div>
+
+              {/* Bank Details Panel inside Modal */}
+              <div className="bg-neutral-900 text-white p-6 mb-8 rounded-none relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-4 opacity-5">
+                  <ShieldCheck className="w-24 h-24" />
                 </div>
-              </CardHeader>
-              <CardContent className="p-8 lg:p-12">
-                <form onSubmit={handleSubmit(onSubmit)} className="space-y-10">
-                  
-                  {/* Section 1: Bank Information */}
-                  <div className="space-y-6">
-                    <div className="flex items-center gap-3 mb-2">
-                      <div className="w-8 h-8 rounded-full bg-neutral-100 flex items-center justify-center text-xs font-black">01</div>
-                      <h3 className="font-black text-sm uppercase tracking-widest text-black">Sender's Bank Information</h3>
+                <div className="relative z-10 space-y-4">
+                  <h3 className="text-[9px] font-black uppercase tracking-[0.25em] text-neutral-500 mb-2">Deposit Account</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                    <div>
+                      <p className="text-[9px] font-black text-neutral-400 uppercase">Bank Name</p>
+                      <p className="font-bold uppercase tracking-tight">Commercial Bank of Ceylon</p>
                     </div>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="space-y-2">
-                        <Label htmlFor="bankName" className="text-[10px] font-black uppercase text-neutral-500 tracking-widest">Your Bank Name *</Label>
-                        <Input
-                          id="bankName"
-                          {...register('bankName')}
-                          placeholder="e.g. Commercial Bank, BOC, Sampath"
-                          disabled={isSubmitting || isReadonly}
-                          className="rounded-none h-12 border-neutral-200 focus:ring-black focus:border-black"
-                        />
-                        {errors.bankName && <FieldError message={errors.bankName.message} />}
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="accountHolder" className="text-[10px] font-black uppercase text-neutral-500 tracking-widest">Account Holder Name *</Label>
-                        <Input
-                          id="accountHolder"
-                          {...register('accountHolder')}
-                          placeholder="Name as on deposit slip"
-                          disabled={isSubmitting || isReadonly}
-                          className="rounded-none h-12 border-neutral-200 focus:ring-black focus:border-black"
-                        />
-                        {errors.accountHolder && <FieldError message={errors.accountHolder.message} />}
-                      </div>
+                    <div>
+                      <p className="text-[9px] font-black text-neutral-400 uppercase">Account Number</p>
+                      <p className="font-bold tracking-widest">0103 2492 4920 001</p>
                     </div>
+                    <div>
+                      <p className="text-[9px] font-black text-neutral-400 uppercase">Account Holder</p>
+                      <p className="font-bold uppercase">FiveNeurals (Pvt) Ltd</p>
+                    </div>
+                    <div>
+                      <p className="text-[9px] font-black text-neutral-400 uppercase">Reference Code (Required)</p>
+                      <p className="font-mono font-bold text-yellow-400">#{invoice.id.substring(0, 8).toUpperCase()}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="accountNumber" className="text-[10px] font-black uppercase text-neutral-500 tracking-widest">Your Account Number *</Label>
+              {/* Form details */}
+              <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+                
+                {/* Section 1: Bank Info */}
+                <div className="space-y-4">
+                  <h4 className="font-bold text-xs uppercase tracking-wider text-black border-b pb-1">Sender's Bank Information</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <Label htmlFor="bankName" className="text-[9px] font-bold uppercase text-neutral-500 tracking-wider">Your Bank Name *</Label>
                       <Input
-                        id="accountNumber"
-                        {...register('accountNumber')}
-                        placeholder="Enter the account number from which payment was made"
-                        disabled={isSubmitting || isReadonly}
-                        className="rounded-none h-12 border-neutral-200 focus:ring-black focus:border-black"
+                        id="bankName"
+                        {...register('bankName')}
+                        placeholder="e.g. Commercial Bank, BOC"
+                        disabled={isSubmitting}
+                        className="rounded-none h-11 border-neutral-200 focus:ring-black focus:border-black text-xs"
                       />
-                      {errors.accountNumber && <FieldError message={errors.accountNumber.message} />}
+                      {errors.bankName && <FieldError message={errors.bankName.message} />}
+                    </div>
+
+                    <div className="space-y-1">
+                      <Label htmlFor="accountHolder" className="text-[9px] font-bold uppercase text-neutral-500 tracking-wider">Account Holder Name *</Label>
+                      <Input
+                        id="accountHolder"
+                        {...register('accountHolder')}
+                        placeholder="e.g. A. B. Perera"
+                        disabled={isSubmitting}
+                        className="rounded-none h-11 border-neutral-200 focus:ring-black focus:border-black text-xs"
+                      />
+                      {errors.accountHolder && <FieldError message={errors.accountHolder.message} />}
                     </div>
                   </div>
 
-                  <Separator className="bg-neutral-100" />
+                  <div className="space-y-1">
+                    <Label htmlFor="accountNumber" className="text-[9px] font-bold uppercase text-neutral-500 tracking-wider">Account Number *</Label>
+                    <Input
+                      id="accountNumber"
+                      {...register('accountNumber')}
+                      placeholder="Your bank account number"
+                      disabled={isSubmitting}
+                      className="rounded-none h-11 border-neutral-200 focus:ring-black focus:border-black text-xs"
+                    />
+                    {errors.accountNumber && <FieldError message={errors.accountNumber.message} />}
+                  </div>
+                </div>
 
-                  {/* Section 2: Transaction Details */}
-                  <div className="space-y-6">
-                    <div className="flex items-center gap-3 mb-2">
-                      <div className="w-8 h-8 rounded-full bg-neutral-100 flex items-center justify-center text-xs font-black">02</div>
-                      <h3 className="font-black text-sm uppercase tracking-widest text-black">Transaction Data</h3>
+                {/* Section 2: Reference Details */}
+                <div className="space-y-4 pt-2">
+                  <h4 className="font-bold text-xs uppercase tracking-wider text-black border-b pb-1">Transaction Details</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <Label htmlFor="transactionId" className="text-[9px] font-bold uppercase text-neutral-500 tracking-wider">Transaction Ref / ID *</Label>
+                      <Input
+                        id="transactionId"
+                        {...register('transactionId')}
+                        placeholder="e.g. FT12345678"
+                        disabled={isSubmitting}
+                        className="rounded-none h-11 border-neutral-200 focus:ring-black focus:border-black text-xs"
+                      />
+                      {errors.transactionId && <FieldError message={errors.transactionId.message} />}
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="space-y-2">
-                        <Label htmlFor="transactionDate" className="text-[10px] font-black uppercase text-neutral-500 tracking-widest">Date & Time of Transfer *</Label>
-                        <Input
-                          id="transactionDate"
-                          type="datetime-local"
-                          {...register('transactionDate')}
-                          disabled={isSubmitting || isReadonly}
-                          className="rounded-none h-12 border-neutral-200 focus:ring-black focus:border-black"
-                        />
-                        {errors.transactionDate && <FieldError message={errors.transactionDate.message} />}
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="transactionId" className="text-[10px] font-black uppercase text-neutral-500 tracking-widest">Bank Reference / ID *</Label>
-                        <Input
-                          id="transactionId"
-                          {...register('transactionId')}
-                          placeholder="e.g. TX-2938491"
-                          disabled={isSubmitting || isReadonly}
-                          className="rounded-none h-12 border-neutral-200 focus:ring-black focus:border-black font-mono"
-                        />
-                        {errors.transactionId && <FieldError message={errors.transactionId.message} />}
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="amount" className="text-[10px] font-black uppercase text-neutral-500 tracking-widest">Actual Amount Paid (LKR) *</Label>
-                      <div className="relative">
-                        <Input
-                          id="amount"
-                          type="number"
-                          {...register('amount', { valueAsNumber: true })}
-                          placeholder={invoice.amount.toString()}
-                          disabled={isSubmitting || isReadonly}
-                          className="rounded-none h-12 border-neutral-200 focus:ring-black focus:border-black pl-12 font-black text-lg"
-                        />
-                        <div className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-neutral-400 text-xs">LKR</div>
-                      </div>
-                      {errors.amount && <FieldError message={errors.amount.message} />}
+                    <div className="space-y-1">
+                      <Label htmlFor="transactionDate" className="text-[9px] font-bold uppercase text-neutral-500 tracking-wider">Date & Time *</Label>
+                      <Input
+                        id="transactionDate"
+                        type="datetime-local"
+                        {...register('transactionDate')}
+                        disabled={isSubmitting}
+                        className="rounded-none h-11 border-neutral-200 focus:ring-black focus:border-black text-xs"
+                      />
+                      {errors.transactionDate && <FieldError message={errors.transactionDate.message} />}
                     </div>
                   </div>
 
-                  <Separator className="bg-neutral-100" />
-
-                  {/* Section 3: Receipt Upload */}
-                  <div className="space-y-6">
-                    <div className="flex items-center gap-3 mb-2">
-                      <div className="w-8 h-8 rounded-full bg-neutral-100 flex items-center justify-center text-xs font-black">03</div>
-                      <h3 className="font-black text-sm uppercase tracking-widest text-black">Payment Verification</h3>
+                  <div className="space-y-1">
+                    <Label htmlFor="amount" className="text-[9px] font-bold uppercase text-neutral-500 tracking-wider">Actual Amount Paid (LKR) *</Label>
+                    <div className="relative">
+                      <Input
+                        id="amount"
+                        type="number"
+                        {...register('amount', { valueAsNumber: true })}
+                        placeholder={invoice.amount.toString()}
+                        disabled={isSubmitting}
+                        className="rounded-none h-11 border-neutral-200 focus:ring-black focus:border-black pl-12 font-bold text-sm"
+                      />
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-neutral-400 text-xs">LKR</span>
                     </div>
+                    {errors.amount && <FieldError message={errors.amount.message} />}
+                  </div>
+                </div>
 
-                    <div className="space-y-4">
-                      <Label className="text-[10px] font-black uppercase text-neutral-500 tracking-widest">Upload Receipt Image / Screenshot *</Label>
-                      <div
-                        onClick={() => fileInputRef.current?.click()}
-                        className={`group relative border-2 border-dashed rounded-none p-12 text-center transition-all duration-300 ${
-                          selectedFile 
-                            ? 'border-green-500 bg-green-50/30' 
-                            : 'border-neutral-200 hover:border-black hover:bg-neutral-50 cursor-pointer'
-                        }`}
-                      >
-                        <input
-                          ref={fileInputRef}
-                          type="file"
-                          accept="image/*"
-                          onChange={handleFileSelect}
-                          disabled={isSubmitting || isReadonly}
-                          className="hidden"
-                        />
-                        
-                        <div className="flex flex-col items-center">
-                          {selectedFile ? (
-                            <CheckCircle2 className="w-12 h-12 text-green-500 mb-4" />
-                          ) : invoice.receiptImageUrl ? (
-                            <div className="mb-4 w-full flex justify-center">
-                              {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img src={invoice.receiptImageUrl} alt="Receipt" className="max-h-32 object-contain rounded border border-neutral-200" />
-                            </div>
-                          ) : (
-                            <Upload className="w-12 h-12 text-neutral-300 mb-4 group-hover:text-black transition-colors" />
-                          )}
-                          
-                          <p className="text-sm font-black text-black mt-2">
-                            {selectedFile ? selectedFile.name : invoice.receiptImageUrl ? 'UPLOADED RECEIPT' : 'CLICK TO UPLOAD RECEIPT'}
-                          </p>
-                          {(!invoice.receiptImageUrl || selectedFile) && (
-                            <p className="text-[10px] text-neutral-400 uppercase font-bold mt-2 tracking-widest">
-                              {selectedFile 
-                                ? `(${(selectedFile.size / 1024 / 1024).toFixed(2)} MB)` 
-                                : 'JPG, PNG OR PDF (MAX 5MB)'}
-                            </p>
-                          )}
-                        </div>
-
-                        {uploadProgress > 0 && uploadProgress < 100 && (
-                          <div className="absolute bottom-0 left-0 w-full h-1 bg-neutral-100 overflow-hidden">
-                            <div
-                              className="bg-black h-full transition-all duration-300"
-                              style={{ width: `${uploadProgress}%` }}
-                            />
+                {/* Section 3: Receipt upload */}
+                <div className="space-y-4 pt-2">
+                  <h4 className="font-bold text-xs uppercase tracking-wider text-black border-b pb-1">Deposit Slip / Screenshot</h4>
+                  <div className="space-y-2">
+                    <div 
+                      onClick={isSubmitting ? undefined : () => fileInputRef.current?.click()}
+                      className={`border-2 border-dashed rounded-none p-6 text-center cursor-pointer transition-all ${
+                        selectedFile ? 'border-black bg-neutral-50' : 'border-neutral-200 hover:border-neutral-400'
+                      } ${isSubmitting ? 'cursor-not-allowed opacity-50' : ''}`}
+                    >
+                      <input 
+                        type="file" 
+                        ref={fileInputRef} 
+                        onChange={handleFileSelect} 
+                        className="hidden" 
+                        accept="image/*"
+                        disabled={isSubmitting}
+                      />
+                      <div className="flex flex-col items-center justify-center gap-2">
+                        <Upload className="w-5 h-5 text-neutral-400" />
+                        {selectedFile ? (
+                          <div>
+                            <p className="text-xs font-bold text-neutral-800">{selectedFile.name}</p>
+                            <p className="text-[9px] text-neutral-400 uppercase tracking-widest mt-0.5">{(selectedFile.size / 1024).toFixed(1)} KB · Change file</p>
+                          </div>
+                        ) : (
+                          <div>
+                            <p className="text-xs font-bold text-neutral-800">Upload transaction receipt image *</p>
+                            <p className="text-[9px] text-neutral-400 uppercase tracking-widest mt-0.5">PNG, JPG, JPEG (Max 5MB)</p>
                           </div>
                         )}
                       </div>
                     </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="notes" className="text-[10px] font-black uppercase text-neutral-500 tracking-widest">Additional Notes</Label>
-                      <Textarea
-                        id="notes"
-                        {...register('notes')}
-                        placeholder="Optional details for our accounts team..."
-                        rows={3}
-                        disabled={isSubmitting || isReadonly}
-                        className="rounded-none border-neutral-200 focus:ring-black focus:border-black"
-                      />
-                    </div>
+                    {uploadProgress > 0 && uploadProgress < 100 && (
+                      <div className="w-full bg-neutral-100 h-1">
+                        <div className="bg-black h-1 transition-all duration-300" style={{ width: `${uploadProgress}%` }} />
+                      </div>
+                    )}
                   </div>
 
-                  {/* Submission Action */}
-                  {!isReadonly && (
-                    <div className="pt-6">
-                      <Button
-                        type="submit"
-                        disabled={isSubmitting || isReadonly}
-                        className="w-full h-16 bg-black text-white hover:bg-neutral-800 rounded-none uppercase font-black tracking-[0.2em] transition-all shadow-xl disabled:bg-neutral-400 group relative overflow-hidden"
-                      >
-                        <span className="relative z-10 flex items-center justify-center gap-3">
-                          {isSubmitting ? (
-                            <>
-                              <Clock className="w-5 h-5 animate-spin" />
-                              Processing Submission...
-                            </>
-                          ) : (
-                            <>
-                              Submit Payment for Review
-                              <ArrowLeft className="w-5 h-5 rotate-180 transition-transform group-hover:translate-x-2" />
-                            </>
-                          )}
-                        </span>
-                      </Button>
-                      <p className="text-center text-[10px] text-neutral-400 mt-6 uppercase font-bold tracking-widest">
-                        By submitting, you confirm that the information provided is accurate and authentic.
-                      </p>
-                    </div>
-                  )}
-                </form>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* RIGHT COLUMN: Sidebar Info */}
-          <div className="lg:col-span-4 space-y-8">
-                        {/* Remarks History */}
-            {invoice.remarks && invoice.remarks.length > 0 && (
-              <Card className="rounded-none border-none shadow-xl bg-yellow-50 overflow-hidden relative">
-                <div className="h-1 bg-yellow-400" />
-                <CardHeader className="pb-4">
-                  <CardTitle className="text-xs font-black uppercase tracking-widest text-yellow-800 flex items-center gap-2">
-                    <MessageSquare className="w-4 h-4" /> Admin Notice
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3 pb-6">
-                  {invoice.remarks.slice(0, 3).map((remark: any) => (
-                    <div key={remark.id} className="bg-white border text-sm font-medium border-yellow-200 p-4 relative shadow-sm">
-                      <p className="text-yellow-900 whitespace-pre-wrap">{remark.remark}</p>
-                      <p className="text-[9px] text-yellow-600 font-bold uppercase mt-2 tracking-widest">
-                        {new Date(remark.createdAt).toLocaleString()}
-                      </p>
-                    </div>
-                  ))}
-                </CardContent>
-              </Card>
-            )}
-            {/* Our Bank Details */}
-            <Card className="rounded-none border-none shadow-xl bg-black text-white p-8 relative overflow-hidden">
-              <div className="absolute top-0 right-0 p-4 opacity-10">
-                <ShieldCheck className="w-32 h-32" />
-              </div>
-              <div className="relative z-10 space-y-8">
-                <div>
-                  <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-neutral-500 mb-6 underline decoration-primary decoration-2 underline-offset-8">Deposit To</h3>
-                  <div className="space-y-6">
-                    <div>
-                      <p className="text-[10px] font-black text-neutral-400 uppercase mb-1">Bank Name</p>
-                      <p className="text-lg font-black tracking-tight">COMMERCIAL BANK OF CEYLON</p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] font-black text-neutral-400 uppercase mb-1">Account Number</p>
-                      <p className="text-2xl font-black tracking-[4px] text-white">0103 2492 4920 001</p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] font-black text-neutral-400 uppercase mb-1">Account Holder</p>
-                      <p className="font-bold tracking-tight">FIVENEURALS (PVT) LTD</p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] font-black text-neutral-400 uppercase mb-1">Branch</p>
-                      <p className="font-bold tracking-tight uppercase">COLOMBO 07 - MAIN BRANCH</p>
-                    </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="notes" className="text-[9px] font-bold uppercase text-neutral-500 tracking-wider">Remarks / Notes</Label>
+                    <Textarea
+                      id="notes"
+                      {...register('notes')}
+                      placeholder="Any additional information..."
+                      disabled={isSubmitting}
+                      rows={2}
+                      className="rounded-none border-neutral-200 focus:ring-black focus:border-black text-xs resize-none"
+                    />
                   </div>
                 </div>
 
-                <div className="pt-8 border-t border-white/10 space-y-4">
-                  <div className="flex items-start gap-3 bg-white/5 p-4 rounded-none border border-white/10">
-                    <Info className="w-5 h-5 text-red-400 shrink-0" />
-                    <div>
-                      <p className="text-[10px] font-black uppercase text-red-300 mb-1">Critical Requirement</p>
-                      <p className="text-[11px] text-neutral-400 font-medium leading-relaxed uppercase">
-                        Reference Number <span className="text-white font-bold tracking-widest">#{invoice.id.substring(0, 8).toUpperCase()}</span> must be mentioned on the deposit slip or transaction description.
-                      </p>
-                    </div>
-                  </div>
+                {/* Submission Action */}
+                <div className="pt-4 border-t border-neutral-100 flex gap-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setIsOfflineModalOpen(false)}
+                    disabled={isSubmitting}
+                    className="flex-1 h-12 rounded-none uppercase text-xs tracking-wider"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="submit"
+                    disabled={isSubmitting || !selectedFile}
+                    className="flex-1 h-12 bg-black text-white hover:bg-neutral-800 rounded-none uppercase text-xs tracking-widest font-black disabled:bg-neutral-400"
+                  >
+                    {isSubmitting ? 'Submitting...' : 'Submit Deposit Slip'}
+                  </Button>
                 </div>
-              </div>
-            </Card>
 
-            {/* Verification Process Card */}
-            <Card className="rounded-none border-none shadow-lg bg-white p-6">
-              <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-neutral-400 mb-6">Verification Process</h3>
-              <div className="space-y-6">
-                <div className="flex gap-4">
-                  <div className="w-8 h-8 rounded-full bg-neutral-50 flex items-center justify-center shrink-0 border border-neutral-100">
-                    <CheckCircle2 className="w-4 h-4 text-black" />
-                  </div>
-                  <div>
-                    <h4 className="text-xs font-black uppercase mb-1">Submission</h4>
-                    <p className="text-[11px] text-neutral-500 font-medium">Your data is securely uploaded to our admin portal.</p>
-                  </div>
-                </div>
-                <div className="flex gap-4">
-                  <div className="w-8 h-8 rounded-full bg-neutral-50 flex items-center justify-center shrink-0 border border-neutral-100">
-                    <Clock className="w-4 h-4 text-black" />
-                  </div>
-                  <div>
-                    <h4 className="text-xs font-black uppercase mb-1">Reviewing</h4>
-                    <p className="text-[11px] text-neutral-500 font-medium">Accounting team verifies the transfer with our bank.</p>
-                  </div>
-                </div>
-                <div className="flex gap-4">
-                  <div className="w-8 h-8 rounded-full bg-neutral-50 flex items-center justify-center shrink-0 border border-neutral-100">
-                    <Calendar className="w-4 h-4 text-black" />
-                  </div>
-                  <div>
-                    <h4 className="text-xs font-black uppercase mb-1">Activation</h4>
-                    <p className="text-[11px] text-neutral-500 font-medium">Once verified, your subscription will be activated automatically.</p>
-                  </div>
-                </div>
-              </div>
-            </Card>
-
-            {/* Subscription Detail Sidebar */}
-            <Card className="rounded-none border-none shadow-lg bg-white p-6">
-              <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-neutral-400 mb-4">{invoice.plan ? 'Subscription Plan' : 'Invoice Details'}</h4>
-              <div className="bg-neutral-50 p-4 border border-neutral-100 text-center">
-                <div className="text-black font-black text-xl uppercase tracking-tighter">{invoice.plan?.name || invoice.paymentReason || 'Invoice Payment'}</div>
-                <Badge variant="outline" className="mt-2 bg-white text-[10px] font-black uppercase tracking-widest border-black/5">
-                  {invoice.plan ? 'Professional Subscription' : 'Ad Campaign'}
-                </Badge>
-              </div>
-              <div className="mt-6 space-y-3">
-                 <div className="flex justify-between text-[11px] text-neutral-500 uppercase font-black">
-                    <span>Duration</span>
-                    <span className="text-black">{invoice.plan ? '30 Days' : 'Custom'}</span>
-                 </div>
-                 <div className="flex justify-between text-[11px] text-neutral-500 uppercase font-black">
-                    <span>Billing cycle</span>
-                    <span className="text-black">{invoice.plan ? 'Monthly' : 'One-time'}</span>
-                 </div>
-                 <Separator className="bg-neutral-100 my-2" />
-                 <div className="flex justify-between text-sm font-black text-black">
-                    <span className="uppercase tracking-widest">Total cost</span>
-                    <span>LKR {invoice.amount}</span>
-                 </div>
-              </div>
-            </Card>
+              </form>
+            </div>
           </div>
         </div>
-      </div>
-    
+      )}
+
+      <style dangerouslySetInnerHTML={{__html: `
+        @media print {
+          @page {
+            size: A4 portrait;
+            margin: 10mm;
+          }
+          html, body {
+            margin: 0 !important;
+            padding: 0 !important;
+            background: white !important;
+            height: auto !important;
+          }
+          body * {
+            box-sizing: border-box !important;
+          }
+          aside, nav, header, footer, .print\\:hidden, div[class*="Sidebar"], button, .no-print, [class*="RightColumn"], .submit-details-panel {
+             display: none !important;
+             height: 0 !important;
+             width: 0 !important;
+             visibility: hidden !important;
+             opacity: 0 !important;
+          }
+          .print-area {
+            display: block !important;
+            width: 100% !important;
+            max-width: none !important;
+            margin: 0 !important;
+            padding: 0 !important;
+          }
+          * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+        }
+      `}} />
+    </div>
   );
 }

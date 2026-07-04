@@ -1,6 +1,18 @@
 import { getSession } from '@/lib/auth';
 import prisma from '@/lib/db';
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
+import { isValidUUID, sanitizeString } from '@/lib/security';
+import { EmailService } from '@/lib/email/EmailService';
+
+// ── Invoice Update Schema ─────────────────────────────────────────────────
+const AdminUpdateInvoiceSchema = z.object({
+  status: z.enum(['PAID', 'PENDING', 'RESUBMIT', 'CANCELLED'] as const),
+  remark: z.string().trim().max(1000, 'Remark cannot exceed 1000 characters.').optional(),
+  adminNotes: z.string().trim().max(1000, 'Admin notes cannot exceed 1000 characters.').optional(),
+  paymentDetails: z.any().optional(),
+  receiptImageUrl: z.string().optional(),
+});
 
 export async function PUT(
   req: NextRequest,
@@ -14,17 +26,35 @@ export async function PUT(
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  // Validate invoiceId format
+  if (!isValidUUID(invoiceId)) {
+    return NextResponse.json({ error: 'Invalid invoice ID.' }, { status: 400 });
+  }
+
   try {
     const body = await req.json();
-    const { status, remark, adminNotes } = body;
+    const parsed = AdminUpdateInvoiceSchema.safeParse(body);
+
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: parsed.error.issues[0]?.message || 'Invalid update data.' },
+        { status: 400 }
+      );
+    }
+
+    const { status, remark, adminNotes, paymentDetails, receiptImageUrl } = parsed.data;
+    const sanitizedRemark = remark ? sanitizeString(remark, 1000) : undefined;
+    const sanitizedNotes = adminNotes ? sanitizeString(adminNotes, 1000) : sanitizedRemark;
 
     // Update invoice status
     const updated = await prisma.invoice.update({
       where: { id: invoiceId },
       data: {
         status,
-        adminNotes: adminNotes || remark,
+        adminNotes: sanitizedNotes,
         updatedAt: new Date(),
+        ...(paymentDetails ? { paymentDetails } : {}),
+        ...(receiptImageUrl ? { receiptImageUrl } : {}),
       },
       include: {
         remarks: true,
@@ -33,11 +63,11 @@ export async function PUT(
     });
 
     // Add remark if provided
-    if (remark) {
+    if (sanitizedRemark) {
       await prisma.invoiceRemark.create({
         data: {
           invoiceId,
-          remark,
+          remark: sanitizedRemark,
           isForLawyer: true,
         },
       });
@@ -71,13 +101,54 @@ export async function PUT(
       }
     }
 
+    // Handle Ad Campaign status based on invoice action
+    const linkedCampaign = await prisma.adCampaign.findFirst({
+      where: { invoiceId },
+    });
+
+    if (linkedCampaign) {
+      if (status === 'PAID') {
+        await prisma.adCampaign.update({
+          where: { id: linkedCampaign.id },
+          data: { status: 'ACTIVE' },
+        });
+      } else if (status === 'CANCELLED') {
+        await prisma.adCampaign.update({
+          where: { id: linkedCampaign.id },
+          data: { status: 'REJECTED', rejectionReason: 'Invoice cancelled or rejected.' },
+        });
+      }
+    }
+
+    if (status === 'PAID') {
+      const fullInvoice = await prisma.invoice.findUnique({
+        where: { id: invoiceId },
+        include: {
+          lawyer: {
+            include: {
+              user: true,
+            },
+          },
+        },
+      });
+
+      if (fullInvoice?.lawyer?.user?.email) {
+        EmailService.sendInvoicePaidReceipt(
+          fullInvoice.lawyer.user.email,
+          fullInvoice.lawyer.user.fullName || 'Valued Lawyer',
+          invoiceId,
+          fullInvoice.amount,
+          fullInvoice.paymentReason
+        ).catch(err => console.error('Failed to send invoice receipt email:', err));
+      }
+    }
+
     return NextResponse.json(updated);
   } catch (error) {
-    console.error('Error updating invoice:', error);
+    console.error('[ADMIN_INVOICE_UPDATE]', error instanceof Error ? error.message : 'Failed');
     return NextResponse.json(
       { error: 'Failed to update invoice' },
       { status: 500 }
     );
   }
 }
-

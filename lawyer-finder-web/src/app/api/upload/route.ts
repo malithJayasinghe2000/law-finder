@@ -11,6 +11,8 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
+import { sanitizeFilename, validateFileMagicBytes, checkRateLimit, getClientIp } from '@/lib/security';
+
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 
@@ -19,6 +21,17 @@ export async function POST(req: Request) {
     const session = await getSession();
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 });
+    }
+
+    // Rate Limit: 10 uploads per hour per IP/user
+    const ip = getClientIp(req);
+    const rateCheck = checkRateLimit(`upload:${session.userId}:${ip}`, 10, 60 * 60 * 1000);
+    if (!rateCheck.allowed) {
+      const retryAfterMins = Math.ceil(rateCheck.retryAfterMs / 1000 / 60);
+      return NextResponse.json(
+        { error: `Too many upload requests. Please try again in ${retryAfterMins} minutes.` },
+        { status: 429 }
+      );
     }
 
     const formData = await req.formData();
@@ -47,6 +60,14 @@ export async function POST(req: Request) {
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
+    // Anti-spoofing: validate file content magic bytes
+    if (!validateFileMagicBytes(buffer, file.type)) {
+      return NextResponse.json(
+        { error: 'Invalid file content. The file content does not match its extension.' },
+        { status: 400 }
+      );
+    }
+
     // Fallback to local storage if Cloudinary is not configured
     if (!process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_CLOUD_NAME) {
       console.log('[UPLOAD] Cloudinary not configured, falling back to local storage.');
@@ -56,7 +77,8 @@ export async function POST(req: Request) {
         await mkdir(uploadDir, { recursive: true });
       }
 
-      const filename = `${Date.now()}-${file.name.replace(/\s+/g, '-')}`;
+      const sanitizedFilename = sanitizeFilename(file.name);
+      const filename = `${Date.now()}-${sanitizedFilename}`;
       const filepath = path.join(uploadDir, filename);
       
       await writeFile(filepath, buffer);

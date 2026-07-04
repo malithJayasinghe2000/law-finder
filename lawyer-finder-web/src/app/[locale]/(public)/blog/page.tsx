@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Users, FileText, TrendingUp, PenSquare, Search, ArrowRight, Scale, BookOpen } from 'lucide-react';
 import Link from 'next/link';
 import PostFeed from '@/components/community/PostFeed';
-import { SidebarAd } from '@/components/ads/AdComponents';
+import { SidebarAd, AdBanner, StickyBottomAd } from '@/components/ads/AdComponents';
 
 export const metadata = {
   title: 'Legal Community Hub — Sri Lanka',
@@ -124,6 +124,9 @@ export default async function CommunityHubPage({
               </CardContent>
             </Card>
 
+            {/* Top of Category Card Banner */}
+            <AdBanner placement="BLOG_TOP_BANNER" locale={locale} className="mb-6" />
+
             {/* Communities list as Dark Categories list */}
             <Card id="communities" className="border border-neutral-900 bg-[#1e1e21] text-white rounded-none shadow-none">
               <CardContent className="p-6 text-left">
@@ -146,9 +149,6 @@ export default async function CommunityHubPage({
                 </div>
               </CardContent>
             </Card>
-
-            {/* Sponsored Lawyers */}
-            <SidebarAd placement="BLOG_FEED" locale={locale} />
 
             {/* Community Guidelines */}
             <Card className="border border-[#efeae0] rounded-none bg-white shadow-none">
@@ -182,9 +182,17 @@ export default async function CommunityHubPage({
                 </CardContent>
               </Card>
             )}
+
+            {/* Sticky Ad Sidebar (rotated 3sec, 5 ads max) */}
+            <div className="sticky top-24 pt-4">
+              <SidebarAd placement="BLOG_RIGHT_SIDEBAR" locale={locale} />
+            </div>
           </aside>
         </div>
       </div>
+      
+      {/* Blog bottom fixed sticky ad */}
+      <StickyBottomAd placement="BLOG_BOTTOM_STICKY" locale={locale} />
     </div>
   );
 }

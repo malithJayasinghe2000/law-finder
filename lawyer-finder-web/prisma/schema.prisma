@@ -113,6 +113,9 @@ enum ConsultationMode {
 enum BookingStatus {
   PENDING_PAYMENT
   AWAITING_BANK_TRANSFER_VERIFICATION
+  AWAITING_LAWYER_APPROVAL
+  RESCHEDULE_REQUESTED
+  REJECTED_BY_LAWYER
   CONFIRMED
   IN_PROGRESS
   COMPLETED
@@ -237,6 +240,7 @@ model LawyerProfile {
   availabilityOverrides AvailabilityOverride[]
   consultationPricing   ConsultationPricing?
   bookings              Booking[]
+  withdrawRequests      WithdrawRequest[]
 }
 
 model SubscriptionPlan {
@@ -408,11 +412,10 @@ model PaidPromo {
 // ============= Advertisement Management System =============
 
 enum AdType {
-  BANNER
-  SPONSORED_LISTING
-  FEATURED_PROFILE
-  IN_FEED
-  SIDEBAR
+  BANNER_IMAGE        // Full banner with image (for hero, top areas)
+  PROFILE_CARD        // Lawyer profile card format
+  SIDEBAR_CARD        // Compact card for sidebars
+  STICKY_BAR          // Thin sticky bottom bar
 }
 
 enum AdStatus {
@@ -431,13 +434,45 @@ enum AdPauseActor {
 }
 
 enum AdPlacement {
-  HOMEPAGE_HERO
-  HOMEPAGE_MID
-  DIRECTORY_TOP
-  DIRECTORY_INLINE
-  BLOG_SIDEBAR
-  BLOG_FEED
-  BLOG_POST_BOTTOM
+  HOMEPAGE_BELOW_HERO     // Homepage: below hero, above "Legal Advisory" section
+  CHAT_RIGHT_SIDEBAR      // /en/chat: right sidebar
+  BLOG_TOP_BANNER         // /en/blog: above category cards
+  BLOG_RIGHT_SIDEBAR      // /en/blog: right sidebar sticky
+  BLOG_BOTTOM_STICKY      // /en/blog: bottom fixed bar
+  BLOG_POST_SIDEBAR       // /en/blog/[slug]: right sidebar
+  BLOG_POST_BOTTOM        // /en/blog/[slug]: below article content
+  DIRECTORY_TOP            // /en/lawyers: top of search results
+  DIRECTORY_INLINE         // /en/lawyers: interspersed in results
+}
+
+// Admin-configurable settings per ad placement
+model AdPlacementConfig {
+  id              String       @id @default(uuid())
+
+  placement       AdPlacement  @unique  // One config per placement
+  displayName     String                // Human-readable name
+  description     String?               // Where this placement appears
+
+  // Pricing (in LKR)
+  pricePerDay     Int                   // Price per day
+
+  // Slider configuration
+  isSlider        Boolean      @default(false)
+  sliderInterval  Int          @default(3000)  // ms between slides
+  maxAdsPerSlot   Int          @default(3)     // Max ads shown at once
+
+  // Dimensions guidance
+  recommendedWidth   Int?      // px
+  recommendedHeight  Int?      // px
+
+  // Active/Inactive toggle
+  isActive        Boolean      @default(true)
+
+  // Ad types allowed for this placement
+  allowedAdTypes  AdType[]
+
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
 }
 
 model AdCampaign {
@@ -468,7 +503,7 @@ model AdCampaign {
   startDate   DateTime
   endDate     DateTime
 
-  // Budget & Pricing (in LKR cents)
+  // Budget & Pricing (in LKR)
   totalBudget   Int?
   dailyBudget   Int?
   pricePerDay   Int?
@@ -486,10 +521,25 @@ model AdCampaign {
   invoiceId   String?
 
   // Relations
+  bookings    AdSlotBooking[]
   analytics   AdAnalytics[]
 
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
+}
+
+// Track booked dates per placement for availability checking
+model AdSlotBooking {
+  id          String      @id @default(uuid())
+  campaignId  String
+  campaign    AdCampaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  placement   AdPlacement
+  date        DateTime    @db.Date
+
+  createdAt   DateTime    @default(now())
+
+  @@unique([placement, date, campaignId])
+  @@index([placement, date])
 }
 
 model AdAnalytics {
@@ -846,9 +896,13 @@ model LegalDocument {
   pageCount       Int?
 
   // RAG metadata
-  ragDocumentName String?                 // Name in ChromaDB
-  chunksCount     Int                     @default(0)
-  graphEntities   Int                     @default(0)
+  ragDocumentName    String?                 // Name in ChromaDB
+  chunksCount        Int                     @default(0)
+  graphEntities      Int                     @default(0)
+  graphRelationships Int                     @default(0)
+
+  // AI-generated document outline (JSON array of section summaries)
+  outline            Json?
 
   // Status
   status          LegalDocumentStatus     @default(PROCESSING)
@@ -994,6 +1048,12 @@ model Booking {
   clientRating    Int?
   clientFeedback  String?
 
+  // Lawyer workflow
+  lawyerRemarks   String?
+  rescheduleProposedDate DateTime?
+  rescheduleProposedTime String?
+  adminRemarks    String?
+
   // Cancellation
   cancelledAt     DateTime?
   cancelledBy     String?
@@ -1042,8 +1102,11 @@ model BookingPayment {
   // Bank transfer fields
   bankName        String?
   accountHolder   String?
+  accountNumber   String?
+  transactionDate String?
   transactionRef  String?
   receiptImageUrl String?
+  notes           String?
 
   // PayHere fields
   payhereOrderId  String?
@@ -1057,4 +1120,25 @@ model BookingPayment {
 
   createdAt       DateTime             @default(now())
   updatedAt       DateTime             @updatedAt
+}
+
+enum WithdrawStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model WithdrawRequest {
+  id                 String         @id @default(uuid())
+  lawyerId           String
+  lawyer             LawyerProfile  @relation(fields: [lawyerId], references: [id], onDelete: Cascade)
+  amount             Int
+  status             WithdrawStatus @default(PENDING)
+  bankName           String
+  accountNumber      String
+  accountHolder      String
+  adminNotes         String?
+  referenceImageUrl  String?
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
 }

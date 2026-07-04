@@ -21,6 +21,8 @@ function generateExcerpt(content: string): string {
   return plainText.replace(/\s+/g, ' ').substring(0, 200).trim();
 }
 
+import { validatePaginationParams, sanitizeString } from '@/lib/security';
+
 // GET /api/posts — Feed with filtering and sorting
 export async function GET(req: Request) {
   try {
@@ -29,9 +31,13 @@ export async function GET(req: Request) {
     const communitySlug = searchParams.get('community') || '';
     const sort = searchParams.get('sort') || 'hot'; // hot, new, top
     const timeRange = searchParams.get('time') || 'week'; // day, week, month, year, all
-    const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '20');
-    const search = searchParams.get('search') || '';
+    
+    // Clamp pagination parameters
+    const { page, limit } = validatePaginationParams(
+      searchParams.get('page'),
+      searchParams.get('limit')
+    );
+    const search = searchParams.get('search') ? sanitizeString(searchParams.get('search') || '', 100) : '';
 
     const where: Record<string, unknown> = {
       status: 'PUBLISHED',

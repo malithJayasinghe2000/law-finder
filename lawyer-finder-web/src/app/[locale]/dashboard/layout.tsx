@@ -31,7 +31,7 @@ export default async function DashboardLayout({ children, params }: { children: 
         <AppSidebar locale={locale} role={liveRole} userId={session.userId} />
         <div className="flex-1 flex flex-col min-w-0 max-w-full">
           {/* Top bar */}
-          <header className="h-14 border-b border-neutral-200 bg-white flex items-center justify-between px-4 lg:px-6 sticky top-0 z-40">
+          <header className="h-14 border-b border-neutral-200 bg-white flex items-center justify-between px-4 lg:px-6 sticky top-0 z-40 print:hidden">
             <div className="flex items-center gap-3">
               <div className="md:hidden">
                 <SidebarTrigger />

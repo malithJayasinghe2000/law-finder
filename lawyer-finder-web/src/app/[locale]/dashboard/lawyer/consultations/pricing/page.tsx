@@ -93,7 +93,7 @@ export default function PricingPage() {
             <DollarSign className="h-5 w-5" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-neutral-900">Consultation Pricing</h1>
+            <h1 className="text-4xl font-normal tracking-tight text-neutral-900">Consultation Pricing</h1>
             <p className="text-sm text-neutral-500 font-medium">Set your consultation fees for clients</p>
           </div>
         </div>

@@ -1,12 +1,13 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter, useParams } from 'next/navigation';
 import { toast } from 'sonner';
 import {
   Image as ImageIcon, Plus, Loader2, Eye, Pause, Play,
   Calendar, CheckCircle2, Send,
   MousePointerClick, TrendingUp,
-  ChevronDown, ChevronUp, ArrowRight, Megaphone, ImagePlus
+  ChevronDown, ChevronUp, ArrowRight, Megaphone, ImagePlus, CreditCard
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -19,8 +20,12 @@ import {
   formatZodFieldErrors,
   getPlacementsForType,
   isImageRequiredType,
+  formatAdLabel,
   type AdPlacementValue,
+  type AdTypeValue,
+  type PlacementConfigClient,
 } from '@/schemas/ad.schema';
+import { PlacementPreview } from '@/components/ads/PlacementPreview';
 
 interface Campaign {
   id: string;
@@ -43,6 +48,7 @@ interface Campaign {
   impressions: number;
   clicks: number;
   rejectionReason: string | null;
+  invoiceId?: string | null;
   createdAt: string;
   analytics: { date: string; impressions: number; clicks: number }[];
 }
@@ -55,15 +61,6 @@ interface Stats {
   avgCtr: string;
 }
 
-function formatLabel(str: string) {
-  return str.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
-}
-
-function ctr(impressions: number, clicks: number) {
-  if (impressions === 0) return '0.00';
-  return ((clicks / impressions) * 100).toFixed(2);
-}
-
 const statusConfig: Record<string, { color: string; bg: string; label: string }> = {
   DRAFT: { color: 'text-neutral-600', bg: 'bg-neutral-100 border-neutral-200', label: 'Draft' },
   PENDING_REVIEW: { color: 'text-amber-700', bg: 'bg-amber-50 border-amber-200', label: 'Pending Review' },
@@ -74,7 +71,16 @@ const statusConfig: Record<string, { color: string; bg: string; label: string }>
   REJECTED: { color: 'text-red-600', bg: 'bg-red-50 border-red-200', label: 'Rejected' },
 };
 
+function ctr(impressions: number, clicks: number) {
+  if (impressions === 0) return '0.00';
+  return ((clicks / impressions) * 100).toFixed(2);
+}
+
 export default function LawyerAdsPage() {
+  const router = useRouter();
+  const params = useParams();
+  const locale = params.locale as string || 'en';
+
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -85,10 +91,16 @@ export default function LawyerAdsPage() {
   const [uploadingImage, setUploadingImage] = useState(false);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
+  // Config and Availability states
+  const [configs, setConfigs] = useState<PlacementConfigClient[]>([]);
+  const [selectedConfig, setSelectedConfig] = useState<PlacementConfigClient | null>(null);
+  const [blockedDates, setBlockedDates] = useState<string[]>([]);
+  const [loadingAvailability, setLoadingAvailability] = useState(false);
+
   const [form, setForm] = useState({
     name: '',
-    type: 'SPONSORED_LISTING',
-    placement: 'DIRECTORY_TOP',
+    type: 'BANNER_IMAGE' as AdTypeValue,
+    placement: 'HOMEPAGE_BELOW_HERO' as AdPlacementValue,
     title: '',
     description: '',
     imageUrl: '',
@@ -98,27 +110,26 @@ export default function LawyerAdsPage() {
     targetPracticeAreas: [] as string[],
     startDate: '',
     endDate: '',
-    totalBudget: '',
   });
 
-  const validPlacements = getPlacementsForType(form.type);
-  const placementDetails = PLACEMENT_DETAILS[form.placement as AdPlacementValue];
-  const imageRequired = isImageRequiredType(form.type);
-
-  const updateForm = (field: keyof typeof form, value: string) => {
-    setFormErrors((prev) => {
-      const next = { ...prev };
-      delete next[field];
-      return next;
-    });
-
-    setForm((prev) => {
-      if (field === 'type') {
-        const [nextPlacement] = getPlacementsForType(value);
-        return { ...prev, type: value, placement: nextPlacement || prev.placement };
+  const fetchConfigs = async () => {
+    try {
+      const res = await fetch('/api/ads/config');
+      const data = await res.json();
+      setConfigs(data.configs || []);
+      if (data.configs && data.configs.length > 0) {
+        // Find configuration compatible with current form state
+        const firstActive = data.configs[0] as PlacementConfigClient;
+        setSelectedConfig(firstActive);
+        setForm(prev => ({
+          ...prev,
+          placement: firstActive.placement,
+          type: firstActive.allowedAdTypes[0] || 'BANNER_IMAGE'
+        }));
       }
-      return { ...prev, [field]: value };
-    });
+    } catch {
+      toast.error('Failed to load ad configurations.');
+    }
   };
 
   const fetchCampaigns = async () => {
@@ -137,7 +148,81 @@ export default function LawyerAdsPage() {
 
   useEffect(() => {
     fetchCampaigns();
+    fetchConfigs();
   }, []);
+
+  // Fetch availability when placement or dates change
+  useEffect(() => {
+    if (!form.placement) return;
+    const fetchAvailability = async () => {
+      setLoadingAvailability(true);
+      try {
+        const today = new Date();
+        const monthStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+        const res = await fetch(`/api/ads/availability?placement=${form.placement}&month=${monthStr}`);
+        const data = await res.json();
+        setBlockedDates(data.blockedDates || []);
+      } catch {
+        console.error('Failed to load slot availability.');
+      } finally {
+        setLoadingAvailability(false);
+      }
+    };
+    fetchAvailability();
+  }, [form.placement]);
+
+  const validPlacements = selectedConfig ? [selectedConfig.placement] : configs.map(c => c.placement);
+  const imageRequired = isImageRequiredType(form.type);
+
+  // Auto-calculated days and cost
+  const startDateObj = form.startDate ? new Date(form.startDate) : null;
+  const endDateObj = form.endDate ? new Date(form.endDate) : null;
+  const totalDays = startDateObj && endDateObj && endDateObj >= startDateObj
+    ? Math.ceil((endDateObj.getTime() - startDateObj.getTime()) / (1000 * 60 * 60 * 24)) + 1
+    : 0;
+  const totalCost = selectedConfig ? selectedConfig.pricePerDay * totalDays : 0;
+
+  // Unique images from previous campaigns
+  const previousImages = Array.from(new Set(
+    campaigns
+      .map(c => c.imageUrl)
+      .filter((url): url is string => typeof url === 'string' && url.length > 0)
+  ));
+
+  const updateForm = (field: keyof typeof form, value: any) => {
+    setFormErrors((prev) => {
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+
+    setForm((prev) => {
+      const updated = { ...prev, [field]: value };
+      
+      // If changing type, find first compatible config & placement
+      if (field === 'type') {
+        const compatibleConfigs = configs.filter(c => c.allowedAdTypes.includes(value));
+        if (compatibleConfigs.length > 0) {
+          updated.placement = compatibleConfigs[0].placement;
+          setSelectedConfig(compatibleConfigs[0]);
+        }
+      }
+
+      // If changing placement, update active placement config
+      if (field === 'placement') {
+        const conf = configs.find(c => c.placement === value);
+        if (conf) {
+          setSelectedConfig(conf);
+          // If current type not allowed, set first allowed
+          if (!conf.allowedAdTypes.includes(updated.type)) {
+            updated.type = conf.allowedAdTypes[0] || 'BANNER_IMAGE';
+          }
+        }
+      }
+
+      return updated;
+    });
+  };
 
   const handleImageUpload = async () => {
     const input = document.createElement('input');
@@ -174,6 +259,16 @@ export default function LawyerAdsPage() {
   };
 
   const handleCreate = async () => {
+    // Validate date selections against blocked dates
+    if (form.startDate && blockedDates.includes(form.startDate)) {
+      toast.error('Selected start date is fully booked.');
+      return;
+    }
+    if (form.endDate && blockedDates.includes(form.endDate)) {
+      toast.error('Selected end date is fully booked.');
+      return;
+    }
+
     const parsed = LawyerCreateAdSchema.safeParse(form);
     if (!parsed.success) {
       setFormErrors(formatZodFieldErrors(parsed.error));
@@ -197,10 +292,9 @@ export default function LawyerAdsPage() {
       toast.success('Campaign submitted for review!');
       setShowCreate(false);
       setForm({
-        name: '', type: 'SPONSORED_LISTING', placement: 'DIRECTORY_TOP',
+        name: '', type: 'BANNER_IMAGE', placement: 'HOMEPAGE_BELOW_HERO',
         title: '', description: '', imageUrl: '', targetUrl: '', ctaText: 'View Profile',
         targetDistricts: [], targetPracticeAreas: [], startDate: '', endDate: '',
-        totalBudget: '',
       });
       fetchCampaigns();
     } catch (e) {
@@ -238,7 +332,7 @@ export default function LawyerAdsPage() {
             <Megaphone className="h-5 w-5" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-neutral-900">My Ad Campaigns</h1>
+            <h1 className="text-4xl font-normal tracking-tight text-neutral-900">My Ad Campaigns</h1>
             <p className="text-sm text-neutral-500 font-medium">Promote your profile and gain more clients</p>
           </div>
         </div>
@@ -277,17 +371,17 @@ export default function LawyerAdsPage() {
       {campaigns.length === 0 && !loading && !showCreate && (
         <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 p-8 text-center space-y-4">
           <Megaphone className="w-12 h-12 text-blue-500 mx-auto" />
-          <h2 className="text-xl font-bold text-neutral-900">Grow Your Practice with Ads</h2>
+          <h2 className="text-xl font-normal text-neutral-900">Grow Your Practice with Ads</h2>
           <p className="text-sm text-neutral-600 max-w-lg mx-auto">
             Create an ad campaign to appear at the top of search results, on the homepage, or alongside blog posts. 
             Reach thousands of potential clients looking for legal services.
           </p>
           <div className="flex items-center justify-center gap-4 text-xs text-neutral-500 pt-2">
-            <div className="flex items-center gap-1.5"><span className="w-6 h-6 rounded-full bg-blue-100 text-blue-700 font-bold flex items-center justify-center text-[10px]">1</span> Create Campaign</div>
+            <div className="flex items-center gap-1.5"><span className="w-6 h-6 rounded-full bg-blue-100 text-neutral-700 font-normal flex items-center justify-center text-[10px]">1</span> Create Campaign</div>
             <ArrowRight className="w-3 h-3" />
-            <div className="flex items-center gap-1.5"><span className="w-6 h-6 rounded-full bg-amber-100 text-amber-700 font-bold flex items-center justify-center text-[10px]">2</span> Admin Reviews</div>
+            <div className="flex items-center gap-1.5"><span className="w-6 h-6 rounded-full bg-amber-100 text-neutral-700 font-normal flex items-center justify-center text-[10px]">2</span> Admin Reviews</div>
             <ArrowRight className="w-3 h-3" />
-            <div className="flex items-center gap-1.5"><span className="w-6 h-6 rounded-full bg-emerald-100 text-emerald-700 font-bold flex items-center justify-center text-[10px]">3</span> Goes Live!</div>
+            <div className="flex items-center gap-1.5"><span className="w-6 h-6 rounded-full bg-emerald-100 text-neutral-700 font-normal flex items-center justify-center text-[10px]">3</span> Goes Live!</div>
           </div>
           <Button onClick={() => setShowCreate(true)} className="bg-[#0a0a0a] hover:bg-neutral-800 text-white mt-2">
             <Plus className="w-4 h-4 mr-2" /> Create Your First Campaign
@@ -299,36 +393,38 @@ export default function LawyerAdsPage() {
       {showCreate && (
         <div className="bg-white border border-neutral-200 p-6 space-y-5 animate-in fade-in duration-300">
           <h3 className="text-xs font-bold text-neutral-900 uppercase tracking-wide">Create New Campaign</h3>
-          <p className="text-sm text-neutral-500">Your campaign will be reviewed by our team before it goes live. This usually takes 24-48 hours.</p>
+          <p className="text-sm text-neutral-500 font-medium">Your campaign will be reviewed by our team before it goes live. Price is automatically calculated based on placement and duration.</p>
 
           <div className="space-y-6">
             <section className="space-y-3">
               <div>
-                <h4 className="text-[11px] font-bold uppercase tracking-wide text-neutral-900">1. Ad Format</h4>
-                <p className="text-xs text-neutral-500">Pick a format to see only the placements that fit that ad.</p>
+                <h4 className="text-[11px] font-bold uppercase tracking-wide text-neutral-900">1. Placement & Format</h4>
+                <p className="text-xs text-neutral-500">Pick where your ad appears, and select a compatible layout format.</p>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5">Ad Type *</label>
-                  <select value={form.type} onChange={(e) => updateForm('type', e.target.value)} className="w-full py-2.5 px-3 bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-900 outline-none focus:border-[#0a0a0a]">
-                    {AD_TYPES.map((t) => (
-                      <option key={t} value={t}>{formatLabel(t)}</option>
+                  <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5 font-sans">Placement Zone *</label>
+                  <select value={form.placement} onChange={(e) => updateForm('placement', e.target.value)} className="w-full py-2.5 px-3 bg-neutral-50 border border-neutral-200 text-sm font-semibold text-neutral-900 outline-none focus:border-[#0a0a0a]">
+                    {configs.map((c) => (
+                      <option key={c.placement} value={c.placement}>{c.displayName} (LKR {c.pricePerDay}/day)</option>
+                    ))}
+                  </select>
+                  <FieldError message={formErrors.placement} />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5">Ad Format Style *</label>
+                  <select value={form.type} onChange={(e) => updateForm('type', e.target.value)} className="w-full py-2.5 px-3 bg-neutral-50 border border-neutral-200 text-sm font-semibold text-neutral-900 outline-none focus:border-[#0a0a0a]">
+                    {selectedConfig?.allowedAdTypes.map((t) => (
+                      <option key={t} value={t}>{formatAdLabel(t)}</option>
                     ))}
                   </select>
                   <FieldError message={formErrors.type} />
                 </div>
-                <div>
-                  <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5">Placement *</label>
-                  <select value={form.placement} onChange={(e) => updateForm('placement', e.target.value)} className="w-full py-2.5 px-3 bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-900 outline-none focus:border-[#0a0a0a]">
-                    {validPlacements.map((p) => (
-                      <option key={p} value={p}>{formatLabel(p)}</option>
-                    ))}
-                  </select>
-                  {placementDetails && (
-                    <p className="text-[11px] text-neutral-500 mt-1">{placementDetails.description} • {placementDetails.dimensions}</p>
-                  )}
-                  <FieldError message={formErrors.placement} />
-                </div>
+              </div>
+
+              {/* Placement Skeleton Preview */}
+              <div className="mt-4 pt-4 border-t border-neutral-100">
+                <PlacementPreview placement={form.placement} />
               </div>
             </section>
 
@@ -337,17 +433,17 @@ export default function LawyerAdsPage() {
             <section className="space-y-3">
               <div>
                 <h4 className="text-[11px] font-bold uppercase tracking-wide text-neutral-900">2. Creative Content</h4>
-                <p className="text-xs text-neutral-500">For sponsored listings and featured profiles, your profile photo is used automatically.</p>
+                <p className="text-xs text-neutral-500">Add banner image, title, and body text. For profile-based formats, your profile details are used automatically.</p>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
                   <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5">Campaign Name *</label>
-                  <input type="text" placeholder="e.g. January Criminal Law Push" value={form.name} onChange={(e) => updateForm('name', e.target.value)} className="w-full py-2.5 px-3 bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-900 outline-none focus:border-[#0a0a0a]" />
+                  <input type="text" placeholder="e.g. Colombo Civil Law Promotion" value={form.name} onChange={(e) => updateForm('name', e.target.value)} className="w-full py-2.5 px-3 bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-900 outline-none focus:border-[#0a0a0a]" />
                   <FieldError message={formErrors.name} />
                 </div>
                 <div>
-                  <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5">Ad Headline {form.type === 'BANNER' ? '*' : ''}</label>
-                  <input type="text" placeholder="e.g. Expert Criminal Defense in Colombo" value={form.title} onChange={(e) => updateForm('title', e.target.value)} className="w-full py-2.5 px-3 bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-900 outline-none focus:border-[#0a0a0a]" />
+                  <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5">Ad Headline {form.type === 'BANNER_IMAGE' ? '*' : ''}</label>
+                  <input type="text" placeholder="e.g. Trusted Land & Property Dispute Lawyer" value={form.title} onChange={(e) => updateForm('title', e.target.value)} className="w-full py-2.5 px-3 bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-900 outline-none focus:border-[#0a0a0a]" />
                   <FieldError message={formErrors.title} />
                 </div>
                 <div>
@@ -364,21 +460,59 @@ export default function LawyerAdsPage() {
                         <button type="button" onClick={() => updateForm('imageUrl', '')} className="absolute top-1 right-1 bg-black/60 text-white px-2 py-0.5 rounded-sm text-[10px] hover:bg-black/80 transition-colors">Remove</button>
                       </div>
                     ) : (
-                      <button type="button" onClick={handleImageUpload} disabled={uploadingImage} className="flex items-center justify-center gap-2 w-full h-[42px] bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-500 hover:border-[#0a0a0a] hover:text-neutral-900 transition-colors rounded-sm">
-                        {uploadingImage ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImagePlus className="w-4 h-4" />}
-                        {uploadingImage ? 'Uploading...' : 'Upload Image'}
-                      </button>
+                      <>
+                        <button type="button" onClick={handleImageUpload} disabled={uploadingImage} className="flex items-center justify-center gap-2 w-full h-[42px] bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-500 hover:border-[#0a0a0a] hover:text-neutral-900 transition-colors rounded-sm">
+                          {uploadingImage ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImagePlus className="w-4 h-4" />}
+                          {uploadingImage ? 'Uploading...' : 'Upload Image'}
+                        </button>
+                        {previousImages.length > 0 && (
+                          <div className="mt-2.5">
+                            <p className="text-[9px] text-neutral-400 font-bold uppercase tracking-wider mb-1.5">Or choose a previous image:</p>
+                            <div className="flex flex-wrap gap-1.5 max-h-[88px] overflow-y-auto p-1 border border-neutral-200/60 bg-neutral-50/50">
+                              {previousImages.map((url, idx) => (
+                                <button
+                                  key={idx}
+                                  type="button"
+                                  onClick={() => updateForm('imageUrl', url)}
+                                  className="w-10 h-10 border border-neutral-200 hover:border-[#bfa37a] hover:scale-105 transition-all overflow-hidden relative shrink-0"
+                                >
+                                  <img src={url} alt="" className="w-full h-full object-cover" />
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </>
                     )
                   ) : (
-                    <div className="min-h-[42px] flex items-center px-3 bg-neutral-50 border border-neutral-200 text-sm text-neutral-500">
-                      Your profile photo will be used automatically.
-                    </div>
+                    <>
+                      <div className="min-h-[42px] flex items-center px-3 bg-neutral-50 border border-neutral-200 text-sm text-neutral-500 rounded-sm">
+                        Your profile photo will be used automatically.
+                      </div>
+                      {previousImages.length > 0 && (
+                        <div className="mt-2.5">
+                          <p className="text-[9px] text-neutral-400 font-bold uppercase tracking-wider mb-1.5">Or choose a custom image:</p>
+                          <div className="flex flex-wrap gap-1.5 max-h-[88px] overflow-y-auto p-1 border border-neutral-200/60 bg-neutral-50/50">
+                            {previousImages.map((url, idx) => (
+                              <button
+                                key={idx}
+                                type="button"
+                                onClick={() => updateForm('imageUrl', url)}
+                                className="w-10 h-10 border border-neutral-200 hover:border-[#bfa37a] hover:scale-105 transition-all overflow-hidden relative shrink-0"
+                              >
+                                <img src={url} alt="" className="w-full h-full object-cover" />
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </>
                   )}
                   <FieldError message={formErrors.imageUrl} />
                 </div>
                 <div className="md:col-span-2">
-                  <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5">Description</label>
-                  <textarea placeholder="A brief description of your services..." value={form.description} onChange={(e) => updateForm('description', e.target.value)} rows={2} className="w-full py-2.5 px-3 bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-900 outline-none focus:border-[#0a0a0a] resize-none" />
+                  <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5">Description / Body Text</label>
+                  <textarea placeholder="Briefly describe your services..." value={form.description} onChange={(e) => updateForm('description', e.target.value)} rows={2} className="w-full py-2.5 px-3 bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-900 outline-none focus:border-[#0a0a0a] resize-none" />
                   <FieldError message={formErrors.description} />
                 </div>
               </div>
@@ -388,25 +522,42 @@ export default function LawyerAdsPage() {
 
             <section className="space-y-3">
               <div>
-                <h4 className="text-[11px] font-bold uppercase tracking-wide text-neutral-900">3. Schedule & Budget</h4>
-                <p className="text-xs text-neutral-500">Pricing is based on placement and duration. The admin team will confirm the final daily rate.</p>
+                <h4 className="text-[11px] font-bold uppercase tracking-wide text-neutral-900">3. Campaign Dates & Pricing</h4>
+                <p className="text-xs text-neutral-500">Select available dates. Booked slots are blocked automatically. Price calculates based on duration.</p>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5">Start Date *</label>
-                  <input type="date" value={form.startDate} onChange={(e) => updateForm('startDate', e.target.value)} className="w-full py-2.5 px-3 bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-900 outline-none focus:border-[#0a0a0a]" />
+                  <input 
+                    type="date" 
+                    value={form.startDate} 
+                    onChange={(e) => updateForm('startDate', e.target.value)} 
+                    className="w-full py-2.5 px-3 bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-900 outline-none focus:border-[#0a0a0a]" 
+                  />
+                  {form.startDate && blockedDates.includes(form.startDate) && (
+                    <p className="text-[11px] text-red-500 font-semibold mt-1">⚠️ Fully booked on this date</p>
+                  )}
                   <FieldError message={formErrors.startDate} />
                 </div>
                 <div>
                   <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5">End Date *</label>
-                  <input type="date" value={form.endDate} onChange={(e) => updateForm('endDate', e.target.value)} className="w-full py-2.5 px-3 bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-900 outline-none focus:border-[#0a0a0a]" />
+                  <input 
+                    type="date" 
+                    value={form.endDate} 
+                    onChange={(e) => updateForm('endDate', e.target.value)} 
+                    className="w-full py-2.5 px-3 bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-900 outline-none focus:border-[#0a0a0a]" 
+                  />
+                  {form.endDate && blockedDates.includes(form.endDate) && (
+                    <p className="text-[11px] text-red-500 font-semibold mt-1">⚠️ Fully booked on this date</p>
+                  )}
                   <FieldError message={formErrors.endDate} />
                 </div>
                 <div>
-                  <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5">Budget (LKR) *</label>
-                  <input type="number" min="500" placeholder="15000" value={form.totalBudget} onChange={(e) => updateForm('totalBudget', e.target.value)} className="w-full py-2.5 px-3 bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-900 outline-none focus:border-[#0a0a0a]" />
-                  <p className="text-[11px] text-neutral-500 mt-1">Minimum LKR 500. Price per day is confirmed during review.</p>
-                  <FieldError message={formErrors.totalBudget} />
+                  <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5">Price Breakdown</label>
+                  <div className="w-full py-2.5 px-3 bg-neutral-100 border border-neutral-200 text-sm font-bold text-neutral-900 min-h-[42px] flex items-center justify-between">
+                    <span>{totalDays > 0 ? `${totalDays} days × LKR ${selectedConfig?.pricePerDay}` : 'Select dates'}</span>
+                    {totalCost > 0 && <span className="text-emerald-700">LKR {totalCost.toLocaleString()}</span>}
+                  </div>
                 </div>
               </div>
             </section>
@@ -459,8 +610,18 @@ export default function LawyerAdsPage() {
                       <span className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 border ${sc.bg} ${sc.color}`}>
                         {sc.label}
                       </span>
+                      {campaign.status === 'APPROVED' && campaign.invoiceId && (
+                        <span className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 border bg-rose-50 text-rose-700 border-rose-200 animate-pulse">
+                          Payment Required
+                        </span>
+                      )}
                     </div>
-                    <p className="text-xs text-neutral-500">{formatLabel(campaign.type)} • {formatLabel(campaign.placement)}</p>
+                    <p className="text-xs text-neutral-500">{formatAdLabel(campaign.type)} • {formatAdLabel(campaign.placement)}</p>
+                    {campaign.status === 'APPROVED' && campaign.invoiceId && (
+                      <p className="text-xs font-semibold text-rose-600 mt-1 flex items-center gap-1">
+                        ⚠️ Requires payment to activate
+                      </p>
+                    )}
                   </div>
 
                   <div className="hidden sm:flex items-center gap-6 text-xs text-neutral-600">
@@ -506,7 +667,7 @@ export default function LawyerAdsPage() {
 
                       {campaign.totalBudget && (
                         <div>
-                          <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1">Budget</p>
+                          <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1">Total Cost</p>
                           <p className="text-neutral-700 font-semibold">LKR {campaign.totalBudget.toLocaleString()}</p>
                         </div>
                       )}
@@ -523,6 +684,18 @@ export default function LawyerAdsPage() {
                     {/* Actions */}
                     <Separator />
                     <div className="flex gap-2">
+                      {campaign.status === 'APPROVED' && campaign.invoiceId && (
+                        <Button 
+                          size="sm" 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            router.push(`/${locale}/dashboard/lawyer/payments/offline/${campaign.invoiceId}`);
+                          }} 
+                          className="bg-[#bfa37a] hover:bg-[#a68d67] text-white text-xs font-bold uppercase tracking-wider"
+                        >
+                          <CreditCard className="w-3.5 h-3.5 mr-1.5" /> Pay Invoice to Activate
+                        </Button>
+                      )}
                       {campaign.status === 'ACTIVE' && (
                         <Button size="sm" variant="outline" onClick={() => handleStatusChange(campaign.id, 'PAUSED')} disabled={actionLoading === campaign.id} className="text-orange-600 border-orange-200 hover:bg-orange-50 text-xs font-bold">
                           <Pause className="w-3.5 h-3.5 mr-1.5" /> Pause Campaign

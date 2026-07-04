@@ -10,7 +10,7 @@ const transporter = nodemailer.createTransport({
   }
 });
 
-const FROM_EMAIL = process.env.SMTP_FROM_EMAIL || '"LawFinder SL" <noreply@lawfinder.lk>';
+const FROM_EMAIL = process.env.SMTP_FROM_EMAIL || '"TheLawyr" <noreply@thelawyr.lk>';
 
 async function getAdminEmails(): Promise<string[]> {
   try {
@@ -22,12 +22,44 @@ async function getAdminEmails(): Promise<string[]> {
   }
 }
 
-const template = (title: string, body: string) => `
-  <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-    <h2>${title}</h2>
-    ${body}
-  </div>
-`;
+const template = (title: string, body: string) => {
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://thelawyr.lk';
+  const currentYear = new Date().getFullYear();
+  return `
+    <div style="background-color: #faf8f6; font-family: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; padding: 40px 20px; text-align: center; margin: 0;">
+      <div style="background-color: #ffffff; max-width: 600px; margin: 0 auto; padding: 40px; border: 1px solid #efeae0; text-align: left; box-sizing: border-box;">
+        <!-- Logo -->
+        <div style="text-align: center; margin-bottom: 32px;">
+          <img src="${appUrl}/logo.png" alt="TheLawyr Logo" style="height: 36px; display: inline-block; vertical-align: middle;" />
+        </div>
+        
+        <!-- Divider -->
+        <div style="height: 1px; background-color: #efeae0; margin-bottom: 32px;"></div>
+        
+        <!-- Header / Title -->
+        <h2 style="font-family: Georgia, 'Times New Roman', serif; font-size: 24px; font-weight: normal; color: #0a0a0a; margin: 0 0 24px 0; line-height: 1.3; text-align: center;">
+          ${title}
+        </h2>
+        
+        <!-- Content Body -->
+        <div style="color: #404040; font-size: 15px; line-height: 1.6; font-weight: 300; margin-bottom: 32px;">
+          ${body}
+        </div>
+        
+        <!-- Footer / Signature -->
+        <div style="border-top: 1px solid #efeae0; padding-top: 24px; margin-top: 32px; text-align: center;">
+          <p style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.15em; color: #737373; margin: 0 0 8px 0; font-weight: 700;">
+            TheLawyr
+          </p>
+          <p style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: #a3a3a3; margin: 0;">
+            Copyright © ${currentYear} TheLawyr. All Rights Reserved.<br/>
+            Powered by FiveNeurals.
+          </p>
+        </div>
+      </div>
+    </div>
+  `;
+};
 
 async function sendMailSafe(to: string | string[], subject: string, html: string) {
   if (!to || (Array.isArray(to) && to.length === 0)) return;
@@ -41,11 +73,11 @@ async function sendMailSafe(to: string | string[], subject: string, html: string
 export const EmailService = {
   async sendEmailVerification(email: string, token: string, fullName: string) {
     const url = `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/verify-email?token=${token}`;
-    await sendMailSafe(email, 'Verify your email address - LawFinder SL', template('Welcome to LawFinder SL!', `
+    await sendMailSafe(email, 'Verify your email address - TheLawyr', template('Welcome to TheLawyr!', `
       <p>Dear ${fullName},</p>
       <p>Please click the button below to verify your email address.</p>
       <div style="text-align: center; margin: 30px 0;">
-        <a href="${url}" style="background-color: #0a0a0a; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold;">Verify Email</a>
+        <a href="${url}" style="background-color: #bfa37a; color: #ffffff; padding: 14px 28px; text-decoration: none; display: inline-block; font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.15em; border-radius: 0;">Verify Email</a>
       </div>
     `));
   },
@@ -200,6 +232,141 @@ export const EmailService = {
       <p>Dear ${clientName},</p>
       <p>Your consultation with ${lawyerName} was recently marked as completed.</p>
       <p>Please log in to your dashboard to leave a rating and review to help others find great legal assistance!</p>
+    `));
+  },
+
+  // 15. Invoice Payment Approved / Receipt
+  async sendInvoicePaidReceipt(email: string, lawyerName: string, invoiceId: string, amount: number, paymentReason: string, billingCycle?: string) {
+    const formattedAmount = amount.toLocaleString();
+    const invoiceNumber = `LAI-${new Date().getFullYear()}-${invoiceId.substring(0, 8).toUpperCase()}`;
+    const date = new Date().toLocaleDateString('en-US', { month: 'long', day: '2-digit', year: 'numeric' });
+
+    await sendMailSafe(email, `Payment Receipt: Invoice #${invoiceId.substring(0, 8).toUpperCase()} - TheLawyr`, template(
+      '<span style="color: #16a34a;">Payment Confirmed / Receipt</span>', 
+      `
+      <p>Dear ${lawyerName},</p>
+      <p>Thank you for your payment. This email serves as your official payment receipt.</p>
+      
+      <!-- Receipt Details Table -->
+      <div style="background-color: #faf8f6; padding: 20px; border: 1px solid #efeae0; margin: 24px 0;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+          <tr>
+            <td style="padding: 6px 0; color: #737373; font-weight: bold;">Receipt Number:</td>
+            <td style="padding: 6px 0; text-align: right; font-family: monospace; font-weight: bold;">${invoiceNumber}</td>
+          </tr>
+          <tr>
+            <td style="padding: 6px 0; color: #737373; font-weight: bold;">Payment Date:</td>
+            <td style="padding: 6px 0; text-align: right;">${date}</td>
+          </tr>
+          <tr>
+            <td style="padding: 12px 0 6px 0; font-weight: bold; border-top: 1px solid #efeae0;">Description:</td>
+            <td style="padding: 12px 0 6px 0; text-align: right; font-weight: bold; border-top: 1px solid #efeae0;">${paymentReason}</td>
+          </tr>
+          ${billingCycle ? `
+          <tr>
+            <td style="padding: 6px 0; color: #737373;">Billing Cycle:</td>
+            <td style="padding: 6px 0; text-align: right; font-weight: bold;">${billingCycle}</td>
+          </tr>` : ''}
+          <tr>
+            <td style="padding: 12px 0; font-size: 18px; font-weight: bold; border-top: 2px solid #16a34a; color: #0a0a0a;">Amount Paid:</td>
+            <td style="padding: 12px 0; font-size: 18px; font-weight: bold; border-top: 2px solid #16a34a; text-align: right; color: #16a34a;">LKR ${formattedAmount}.00</td>
+          </tr>
+        </table>
+      </div>
+
+      <div style="text-align: center; margin: 30px 0;">
+        <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://thelawyr.lk'}/dashboard/lawyer/payments/offline/${invoiceId}" style="background-color: #16a34a; color: #ffffff; padding: 14px 28px; text-decoration: none; display: inline-block; font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.15em; border-radius: 0;">View in Dashboard</a>
+      </div>
+      `
+    ));
+  },
+
+  // 16. Send Invoice Email
+  async sendInvoiceCreated(email: string, lawyerName: string, invoiceId: string, amount: number, paymentReason: string, billingCycle?: string) {
+    const formattedAmount = amount.toLocaleString();
+    const invoiceNumber = `LAI-${new Date().getFullYear()}-${invoiceId.substring(0, 8).toUpperCase()}`;
+    const date = new Date().toLocaleDateString('en-US', { month: 'long', day: '2-digit', year: 'numeric' });
+    const dueDate = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', { month: 'long', day: '2-digit', year: 'numeric' });
+
+    await sendMailSafe(email, `Invoice Created: #${invoiceId.substring(0, 8).toUpperCase()} - TheLawyr`, template(
+      'Invoice Issued', 
+      `
+      <p>Dear ${lawyerName},</p>
+      <p>An invoice has been generated for your subscription or service with TheLawyr.</p>
+      
+      <!-- Invoice Details Table -->
+      <div style="background-color: #faf8f6; padding: 20px; border: 1px solid #efeae0; margin: 24px 0;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+          <tr>
+            <td style="padding: 6px 0; color: #737373; font-weight: bold;">Invoice Number:</td>
+            <td style="padding: 6px 0; text-align: right; font-family: monospace; font-weight: bold;">${invoiceNumber}</td>
+          </tr>
+          <tr>
+            <td style="padding: 6px 0; color: #737373; font-weight: bold;">Date Issued:</td>
+            <td style="padding: 6px 0; text-align: right;">${date}</td>
+          </tr>
+          <tr>
+            <td style="padding: 6px 0; color: #737373; font-weight: bold;">Due Date:</td>
+            <td style="padding: 6px 0; text-align: right; color: #dc2626; font-weight: bold;">${dueDate}</td>
+          </tr>
+          <tr>
+            <td style="padding: 12px 0 6px 0; font-weight: bold; border-top: 1px solid #efeae0;">Description:</td>
+            <td style="padding: 12px 0 6px 0; text-align: right; font-weight: bold; border-top: 1px solid #efeae0;">${paymentReason}</td>
+          </tr>
+          ${billingCycle ? `
+          <tr>
+            <td style="padding: 6px 0; color: #737373;">Billing Cycle:</td>
+            <td style="padding: 6px 0; text-align: right; font-weight: bold;">${billingCycle}</td>
+          </tr>` : ''}
+          <tr>
+            <td style="padding: 12px 0; font-size: 18px; font-weight: bold; border-top: 2px solid #000000; color: #0a0a0a;">Total Due:</td>
+            <td style="padding: 12px 0; font-size: 18px; font-weight: bold; border-top: 2px solid #000000; text-align: right; color: #bfa37a;">LKR ${formattedAmount}.00</td>
+          </tr>
+        </table>
+      </div>
+
+      <div style="text-align: center; margin: 30px 0;">
+        <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://thelawyr.lk'}/dashboard/lawyer/payments/offline/${invoiceId}" style="background-color: #bfa37a; color: #ffffff; padding: 14px 28px; text-decoration: none; display: inline-block; font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.15em; border-radius: 0;">Pay Now</a>
+      </div>
+      `
+    ));
+  },
+
+  async sendPaymentApprovedAwaitingLawyerClient(email: string, clientName: string, bookingNumber: string, lawyerName: string) {
+    await sendMailSafe(email, `Payment Approved: Booking Awaiting Lawyer Confirmation - ${bookingNumber}`, template('Payment Approved', `
+      <p>Dear ${clientName},</p>
+      <p>Your payment for booking <strong>${bookingNumber}</strong> has been successfully verified and approved.</p>
+      <p>The booking request has been forwarded to <strong>${lawyerName}</strong> for confirmation. You will receive an email once the lawyer approves or updates the booking.</p>
+    `));
+  },
+
+  async sendBookingApprovedClient(email: string, clientName: string, bookingNumber: string, lawyerName: string, date: string, time: string) {
+    await sendMailSafe(email, `Booking Confirmed: ${bookingNumber}`, template('Booking Confirmed', `
+      <p>Dear ${clientName},</p>
+      <p>Great news! <strong>${lawyerName}</strong> has approved your booking <strong>${bookingNumber}</strong>.</p>
+      <p><strong>Scheduled Date:</strong> ${date}</p>
+      <p><strong>Scheduled Time:</strong> ${time}</p>
+      <p>Please log in to your dashboard to view meeting details or physical office location.</p>
+    `));
+  },
+
+  async sendBookingRescheduledClient(email: string, clientName: string, bookingNumber: string, lawyerName: string, newDate: string, newTime: string, remarks: string) {
+    await sendMailSafe(email, `Booking Reschedule Proposed - ${bookingNumber}`, template('Booking Reschedule Proposed', `
+      <p>Dear ${clientName},</p>
+      <p><strong>${lawyerName}</strong> has proposed a reschedule for booking <strong>${bookingNumber}</strong>.</p>
+      <p><strong>Proposed New Date:</strong> ${newDate}</p>
+      <p><strong>Proposed New Time:</strong> ${newTime}</p>
+      <p><strong>Lawyer Remarks:</strong> ${remarks || 'No remarks provided.'}</p>
+      <p>Please log in to your client dashboard to accept or decline this reschedule request.</p>
+    `));
+  },
+
+  async sendBookingRejectedClient(email: string, clientName: string, bookingNumber: string, lawyerName: string, remarks: string) {
+    await sendMailSafe(email, `Booking Rejected by Lawyer - ${bookingNumber}`, template('Booking Rejected', `
+      <p>Dear ${clientName},</p>
+      <p>We regret to inform you that <strong>${lawyerName}</strong> has rejected your booking <strong>${bookingNumber}</strong>.</p>
+      <p><strong>Reason/Remarks:</strong> ${remarks || 'No remarks provided.'}</p>
+      <p>A refund of the booking amount will be processed to your account. You can check the status of your refund in your dashboard.</p>
     `));
   }
 };

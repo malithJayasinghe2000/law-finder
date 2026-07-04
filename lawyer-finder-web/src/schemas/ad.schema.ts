@@ -1,87 +1,221 @@
 import { z } from 'zod';
+import { sanitizeString } from '@/lib/sanitize';
 
-export const AD_TYPES = ['BANNER', 'SPONSORED_LISTING', 'FEATURED_PROFILE', 'IN_FEED', 'SIDEBAR'] as const;
-export const AD_PLACEMENTS = [
-  'HOMEPAGE_HERO',
-  'HOMEPAGE_MID',
-  'DIRECTORY_TOP',
-  'DIRECTORY_INLINE',
-  'BLOG_SIDEBAR',
-  'BLOG_FEED',
-  'BLOG_POST_BOTTOM',
-] as const;
-
+// ─── Ad Types ─────────────────────────────────────────────────────
+export const AD_TYPES = ['BANNER_IMAGE', 'PROFILE_CARD', 'SIDEBAR_CARD', 'STICKY_BAR'] as const;
 export type AdTypeValue = (typeof AD_TYPES)[number];
-export type AdPlacementValue = (typeof AD_PLACEMENTS)[number];
 
-export const AD_TYPE_PLACEMENTS: Record<AdTypeValue, readonly AdPlacementValue[]> = {
-  BANNER: ['HOMEPAGE_HERO', 'HOMEPAGE_MID', 'BLOG_SIDEBAR', 'BLOG_FEED', 'BLOG_POST_BOTTOM'],
-  SPONSORED_LISTING: ['DIRECTORY_TOP', 'DIRECTORY_INLINE'],
-  FEATURED_PROFILE: ['DIRECTORY_TOP', 'DIRECTORY_INLINE', 'HOMEPAGE_MID'],
-  IN_FEED: ['BLOG_FEED', 'BLOG_POST_BOTTOM'],
-  SIDEBAR: ['BLOG_SIDEBAR', 'HOMEPAGE_MID'],
+export const AD_TYPE_LABELS: Record<AdTypeValue, string> = {
+  BANNER_IMAGE: 'Banner Image',
+  PROFILE_CARD: 'Profile Card',
+  SIDEBAR_CARD: 'Sidebar Card',
+  STICKY_BAR: 'Sticky Bar',
 };
 
-export const PLACEMENT_DETAILS: Record<AdPlacementValue, { description: string; dimensions: string }> = {
-  HOMEPAGE_HERO: {
-    description: 'Full-width hero banner at the top of the homepage',
-    dimensions: '1200x400px',
+export const AD_TYPE_DESCRIPTIONS: Record<AdTypeValue, string> = {
+  BANNER_IMAGE: 'Full-width image banner with overlay text. Best for hero areas and top banners.',
+  PROFILE_CARD: 'Lawyer profile card showing photo, name, and practice areas.',
+  SIDEBAR_CARD: 'Compact card for sidebar areas with image and brief info.',
+  STICKY_BAR: 'Thin horizontal bar that stays visible as users scroll.',
+};
+
+// ─── Ad Placements ────────────────────────────────────────────────
+export const AD_PLACEMENTS = [
+  'HOMEPAGE_BELOW_HERO',
+  'CHAT_RIGHT_SIDEBAR',
+  'BLOG_TOP_BANNER',
+  'BLOG_RIGHT_SIDEBAR',
+  'BLOG_BOTTOM_STICKY',
+  'BLOG_POST_SIDEBAR',
+  'BLOG_POST_BOTTOM',
+  'DIRECTORY_TOP',
+  'DIRECTORY_INLINE',
+] as const;
+export type AdPlacementValue = (typeof AD_PLACEMENTS)[number];
+
+export const AD_PLACEMENT_LABELS: Record<AdPlacementValue, string> = {
+  HOMEPAGE_BELOW_HERO: 'Homepage — Below Hero Section',
+  CHAT_RIGHT_SIDEBAR: 'AI Chat — Right Sidebar',
+  BLOG_TOP_BANNER: 'Blog — Top Banner',
+  BLOG_RIGHT_SIDEBAR: 'Blog — Right Sidebar (Sticky)',
+  BLOG_BOTTOM_STICKY: 'Blog — Bottom Sticky Bar',
+  BLOG_POST_SIDEBAR: 'Blog Post — Right Sidebar',
+  BLOG_POST_BOTTOM: 'Blog Post — Below Article',
+  DIRECTORY_TOP: 'Lawyer Directory — Top',
+  DIRECTORY_INLINE: 'Lawyer Directory — Inline',
+};
+
+export const PLACEMENT_DETAILS: Record<AdPlacementValue, {
+  description: string;
+  dimensions: string;
+  page: string;
+  position: string;
+}> = {
+  HOMEPAGE_BELOW_HERO: {
+    description: 'Slider banner below the hero, above "The Legal Advisory Is" section',
+    dimensions: '1200×400px',
+    page: 'Homepage',
+    position: 'Below hero section',
   },
-  HOMEPAGE_MID: {
-    description: 'Mid-page banner or featured card on homepage',
-    dimensions: '728x90px',
+  CHAT_RIGHT_SIDEBAR: {
+    description: 'Right sidebar ads alongside the AI chat interface',
+    dimensions: '300×250px',
+    page: '/en/chat',
+    position: 'Right sidebar',
+  },
+  BLOG_TOP_BANNER: {
+    description: 'Slider banner above category cards on the blog listing page',
+    dimensions: '728×90px',
+    page: '/en/blog',
+    position: 'Above categories',
+  },
+  BLOG_RIGHT_SIDEBAR: {
+    description: 'Sticky sidebar ads that stay visible while scrolling blog posts',
+    dimensions: '300×250px',
+    page: '/en/blog',
+    position: 'Right sidebar (sticky)',
+  },
+  BLOG_BOTTOM_STICKY: {
+    description: 'Fixed bar at the bottom of the blog page, stays visible while scrolling',
+    dimensions: '728×90px',
+    page: '/en/blog',
+    position: 'Bottom fixed bar',
+  },
+  BLOG_POST_SIDEBAR: {
+    description: 'Sidebar ads alongside individual blog post content',
+    dimensions: '300×250px',
+    page: '/en/blog/[slug]',
+    position: 'Right sidebar',
+  },
+  BLOG_POST_BOTTOM: {
+    description: 'Banner below the blog article content',
+    dimensions: '728×90px',
+    page: '/en/blog/[slug]',
+    position: 'Below article',
   },
   DIRECTORY_TOP: {
     description: 'Pinned at the top of lawyer search results',
     dimensions: 'Profile card',
+    page: '/en/lawyers',
+    position: 'Top of results',
   },
   DIRECTORY_INLINE: {
     description: 'Interspersed within lawyer search results',
     dimensions: 'Profile card',
-  },
-  BLOG_SIDEBAR: {
-    description: 'Sidebar ad alongside blog posts',
-    dimensions: '300x250px',
-  },
-  BLOG_FEED: {
-    description: 'Inline ad within blog article list',
-    dimensions: '728x90px',
-  },
-  BLOG_POST_BOTTOM: {
-    description: 'Below a blog article',
-    dimensions: '728x90px',
+    page: '/en/lawyers',
+    position: 'Within results',
   },
 };
 
-export const IMAGE_REQUIRED_TYPES: readonly AdTypeValue[] = ['BANNER', 'SIDEBAR'];
+// ─── Type → Placement compatibility ──────────────────────────────
+export const AD_TYPE_PLACEMENTS: Record<AdTypeValue, readonly AdPlacementValue[]> = {
+  BANNER_IMAGE: [
+    'HOMEPAGE_BELOW_HERO',
+    'BLOG_TOP_BANNER',
+    'BLOG_POST_BOTTOM',
+  ],
+  PROFILE_CARD: [
+    'HOMEPAGE_BELOW_HERO',
+    'DIRECTORY_TOP',
+    'DIRECTORY_INLINE',
+  ],
+  SIDEBAR_CARD: [
+    'CHAT_RIGHT_SIDEBAR',
+    'BLOG_RIGHT_SIDEBAR',
+    'BLOG_POST_SIDEBAR',
+  ],
+  STICKY_BAR: [
+    'BLOG_BOTTOM_STICKY',
+  ],
+};
 
+export const IMAGE_REQUIRED_TYPES: readonly AdTypeValue[] = ['BANNER_IMAGE'];
+
+// ─── Placement preview wireframe info ─────────────────────────────
+export const PLACEMENT_PREVIEW: Record<AdPlacementValue, {
+  previewLabel: string;
+  previewColor: string;  // Tailwind color for the highlighted zone
+  skeletonLayout: 'full-width' | 'sidebar' | 'sticky-bottom' | 'card-grid';
+}> = {
+  HOMEPAGE_BELOW_HERO: {
+    previewLabel: 'Your ad appears here — below the hero, above "The Legal Advisory Is" section',
+    previewColor: 'bg-blue-100 border-blue-400',
+    skeletonLayout: 'full-width',
+  },
+  CHAT_RIGHT_SIDEBAR: {
+    previewLabel: 'Your ad appears in the right sidebar of the AI Chat page',
+    previewColor: 'bg-purple-100 border-purple-400',
+    skeletonLayout: 'sidebar',
+  },
+  BLOG_TOP_BANNER: {
+    previewLabel: 'Your ad appears above blog category cards',
+    previewColor: 'bg-emerald-100 border-emerald-400',
+    skeletonLayout: 'full-width',
+  },
+  BLOG_RIGHT_SIDEBAR: {
+    previewLabel: 'Your ad stays visible in the blog sidebar as users scroll',
+    previewColor: 'bg-amber-100 border-amber-400',
+    skeletonLayout: 'sidebar',
+  },
+  BLOG_BOTTOM_STICKY: {
+    previewLabel: 'Your ad is pinned at the bottom of the blog page',
+    previewColor: 'bg-rose-100 border-rose-400',
+    skeletonLayout: 'sticky-bottom',
+  },
+  BLOG_POST_SIDEBAR: {
+    previewLabel: 'Your ad appears alongside blog post content',
+    previewColor: 'bg-indigo-100 border-indigo-400',
+    skeletonLayout: 'sidebar',
+  },
+  BLOG_POST_BOTTOM: {
+    previewLabel: 'Your ad appears below the blog article',
+    previewColor: 'bg-teal-100 border-teal-400',
+    skeletonLayout: 'full-width',
+  },
+  DIRECTORY_TOP: {
+    previewLabel: 'Your profile card is pinned at the top of search results',
+    previewColor: 'bg-orange-100 border-orange-400',
+    skeletonLayout: 'card-grid',
+  },
+  DIRECTORY_INLINE: {
+    previewLabel: 'Your profile card appears within search results',
+    previewColor: 'bg-cyan-100 border-cyan-400',
+    skeletonLayout: 'card-grid',
+  },
+};
+
+// ─── Zod Schemas ──────────────────────────────────────────────────
 export const AdTypeSchema = z.enum(AD_TYPES);
 export const AdPlacementSchema = z.enum(AD_PLACEMENTS);
 export const AdStatusSchema = z.enum(['DRAFT', 'PENDING_REVIEW', 'APPROVED', 'ACTIVE', 'PAUSED', 'EXPIRED', 'REJECTED']);
 
-const emptyToUndefined = (value: unknown) => (value === '' || value === null ? undefined : value);
-const optionalText = z.preprocess(emptyToUndefined, z.string().trim().optional());
+const optionalText = z.string().trim().optional()
+  .transform((val) => {
+    const res = val === '' || val === null ? undefined : val;
+    return res ? sanitizeString(res) : res;
+  });
 const optionalPositiveInt = z.preprocess(
-  emptyToUndefined,
+  (value) => value === '' || value === null ? undefined : value,
   z.coerce.number().int('Must be a whole number').positive('Must be greater than 0').optional()
 );
 const requiredPositiveInt = z.coerce.number().int('Must be a whole number').positive('Must be greater than 0');
 
 export const AdCampaignBaseSchema = z.object({
-  name: z.string().trim().min(3, 'Campaign name must be at least 3 characters').max(100, 'Campaign name must be 100 characters or fewer'),
+  name: z.string().trim()
+    .min(3, 'Campaign name must be at least 3 characters')
+    .max(100, 'Campaign name must be 100 characters or fewer')
+    .transform((val) => sanitizeString(val)),
   type: AdTypeSchema,
   placement: AdPlacementSchema,
   title: optionalText,
   description: optionalText,
   imageUrl: optionalText,
   targetUrl: optionalText,
-  ctaText: z.preprocess(emptyToUndefined, z.string().trim().default('View Profile')),
+  ctaText: z.string().trim().default('View Profile').transform((val) => sanitizeString(val)),
   targetDistricts: z.array(z.string()).default([]),
   targetPracticeAreas: z.array(z.string()).default([]),
   startDate: z.string().min(1, 'Start date is required'),
   endDate: z.string().min(1, 'End date is required'),
-  totalBudget: optionalPositiveInt,
-  dailyBudget: optionalPositiveInt,
 });
 
 function parseDateOnly(value: string) {
@@ -129,10 +263,19 @@ function isAdPlacement(value: string): value is AdPlacementValue {
   return AD_PLACEMENTS.includes(value as AdPlacementValue);
 }
 
+export function formatAdLabel(str: string) {
+  // Convert enum-style strings like HOMEPAGE_BELOW_HERO to a readable label
+  const labels: Record<string, string> = {
+    ...AD_TYPE_LABELS,
+    ...AD_PLACEMENT_LABELS,
+  };
+  return labels[str] || str.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 function validateSharedCampaignRules(
   value: z.infer<typeof AdCampaignBaseSchema> & { pricePerDay?: number },
   ctx: z.RefinementCtx,
-  options: { requireFutureStart: boolean; requireLawyerBudget: boolean }
+  options: { requireFutureStart: boolean }
 ) {
   if (!AD_TYPE_PLACEMENTS[value.type].includes(value.placement)) {
     ctx.addIssue({
@@ -150,7 +293,7 @@ function validateSharedCampaignRules(
     });
   }
 
-  if (value.type === 'BANNER' && !value.title) {
+  if (value.type === 'BANNER_IMAGE' && !value.title) {
     ctx.addIssue({
       code: 'custom',
       path: ['title'],
@@ -182,24 +325,26 @@ function validateSharedCampaignRules(
       ctx.addIssue({ code: 'custom', path: ['startDate'], message: 'Start date must be today or later' });
     }
   }
-
-  if (options.requireLawyerBudget && (!value.totalBudget || value.totalBudget < 500)) {
-    ctx.addIssue({ code: 'custom', path: ['totalBudget'], message: 'Budget must be at least LKR 500' });
-  }
 }
 
+// ─── Admin schema — full control ──────────────────────────────────
 export const AdminCreateAdSchema = AdCampaignBaseSchema.extend({
   lawyerId: z.string().min(1, 'Lawyer is required'),
   pricePerDay: requiredPositiveInt,
+  totalBudget: optionalPositiveInt,
+  dailyBudget: optionalPositiveInt,
   status: AdStatusSchema.default('DRAFT'),
 }).superRefine((value, ctx) => {
-  validateSharedCampaignRules(value, ctx, { requireFutureStart: false, requireLawyerBudget: false });
+  validateSharedCampaignRules(value, ctx, { requireFutureStart: false });
 });
 
-export const LawyerCreateAdSchema = AdCampaignBaseSchema.omit({ dailyBudget: true }).extend({
-  pricePerDay: optionalPositiveInt,
-}).superRefine((value, ctx) => {
-  validateSharedCampaignRules(value, ctx, { requireFutureStart: true, requireLawyerBudget: true });
+// ─── Lawyer schema — price comes from config, no budget field ──────
+export const LawyerCreateAdBaseSchema = AdCampaignBaseSchema.extend({
+  pricePerDay: optionalPositiveInt,  // Set from server-side config lookup
+});
+
+export const LawyerCreateAdSchema = LawyerCreateAdBaseSchema.superRefine((value, ctx) => {
+  validateSharedCampaignRules(value, ctx, { requireFutureStart: true });
 });
 
 export type AdminCreateAdInput = z.infer<typeof AdminCreateAdSchema>;
@@ -214,4 +359,19 @@ export function formatZodFieldErrors(error: z.ZodError): AdFieldErrors {
       .filter(([, messages]) => messages && messages.length > 0)
       .map(([field, messages]) => [field, messages?.[0] || 'Invalid value'])
   );
+}
+
+// ─── Placement config type for client-side use ────────────────────
+export interface PlacementConfigClient {
+  placement: AdPlacementValue;
+  displayName: string;
+  description: string | null;
+  pricePerDay: number;
+  isSlider: boolean;
+  sliderInterval: number;
+  maxAdsPerSlot: number;
+  recommendedWidth: number | null;
+  recommendedHeight: number | null;
+  isActive: boolean;
+  allowedAdTypes: AdTypeValue[];
 }

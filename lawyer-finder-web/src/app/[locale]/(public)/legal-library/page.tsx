@@ -105,7 +105,7 @@ export default function LegalLibraryPage() {
   return (
     <div className="min-h-screen bg-white selection:bg-[#bfa37a]/30">
       {/* 1. Premium White Hero / Search Header */}
-      <section className="relative bg-white pt-36 pb-16 px-6 lg:px-12 xl:px-24 overflow-hidden border-b border-neutral-100">
+      <section className="relative bg-white pt-12 pb-16 px-6 lg:px-12 xl:px-24 overflow-hidden border-b border-neutral-100">
         <div className="max-w-[1200px] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
           {/* Left info column */}
           <div className="lg:col-span-7 space-y-6">

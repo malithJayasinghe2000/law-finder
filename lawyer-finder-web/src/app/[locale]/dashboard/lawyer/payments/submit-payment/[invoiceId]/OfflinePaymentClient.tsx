@@ -167,7 +167,7 @@ export default function OfflinePaymentClient({ locale, invoice }: OfflinePayment
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back
           </Button>
-          <h1 className="text-3xl font-bold text-black uppercase tracking-tight">
+          <h1 className="text-4xl font-normal text-black uppercase tracking-tight">
             Offline Payment Submission
           </h1>
           <p className="text-neutral-600 mt-2">
