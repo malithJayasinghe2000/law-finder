@@ -23,7 +23,13 @@ from app.core.vectorstore import search_documents
 from app.core.web_search import web_search, format_web_results
 from app.core.graph_store import get_knowledge_graph
 from app.core.entity_extractor import extract_entities_regex
-from app.core.query_router import classify_intent, rewrite_query, generate_conversational_response, generate_lawyer_response
+from app.core.query_router import (
+    classify_intent,
+    rewrite_query,
+    generate_conversational_response,
+    generate_clarification_response,
+    generate_lawyer_response,
+)
 from app.config import config
 
 logger = logging.getLogger(__name__)
@@ -56,19 +62,32 @@ PRACTICE_AREA_KEYWORDS = {
 SYSTEM_PROMPT = """You are LawyerAI, an expert legal assistant specialized in Sri Lankan law. 
 You help users understand Sri Lankan legislation, legal procedures, and their rights.
 
-CRITICAL RULES YOU MUST FOLLOW:
-1. Base your answers primarily on the provided LEGAL CONTEXT below. If the context is insufficient, you may use WEB SEARCH RESULTS for supplementary information.
+AVAILABLE LEGISLATION IN YOUR DATABASE:
+- Companies Act (Consolidated, 2024)
+- Civil Procedure Code (Consolidated, 2024)
+- Motor Traffic Act (Consolidated, 2024)
+- Act No. 24 of 2007 — Computer Crimes Act
+- Act No. 24 of 2025 — Amendment
+
+IMPORTANT: If the user's question is about a legal area NOT covered by these Acts
+(e.g. Family Law, Property Law, Labour Law, Tax Law, Criminal Law, etc.),
+be HONEST that your legislation database does not yet include that specific area.
+Still try to help using WEB SEARCH RESULTS and your general legal knowledge,
+but clearly note that the information may not be from the official legislation text.
+Always recommend consulting a qualified lawyer for areas outside your database.
+
+CRITICAL RULES:
+1. Base your answers primarily on the provided LEGAL CONTEXT. If insufficient, use WEB SEARCH RESULTS.
 2. ALWAYS cite the specific Act name, Section number, and Part/Chapter when referencing a law.
-3. If neither the legal context nor web results contain enough information, clearly state:
-   "I don't have enough information in my Knowledge Base to answer this question accurately. 
-   Please consult a qualified lawyer for specific legal advice."
-4. Distinguish between Consolidated Acts (full compiled laws) and Amendment Acts (changes to existing laws).
+3. If neither legal context nor web results have enough info, clearly say so and recommend a lawyer.
+4. Distinguish between Consolidated Acts and Amendment Acts.
 5. When multiple sections are relevant, reference all of them.
 6. Use clear, simple language that non-lawyers can understand, but maintain legal accuracy.
-7. NEVER provide specific legal advice — always recommend consulting a professional lawyer for specific cases.
-8. Format your response clearly with proper paragraph breaks and section references.
-9. When using information from web search results, mention that the information was found online and may need verification.
-10. When RELATED DOCUMENTS are provided, mention the connections between acts/laws to provide comprehensive context.
+7. NEVER provide specific legal advice — always recommend consulting a professional lawyer.
+8. Format your response with proper paragraph breaks and section references.
+9. When using web search results, mention the information was found online and may need verification.
+10. When RELATED DOCUMENTS are provided, mention connections between acts/laws.
+11. Be conversational and empathetic — the user may be in a stressful legal situation.
 
 LEGAL CONTEXT FROM SRI LANKAN LEGISLATION:
 {context}
@@ -329,14 +348,15 @@ def query_rag(
 
     logger.info(f"RAG Query: '{question[:100]}...' (top_k={top_k})")
 
-    # Step 0: Intent Routing + Smart Document Filter
+    # Step 0: Intent Routing + Smart Document Filter (6-intent system)
     routing = classify_intent(question, chat_history)
     intent = routing["intent"]
     document_filter = routing["document_filter"]
     logger.info(f"Detected intent: {intent}, document_filter: {document_filter}")
 
+    # ── Fast paths (no RAG needed) ────────────────────────────────────────
+
     if intent == "conversational":
-        # Fast path: Bypass RAG entirely — no agent spin-up needed
         answer = generate_conversational_response(question, chat_history)
         return {
             "answer": answer,
@@ -348,36 +368,56 @@ def query_rag(
             "related_documents": [],
         }
 
-    elif intent == "lawyer_request":
-        # Fast path: Bypass RAG — use conversation context to recommend lawyers
-        logger.info("Handling lawyer_request intent via dedicated handler")
+    if intent == "clarification_needed":
+        logger.info("Handling clarification_needed — asking user for specifics")
+        return generate_clarification_response(question, chat_history)
+
+    if intent == "lawyer_request":
+        logger.info("Handling lawyer_request via dedicated handler")
         return generate_lawyer_response(question, chat_history)
 
-    elif intent == "follow_up":
-        # Rewrite query using history before passing to agent/pipeline
+    # ── RAG paths (need search) ───────────────────────────────────────────
+
+    if intent == "follow_up":
         search_query = rewrite_query(question, chat_history)
         logger.info(f"Follow-up rewritten: '{search_query[:80]}'")
     else:
+        # Both legal_query and situation_report use the original question
         search_query = question
 
-    # ── Agentic Path (LangGraph ReAct Orchestrator) ───────────────────────────
+    # Run the RAG pipeline
     if config.ENABLE_AGENTIC_RAG:
-        return _query_rag_agentic(
+        result = _query_rag_agentic(
             question=question,
             search_query=search_query,
             chat_history=chat_history,
             document_filter=document_filter,
         )
+    else:
+        result = _query_rag_linear(
+            question=question,
+            search_query=search_query,
+            chat_history=chat_history,
+            document_filter=document_filter,
+            top_k=top_k,
+            filter_metadata=filter_metadata,
+        )
 
-    # ── Linear Fallback Path (original pipeline) ──────────────────────────────
-    return _query_rag_linear(
-        question=question,
-        search_query=search_query,
-        chat_history=chat_history,
-        document_filter=document_filter,
-        top_k=top_k,
-        filter_metadata=filter_metadata,
-    )
+    # ── Post-processing for situation_report ───────────────────────────────
+    # When the user describes a personal situation, append a proactive offer
+    # to connect them with a specialist lawyer. Don't auto-show lawyer cards;
+    # wait for the user to explicitly ask (smoother, more human-like flow).
+    if intent == "situation_report":
+        result["answer"] += (
+            "\n\n---\n\n"
+            "💡 **Would you like me to recommend a lawyer who specializes in this area?** "
+            "Just let me know and I'll show you some options on our platform."
+        )
+        # Suppress auto-display of lawyer cards — user should ask first
+        result["detected_practice_areas"] = []
+        logger.info("Appended lawyer offer to situation_report response")
+
+    return result
 
 
 @traceable(name="Agentic RAG Pipeline")
