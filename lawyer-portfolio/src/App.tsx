@@ -103,7 +103,7 @@ export default function App() {
               Instant Counsel AI Research Assistant
             </h2>
             <p className="text-neutral-500 text-xs font-light leading-relaxed">
-              Experience the power of our legal counsel bot. Clients type in legal concerns, the system visualizes database reindexing steps, and outputs structural legal evaluations conforming strictly to Sri Lankan codes.
+              Experience the power of our legal counsel assistant. Clients describe their legal queries and instantly receive structured statutory guidance conforming strictly to Sri Lankan codes.
             </p>
             <div className="pt-4 border-t border-neutral-200">
               <span className="font-bold text-[#bfa37a] uppercase tracking-wider block text-[9px]">Platform Advantage</span>
@@ -331,47 +331,47 @@ export default function App() {
 
       </main>
 
-      {/* 4. Platform Tech Specs Section */}
+      {/* 4. Value Proposition and Core Features Section */}
       <section id="platform-specs" className="py-24 border-t border-neutral-200 bg-white shadow-inner">
         <div className="max-w-6xl mx-auto px-6 sm:px-12 lg:px-24 space-y-12">
           
           <div className="text-center space-y-3">
             <h3 className="text-2xl sm:text-3xl font-serif text-neutral-900 tracking-tight">
-              Robust Core Architecture
+              Value Proposition &amp; Core Value
             </h3>
             <p className="text-xs text-neutral-500 font-light max-w-xl mx-auto">
-              Behind the visual interface, our application runs a secured, modern web stack tailored to scale legal client intake operations.
+              Designed to modernise legal operations, establish digital trust, and streamline case workflow handovers.
             </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-left">
             <div className="p-6 rounded-2xl bg-neutral-50 border border-neutral-150 hover:border-[#bfa37a]/30 transition-all duration-300 space-y-3 shadow-sm">
               <div className="w-10 h-10 rounded-lg bg-white border border-neutral-200 flex items-center justify-center text-[#bfa37a] shadow-xs">
-                <Bot className="w-5 h-5" />
+                <Search className="w-5 h-5" />
               </div>
-              <h4 className="text-sm font-bold text-neutral-900">Prisma DB Registry</h4>
+              <h4 className="text-sm font-bold text-neutral-900">Verified Representation Match</h4>
               <p className="text-xs text-neutral-500 font-light leading-relaxed">
-                A structured PostgreSQL schema managing client profiles, secure bookings, reviews validation, and advocate availability tables.
+                Direct matching pipelines that connect clients with qualified, vetted advocates, reducing retention delays and consultation intake friction.
               </p>
             </div>
 
-            <div className="p-6 rounded-2xl bg-neutral-50 border border-neutral-150 hover:border-[#bfa37a]/30 transition-all duration-300 space-y-3 shadow-sm">
+            <div className="p-6 rounded-2xl bg-[#faf8f5] border border-neutral-150 hover:border-[#bfa37a]/30 transition-all duration-300 space-y-3 shadow-sm">
               <div className="w-10 h-10 rounded-lg bg-white border border-neutral-200 flex items-center justify-center text-[#bfa37a] shadow-xs">
                 <Lock className="w-5 h-5" />
               </div>
-              <h4 className="text-sm font-bold text-neutral-900">Encrypted Handshakes</h4>
+              <h4 className="text-sm font-bold text-neutral-900">Secure Retainer Escrows</h4>
               <p className="text-xs text-neutral-500 font-light leading-relaxed">
-                All client consults, video room keys, and documents are sealed via AES-256 transfers to keep communications strictly confidential.
+                Protects upfront retainer fees using a held escrow model, ensuring payment security for clients and guaranteed payment settlements for advocates.
               </p>
             </div>
 
             <div className="p-6 rounded-2xl bg-neutral-50 border border-neutral-150 hover:border-[#bfa37a]/30 transition-all duration-300 space-y-3 shadow-sm">
               <div className="w-10 h-10 rounded-lg bg-white border border-neutral-200 flex items-center justify-center text-[#bfa37a] shadow-xs">
-                <Database className="w-5 h-5" />
+                <Calendar className="w-5 h-5" />
               </div>
-              <h4 className="text-sm font-bold text-neutral-900">Intelligent Retrieval</h4>
+              <h4 className="text-sm font-bold text-neutral-900">Chambers Automation</h4>
               <p className="text-xs text-neutral-500 font-light leading-relaxed">
-                Our Counsel AI leverages a vector-db index containing Sri Lankan statutes, giving users accurate answers in a matter of seconds.
+                Simplifies client appointment bookings, scheduling reminders, and virtual intake calendar blocks to save hours of administrative overhead.
               </p>
             </div>
           </div>
