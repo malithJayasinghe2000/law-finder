@@ -1,0 +1,110 @@
+@import "tailwindcss";
+
+@theme {
+  --color-gold: #bfa37a;
+  --color-gold-light: #efeae0;
+  --color-gold-dark: #8c714b;
+  --color-gold-hover: #a68d67;
+  
+  --font-serif: "Playfair Display", Georgia, serif;
+  --font-sans: "Plus Jakarta Sans", "Inter", system-ui, sans-serif;
+}
+
+@layer utilities {
+  /* Glowing background patterns for light theme */
+  .bg-glow-radial {
+    background: radial-gradient(circle at 50% 50%, rgba(191, 163, 122, 0.06) 0%, transparent 65%);
+  }
+
+  .bg-glow-top {
+    background: radial-gradient(circle at 50% 0%, rgba(191, 163, 122, 0.1) 0%, transparent 50%);
+  }
+
+  /* Light Theme Glassmorphism overlays */
+  .glass-panel {
+    background: rgba(253, 251, 247, 0.8);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(191, 163, 122, 0.12);
+  }
+
+  .glass-panel-hover {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .glass-panel-hover:hover {
+    background: rgba(255, 255, 255, 0.95);
+    border-color: rgba(191, 163, 122, 0.35);
+    box-shadow: 0 10px 30px -10px rgba(191, 163, 122, 0.15);
+  }
+
+  .glass-panel-gold {
+    background: rgba(253, 251, 247, 0.95);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(191, 163, 122, 0.3);
+  }
+}
+
+/* Custom scrollbar adjustments for light theme */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #faf8f5;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #efeae0;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #bfa37a;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: #faf8f5;
+  color: #1c1917;
+  margin: 0;
+  padding: 0;
+}
+
+/* Custom typing cursor blinking animation */
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.typing-cursor {
+  display: inline-block;
+  width: 2px;
+  height: 1.25em;
+  background-color: #bfa37a;
+  margin-left: 2px;
+  vertical-align: middle;
+  animation: blink 1s infinite;
+}
+
+/* Vertical scrolling marquee animations for the hero section mockup */
+@keyframes scrollUp {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(-50%); }
+}
+
+@keyframes scrollDown {
+  0% { transform: translateY(-50%); }
+  100% { transform: translateY(0); }
+}
+
+.animate-marquee-vertical-up {
+  animation: scrollUp 25s linear infinite;
+}
+
+.animate-marquee-vertical-down {
+  animation: scrollDown 25s linear infinite;
+}
+
