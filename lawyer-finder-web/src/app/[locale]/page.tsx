@@ -61,7 +61,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
               </h1>
 
               <p className="text-neutral-500 text-base sm:text-lg max-w-xl font-light leading-relaxed">
-                Welcome to LawHub, where our team of experienced attorneys is dedicated to providing you with the best. Sri Lanka&apos;s leading legal SaaS platform.
+                Welcome to LawHub, Sri Lanka&apos;s comprehensive legal platform. Connect seamlessly with verified legal professionals across the island.
               </p>
 
               {/* Action Buttons & Badges */}
@@ -157,10 +157,10 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
             {/* Left */}
             <div className="space-y-8">
               <h2 className="text-3xl sm:text-4xl md:text-5xl font-serif text-white tracking-tight leading-snug">
-                The Legal Advisory Is <br /> Our Expertise
+                Legal Guidance & <br /> Professional Counsel
               </h2>
               <p className="text-neutral-400 text-sm font-light max-w-md leading-relaxed">
-                We handle a broad spectrum of legal matters with dedicated skill and strategic focus. Connecting client requirements with specialized advocates across the island.
+                We facilitate a broad spectrum of legal matters by connecting client requirements with dedicated Attorneys-at-Law across the island.
               </p>
               
               {/* Profile Block */}
@@ -194,13 +194,13 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-neutral-200 pb-8">
               <div className="space-y-3">
-                <span className="text-[10px] text-[#bfa37a] uppercase tracking-[0.2em] font-bold">Expert Panel</span>
+                <span className="text-[10px] text-[#bfa37a] uppercase tracking-[0.2em] font-bold">Verified Directory</span>
                 <h2 className="text-3xl md:text-4xl font-serif text-neutral-900">
-                  The Best Lawyers In <br /> Our House
+                  Browse Our Legal <br /> Professionals
                 </h2>
               </div>
               <p className="text-neutral-500 text-sm max-w-md font-light leading-relaxed">
-                Connect with our top-tier legal counselors, fully verified and ready to assist you.
+                Connect with our active directory of Attorneys-at-Law, fully verified by the BASL and ready to assist you.
               </p>
             </div>
 
