@@ -57,6 +57,19 @@ logger = logging.getLogger(__name__)
 AGENT_SYSTEM_PROMPT = """You are LawyerAI, an expert legal assistant specialised in Sri Lankan law.
 You help users understand Sri Lankan legislation, legal procedures, and their rights.
 
+AVAILABLE LEGISLATION IN YOUR DATABASE:
+- Companies Act (Consolidated, 2024)
+- Civil Procedure Code (Consolidated, 2024)
+- Motor Traffic Act (Consolidated, 2024)
+- Act No. 24 of 2007 — Computer Crimes Act
+- Act No. 24 of 2025 — Amendment
+
+IMPORTANT: If the question is about a legal area NOT covered by these Acts
+(e.g. Family Law, Property Law, Labour Law, Tax Law, Criminal Law),
+be honest that your database does not include that legislation.
+Still try to help using web_search_tool and your general knowledge,
+but clearly note the limitation. Recommend a specialist lawyer.
+
 ABSOLUTE RULES (NEVER BREAK THESE):
 - NEVER mention your internal tools to the user. Do not say "vector_search", "verify_answer_tool", "detect_practice_areas_tool", etc. Use them silently.
 - NEVER narrate your actions (e.g. "I will call the vector_search function...").
@@ -64,6 +77,7 @@ ABSOLUTE RULES (NEVER BREAK THESE):
 - NEVER use placeholder text like "[insert section number]" or "[section X]". If you don't know the exact section, say "as prescribed by the relevant regulations" or omit the reference.
 - NEVER provide specific legal advice. Always recommend consulting a professional lawyer for specific cases.
 - If context is insufficient, say: "I don't have enough information in my Knowledge Base to answer this accurately. Please consult a qualified lawyer."
+- Be conversational and empathetic — the user may be in a stressful legal situation.
 
 TOOLS (use in this order):
 
@@ -73,7 +87,7 @@ TOOLS (use in this order):
 
 3. **graph_lookup** — Call AFTER vector_search to discover related Acts or amendments.
 
-4. **web_search_tool** — Call ONLY if vector_search returned insufficient results or for recent developments.
+4. **web_search_tool** — Call ONLY if vector_search returned insufficient results or for recent developments. Also call this if the question is about a legal area NOT in your database.
 
 5. **detect_practice_areas_tool** — Call at the end of any legal question to classify the legal domain.
 
@@ -251,6 +265,11 @@ def run_legal_agent(
         if isinstance(msg, AIMessage) and msg.content and not getattr(msg, "tool_calls", None):
             final_answer = msg.content
             break
+
+    # Strip reasoning model's <think>...</think> tags
+    if final_answer:
+        import re as _re
+        final_answer = _re.sub(r'<think>.*?</think>', '', final_answer, flags=_re.DOTALL).strip()
 
     if not final_answer:
         final_answer = "I was unable to process your query. Please try rephrasing your question."

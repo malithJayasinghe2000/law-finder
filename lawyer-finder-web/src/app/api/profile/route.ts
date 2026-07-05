@@ -126,29 +126,26 @@ const updateLawyerProfileSchema = z.object({
   ),
   practiceAreas: z.array(z.enum(PRACTICE_AREAS as unknown as [string, ...string[]])).optional(),
   languages: z.array(z.enum(LANGUAGES as unknown as [string, ...string[]])).optional(),
-  district: z.enum(DISTRICTS as unknown as [string, ...string[]]).optional(),
+  district: z.enum(DISTRICTS as unknown as [string, ...string[]]).optional().or(z.literal('')),
   baseFeeRange: z.preprocess(
     (val) => typeof val === 'string' ? sanitizeString(val) : val,
     z.string().max(100).optional().nullable()
   ),
   contactPhone: z.preprocess(
     (val) => typeof val === 'string' ? sanitizeString(val) : val,
-    z.string().regex(/^(?:0|(?:\+94))7[0-9]{8}$/, 'Enter a valid Sri Lankan mobile number.').optional()
+    z.string().regex(/^(?:0|(?:\+94))7[0-9]{8}$/, 'Enter a valid Sri Lankan mobile number.').optional().or(z.literal(''))
   ),
   address: z.preprocess(
     (val) => typeof val === 'string' ? sanitizeString(val) : val,
-    z.string().min(10).max(300).optional()
+    z.string().min(10).max(300).optional().or(z.literal(''))
   ),
-  gender: z.enum(['MALE', 'FEMALE', '']).optional(),
+  gender: z.enum(['MALE', 'FEMALE', 'OTHER', 'Male', 'Female', 'Other', '']).optional(),
   yearsOfExperience: z.preprocess(
     (val) => val === '' ? undefined : val,
     z.coerce.number().int().min(0).max(70).optional()
   ),
-  practiceType: z.enum(['Independent', 'Law Firm']).optional(),
-  courts: z.preprocess(
-    (val) => typeof val === 'string' ? sanitizeString(val) : val,
-    z.string().optional()
-  ),
+  practiceType: z.enum(['Independent', 'Law Firm', '']).optional(),
+  courts: z.array(z.string()).optional(),
   isNotary: z.boolean().optional(),
   onlineMeetingLink: z.preprocess(
     (val) => typeof val === 'string' ? sanitizeString(val) : val,

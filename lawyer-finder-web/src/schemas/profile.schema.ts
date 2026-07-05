@@ -7,6 +7,7 @@ export const PRACTICE_AREAS = [
   'Property Law',
   'Labor Law',
   'Corporate Law',
+  'Commercial Law',
   'Civil Law',
   'Constitutional Law',
   'Tax Law',
