@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, useInView } from 'framer-motion';
-import { 
-  Sparkles, ChevronDown, ChevronUp, 
+import {
+  Sparkles, ChevronDown, ChevronUp,
   Database, CheckCircle, Search, Paperclip, Mic
 } from 'lucide-react';
 import MockHeader from '../MockHeader';
@@ -19,7 +19,7 @@ export default function AIChatShowcase() {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const clientMsg = "Can my landlord evict me without notice in Colombo if I refuse a 50% rent increase?";
-  
+
   const fullAIResponse = `**Sri Lankan Rent Act No. 7 of 1972 Guidelines:**
 
 1. **Rent Increases:** Landlords cannot arbitrarily increase rent by 50%. Any rent increase must conform to the "authorized rent" guidelines or be approved by the local Rent Board.
@@ -33,7 +33,7 @@ export default function AIChatShowcase() {
 
   useEffect(() => {
     if (!isInView) return;
-    
+
     let active = true;
     setIsTyping(false);
     setClientInput('');
@@ -78,12 +78,12 @@ export default function AIChatShowcase() {
         if (!active) return;
         currentText += (i === 0 ? '' : ' ') + words[i];
         setStreamedText(currentText);
-        
+
         // Auto scroll to bottom
         if (scrollRef.current) {
           scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
         }
-        
+
         await new Promise(r => setTimeout(r, 30));
       }
     };
@@ -100,30 +100,43 @@ export default function AIChatShowcase() {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [showThoughts, thoughtState, showResponse]);
+  }, [showThoughts, thoughtState, showResponse, streamedText]);
+
+  const formatMarkdown = (text: string) => {
+    const parts = text.split(/(\*\*.*?\*\*|\*.*?\*)/g);
+    return parts.map((part, index) => {
+      if (part.startsWith('**') && part.endsWith('**')) {
+        return <strong key={index} className="font-bold text-neutral-900">{part.slice(2, -2)}</strong>;
+      }
+      if (part.startsWith('*') && part.endsWith('*')) {
+        return <em key={index} className="italic text-[#bfa37a] font-medium">{part.slice(1, -1)}</em>;
+      }
+      return part;
+    });
+  };
 
   return (
-    <div 
+    <div
       ref={containerRef}
       className="w-full bg-[#faf8f5] rounded-xl overflow-hidden border border-neutral-200 text-left font-sans text-neutral-800 flex flex-col shadow-lg select-none"
     >
-      
+
       {/* Navigation Header */}
       <MockHeader activeTab="AI CHAT" />
 
       {/* Main split page content */}
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-0 flex-grow h-[520px]">
-        
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-0 flex-grow h-[520px] overflow-hidden">
+
         {/* LEFT COLUMN: Chat sidebar */}
-        <div className="md:col-span-3 bg-white border-r border-neutral-150 p-4 flex flex-col justify-between hidden md:flex h-full">
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
+        <div className="md:col-span-3 bg-white border-r border-neutral-150 p-4 flex flex-col justify-between hidden md:flex h-full overflow-hidden">
+          <div className="space-y-4 flex flex-col h-full overflow-hidden">
+            <div className="flex items-center justify-between shrink-0">
               <span className="text-[11px] font-bold text-neutral-800 tracking-wider">CHAT</span>
               <div className="relative w-32">
-                <input 
-                  type="text" 
-                  readOnly 
-                  placeholder="Search..." 
+                <input
+                  type="text"
+                  readOnly
+                  placeholder="Search..."
                   className="w-full bg-neutral-50 border border-neutral-200 rounded px-2.5 py-1 text-[10px] pr-6 focus:outline-none"
                 />
                 <Search className="w-3.5 h-3.5 text-neutral-400 absolute right-2 top-2" />
@@ -131,31 +144,47 @@ export default function AIChatShowcase() {
             </div>
 
             {/* New Chat Button */}
-            <button className="w-full bg-[#0d0d0f] hover:bg-neutral-850 text-white rounded-none py-2.5 px-4 text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2">
+            <button className="w-full bg-[#0d0d0f] hover:bg-neutral-850 text-white rounded-none py-2.5 px-4 text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 shrink-0">
               <Sparkles className="w-3.5 h-3.5 text-gold" />
               <span>NEW CHAT</span>
             </button>
 
-            {/* Conversation list status */}
-            <div className="pt-10 text-center">
-              <span className="text-[9px] font-bold uppercase tracking-wider text-neutral-400">
-                No Conversations Yet
-              </span>
+            {/* Conversation list */}
+            <div className="flex-1 overflow-y-auto space-y-1 pr-1 mt-2">
+              {[
+                { id: 'conv-1', title: 'Landlord Rent Eviction', active: true },
+                { id: 'conv-2', title: 'Lease Agreement Review', active: false },
+                { id: 'conv-3', title: 'Company Incorporation', active: false }
+              ].map((conv) => (
+                <div
+                  key={conv.id}
+                  className={`p-2 text-[10px] font-semibold cursor-pointer transition-all flex items-center justify-between border ${conv.active
+                      ? 'bg-neutral-50 border-[#bfa37a] text-neutral-900 shadow-xs'
+                      : 'border-transparent text-neutral-500 hover:bg-neutral-50/50 hover:text-neutral-800'
+                    }`}
+                >
+                  <span className="truncate pr-2">{conv.title}</span>
+                  <span className={`text-[7px] px-1 py-0.2 font-mono uppercase tracking-wider shrink-0 border ${conv.active ? 'bg-green-50 border-green-200 text-green-700' : 'bg-neutral-100 border-neutral-200 text-neutral-400'
+                    }`}>
+                    {conv.active ? 'Active' : 'Closed'}
+                  </span>
+                </div>
+              ))}
             </div>
           </div>
 
-          <div className="text-[9px] text-neutral-450 font-bold uppercase tracking-widest text-center pt-4 border-t border-neutral-100">
+          <div className="text-[9px] text-neutral-450 font-bold uppercase tracking-widest text-center pt-4 border-t border-neutral-100 shrink-0">
             AI Legal Assistant
           </div>
         </div>
 
         {/* CENTER/MAIN PANEL: Chat Interface Container */}
-        <div className="md:col-span-9 bg-[#fdfcfb] flex flex-col justify-between relative h-full">
-          
+        <div className="md:col-span-9 bg-[#fdfcfb] flex flex-col justify-between relative h-full overflow-hidden">
+
           {/* Scrollable messages thread */}
-          <div 
+          <div
             ref={scrollRef}
-            className="flex-1 overflow-y-auto p-6 space-y-6 pb-28 scroll-smooth"
+            className="flex-1 overflow-y-auto p-6 space-y-6 scroll-smooth pb-12"
           >
             {/* Greeting Hero Banner */}
             {streamedText.length === 0 && (
@@ -195,7 +224,7 @@ export default function AIChatShowcase() {
                     <Database className="w-3.5 h-3.5 text-[#bfa37a] animate-pulse" />
                     {thoughtState === 'searching' ? 'Counsel AI is thinking...' : 'Thought process complete (4.4s)'}
                   </span>
-                  <button 
+                  <button
                     onClick={() => setShowThoughts(!showThoughts)}
                     className="text-neutral-450 hover:text-neutral-950 focus:outline-none"
                   >
@@ -205,7 +234,7 @@ export default function AIChatShowcase() {
 
                 <AnimatePresence>
                   {showThoughts && (
-                    <motion.div 
+                    <motion.div
                       initial={{ height: 0, opacity: 0 }}
                       animate={{ height: 'auto', opacity: 1 }}
                       exit={{ height: 0, opacity: 0 }}
@@ -237,49 +266,114 @@ export default function AIChatShowcase() {
                 className="flex justify-start"
               >
                 <div className="max-w-[85%] bg-[#fdfbf7] text-neutral-800 border border-[#efeae0] rounded-xl rounded-tl-none p-5 shadow-[0_4px_12px_rgba(0,0,0,0.02)] text-xs font-light leading-relaxed whitespace-pre-line">
-                  {streamedText}
+                  {formatMarkdown(streamedText)}
                   {streamedText.length < fullAIResponse.length && <span className="typing-cursor"></span>}
+                </div>
+              </motion.div>
+            )}
+
+            {/* Recommended Legal Counsel */}
+            {showResponse && streamedText.length === fullAIResponse.length && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.5 }}
+                className="mt-1.5 border border-[#efeae0] bg-white shadow-sm text-left max-w-[85%] ml-0 rounded-xl overflow-hidden"
+              >
+                <div className="px-4 py-2.5 bg-[#fdfcfb] border-b border-[#efeae0]">
+                  <h4 className="text-[9px] font-bold uppercase tracking-widest text-[#bfa37a]">
+                    Recommended Legal Counsel
+                  </h4>
+                </div>
+                <div className="divide-y divide-neutral-100">
+                  {[
+                    {
+                      id: 'dir-1',
+                      fullName: 'Dr. Lakmal Perera',
+                      practiceAreas: ['Family Law', 'Tenancy Disputes'],
+                      district: 'Colombo',
+                      avgRating: 4.9,
+                      profileImageUrl: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=400&h=500&q=80'
+                    },
+                    {
+                      id: 'dir-4',
+                      fullName: 'Priyantha Fernando',
+                      practiceAreas: ['Civil Litigation', 'Property Disputes'],
+                      district: 'Galle',
+                      avgRating: 4.9,
+                      profileImageUrl: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=400&h=500&q=80'
+                    }
+                  ].map((lawyer) => (
+                    <div key={lawyer.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 py-3 hover:bg-[#faf8f6]/50 transition-colors">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center bg-neutral-100 overflow-hidden border border-neutral-200/60 rounded-full">
+                          <img src={lawyer.profileImageUrl} alt={lawyer.fullName} className="h-full w-full object-cover" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-xs font-serif font-bold text-neutral-900 truncate">{lawyer.fullName}</p>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <span className="flex items-center gap-0.5 text-[8.5px] text-amber-500 font-bold bg-amber-50 px-1 py-0.5 rounded">
+                              ★ {lawyer.avgRating.toFixed(1)}
+                            </span>
+                            <span className="text-[8.5px] text-neutral-400 uppercase tracking-widest font-bold">{lawyer.district}</span>
+                          </div>
+                          <div className="flex flex-wrap gap-1 mt-1.5">
+                            {lawyer.practiceAreas.map((area, i) => (
+                              <span key={i} className="text-[7px] bg-neutral-100 text-neutral-500 px-1.5 py-0.5 font-bold uppercase tracking-wider rounded">
+                                {area}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                      <button
+                        className="w-full sm:w-auto shrink-0 flex items-center justify-center gap-1.5 px-3 py-1.5 bg-[#bfa37a] text-white text-[8px] font-bold uppercase tracking-widest hover:bg-[#a68d67] transition-colors"
+                      >
+                        Profile <Search className="h-2.5 w-2.5" />
+                      </button>
+                    </div>
+                  ))}
                 </div>
               </motion.div>
             )}
           </div>
 
-          {/* Sticky Floating input box at bottom */}
-          <div className="absolute bottom-4 left-6 right-6 space-y-1.5 bg-transparent z-20">
-            <div className="bg-white border border-neutral-200 rounded-2xl p-3 shadow-md flex flex-col gap-2">
-              <input 
-                type="text" 
+          {/* Sticky input box at bottom (Fits inside the flex flow!) */}
+          <div className="p-4 bg-white border-t border-neutral-150 space-y-1.5 shrink-0 z-20">
+            <div className="bg-[#faf8f6] border border-neutral-200 rounded-xl p-3 flex flex-col gap-2">
+              <input
+                type="text"
                 readOnly
                 placeholder="Ask about Sri Lankan law..."
                 value={clientInput}
-                className="w-full bg-transparent text-xs text-neutral-800 placeholder-neutral-400 focus:outline-none"
+                className="w-full bg-transparent text-xs text-neutral-805 placeholder-neutral-405 focus:outline-none"
               />
-              
+
               <div className="flex items-center justify-between pt-2 border-t border-neutral-100">
                 <div className="flex items-center gap-1.5">
-                  <span className="text-[9px] font-bold text-neutral-500 border border-neutral-200 rounded bg-neutral-55 px-2 py-0.5 flex items-center gap-1 cursor-pointer">
+                  <span className="text-[9px] font-bold text-neutral-500 border border-neutral-200 rounded bg-white px-2 py-0.5 flex items-center gap-1 cursor-pointer">
                     All DB <ChevronDown className="w-2.5 h-2.5" />
                   </span>
-                  
-                  <span className="text-[9px] font-bold text-neutral-500 border border-neutral-200 rounded bg-neutral-55 px-2 py-0.5 flex items-center gap-1 cursor-pointer">
-                    <Paperclip className="w-3 h-3 text-neutral-400" /> Attach
+
+                  <span className="text-[9px] font-bold text-neutral-500 border border-neutral-200 rounded bg-white px-2 py-0.5 flex items-center gap-1 cursor-pointer">
+                    <Paperclip className="w-3 h-3 text-neutral-450" /> <span className="hidden sm:inline">Attach</span>
                   </span>
-                  
-                  <span className="text-[9px] font-bold text-neutral-500 border border-neutral-200 rounded bg-neutral-55 px-2 py-0.5 flex items-center gap-1 cursor-pointer">
-                    <Mic className="w-3 h-3 text-neutral-400" /> Voice
+
+                  <span className="text-[9px] font-bold text-[#bfa37a] border border-[#efeae0] rounded bg-[#faf6f0] px-2 py-0.5 flex items-center gap-1 cursor-pointer">
+                    <Mic className="w-3 h-3 text-[#bfa37a]" /> <span className="hidden sm:inline">Voice</span>
                   </span>
                 </div>
 
-                <button 
+                <button
                   disabled
-                  className="bg-[#bfa37a] text-white text-[9px] font-bold uppercase tracking-wider px-3 py-1.5 rounded-lg flex items-center gap-1"
+                  className="bg-[#bfa37a] text-white text-[9px] font-bold uppercase tracking-wider px-3 py-1.5 rounded flex items-center gap-1 cursor-not-allowed"
                 >
                   <span>SEND</span>
                 </button>
               </div>
             </div>
 
-            <div className="text-[8px] text-neutral-455 font-bold uppercase tracking-widest text-center">
+            <div className="text-[8px] text-[#bfa37a] font-bold uppercase tracking-widest text-center mt-1">
               POWERED BY SRI LANKAN LEGAL DATABASE &amp; WEB SEARCH
             </div>
           </div>

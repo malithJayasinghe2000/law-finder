@@ -113,12 +113,12 @@ export default function WithdrawalShowcase() {
       <div className="grid grid-cols-1 md:grid-cols-12 gap-0 flex-grow min-h-[500px]">
         
         {/* LEFT COLUMN: Sidebar */}
-        <div className="md:col-span-3">
+        <div className="hidden md:block md:col-span-3">
           <MockDashboardSidebar activeTab="Earnings & Payouts" />
         </div>
 
         {/* RIGHT COLUMN: Ledger Accounts & payouts list */}
-        <div className="md:col-span-9 p-6 bg-neutral-50 space-y-6 max-h-[520px] overflow-y-auto">
+        <div className="col-span-1 md:col-span-9 p-6 bg-neutral-50 space-y-6 max-h-[520px] overflow-y-auto">
           
           <div className="flex items-center justify-between border-b border-neutral-200 pb-3">
             <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest">Earnings &amp; Payouts Ledger</span>

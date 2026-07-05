@@ -81,12 +81,12 @@ export default function AdPlacementShowcase() {
       <div className="grid grid-cols-1 md:grid-cols-12 gap-0 flex-grow min-h-[500px]">
         
         {/* LEFT COLUMN: Sidebar */}
-        <div className="md:col-span-3">
+        <div className="hidden md:block md:col-span-3">
           <MockDashboardSidebar activeTab="My Ads" />
         </div>
 
         {/* RIGHT COLUMN: Campaign placement zones & homepage wireframe */}
-        <div className="md:col-span-9 p-6 grid grid-cols-1 sm:grid-cols-12 gap-6 bg-neutral-50 max-h-[520px] overflow-y-auto">
+        <div className="col-span-1 md:col-span-9 p-6 grid grid-cols-1 sm:grid-cols-12 gap-6 bg-neutral-50 max-h-[520px] overflow-y-auto">
           
           {/* Ad slots checklist (Left half) */}
           <div className="sm:col-span-7 space-y-4">

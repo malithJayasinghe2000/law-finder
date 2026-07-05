@@ -271,21 +271,21 @@ export default function BlogShowcase() {
           </div>
 
           {/* Stats Bar */}
-          <div className="flex gap-6 border-t sm:border-t-0 sm:border-l border-[#efeae0] pt-4 sm:pt-0 sm:pl-6 shrink-0 w-full sm:w-auto">
-            <div className="text-center space-y-0.5 min-w-[60px]">
+          <div className="grid grid-cols-3 gap-2 w-full mt-4 border-t border-[#efeae0] pt-4 sm:mt-0 sm:pt-0 sm:border-t-0 sm:border-l sm:pl-6 sm:flex sm:gap-6 sm:w-auto shrink-0">
+            <div className="text-center space-y-0.5 min-w-0 sm:min-w-[60px]">
               <Users className="h-4 w-4 text-[#bfa37a] mx-auto mb-1 stroke-[1.5]" />
-              <div className="text-base font-serif font-bold text-neutral-900">1,240</div>
-              <div className="text-[8px] text-neutral-400 font-bold uppercase tracking-widest">Members</div>
+              <div className="text-sm sm:text-base font-serif font-bold text-neutral-900">1,240</div>
+              <div className="text-[8px] text-neutral-400 font-bold uppercase tracking-widest truncate">Members</div>
             </div>
-            <div className="text-center space-y-0.5 min-w-[60px]">
+            <div className="text-center space-y-0.5 min-w-0 sm:min-w-[60px]">
               <BookOpen className="h-4 w-4 text-[#bfa37a] mx-auto mb-1 stroke-[1.5]" />
-              <div className="text-base font-serif font-bold text-neutral-900">{postsCount}</div>
-              <div className="text-[8px] text-neutral-400 font-bold uppercase tracking-widest">Posts</div>
+              <div className="text-sm sm:text-base font-serif font-bold text-neutral-900">{postsCount}</div>
+              <div className="text-[8px] text-neutral-400 font-bold uppercase tracking-widest truncate">Posts</div>
             </div>
-            <div className="text-center space-y-0.5 min-w-[60px]">
+            <div className="text-center space-y-0.5 min-w-0 sm:min-w-[60px]">
               <Briefcase className="h-4 w-4 text-[#bfa37a] mx-auto mb-1 stroke-[1.5]" />
-              <div className="text-base font-serif font-bold text-neutral-900">8</div>
-              <div className="text-[8px] text-neutral-400 font-bold uppercase tracking-widest">topics</div>
+              <div className="text-sm sm:text-base font-serif font-bold text-neutral-900">8</div>
+              <div className="text-[8px] text-neutral-400 font-bold uppercase tracking-widest truncate">topics</div>
             </div>
           </div>
         </div>
@@ -316,7 +316,7 @@ export default function BlogShowcase() {
                     }`}
                   >
                     {/* Vote Column */}
-                    <div className="flex flex-col items-center justify-start py-4 px-3 bg-[#faf8f6] border-r border-[#efeae0]/80 shrink-0">
+                    <div className="flex flex-col items-center justify-start py-4 px-2 sm:px-3 bg-[#faf8f6] border-r border-[#efeae0]/80 shrink-0">
                       <button 
                         onClick={() => handleVote(post.id, 'UPVOTE')}
                         className={`p-1 rounded hover:bg-neutral-200 transition-colors ${hasVotedUp ? 'text-[#bfa37a]' : 'text-neutral-400'}`}
@@ -335,20 +335,20 @@ export default function BlogShowcase() {
                     </div>
 
                     {/* Content Column */}
-                    <div className="flex-1 p-4 sm:p-5 text-left min-w-0">
+                    <div className="flex-1 p-3 sm:p-5 text-left min-w-0">
                       {/* Meta information row */}
                       <div className="flex flex-wrap items-center gap-1.5 text-[9px] text-neutral-450 mb-2 font-light">
-                        <span className="font-bold text-[#bfa37a] uppercase tracking-widest">
+                        <span className="font-bold text-[#bfa37a] uppercase tracking-widest shrink-0">
                           {post.category}
                         </span>
-                        <span>•</span>
-                        <span className="flex items-center gap-1">
-                          Posted by{' '}
-                          <span className="font-semibold text-neutral-700">{post.author}</span>
+                        <span className="shrink-0">•</span>
+                        <span className="flex items-center gap-1 flex-wrap">
+                          <span className="shrink-0">Posted by</span>
+                          <span className="font-semibold text-neutral-700 whitespace-nowrap">{post.author}</span>
                           {post.isVerified && (
-                            <ShieldCheck className="h-3 w-3 text-[#bfa37a] fill-[#bfa37a]/10" />
+                            <ShieldCheck className="h-3 w-3 text-[#bfa37a] fill-[#bfa37a]/10 shrink-0" />
                           )}
-                          <span className={`text-[7px] font-bold uppercase tracking-widest px-1.5 py-0.5 border ${
+                          <span className={`text-[7px] font-bold uppercase tracking-widest px-1.5 py-0.5 border shrink-0 ${
                             post.role === 'Lawyer' 
                               ? 'text-[#bfa37a] bg-[#bfa37a]/5 border-[#bfa37a]/15' 
                               : 'text-neutral-500 bg-neutral-100 border-neutral-200'
@@ -356,8 +356,8 @@ export default function BlogShowcase() {
                             {post.role}
                           </span>
                         </span>
-                        <span>•</span>
-                        <span className="flex items-center gap-1 font-semibold uppercase tracking-widest text-[8px]">
+                        <span className="shrink-0">•</span>
+                        <span className="flex items-center gap-1 font-semibold uppercase tracking-widest text-[8px] shrink-0">
                           <Clock className="h-2.5 w-2.5" /> {post.date}
                         </span>
                       </div>
@@ -373,16 +373,16 @@ export default function BlogShowcase() {
                       </p>
 
                       {/* Actions Bar */}
-                      <div className="flex items-center gap-3.5 text-[9px] font-bold uppercase tracking-widest text-neutral-450">
-                        <div className="flex items-center gap-1 py-1 px-2 bg-neutral-50 border border-transparent">
-                          <MessageCircle className="h-3 w-3" />
-                          <span>{post.commentCount} Comments</span>
+                      <div className="flex flex-wrap items-center gap-2 sm:gap-3.5 text-[9px] font-bold uppercase tracking-widest text-neutral-450">
+                        <div className="flex items-center gap-1 py-1 px-2 bg-neutral-50 border border-transparent shrink-0">
+                          <MessageCircle className="h-3 w-3 text-neutral-400" />
+                          <span>{post.commentCount}<span className="hidden sm:inline"> Comments</span></span>
                         </div>
-                        <div className="flex items-center gap-1 py-1 px-2 bg-neutral-50 border border-transparent">
-                          <Eye className="h-3 w-3" />
-                          <span>{post.viewCount} Views</span>
+                        <div className="flex items-center gap-1 py-1 px-2 bg-neutral-50 border border-transparent shrink-0">
+                          <Eye className="h-3 w-3 text-neutral-400" />
+                          <span>{post.viewCount}<span className="hidden sm:inline"> Views</span></span>
                         </div>
-                        <span className="text-[8px] border border-neutral-200 px-2 py-0.5 text-neutral-400 bg-neutral-50 ml-auto font-bold uppercase">
+                        <span className="text-[8px] border border-neutral-200 px-2 py-0.5 text-neutral-400 bg-neutral-50 ml-auto font-bold uppercase shrink-0">
                           English
                         </span>
                       </div>
@@ -497,7 +497,7 @@ export default function BlogShowcase() {
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="absolute inset-x-6 top-24 bottom-24 sm:inset-x-12 sm:top-24 sm:bottom-24 bg-white border border-[#efeae0] shadow-2xl z-50 p-5 sm:p-6 flex flex-col justify-between"
+              className="absolute inset-x-3 top-8 bottom-8 sm:inset-x-12 sm:top-24 sm:bottom-24 bg-white border border-[#efeae0] shadow-2xl z-50 p-4 sm:p-6 flex flex-col justify-between"
             >
               <div className="space-y-4 flex-1 overflow-y-auto">
                 <div className="flex justify-between items-center border-b border-neutral-100 pb-3">

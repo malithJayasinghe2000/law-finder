@@ -11,7 +11,7 @@ export default function MockDashboardSidebar({ activeTab }: MockDashboardSidebar
   const isConsultationsActive = activeTab === 'Bookings' || activeTab === 'Earnings & Payouts';
 
   return (
-    <div className="w-full bg-[#fbf9f6] h-full border-r border-[#efeae0] flex flex-col font-sans select-none text-neutral-850">
+    <div className="hidden md:flex w-full bg-[#fbf9f6] h-full border-r border-[#efeae0] flex-col font-sans select-none text-neutral-850">
       
       {/* Sidebar Header */}
       <div className="h-20 flex flex-col justify-center px-6 border-b border-[#efeae0]">

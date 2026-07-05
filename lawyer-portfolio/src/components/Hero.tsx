@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { 
-  ShieldCheck, Sparkles, Scale, Users, 
-  Bot, MessageSquare, Search, Landmark 
+  ShieldCheck, Bot, MessageSquare, Search, Landmark 
 } from 'lucide-react';
 
 interface HeroProps {
@@ -213,10 +212,16 @@ export default function Hero({ onExploreFeatures }: HeroProps) {
                     {/* Action buttons & Reviews */}
                     <div className="flex flex-wrap items-center gap-4 pt-1">
                       <div className="flex gap-2">
-                        <button className="bg-[#bfa37a] text-white text-[9px] font-bold uppercase tracking-wider px-4 py-2 border border-[#bfa37a]">
+                        <button 
+                          onClick={onExploreFeatures}
+                          className="bg-[#bfa37a] text-white text-[9px] font-bold uppercase tracking-wider px-4 py-2 border border-[#bfa37a] cursor-pointer"
+                        >
                           Find Lawyers
                         </button>
-                        <button className="border border-[#bfa37a] text-[#bfa37a] text-[9px] font-bold uppercase tracking-wider px-4 py-2">
+                        <button 
+                          onClick={onExploreFeatures}
+                          className="border border-[#bfa37a] text-[#bfa37a] text-[9px] font-bold uppercase tracking-wider px-4 py-2 cursor-pointer"
+                        >
                           Chat AI
                         </button>
                       </div>

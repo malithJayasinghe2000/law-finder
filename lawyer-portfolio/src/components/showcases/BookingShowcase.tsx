@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, useInView } from 'framer-motion';
 import { 
-  CalendarDays, Clock, MapPin, Video, User, CheckCircle, 
+  CalendarDays, Clock, User, CheckCircle, 
   XCircle, Eye, RefreshCw, ChevronLeft, ChevronRight, X
 } from 'lucide-react';
 import MockDashboardSidebar from '../MockDashboardSidebar';
@@ -261,12 +261,12 @@ export default function BookingShowcase() {
       <div className="grid grid-cols-1 md:grid-cols-12 gap-0 flex-grow min-h-[500px]">
         
         {/* LEFT COLUMN: Sidebar */}
-        <div className="md:col-span-3">
+        <div className="hidden md:block md:col-span-3">
           <MockDashboardSidebar activeTab="Bookings" />
         </div>
 
         {/* RIGHT COLUMN: Bookings manager */}
-        <div className="md:col-span-9 p-4 bg-neutral-50 flex flex-col gap-4 max-h-[520px] overflow-y-auto">
+        <div className="col-span-1 md:col-span-9 p-4 bg-neutral-50 flex flex-col gap-4 max-h-[520px] overflow-y-auto">
           
           {/* Header section matching exact dashboard style */}
           <div className="flex items-center justify-between border-b border-neutral-250 pb-3">
@@ -294,7 +294,7 @@ export default function BookingShowcase() {
           </div>
 
           {/* Status Tabs */}
-          <div className="flex gap-1 border-b border-neutral-200 shrink-0">
+          <div className="flex gap-1 border-b border-neutral-200 shrink-0 overflow-x-auto scrollbar-none whitespace-nowrap">
             {['All', 'CONFIRMED', 'PENDING_PAYMENT', 'COMPLETED'].map((tabValue) => {
               const label = tabValue === 'All' ? 'All' : tabValue === 'CONFIRMED' ? 'Upcoming' : tabValue === 'PENDING_PAYMENT' ? 'Pending' : 'Completed';
               const isActive = activeTab === tabValue || (tabValue === 'All' && activeTab === '');
@@ -302,7 +302,7 @@ export default function BookingShowcase() {
                 <button
                   key={tabValue}
                   onClick={() => setActiveTab(tabValue)}
-                  className={`px-3 py-2 text-[9px] font-bold uppercase tracking-wider transition-colors border-b-2 -mb-px ${
+                  className={`px-3 py-2 text-[9px] font-bold uppercase tracking-wider transition-colors border-b-2 -mb-px shrink-0 ${
                     isActive 
                       ? 'border-[#0a0a0a] text-neutral-900' 
                       : 'border-transparent text-neutral-400 hover:text-neutral-600'
@@ -371,7 +371,7 @@ export default function BookingShowcase() {
                             </div>
 
                             {/* Subject */}
-                            <h3 className="text-xs font-bold text-neutral-900 truncate leading-snug">
+                            <h3 className="text-xs font-bold text-neutral-900 whitespace-normal break-words line-clamp-2 leading-snug">
                               {booking.subject}
                             </h3>
 
@@ -394,10 +394,7 @@ export default function BookingShowcase() {
 
                           {/* Right fees parameters and action triggers */}
                           <div className="text-left sm:text-right shrink-0">
-                            <p className="text-sm font-bold text-neutral-900 leading-none">
-                              Rs. {booking.lawyerFee.toLocaleString('en-US')}
-                            </p>
-                            <p className="text-[8px] text-neutral-400 font-bold uppercase tracking-wider mt-0.5">Your fee</p>
+                            {/* Fee display removed */}
 
                             <div className="flex gap-1 mt-2.5 flex-wrap sm:justify-end">
                               {booking.status === 'PENDING_PAYMENT' && (
@@ -618,10 +615,7 @@ export default function BookingShowcase() {
                     {selectedBooking.mode === 'PHYSICAL' ? 'Physical' : 'Online'}
                   </span>
                 </div>
-                <div>
-                  <p className="text-neutral-400 text-[10px] uppercase font-bold tracking-wider">Lawyer Fee</p>
-                  <p className="font-bold text-neutral-900 mt-0.5">Rs. {selectedBooking.lawyerFee.toLocaleString('en-US')}</p>
-                </div>
+                {/* Fee display removed */}
               </div>
               
               <div className="pt-3 border-t border-neutral-100">

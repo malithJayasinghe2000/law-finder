@@ -307,18 +307,18 @@ export default function ChatLawyerShowcase() {
           {/* Input block (Static placeholder at bottom) */}
           <div className="absolute bottom-4 left-4 right-4 bg-transparent z-20">
             <div className="bg-white border border-neutral-200 rounded-xl p-2 shadow-md flex items-center gap-2">
-              <button className="p-2 bg-neutral-55 border border-neutral-200 rounded-lg text-neutral-450">
+              <button className="p-2 bg-neutral-50 border border-neutral-200 rounded-lg text-neutral-400 shrink-0">
                 <Paperclip className="w-3.5 h-3.5" />
               </button>
               
               <input 
                 type="text" 
                 readOnly 
-                placeholder="Type message to chambers..." 
-                className="flex-1 bg-transparent text-xs text-neutral-800 placeholder-neutral-400 focus:outline-none px-2"
+                placeholder="Type message..." 
+                className="flex-1 bg-transparent text-xs text-neutral-800 placeholder-neutral-400 focus:outline-none px-2 min-w-0"
               />
 
-              <button className="p-2 bg-[#bfa37a] text-white rounded-lg">
+              <button className="p-2 bg-[#bfa37a] text-white rounded-lg shrink-0">
                 <Send className="w-3.5 h-3.5" />
               </button>
             </div>
@@ -338,8 +338,8 @@ export default function ChatLawyerShowcase() {
 
             <div className="pt-2 border-t border-neutral-100 space-y-1.5 text-[10px]">
               <div className="flex justify-between items-center text-neutral-550">
-                <span>Intake Deposit:</span>
-                <span className="font-bold text-neutral-850">LKR 12,000.00</span>
+                <span>Booking Status:</span>
+                <span className="font-bold text-neutral-850">Confirmed Slot</span>
               </div>
               <div className="flex justify-between items-center text-neutral-550">
                 <span>Escrow Trust:</span>
