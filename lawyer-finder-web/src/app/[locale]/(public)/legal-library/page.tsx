@@ -169,70 +169,27 @@ export default function LegalLibraryPage() {
 
       {/* 2. Main Content Grid */}
       <section className="bg-neutral-50/30 py-16 px-6 lg:px-12 xl:px-24">
-        <div className="max-w-[1200px] mx-auto space-y-12">
+        <div className="max-w-[1400px] mx-auto grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-10">
           
-          {/* Categories Grid */}
-          <div className="space-y-6">
-            <div className="border-b border-neutral-200 pb-4">
-              <span className="text-[10px] text-[#bfa37a] uppercase tracking-[0.2em] font-bold">Classifications</span>
-              <h2 className="text-2xl font-serif text-neutral-900 mt-1">Browse by Category</h2>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {categories.map((cat) => {
-                const Icon = CATEGORY_ICONS[cat.value] || FileText;
-                const colors = CATEGORY_COLORS[cat.value] || CATEGORY_COLORS['ACTS_AND_ORDINANCES'];
-                const isActive = selectedCategory === cat.value;
-
-                return (
-                  <button
-                    key={cat.value}
-                    onClick={() => handleCategoryClick(cat.value)}
-                    className={`group text-left p-6 bg-white border hover:shadow-xl transition-all duration-500 hover:-translate-y-1 flex flex-col justify-between h-40 ${
-                      isActive 
-                        ? 'border-[#bfa37a] bg-[#faf6f0]/20 shadow-[0_10px_30px_rgba(191,163,122,0.15)]' 
-                        : 'border-neutral-200/60'
-                    }`}
-                  >
-                    <div className="flex items-start justify-between w-full">
-                      <div className={`p-3 transition-colors duration-300 ${isActive ? 'bg-[#bfa37a] text-white' : 'bg-[#faf6f0] text-[#bfa37a]'}`}>
-                        <Icon className="w-5 h-5 stroke-[1.5]" />
-                      </div>
-                      <span className="text-3xl font-serif font-light text-neutral-300 group-hover:text-[#bfa37a] transition-colors">
-                        {cat.count}
-                      </span>
-                    </div>
-
-                    <div className="space-y-1">
-                      <h3 className="text-xs font-serif font-bold text-neutral-900 uppercase tracking-wider line-clamp-1">{cat.label}</h3>
-                      <p className="text-[11px] text-neutral-400 font-light">
-                        {cat.count} document{cat.count !== 1 ? 's' : ''} available
-                      </p>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Active Filter Badge */}
-          {selectedCategory && (
-            <div className="flex items-center gap-2">
-              <Filter className="w-3.5 h-3.5 text-neutral-500" />
-              <span className="text-xs text-neutral-500 font-bold uppercase tracking-wider">Filtered by:</span>
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-[#faf6f0] text-[#bfa37a] text-xs font-bold uppercase tracking-widest border border-[#bfa37a]/20">
-                {categories.find(c => c.value === selectedCategory)?.label}
-                <button onClick={() => setSelectedCategory('')} className="hover:text-[#a68d67] ml-1">
-                  <X className="w-3 h-3" />
-                </button>
-              </span>
-            </div>
-          )}
-
-          {/* Documents Grid */}
+          {/* Left Column: Documents Feed */}
           <div className="space-y-8">
+            {/* Active Filter Badge */}
+            {selectedCategory && (
+              <div className="flex items-center gap-2 mb-2">
+                <Filter className="w-3.5 h-3.5 text-neutral-500" />
+                <span className="text-xs text-neutral-500 font-bold uppercase tracking-wider">Filtered by:</span>
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-[#faf6f0] text-[#bfa37a] text-xs font-bold uppercase tracking-widest border border-[#bfa37a]/20">
+                  {categories.find(c => c.value === selectedCategory)?.label}
+                  <button onClick={() => setSelectedCategory('')} className="hover:text-[#a68d67] ml-1">
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              </div>
+            )}
+
+            {/* Documents Grid */}
             {loading ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 {[...Array(6)].map((_, i) => (
                   <div key={i} className="h-56 bg-white border border-neutral-100 animate-pulse" />
                 ))}
@@ -247,7 +204,7 @@ export default function LegalLibraryPage() {
               </div>
             ) : (
               <>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   {documents.map((doc) => {
                     const colors = CATEGORY_COLORS[doc.category] || CATEGORY_COLORS['ACTS_AND_ORDINANCES'];
                     const Icon = CATEGORY_ICONS[doc.category] || FileText;
@@ -256,49 +213,69 @@ export default function LegalLibraryPage() {
                       <Link
                         key={doc.id}
                         href={`/${locale}/legal-library/${doc.id}`}
-                        className="group bg-white border border-neutral-200/60 p-6 hover:shadow-2xl hover:border-neutral-300 transition-all duration-500 hover:-translate-y-1 flex flex-col justify-between h-64 text-neutral-950"
+                        className="group relative bg-white border border-neutral-200/60 p-6 hover:shadow-xl hover:border-[#bfa37a]/30 transition-all duration-300 hover:-translate-y-1 flex flex-col justify-between h-full min-h-[16rem] text-neutral-950 overflow-hidden"
                       >
-                        <div className="space-y-4">
-                          {/* Badge / Year */}
-                          <div className="flex items-center justify-between">
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 text-[9px] font-bold uppercase tracking-widest text-[#bfa37a] bg-[#faf6f0] border border-[#bfa37a]/15">
+                        {/* Decorative Top Accent */}
+                        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-[#bfa37a]/20 via-[#bfa37a] to-[#bfa37a]/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                        
+                        <div className="space-y-5 flex-1">
+                          {/* Header: Category & Year */}
+                          <div className="flex items-center justify-between border-b border-neutral-100 pb-3">
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[9px] font-bold uppercase tracking-widest text-[#bfa37a] bg-[#faf6f0] rounded-sm">
                               <Icon className="w-3 h-3" />
                               {doc.categoryDisplay}
                             </span>
                             {doc.year && (
-                              <span className="flex items-center gap-1 text-[10px] text-neutral-400 font-bold uppercase tracking-wider">
-                                <Calendar className="w-3 h-3 text-neutral-300" />
+                              <span className="flex items-center gap-1.5 text-[10px] text-neutral-400 font-bold uppercase tracking-wider bg-neutral-50 px-2 py-1 rounded-sm">
+                                <Calendar className="w-3 h-3 text-neutral-400" />
                                 {doc.year}
                               </span>
                             )}
                           </div>
 
-                          {/* Title */}
-                          <h3 className="font-serif text-base font-bold text-neutral-900 group-hover:text-[#bfa37a] transition-colors leading-snug line-clamp-2 uppercase tracking-tight">
-                            {doc.title}
-                          </h3>
-
-                          {/* Description */}
-                          {doc.description && (
-                            <p className="text-neutral-500 text-xs font-light line-clamp-2 leading-relaxed">{doc.description}</p>
-                          )}
+                          {/* Title Area */}
+                          <div className="space-y-2">
+                            <h3 className="font-serif text-lg font-bold text-neutral-900 group-hover:text-[#bfa37a] transition-colors leading-snug line-clamp-3">
+                              {doc.title}
+                            </h3>
+                            <p className="text-neutral-500 text-xs font-light line-clamp-2 leading-relaxed">
+                              {doc.description || 'Click to read the full document and view its details.'}
+                            </p>
+                          </div>
                         </div>
 
-                        {/* Card Footer info */}
-                        <div className="border-t border-neutral-100 pt-4 flex flex-col gap-2">
-                          <div className="flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-neutral-400 font-bold uppercase tracking-wider">
-                            {doc.actNumber && <span>Act: {doc.actNumber}</span>}
-                            {doc.courtName && <span className="truncate max-w-[120px]">{doc.courtName}</span>}
-                            {doc.caseNumber && <span>Case: {doc.caseNumber}</span>}
-                          </div>
+                        {/* Card Footer: Metadata & Link */}
+                        <div className="mt-6 pt-4 border-t border-neutral-100 flex flex-col gap-3">
+                          {/* Document specific identifiers */}
+                          {(doc.actNumber || doc.courtName || doc.caseNumber) && (
+                            <div className="flex flex-wrap gap-2 text-[10px] text-neutral-500 font-medium uppercase tracking-wider bg-neutral-50/80 p-2.5 rounded-sm">
+                              {doc.actNumber && (
+                                <span className="inline-flex items-center gap-1">
+                                  <span className="text-neutral-400">Act:</span> {doc.actNumber}
+                                </span>
+                              )}
+                              {doc.courtName && (
+                                <span className="inline-flex items-center gap-1">
+                                  <span className="text-neutral-400">Court:</span> <span className="truncate max-w-[120px]">{doc.courtName}</span>
+                                </span>
+                              )}
+                              {doc.caseNumber && (
+                                <span className="inline-flex items-center gap-1">
+                                  <span className="text-neutral-400">Case:</span> {doc.caseNumber}
+                                </span>
+                              )}
+                            </div>
+                          )}
 
+                          {/* Action row */}
                           <div className="flex items-center justify-between mt-1">
-                            <span className="text-[10px] text-neutral-400 font-light">
-                              {new Date(doc.createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
+                            <span className="text-[10px] text-neutral-400 font-light flex items-center gap-1.5">
+                              <span className="w-1.5 h-1.5 rounded-full bg-green-500/80"></span>
+                              Added {new Date(doc.createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
                             </span>
-                            <span className="text-[10px] font-bold uppercase tracking-widest text-neutral-400 group-hover:text-[#bfa37a] transition-colors flex items-center gap-1">
-                              View Details
-                              <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+                            <span className="text-[10px] font-bold uppercase tracking-widest text-[#bfa37a] flex items-center gap-1 group-hover:gap-2 transition-all">
+                              Read
+                              <ArrowRight className="w-3.5 h-3.5" />
                             </span>
                           </div>
                         </div>
@@ -331,6 +308,46 @@ export default function LegalLibraryPage() {
                 )}
               </>
             )}
+          </div>
+
+          {/* Right Column: Categories Sidebar */}
+          <div className="space-y-6">
+            <div className="border-b border-neutral-200 pb-4 sticky top-6">
+              <span className="text-[10px] text-[#bfa37a] uppercase tracking-[0.2em] font-bold">Classifications</span>
+              <h2 className="text-xl font-serif text-neutral-900 mt-1">Browse by Category</h2>
+            </div>
+
+            <div className="flex flex-col gap-3 sticky top-[5.5rem]">
+              {categories.map((cat) => {
+                const Icon = CATEGORY_ICONS[cat.value] || FileText;
+                const isActive = selectedCategory === cat.value;
+
+                return (
+                  <button
+                    key={cat.value}
+                    onClick={() => handleCategoryClick(cat.value)}
+                    className={`group text-left p-4 bg-white border transition-all duration-300 flex items-center justify-between ${
+                      isActive 
+                        ? 'border-[#bfa37a] bg-[#faf6f0]/20 shadow-md' 
+                        : 'border-neutral-200/60 hover:border-neutral-300'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`p-2 transition-colors duration-300 ${isActive ? 'bg-[#bfa37a] text-white' : 'bg-[#faf6f0] text-[#bfa37a]'}`}>
+                        <Icon className="w-4 h-4 stroke-[1.5]" />
+                      </div>
+                      <div className="space-y-0.5">
+                        <h3 className="text-[11px] font-serif font-bold text-neutral-900 uppercase tracking-wider line-clamp-1">{cat.label}</h3>
+                        <p className="text-[10px] text-neutral-400 font-light">
+                          {cat.count} document{cat.count !== 1 ? 's' : ''}
+                        </p>
+                      </div>
+                    </div>
+                    <ChevronRight className={`w-4 h-4 transition-transform ${isActive ? 'text-[#bfa37a]' : 'text-neutral-300 group-hover:text-[#bfa37a] group-hover:translate-x-1'}`} />
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
         </div>
