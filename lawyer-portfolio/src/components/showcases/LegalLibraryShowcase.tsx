@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, useInView } from 'framer-motion';
 import {
-  BookOpen, Search, Scale, Gavel, Scroll,
-  ChevronRight, Calendar, Filter, ArrowRight, ArrowLeft, Download, ExternalLink, Compass, RefreshCw
+  BookOpen, Search, Scale,
+  ChevronRight, Filter, ArrowLeft, Download, ExternalLink, Compass, RefreshCw
 } from 'lucide-react';
 import MockHeader from '../MockHeader';
 
