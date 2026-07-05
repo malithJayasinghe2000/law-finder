@@ -88,6 +88,55 @@ export async function PATCH(
     const isAdmin = session.role === 'ADMIN';
 
     switch (action) {
+      case 'accept': {
+        if (!isLawyer && !isAdmin) {
+          return NextResponse.json({ error: 'Only the lawyer can accept the request' }, { status: 403 });
+        }
+
+        if (booking.status !== 'AWAITING_LAWYER_APPROVAL') {
+          return NextResponse.json({ error: 'Only pending requests can be accepted' }, { status: 400 });
+        }
+
+        const updated = await prisma.booking.update({
+          where: { id },
+          data: {
+            status: 'CONFIRMED',
+          },
+        });
+
+        return NextResponse.json({
+          success: true,
+          booking: { ...updated, date: formatSriLankaDateIso(updated.date) },
+        });
+      }
+
+      case 'decline': {
+        if (!isLawyer && !isAdmin) {
+          return NextResponse.json({ error: 'Only the lawyer can decline the request' }, { status: 403 });
+        }
+
+        if (booking.status !== 'AWAITING_LAWYER_APPROVAL') {
+          return NextResponse.json({ error: 'Only pending requests can be declined' }, { status: 400 });
+        }
+
+        const declineReason = body.reason || 'Lawyer is unavailable';
+
+        const updated = await prisma.booking.update({
+          where: { id },
+          data: {
+            status: 'REJECTED_BY_LAWYER',
+            cancelReason: declineReason,
+            cancelledAt: new Date(),
+            cancelledBy: session.userId,
+          },
+        });
+
+        return NextResponse.json({
+          success: true,
+          booking: { ...updated, date: formatSriLankaDateIso(updated.date) },
+        });
+      }
+
       case 'cancel': {
         if (!isClient && !isLawyer && !isAdmin) {
           return NextResponse.json({ error: 'Access denied' }, { status: 403 });

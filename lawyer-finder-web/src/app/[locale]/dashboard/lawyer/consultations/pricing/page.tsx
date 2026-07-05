@@ -93,8 +93,8 @@ export default function PricingPage() {
             <DollarSign className="h-5 w-5" />
           </div>
           <div>
-            <h1 className="text-4xl font-normal tracking-tight text-neutral-900">Consultation Pricing</h1>
-            <p className="text-sm text-neutral-500 font-medium">Set your consultation fees for clients</p>
+            <h1 className="text-4xl font-normal tracking-tight text-neutral-900">Consultation Settings</h1>
+            <p className="text-sm text-neutral-500 font-medium">Set your availability preferences and reference fees</p>
           </div>
         </div>
         <Button
@@ -155,7 +155,7 @@ export default function PricingPage() {
                   <span className="text-amber-600 font-semibold">Rs. {physicalPlatformFee.toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between text-sm font-bold text-neutral-900 pt-1 border-t border-neutral-100">
-                  <span>Client pays</span>
+                  <span>Total (Internal Ref)</span>
                   <span>Rs. {physicalClientPays.toLocaleString()}</span>
                 </div>
               </div>
@@ -181,7 +181,7 @@ export default function PricingPage() {
                   <span className="text-amber-600 font-semibold">Rs. {onlinePlatformFee.toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between text-sm font-bold text-neutral-900 pt-1 border-t border-neutral-100">
-                  <span>Client pays</span>
+                  <span>Total (Internal Ref)</span>
                   <span>Rs. {onlineClientPays.toLocaleString()}</span>
                 </div>
               </div>
@@ -255,8 +255,8 @@ export default function PricingPage() {
       <div className="flex items-start gap-3 p-4 bg-blue-50 border border-blue-200">
         <Info className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
         <div className="text-xs text-blue-800 space-y-1">
-          <p className="font-semibold">How pricing works</p>
-          <p>You set your consultation fee. The platform adds a 15% service fee on top. The total is what the client sees and pays. You receive your full fee after the consultation is completed.</p>
+          <p className="font-semibold">Internal Reference Only</p>
+          <p>These fees are for your internal reference and scheduling purposes. To comply with BASL Rule 39, your fees will <strong>not</strong> be publicly advertised or displayed on your profile. You will discuss fees directly with clients after accepting their consultation request.</p>
         </div>
       </div>
     </div>

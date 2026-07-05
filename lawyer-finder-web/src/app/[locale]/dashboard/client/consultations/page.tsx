@@ -203,10 +203,11 @@ export default function ClientConsultationsPage() {
 
   const statusTabs = [
     { value: '', label: 'All' },
+    { value: 'AWAITING_LAWYER_APPROVAL', label: 'Pending Request' },
     { value: 'CONFIRMED', label: 'Upcoming' },
-    { value: 'PENDING_PAYMENT', label: 'Pending Payment' },
-    { value: 'AWAITING_BANK_TRANSFER_VERIFICATION', label: 'Pending Bank Transfer Verification' },
     { value: 'COMPLETED', label: 'Completed' },
+    { value: 'REJECTED_BY_LAWYER', label: 'Declined' },
+    { value: 'CANCELLED_BY_CLIENT', label: 'Cancelled' },
   ];
 
   return (
@@ -280,9 +281,10 @@ export default function ClientConsultationsPage() {
                     )}
                   </div>
                   <div className="text-right shrink-0">
-                    <p className="text-lg font-bold text-neutral-900">Rs. {b.totalAmount.toLocaleString()}</p>
-                    <p className="text-[10px] text-neutral-400">Total amount</p>
-                    {b.status === 'CANCELLED_BY_CLIENT' && b.refundAmount !== null && (
+                    {b.status === 'AWAITING_LAWYER_APPROVAL' && (
+                       <p className="text-xs text-neutral-500 italic mb-2">Waiting for lawyer's response...</p>
+                    )}
+                    {b.status === 'CANCELLED_BY_CLIENT' && b.refundAmount !== null && b.refundAmount > 0 && (
                       <div className="mt-2 text-right bg-red-50 p-1.5 border border-red-100">
                         {b.refundAmount < b.totalAmount && (
                           <p className="text-[10px] text-red-600 font-bold">- Rs. {(b.totalAmount - b.refundAmount).toLocaleString()} (Late Cancel Penalty)</p>
@@ -291,12 +293,7 @@ export default function ClientConsultationsPage() {
                       </div>
                     )}
                     <div className="flex gap-1.5 mt-3 justify-end flex-wrap">
-                      {b.status === 'PENDING_PAYMENT' && (
-                        <Button size="sm" onClick={() => setPaymentModal(b.id)} className="bg-blue-600 text-white hover:bg-blue-700 rounded-none h-7 text-[10px] px-2.5 font-bold border-none">
-                          <CreditCard className="w-3 h-3 mr-1" /> Submit Payment
-                        </Button>
-                      )}
-                      {['PENDING_PAYMENT', 'CONFIRMED', 'AWAITING_BANK_TRANSFER_VERIFICATION'].includes(b.status) && (
+                      {['AWAITING_LAWYER_APPROVAL', 'CONFIRMED'].includes(b.status) && (
                         <Button size="sm" variant="outline" onClick={() => setCancelModal(b.id)} className="rounded-none h-7 text-[10px] px-2.5 font-bold text-red-600 border-red-300">
                           <XCircle className="w-3 h-3 mr-1" /> Cancel
                         </Button>

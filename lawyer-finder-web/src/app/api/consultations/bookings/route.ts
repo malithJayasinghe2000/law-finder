@@ -107,7 +107,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: validated.error.format() }, { status: 400 });
     }
 
-    const { lawyerId, date, startTime, endTime, mode, subject, description, practiceArea, paymentMethod } = validated.data;
+    const { lawyerId, date, startTime, endTime, mode, subject, description, practiceArea } = validated.data;
     const targetDate = parseDateOnlyToUtc(date);
     const now = new Date();
 
@@ -118,30 +118,6 @@ export async function POST(req: Request) {
 
     if (!lawyer || !lawyer.consultationPricing || !lawyer.user) {
       return NextResponse.json({ error: 'Lawyer or pricing not found' }, { status: 404 });
-    }
-
-    const minAdvanceNoticeHours = lawyer.consultationPricing.minAdvanceNoticeHours || 24;
-
-    // Enforce dynamic notice period
-    const slotDateTime = new Date(`${date}T${startTime}:00+05:30`);
-    const minNotice = new Date(now.getTime() + minAdvanceNoticeHours * 60 * 60 * 1000);
-
-    if (slotDateTime < minNotice) {
-      return NextResponse.json(
-        { error: `Bookings require at least ${minAdvanceNoticeHours} hours advance notice` },
-        { status: 400 }
-      );
-    }
-
-    // Strictly enforce 48 hours ONLY for "Pay Later" (because they need up to 24h to pay, and admin needs 24h to verify)
-    if (body.isPayLater) {
-      const minPayLaterNotice = new Date(now.getTime() + 48 * 60 * 60 * 1000);
-      if (slotDateTime < minPayLaterNotice) {
-        return NextResponse.json(
-          { error: `The 'Pay Later' option requires at least 48 hours advance notice.` },
-          { status: 400 }
-        );
-      }
     }
 
 
@@ -236,7 +212,7 @@ export async function POST(req: Request) {
           subject,
           description,
           practiceArea,
-          status: 'PENDING_PAYMENT',
+          status: 'AWAITING_LAWYER_APPROVAL',
         },
       });
     }, {

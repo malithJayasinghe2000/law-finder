@@ -20,19 +20,13 @@ interface Props {
   lawyerImage: string | null;
   lawyerDistrict: string | null;
   locale: string;
-  pricing: {
-    pricingType: string;
-    physicalPrice: number;
-    onlinePrice: number;
-    commissionRate: number;
-  };
 }
 
-import { CreateBookingSchema, BankTransferPaymentSchema } from '@/schemas/consultation.schema';
+import { CreateBookingSchema } from '@/schemas/consultation.schema';
 
 const step3Schema = CreateBookingSchema.pick({ subject: true, description: true });
 
-export default function BookingWizardClient({ lawyerId, lawyerName, lawyerImage, lawyerDistrict, locale, pricing }: Props) {
+export default function BookingWizardClient({ lawyerId, lawyerName, lawyerImage, lawyerDistrict, locale }: Props) {
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -50,24 +44,10 @@ export default function BookingWizardClient({ lawyerId, lawyerName, lawyerImage,
   const [subject, setSubject] = useState('');
   const [description, setDescription] = useState('');
 
-  // Payment
-  const [paymentMethod, setPaymentMethod] = useState<'BANK_TRANSFER_NOW' | 'BANK_TRANSFER_LATER' | 'PAYHERE'>('PAYHERE');
-  
-  // Bank Transfer Form
-  const [bankName, setBankName] = useState('');
-  const [accountHolder, setAccountHolder] = useState('');
-  const [accountNumber, setAccountNumber] = useState('');
-  const [transactionDate, setTransactionDate] = useState(new Date().toISOString().split('T')[0]);
-  const [transactionRef, setTransactionRef] = useState('');
-  const [receiptImageUrl, setReceiptImageUrl] = useState('');
-  const [notes, setNotes] = useState('');
-  const [receiptUploading, setReceiptUploading] = useState(false);
-
   // Call to Book Modal
   const [callToBookSlot, setCallToBookSlot] = useState<any>(null);
 
-  // Pay Later 48h Notice Modal
-  const [payLaterNoticeModal, setPayLaterNoticeModal] = useState(false);
+
 
   // Validation Errors
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -93,7 +73,7 @@ export default function BookingWizardClient({ lawyerId, lawyerName, lawyerImage,
       if (res.ok) {
         // Filter slots based on selected mode
         const filtered = data.slots.filter((s: any) => 
-          (s.isAvailable || s.isCallToBook) && (s.mode === 'BOTH' || s.mode === mode)
+          s.isAvailable && (s.mode === 'BOTH' || s.mode === mode)
         );
         setAvailableSlots(filtered);
       } else {
@@ -108,57 +88,7 @@ export default function BookingWizardClient({ lawyerId, lawyerName, lawyerImage,
     }
   }
 
-  const uploadReceiptImage = async (file: File) => {
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('folder', 'receipts');
 
-    const response = await fetch('/api/upload', {
-      method: 'POST',
-      body: formData,
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'Failed to upload receipt image');
-    }
-
-    const data = await response.json();
-    return data.url as string;
-  };
-
-  const handleReceiptUpload = async () => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/jpeg,image/png,image/webp';
-    input.onchange = async (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (!file) return;
-
-      if (!file.type.startsWith('image/')) {
-        toast.error('Please select an image file for the receipt.');
-        return;
-      }
-
-      if (file.size > 5 * 1024 * 1024) {
-        toast.error('Image must be under 5MB.');
-        return;
-      }
-
-      setReceiptUploading(true);
-      try {
-        const url = await uploadReceiptImage(file);
-        setReceiptImageUrl(url);
-        toast.success('Receipt uploaded successfully.');
-      } catch (uploadError: any) {
-        toast.error(uploadError?.message || 'Receipt upload failed.');
-      } finally {
-        setReceiptUploading(false);
-      }
-    };
-
-    input.click();
-  };
 
   // Next step validation
   const nextStep = async () => {
@@ -235,36 +165,10 @@ export default function BookingWizardClient({ lawyerId, lawyerName, lawyerImage,
 
   const submitBooking = async () => {
     setErrors({});
-    if (paymentMethod === 'BANK_TRANSFER_NOW') {
-      const result = BankTransferPaymentSchema.safeParse({ bankName, accountHolder, accountNumber, transactionDate, transactionRef, notes, receiptImageUrl });
-      if (!result.success) {
-        const fieldErrors = result.error.flatten().fieldErrors;
-        const formattedErrors: Record<string, string> = {};
-        for (const key in fieldErrors) {
-          const errorVal = fieldErrors[key as keyof typeof fieldErrors];
-          if (errorVal && errorVal.length > 0) {
-            formattedErrors[key] = errorVal[0];
-          }
-        }
-        setErrors(formattedErrors);
-        return;
-      }
-    }
-
-    if (paymentMethod === 'BANK_TRANSFER_LATER') {
-      const slotDateTime = new Date(`${selectedDate}T${selectedSlot.startTime}:00+05:30`);
-      const now = new Date();
-      const minNotice = new Date(now.getTime() + 48 * 60 * 60 * 1000);
-      
-      if (slotDateTime < minNotice) {
-        setPayLaterNoticeModal(true);
-        return;
-      }
-    }
-
+    
     setLoading(true);
     try {
-      // 1. Create Booking
+      // 1. Create Booking Request
       const bookingRes = await fetch('/api/consultations/bookings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -276,8 +180,6 @@ export default function BookingWizardClient({ lawyerId, lawyerName, lawyerImage,
           mode,
           subject,
           description,
-          paymentMethod: paymentMethod === 'PAYHERE' ? 'PAYHERE' : 'BANK_TRANSFER',
-          isPayLater: paymentMethod === 'BANK_TRANSFER_LATER',
         }),
       });
 
@@ -286,69 +188,7 @@ export default function BookingWizardClient({ lawyerId, lawyerName, lawyerImage,
         throw new Error(bookingData.error || 'Failed to create booking');
       }
 
-      const bookingId = bookingData.booking.id;
-
-      // 2. Submit Payment (If not PAY LATER)
-      if (paymentMethod !== 'BANK_TRANSFER_LATER') {
-        const paymentPayload = paymentMethod === 'BANK_TRANSFER_NOW' 
-          ? { method: 'BANK_TRANSFER', bankName, accountHolder, accountNumber, transactionDate, transactionRef, receiptImageUrl, notes }
-          : { method: 'PAYHERE' };
-
-        const paymentRes = await fetch(`/api/consultations/bookings/${bookingId}/payment`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(paymentPayload),
-        });
-
-        const paymentData = await paymentRes.json();
-        if (!paymentRes.ok) {
-          throw new Error(paymentData.error || 'Payment initialization failed');
-        }
-
-        if (paymentMethod === 'PAYHERE' && paymentData.payhere) {
-          // Redirect to PayHere Sandbox (for dev)
-          const p = paymentData.payhere;
-          const form = document.createElement('form');
-          form.method = 'POST';
-          form.action = 'https://sandbox.payhere.lk/pay/checkout'; // USE SANDBOX FOR TESTING
-          
-          const params: Record<string, string> = {
-            merchant_id: p.merchantId,
-            return_url: p.returnUrl,
-            cancel_url: p.cancelUrl,
-            notify_url: p.notifyUrl,
-            order_id: p.orderId,
-            items: p.items,
-            currency: p.currency,
-            amount: p.amount,
-            first_name: 'Client',
-            last_name: 'Name',
-            email: 'client@example.com',
-            phone: '0771234567',
-            address: 'Colombo',
-            city: 'Colombo',
-            country: 'Sri Lanka'
-          };
-
-          Object.entries(params).forEach(([key, value]) => {
-            const input = document.createElement('input');
-            input.type = 'hidden';
-            input.name = key;
-            input.value = value;
-            form.appendChild(input);
-          });
-
-          document.body.appendChild(form);
-          form.submit();
-          return;
-        }
-      }
-
-      // Success fallback (for BANK_TRANSFER_NOW and BANK_TRANSFER_LATER)
-      toast.success(paymentMethod === 'BANK_TRANSFER_NOW' 
-        ? 'Booking submitted successfully! Awaiting admin verification.' 
-        : 'Booking created! Please submit your payment details within 24 hours.'
-      );
+      toast.success('Consultation requested successfully! The lawyer will review it shortly.');
       router.push(`/${locale}/dashboard/client/consultations`);
     } catch (err: any) {
       toast.error(err.message || 'An error occurred');
@@ -356,9 +196,7 @@ export default function BookingWizardClient({ lawyerId, lawyerName, lawyerImage,
     }
   };
 
-  const currentFee = mode === 'PHYSICAL' ? pricing.physicalPrice : pricing.onlinePrice;
-  const platformFee = Math.round(currentFee * pricing.commissionRate);
-  const totalAmount = currentFee + platformFee;
+
 
   return (
     <div className="min-h-screen bg-neutral-50 py-10 lg:py-20">
@@ -399,7 +237,6 @@ export default function BookingWizardClient({ lawyerId, lawyerName, lawyerImage,
                     <MapPin className="w-8 h-8 text-[#0a0a0a] mb-4" />
                     <h3 className="font-bold text-[#0a0a0a] mb-1">Physical Meeting</h3>
                     <p className="text-xs text-neutral-500 mb-4">Meet in-person at the lawyer's office or agreed location</p>
-                    <p className="text-sm font-bold">LKR {pricing.physicalPrice.toLocaleString()} <span className="text-[10px] font-normal text-neutral-400">+ platform fee</span></p>
                   </button>
 
                   <button
@@ -410,7 +247,6 @@ export default function BookingWizardClient({ lawyerId, lawyerName, lawyerImage,
                     <Video className="w-8 h-8 text-[#0a0a0a] mb-4" />
                     <h3 className="font-bold text-[#0a0a0a] mb-1">Online Video</h3>
                     <p className="text-xs text-neutral-500 mb-4">Meet virtually via Google Meet from anywhere</p>
-                    <p className="text-sm font-bold">LKR {pricing.onlinePrice.toLocaleString()} <span className="text-[10px] font-normal text-neutral-400">+ platform fee</span></p>
                   </button>
                 </div>
                 {errors.mode && <p className="text-sm text-red-500 mt-3 font-medium">{errors.mode}</p>}
@@ -422,11 +258,6 @@ export default function BookingWizardClient({ lawyerId, lawyerName, lawyerImage,
               <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
                 <h2 className="text-lg font-bold text-[#0a0a0a] uppercase tracking-wide">2. Select Date & Time</h2>
                 
-                <div className="bg-blue-50 border border-blue-200 p-4 flex gap-3 text-sm text-blue-800">
-                  <Info className="w-5 h-5 shrink-0" />
-                  <p>Select an available slot. Slots marked with a phone icon require short notice and must be booked over the phone.</p>
-                </div>
-
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-neutral-500 uppercase tracking-widest">Select Date</label>
                   <input
@@ -461,26 +292,15 @@ export default function BookingWizardClient({ lawyerId, lawyerName, lawyerImage,
                               key={idx}
                               onClick={() => {
                                 setErrors(prev => ({ ...prev, slot: '' }));
-                                if (slot.isCallToBook) {
-                                  setCallToBookSlot(slot);
-                                } else {
-                                  setSelectedSlot(slot);
-                                }
+                                setSelectedSlot(slot);
                               }}
                               className={`px-4 py-3 text-sm font-semibold border-2 transition-all flex flex-col items-center justify-center gap-1 ${
                                 selectedSlot?.startTime === slot.startTime 
                                 ? 'border-[#0a0a0a] bg-[#0a0a0a] text-white' 
-                                : slot.isCallToBook 
-                                  ? 'border-neutral-200 bg-neutral-100 text-neutral-600 hover:border-neutral-300'
-                                  : 'border-neutral-200 text-neutral-700 hover:border-[#0a0a0a] hover:text-[#0a0a0a]'
+                                : 'border-neutral-200 text-neutral-700 hover:border-[#0a0a0a] hover:text-[#0a0a0a]'
                               }`}
                             >
                               <span>{slot.startTime} - {slot.endTime}</span>
-                              {slot.isCallToBook && (
-                                <div className="flex items-center gap-1 text-[10px] uppercase font-bold text-neutral-500">
-                                  <Phone className="w-3 h-3" /> Call to Book
-                                </div>
-                              )}
                             </button>
                           ))}
                         </div>
@@ -527,7 +347,7 @@ export default function BookingWizardClient({ lawyerId, lawyerName, lawyerImage,
             {/* Step 4: Payment */}
             {step === 4 && (
               <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-300">
-                <h2 className="text-lg font-bold text-[#0a0a0a] uppercase tracking-wide">4. Review & Payment</h2>
+                <h2 className="text-lg font-bold text-[#0a0a0a] uppercase tracking-wide">4. Review & Submit Request</h2>
 
                 {/* Summary Box */}
                 <div className="bg-neutral-50 border border-neutral-200 p-6 space-y-4">
@@ -538,137 +358,18 @@ export default function BookingWizardClient({ lawyerId, lawyerName, lawyerImage,
                     </div>
                     <Button variant="link" onClick={() => setStep(1)} className="text-[#0a0a0a] px-0">Edit</Button>
                   </div>
-
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between text-neutral-600">
-                      <span>Lawyer Fee</span>
-                      <span className="font-bold text-[#0a0a0a]">LKR {currentFee.toLocaleString()}</span>
-                    </div>
-                    <div className="flex justify-between text-neutral-600">
-                      <span>Platform Service Fee</span>
-                      <span className="font-bold text-[#0a0a0a]">LKR {platformFee.toLocaleString()}</span>
-                    </div>
-                    <div className="flex justify-between text-lg font-bold text-[#0a0a0a] pt-3 border-t border-neutral-200">
-                      <span>Total Amount</span>
-                      <span>LKR {totalAmount.toLocaleString()}</span>
-                    </div>
+                  <div className="text-sm text-neutral-700">
+                    <p className="font-semibold text-[#0a0a0a]">Subject</p>
+                    <p>{subject}</p>
+                    <p className="font-semibold text-[#0a0a0a] mt-3">Description</p>
+                    <p>{description}</p>
                   </div>
                 </div>
 
-                {/* Payment Method */}
-                <div className="space-y-4">
-                  <label className="text-xs font-bold text-neutral-500 uppercase tracking-widest">Select Payment Method</label>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <button
-                      onClick={() => setPaymentMethod('PAYHERE')}
-                      className={`p-4 border-2 flex items-center gap-3 transition-all ${paymentMethod === 'PAYHERE' ? 'border-[#0a0a0a] bg-neutral-50' : 'border-neutral-200'}`}
-                    >
-                      <CreditCard className={`w-6 h-6 ${paymentMethod === 'PAYHERE' ? 'text-[#0a0a0a]' : 'text-neutral-400'}`} />
-                      <div className="text-left">
-                        <p className="text-sm font-bold text-[#0a0a0a]">Pay Online</p>
-                        <p className="text-[10px] text-neutral-500 uppercase tracking-wider">Instant</p>
-                      </div>
-                    </button>
-                    <button
-                      onClick={() => setPaymentMethod('BANK_TRANSFER_NOW')}
-                      className={`p-4 border-2 flex items-center gap-3 transition-all ${paymentMethod === 'BANK_TRANSFER_NOW' ? 'border-[#0a0a0a] bg-neutral-50' : 'border-neutral-200'}`}
-                    >
-                      <Building2 className={`w-6 h-6 ${paymentMethod === 'BANK_TRANSFER_NOW' ? 'text-[#0a0a0a]' : 'text-neutral-400'}`} />
-                      <div className="text-left">
-                        <p className="text-sm font-bold text-[#0a0a0a]">Bank Transfer</p>
-                        <p className="text-[10px] text-neutral-500 uppercase tracking-wider">Submit Details Now</p>
-                      </div>
-                    </button>
-                    <button
-                      onClick={() => setPaymentMethod('BANK_TRANSFER_LATER')}
-                      className={`p-4 border-2 flex items-center gap-3 transition-all ${paymentMethod === 'BANK_TRANSFER_LATER' ? 'border-[#0a0a0a] bg-neutral-50' : 'border-neutral-200'}`}
-                    >
-                      <Clock className={`w-6 h-6 ${paymentMethod === 'BANK_TRANSFER_LATER' ? 'text-[#0a0a0a]' : 'text-neutral-400'}`} />
-                      <div className="text-left">
-                        <p className="text-sm font-bold text-[#0a0a0a]">Pay Later</p>
-                        <p className="text-[10px] text-neutral-500 uppercase tracking-wider">Within 24 Hours</p>
-                      </div>
-                    </button>
-                  </div>
+                <div className="bg-amber-50 border border-amber-200 p-4 text-sm text-amber-800 flex gap-3">
+                   <Info className="w-5 h-5 shrink-0" />
+                   <p>Your consultation request will be sent to the lawyer. Once accepted, the lawyer will discuss fees directly with you.</p>
                 </div>
-
-                {/* Bank Transfer Details */}
-                {paymentMethod === 'BANK_TRANSFER_NOW' && (
-                  <div className="p-6 bg-neutral-50 border border-neutral-200 space-y-4">
-                    <div className="bg-amber-50 border border-amber-200 p-3 text-xs text-amber-800 mb-4">
-                      <p className="font-bold mb-1">Bank Transfer Instructions:</p>
-                      <p>Please transfer <strong>LKR {totalAmount.toLocaleString()}</strong> to the account below, then upload the receipt or enter the transaction reference. Manual verification takes up to 24 hours.</p>
-                      <ul className="mt-2 space-y-1 font-mono text-[11px]">
-                        <li>Bank: Commercial Bank</li>
-                        <li>Account Name: FindLawyer Platform</li>
-                        <li>Account No: 1234567890</li>
-                        <li>Branch: Colombo 01</li>
-                      </ul>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-neutral-500 uppercase">Your Bank Name <span className="text-red-500">*</span></label>
-                        <Input value={bankName} onChange={e => { setBankName(e.target.value); setErrors(prev => ({ ...prev, bankName: '' })); }} className={`h-9 rounded-none text-xs ${errors.bankName ? 'border-red-500' : 'border-neutral-200'}`} placeholder="e.g. HNB" />
-                        {errors.bankName && <p className="text-[10px] text-red-500">{errors.bankName}</p>}
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-neutral-500 uppercase">Account Holder <span className="text-red-500">*</span></label>
-                        <Input value={accountHolder} onChange={e => { setAccountHolder(e.target.value); setErrors(prev => ({ ...prev, accountHolder: '' })); }} className={`h-9 rounded-none text-xs ${errors.accountHolder ? 'border-red-500' : 'border-neutral-200'}`} placeholder="e.g. John Doe" />
-                        {errors.accountHolder && <p className="text-[10px] text-red-500">{errors.accountHolder}</p>}
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-neutral-500 uppercase">Account Number <span className="text-red-500">*</span></label>
-                        <Input value={accountNumber} onChange={e => { setAccountNumber(e.target.value); setErrors(prev => ({ ...prev, accountNumber: '' })); }} className={`h-9 rounded-none text-xs ${errors.accountNumber ? 'border-red-500' : 'border-neutral-200'}`} placeholder="e.g. 123456789" />
-                        {errors.accountNumber && <p className="text-[10px] text-red-500">{errors.accountNumber}</p>}
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-neutral-500 uppercase">Transaction Date <span className="text-red-500">*</span></label>
-                        <Input type="date" value={transactionDate} onChange={e => { setTransactionDate(e.target.value); setErrors(prev => ({ ...prev, transactionDate: '' })); }} className={`h-9 rounded-none text-xs ${errors.transactionDate ? 'border-red-500' : 'border-neutral-200'}`} />
-                        {errors.transactionDate && <p className="text-[10px] text-red-500">{errors.transactionDate}</p>}
-                      </div>
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-neutral-500 uppercase">Transaction Reference Number <span className="text-red-500">*</span></label>
-                      <Input value={transactionRef} onChange={e => { setTransactionRef(e.target.value); setErrors(prev => ({ ...prev, transactionRef: '' })); }} className={`h-9 rounded-none text-xs ${errors.transactionRef ? 'border-red-500' : 'border-neutral-200'}`} />
-                      {errors.transactionRef && <p className="text-[10px] text-red-500">{errors.transactionRef}</p>}
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-neutral-500 uppercase">Notes (Optional)</label>
-                      <Textarea value={notes} onChange={e => setNotes(e.target.value)} className="min-h-[60px] rounded-none text-xs border-neutral-200" placeholder="Any additional information..." />
-                    </div>
-
-                    <div>
-                      <label className="block text-[10px] font-bold text-neutral-500 uppercase mb-2">Receipt Photo (optional)</label>
-                      {receiptImageUrl ? (
-                        <div className="relative rounded-lg overflow-hidden border border-neutral-200">
-                          <img src={receiptImageUrl} alt="Receipt preview" className="w-full h-48 object-cover" />
-                          <button
-                            type="button"
-                            onClick={() => setReceiptImageUrl('')}
-                            className="absolute top-2 right-2 bg-black/60 text-white px-2 py-1 text-[10px] rounded-md hover:bg-black/80"
-                          >
-                            Remove
-                          </button>
-                        </div>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={handleReceiptUpload}
-                          disabled={receiptUploading}
-                          className="flex items-center gap-2 w-full p-4 border-2 border-dashed rounded-lg text-sm text-muted-foreground hover:border-primary/50 hover:text-foreground transition-colors"
-                        >
-                          {receiptUploading ? (
-                            <Loader2 className="h-5 w-5 animate-spin" />
-                          ) : (
-                            <ImagePlus className="h-5 w-5" />
-                          )}
-                          {receiptUploading ? 'Uploading receipt...' : 'Click to upload receipt image'}
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                )}
               </div>
             )}
 
@@ -686,7 +387,7 @@ export default function BookingWizardClient({ lawyerId, lawyerName, lawyerImage,
                 </Button>
               ) : (
                 <Button onClick={submitBooking} disabled={loading} className="bg-green-600 text-white hover:bg-green-700 rounded-none h-12 px-8 uppercase tracking-widest text-xs font-bold w-full md:w-auto">
-                  {loading ? 'Processing...' : (paymentMethod === 'BANK_TRANSFER_LATER' ? `Book Now & Pay Later` : `Pay LKR ${totalAmount.toLocaleString()} & Book`)}
+                  {loading ? 'Processing...' : 'Submit Consultation Request'}
                 </Button>
               )}
             </div>
@@ -695,65 +396,7 @@ export default function BookingWizardClient({ lawyerId, lawyerName, lawyerImage,
         </Card>
       </div>
 
-      {/* Call to Book Modal */}
-      {callToBookSlot && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-white max-w-md w-full p-8 relative shadow-2xl animate-in zoom-in-95 duration-200">
-            <button onClick={() => setCallToBookSlot(null)} className="absolute top-4 right-4 text-neutral-400 hover:text-black">
-              <XCircle className="w-6 h-6" />
-            </button>
-            <div className="text-center mb-6">
-              <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Phone className="w-8 h-8" />
-              </div>
-              <h2 className="text-xl font-bold text-[#0a0a0a]">Short Notice Booking</h2>
-              <p className="text-sm text-neutral-500 mt-2">
-                This time slot ({callToBookSlot.startTime}) is available, but it falls within the lawyer's required advance notice period. We need to confirm it with the lawyer first.
-              </p>
-            </div>
-            
-            <div className="bg-neutral-50 p-6 border border-neutral-200 text-center mb-6">
-              <p className="text-xs font-bold text-neutral-500 uppercase tracking-widest mb-2">Please call our support line to arrange</p>
-              <p className="text-2xl font-bold text-[#0a0a0a] tracking-wider">011 234 5678</p>
-            </div>
-            
-            <Button onClick={() => setCallToBookSlot(null)} className="w-full h-12 rounded-none bg-[#0a0a0a] hover:bg-neutral-800 text-white font-bold uppercase text-xs tracking-widest">
-              Close
-            </Button>
-          </div>
-        </div>
-      )}
 
-      {/* Pay Later Notice Modal */}
-      {payLaterNoticeModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-white max-w-md w-full p-8 relative shadow-2xl animate-in zoom-in-95 duration-200">
-            <button onClick={() => setPayLaterNoticeModal(false)} className="absolute top-4 right-4 text-neutral-400 hover:text-black">
-              <XCircle className="w-6 h-6" />
-            </button>
-            <div className="text-center mb-6">
-              <div className="w-16 h-16 bg-amber-50 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Clock className="w-8 h-8" />
-              </div>
-              <h2 className="text-xl font-bold text-[#0a0a0a]">Insufficient Time for Pay Later</h2>
-              <p className="text-sm text-neutral-500 mt-2">
-                This consultation is less than 48 hours away. The "Pay Later" option requires at least 48 hours advance notice to allow our admin team to verify your payment.
-              </p>
-            </div>
-            
-            <div className="bg-neutral-50 p-6 border border-neutral-200 text-center mb-6">
-              <p className="text-xs font-bold text-neutral-500 uppercase tracking-widest">Please choose</p>
-              <p className="text-lg font-bold text-[#0a0a0a] mt-2">Pay Online</p>
-              <p className="text-xs font-bold text-neutral-500 uppercase tracking-widest my-2">or</p>
-              <p className="text-lg font-bold text-[#0a0a0a]">Bank Transfer (Submit Now)</p>
-            </div>
-            
-            <Button onClick={() => setPayLaterNoticeModal(false)} className="w-full h-12 rounded-none bg-[#0a0a0a] hover:bg-neutral-800 text-white font-bold uppercase text-xs tracking-widest">
-              Change Payment Method
-            </Button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

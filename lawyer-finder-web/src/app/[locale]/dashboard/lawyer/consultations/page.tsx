@@ -222,8 +222,9 @@ export default function LawyerBookingsPage() {
 
   const statusTabs = [
     { value: '', label: 'All' },
+    { value: 'AWAITING_LAWYER_APPROVAL', label: 'Requests' },
     { value: 'CONFIRMED', label: 'Upcoming' },
-    { value: 'PENDING_PAYMENT', label: 'Pending' },
+    { value: 'PENDING_PAYMENT', label: 'Pending Payment' },
     { value: 'COMPLETED', label: 'Completed' },
     { value: 'CANCELLED_BY_CLIENT', label: 'Cancelled by Client' },
     { value: 'CANCELLED_BY_LAWYER', label: 'Cancelled by Me' },
@@ -319,10 +320,28 @@ export default function LawyerBookingsPage() {
                       </div>
 
                       <div className="text-right shrink-0">
-                        <p className="text-lg font-bold text-neutral-900">Rs. {booking.lawyerFee.toLocaleString()}</p>
-                        <p className="text-[10px] text-neutral-400">Your fee</p>
-
                         <div className="flex gap-1.5 mt-3">
+                          {booking.status === 'AWAITING_LAWYER_APPROVAL' && (
+                            <>
+                              <Button
+                                size="sm"
+                                onClick={() => handleAction(booking.id, 'accept')}
+                                disabled={actionLoading}
+                                className="bg-[#0a0a0a] text-white hover:bg-neutral-800 rounded-none h-7 text-[10px] px-2.5 font-bold"
+                              >
+                                <CheckCircle className="w-3 h-3 mr-1" /> Accept
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleAction(booking.id, 'decline')}
+                                disabled={actionLoading}
+                                className="rounded-none h-7 text-[10px] px-2.5 font-bold text-red-600 border-red-300"
+                              >
+                                <XCircle className="w-3 h-3 mr-1" /> Decline
+                              </Button>
+                            </>
+                          )}
                           {booking.status === 'PENDING_PAYMENT' && (
                             <Button
                               size="sm"
@@ -531,7 +550,9 @@ export default function LawyerBookingsPage() {
                 <div><p className="text-neutral-500 text-xs">Date</p><p className="font-semibold">{formatDateOnlyString(selectedBooking.date, 'en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</p></div>
                 <div><p className="text-neutral-500 text-xs">Time</p><p className="font-semibold">{selectedBooking.startTime} – {selectedBooking.endTime} ({selectedBooking.duration} min)</p></div>
                 <div><p className="text-neutral-500 text-xs">Mode</p><p className="font-semibold">{selectedBooking.mode}</p></div>
-                <div><p className="text-neutral-500 text-xs">Your Fee</p><p className="font-semibold">Rs. {selectedBooking.lawyerFee.toLocaleString()}</p></div>
+                {selectedBooking.status !== 'AWAITING_LAWYER_APPROVAL' && selectedBooking.status !== 'REJECTED_BY_LAWYER' && (
+                  <div><p className="text-neutral-500 text-xs">Your Fee</p><p className="font-semibold">Rs. {selectedBooking.lawyerFee.toLocaleString()}</p></div>
+                )}
               </div>
               {selectedBooking.meetingLink && (
                 <div className="p-3 bg-blue-50 border border-blue-200">

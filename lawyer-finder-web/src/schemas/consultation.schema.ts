@@ -118,7 +118,6 @@ export const CreateBookingSchema = z.object({
     (val) => typeof val === 'string' ? sanitizeString(val) : val,
     z.string().optional()
   ),
-  paymentMethod: BookingPaymentMethodEnum,
 });
 
 export type CreateBookingInput = z.infer<typeof CreateBookingSchema>;

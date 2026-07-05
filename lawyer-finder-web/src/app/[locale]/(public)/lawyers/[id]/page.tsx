@@ -66,12 +66,6 @@ export default async function LawyerProfilePage({
       startDate: lawyer.Subscription[0].startDate.toISOString(),
       nextBilling: lawyer.Subscription[0].nextBilling.toISOString(),
     } : null,
-    consultationPricing: lawyer.consultationPricing ? {
-      pricingType: lawyer.consultationPricing.pricingType,
-      physicalPrice: lawyer.consultationPricing.physicalPrice,
-      onlinePrice: lawyer.consultationPricing.onlinePrice,
-      currency: lawyer.consultationPricing.currency,
-    } : null,
   };
 
   const serializedOtherLawyers = otherLawyers.map(l => {
@@ -85,7 +79,6 @@ export default async function LawyerProfilePage({
       bio: l.bio,
       practiceAreas: l.practiceAreas,
       district: l.district,
-      baseFeeRange: l.baseFeeRange,
       avgRating: Math.round(avg * 10) / 10,
       reviewCount: l.reviews.length,
       languages: l.languages,

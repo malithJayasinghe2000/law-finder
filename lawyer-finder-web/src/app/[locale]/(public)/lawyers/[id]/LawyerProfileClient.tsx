@@ -245,9 +245,9 @@ export default function LawyerProfileClient({
               <div className="mt-4 flex gap-3">
                 <button
                   onClick={() => router.push(`/${locale}/lawyers/${lawyer.id}/book`)}
-                  className="flex-1 flex items-center justify-center gap-2 bg-[#1a1a1a] text-white py-4.5 text-xs font-bold uppercase tracking-widest hover:bg-neutral-800 transition-all rounded-none"
+                  className="flex-1 flex items-center justify-center gap-2 bg-[#1a1a1a] text-white py-4.5 text-xs font-bold uppercase tracking-widest hover:bg-neutral-800 transition-all rounded-none text-center leading-tight px-2"
                 >
-                  <CalendarCheck className="h-4 w-4" /> Book Now
+                  <CalendarCheck className="h-4 w-4 shrink-0" /> Request Consultation
                 </button>
                 <button
                   onClick={handleChatClick}
@@ -312,23 +312,6 @@ export default function LawyerProfileClient({
               </div>
             </div>
 
-            {/* Fee Range */}
-            {lawyer.consultationPricing && (
-              <div className="flex flex-col mb-8 pb-8 border-b border-[#efeae0]">
-                <div className="flex items-baseline gap-3">
-                  <span className="text-3xl font-serif font-bold text-[#1a1a1a]">
-                    {lawyer.consultationPricing.physicalPrice === lawyer.consultationPricing.onlinePrice
-                      ? `${lawyer.consultationPricing.currency} ${lawyer.consultationPricing.physicalPrice.toLocaleString()}`
-                      : `${lawyer.consultationPricing.currency} ${Math.min(lawyer.consultationPricing.onlinePrice, lawyer.consultationPricing.physicalPrice).toLocaleString()} - ${Math.max(lawyer.consultationPricing.onlinePrice, lawyer.consultationPricing.physicalPrice).toLocaleString()}`
-                    }
-                    <span className="text-sm font-sans font-normal text-neutral-500 ml-2">
-                      /{lawyer.consultationPricing.pricingType === 'HOURLY' ? 'hr' : 'session'}
-                    </span>
-                  </span>
-                </div>
-                <span className="text-xs text-neutral-400 font-bold uppercase tracking-widest mt-1">consultation fee range</span>
-              </div>
-            )}
 
             {/* Bio */}
             <div className="mb-8 pb-8 border-b border-[#efeae0]">
