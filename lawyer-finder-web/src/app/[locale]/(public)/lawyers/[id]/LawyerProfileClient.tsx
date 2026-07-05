@@ -94,14 +94,8 @@ export default function LawyerProfileClient({
   currentUserId,
 }: Props) {
   const router = useRouter();
-  const [showReviewModal, setShowReviewModal] = useState(false);
-  const [reviewRating, setReviewRating] = useState(5);
-  const [reviewComment, setReviewComment] = useState('');
-  const [reviewLoading, setReviewLoading] = useState(false);
-  const [hoveredStar, setHoveredStar] = useState(0);
-  const reviewMarqueeRef = useRef<HTMLDivElement>(null);
+
   const lawyerMarqueeRef = useRef<HTMLDivElement>(null);
-  const [reviewPaused, setReviewPaused] = useState(false);
   const [lawyerPaused, setLawyerPaused] = useState(false);
   const [chatLoading, setChatLoading] = useState(false);
 
@@ -138,42 +132,6 @@ export default function LawyerProfileClient({
     }
   };
 
-  const handleWriteReview = () => {
-    if (!isLoggedIn) {
-      router.push(`/${locale}/login`);
-      return;
-    }
-    setShowReviewModal(true);
-  };
-
-  const submitReview = async () => {
-    if (!reviewComment.trim()) {
-      toast.error('Please write a comment.');
-      return;
-    }
-    setReviewLoading(true);
-    try {
-      const res = await fetch('/api/reviews', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          lawyerId: lawyer.id,
-          rating: reviewRating,
-          comment: reviewComment,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
-      toast.success('Review submitted! It will appear after admin approval.');
-      setShowReviewModal(false);
-      setReviewComment('');
-      setReviewRating(5);
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to submit review.');
-    } finally {
-      setReviewLoading(false);
-    }
-  };
 
   return (
     <div className="min-h-screen bg-[#fcfbf9]">
@@ -260,15 +218,7 @@ export default function LawyerProfileClient({
               </div>
 
               {/* Quick Stats under card */}
-              <div className="mt-4 grid grid-cols-3 border border-[#efeae0] divide-x divide-[#efeae0] bg-[#faf8f6]">
-                <div className="py-4 text-center">
-                  <p className="text-xl font-serif font-bold text-[#1a1a1a]">{lawyer.reviews.length}</p>
-                  <p className="text-[9px] text-neutral-400 font-bold uppercase tracking-widest mt-1">Reviews</p>
-                </div>
-                <div className="py-4 text-center">
-                  <p className="text-xl font-serif font-bold text-[#1a1a1a]">{avgRating > 0 ? avgRating.toFixed(1) : '--'}</p>
-                  <p className="text-[9px] text-neutral-400 font-bold uppercase tracking-widest mt-1">Rating</p>
-                </div>
+              <div className="mt-4 border border-[#efeae0] bg-[#faf8f6]">
                 <div className="py-4 text-center">
                   <p className="text-xl font-serif font-bold text-[#1a1a1a]">{lawyer.yearsOfExperience || '--'}</p>
                   <p className="text-[9px] text-neutral-400 font-bold uppercase tracking-widest mt-1">Years Exp</p>
@@ -297,19 +247,7 @@ export default function LawyerProfileClient({
                 {lawyer.practiceAreas.join(' · ') || 'Legal Professional'}
               </p>
 
-              {/* Star Rating */}
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-0.5">
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <Star
-                      key={i}
-                      className={`h-4.5 w-4.5 ${i < Math.round(avgRating) ? 'fill-[#bfa37a] text-[#bfa37a]' : 'text-neutral-200'}`}
-                    />
-                  ))}
-                </div>
-                <span className="text-sm font-serif font-bold text-[#1a1a1a]">{avgRating > 0 ? avgRating.toFixed(1) : '0.0'}</span>
-                <span className="text-xs font-bold uppercase tracking-wider text-neutral-450">({lawyer.reviews.length} {lawyer.reviews.length === 1 ? 'Review' : 'Reviews'})</span>
-              </div>
+
             </div>
 
 
@@ -453,96 +391,6 @@ export default function LawyerProfileClient({
         </div>
       </section>
 
-      {/* ─── Reviews Section ─── */}
-      <section className="border-t border-[#efeae0] bg-[#faf8f6]">
-        <div className="mx-auto max-w-[1400px] px-6 lg:px-12 xl:px-24 py-12 lg:py-16">
-          {/* Reviews Header */}
-          <div className="flex items-center justify-between mb-10">
-            <div className="flex items-center gap-4">
-              <div className="flex h-11 w-11 items-center justify-center bg-[#bfa37a] text-white rounded-none">
-                <Star className="h-5 w-5" />
-              </div>
-              <div>
-                <h2 className="text-2xl font-serif font-bold tracking-tight text-[#1a1a1a]">Client Reviews</h2>
-                <p className="text-xs text-neutral-500 font-bold uppercase tracking-wider mt-0.5">
-                  {lawyer.reviews.length} {lawyer.reviews.length === 1 ? 'review' : 'reviews'} · {avgRating > 0 ? avgRating.toFixed(1) : '0.0'} average
-                </p>
-              </div>
-            </div>
-            <button
-              onClick={handleWriteReview}
-              className="flex items-center gap-2 bg-[#1a1a1a] text-white px-6 py-3.5 text-xs font-bold uppercase tracking-widest hover:bg-neutral-800 transition-all rounded-none"
-            >
-              <Send className="h-4 w-4" /> Write a Review
-            </button>
-          </div>
-
-          {/* Reviews Marquee */}
-          {lawyer.reviews.length > 0 ? (
-            <div
-              className="overflow-hidden relative flex"
-              onMouseEnter={() => setReviewPaused(true)}
-              onMouseLeave={() => setReviewPaused(false)}
-            >
-              <div
-                ref={reviewMarqueeRef}
-                className="flex gap-6 whitespace-nowrap"
-                style={{
-                  width: 'max-content',
-                  animation: `marquee-half ${Math.max(25, lawyer.reviews.length * 7)}s linear infinite`,
-                  animationPlayState: reviewPaused ? 'paused' : 'running',
-                }}
-              >
-                {/* Double the items for seamless loop */}
-                {[...lawyer.reviews, ...lawyer.reviews].map((review, idx) => (
-                  <div
-                    key={`${review.id}-${idx}`}
-                    className="inline-flex flex-col min-w-[340px] max-w-[340px] bg-[#fdfcfb] border border-[#efeae0] p-6 shrink-0 whitespace-normal text-left relative shadow-sm rounded-none"
-                  >
-                    {/* Testimonial Stars & Quotes */}
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center gap-0.5">
-                        {Array.from({ length: 5 }).map((_, i) => (
-                          <Star
-                            key={i}
-                            className={`h-4.5 w-4.5 ${i < review.rating ? 'fill-[#bfa37a] text-[#bfa37a]' : 'text-neutral-200'}`}
-                          />
-                        ))}
-                      </div>
-                      <span className="text-[90px] font-serif text-[#efeae0]/70 leading-none absolute top-2 right-4 pointer-events-none select-none">”</span>
-                    </div>
-
-                    {/* Review text */}
-                    <p className="text-[13px] text-neutral-600 leading-relaxed font-light mb-6 flex-1 min-h-[60px]">
-                      &ldquo;{review.comment}
-                    </p>
-
-                    {/* Profile info */}
-                    <div className="flex items-center gap-3 border-t border-[#efeae0] pt-4 mt-auto">
-                      <img 
-                        src={review.reviewerImage || '/avatar.png'} 
-                        alt={review.reviewerName} 
-                        className="w-11 h-11 rounded-full object-cover border border-[#efeae0] bg-[#faf8f6]" 
-                      />
-                      <div>
-                        <p className="text-sm font-serif font-bold text-[#bfa37a] tracking-tight">{review.reviewerName}</p>
-                        <p className="text-[9px] text-neutral-455 uppercase tracking-widest font-bold mt-0.5">
-                          {new Date(review.createdAt).toLocaleDateString()} · Verified Client
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : (
-            <div className="bg-[#fdfcfb] border border-[#efeae0] p-12 text-center rounded-none">
-              <Star className="w-10 h-10 text-[#efeae0] mx-auto mb-3" />
-              <p className="text-xs text-neutral-400 font-bold uppercase tracking-widest">No reviews yet. Be the first to leave a review!</p>
-            </div>
-          )}
-        </div>
-      </section>
 
       {/* ─── Other Lawyers Marquee ─── */}
       {otherLawyers.length > 0 && (
@@ -586,7 +434,7 @@ export default function LawyerProfileClient({
                         practiceAreas={l.practiceAreas}
                         languages={l.languages}
                         district={l.district}
-                        avgRating={l.avgRating}
+
                         locale={locale}
                         imageHeight="h-[280px]"
                       />
@@ -599,63 +447,7 @@ export default function LawyerProfileClient({
         </section>
       )}
 
-      {/* ─── Review Modal ─── */}
-      {showReviewModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="bg-[#fdfcfb] w-full max-w-md mx-4 shadow-2xl border border-[#efeae0] rounded-none">
-            <div className="flex items-center justify-between p-6 border-b border-[#efeae0]">
-              <h3 className="text-lg font-serif font-bold text-[#1a1a1a]">Write a Review</h3>
-              <button onClick={() => setShowReviewModal(false)} className="text-neutral-400 hover:text-[#bfa37a] transition-colors">
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            <div className="p-6 space-y-5">
-              <div>
-                <label className="text-[9px] font-bold text-[#bfa37a] uppercase tracking-widest mb-3 block">Rating</label>
-                <div className="flex items-center gap-1.5">
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <button
-                      key={i}
-                      type="button"
-                      onMouseEnter={() => setHoveredStar(i + 1)}
-                      onMouseLeave={() => setHoveredStar(0)}
-                      onClick={() => setReviewRating(i + 1)}
-                    >
-                      <Star
-                        className={`h-8 w-8 transition-colors cursor-pointer ${i < (hoveredStar || reviewRating)
-                            ? 'fill-[#bfa37a] text-[#bfa37a]'
-                            : 'text-neutral-200'
-                          }`}
-                      />
-                    </button>
-                  ))}
-                  <span className="ml-3 text-xs font-serif font-bold text-neutral-500">{hoveredStar || reviewRating}/5</span>
-                </div>
-              </div>
-              <div>
-                <label className="text-[9px] font-bold text-[#bfa37a] uppercase tracking-widest mb-3 block">Your Review</label>
-                <textarea
-                  value={reviewComment}
-                  onChange={(e) => setReviewComment(e.target.value)}
-                  placeholder="Share your experience with this lawyer..."
-                  rows={4}
-                  className="w-full bg-[#faf8f6] border border-[#efeae0] text-[#1a1a1a] px-4 py-3 outline-none focus:border-[#bfa37a] focus:bg-white transition-all text-sm rounded-none font-light placeholder:text-neutral-400"
-                />
-              </div>
-            </div>
-            <div className="p-6 pt-0">
-              <button
-                onClick={submitReview}
-                disabled={reviewLoading}
-                className="w-full flex items-center justify-center gap-2 bg-[#1a1a1a] text-white py-4 text-xs font-bold uppercase tracking-widest hover:bg-neutral-800 transition-all rounded-none disabled:opacity-50"
-              >
-                {reviewLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                {reviewLoading ? 'Submitting...' : 'Submit Review'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+
     </div>
   );
 }

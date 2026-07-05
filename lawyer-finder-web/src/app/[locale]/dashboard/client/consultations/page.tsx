@@ -47,10 +47,7 @@ export default function ClientConsultationsPage() {
   const [statusFilter, setStatusFilter] = useState('');
   const [cancelModal, setCancelModal] = useState<string | null>(null);
   const [cancelReason, setCancelReason] = useState('');
-  const [rateModal, setRateModal] = useState<string | null>(null);
-  const [rating, setRating] = useState(5);
-  const [feedback, setFeedback] = useState('');
-  
+
   const [paymentModal, setPaymentModal] = useState<string | null>(null);
   const [bankName, setBankName] = useState('');
   const [accountHolder, setAccountHolder] = useState('');
@@ -147,25 +144,6 @@ export default function ClientConsultationsPage() {
     finally { setActionLoading(false); }
   }
 
-  async function submitRating() {
-    if (!rateModal) return;
-    setActionLoading(true);
-    try {
-      const res = await fetch(`/api/consultations/bookings/${rateModal}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'rate', rating, feedback: feedback || undefined }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        toast.success('Thank you for your feedback!');
-        setRateModal(null);
-        setFeedback('');
-        loadBookings();
-      } else toast.error(data.error || 'Failed');
-    } catch { toast.error('Failed'); }
-    finally { setActionLoading(false); }
-  }
 
   async function submitPaymentDetails() {
     if (!bankName || !accountHolder || !transactionRef) {
@@ -298,11 +276,7 @@ export default function ClientConsultationsPage() {
                           <XCircle className="w-3 h-3 mr-1" /> Cancel
                         </Button>
                       )}
-                      {b.status === 'COMPLETED' && !b.clientRating && (
-                        <Button size="sm" onClick={() => setRateModal(b.id)} className="bg-amber-500 text-white hover:bg-amber-600 rounded-none h-7 text-[10px] px-2.5 font-bold">
-                          <Star className="w-3 h-3 mr-1" /> Rate
-                        </Button>
-                      )}
+
                     </div>
                   </div>
                 </div>
@@ -345,23 +319,6 @@ export default function ClientConsultationsPage() {
         </div>
       )}
 
-      {/* Rate Modal */}
-      {rateModal && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setRateModal(null)}>
-          <div className="bg-white max-w-sm w-full shadow-xl" onClick={(e) => e.stopPropagation()}>
-            <div className="p-6 border-b"><h2 className="text-lg font-bold flex items-center gap-2"><Star className="w-5 h-5 text-amber-500" /> Rate Consultation</h2></div>
-            <div className="p-6 space-y-4">
-              <div className="flex justify-center gap-2">
-                {[1,2,3,4,5].map((v) => (
-                  <button key={v} onClick={() => setRating(v)} className={`text-3xl transition-transform hover:scale-110 ${v <= rating ? 'text-amber-400' : 'text-neutral-200'}`}>★</button>
-                ))}
-              </div>
-              <textarea value={feedback} onChange={(e) => setFeedback(e.target.value)} rows={3} placeholder="Share your experience (optional)" className="w-full border border-neutral-200 px-3 py-2 text-sm" />
-              <Button onClick={submitRating} disabled={actionLoading} className="w-full bg-[#0a0a0a] text-white hover:bg-neutral-800 rounded-none h-10 font-bold text-xs uppercase tracking-wide">{actionLoading ? 'Submitting...' : 'Submit Rating'}</Button>
-            </div>
-          </div>
-        </div>
-      )}
       {/* Payment Modal */}
       {paymentModal && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setPaymentModal(null)}>

@@ -9,7 +9,6 @@ interface LawyerCardProps {
   practiceAreas: string[];
   languages: string[];
   district: string | null;
-  avgRating?: number;
   locale: string;
   imageHeight?: string; // e.g. "h-[280px]" or "h-[360px]"
 }
@@ -22,7 +21,7 @@ export default function LawyerCard({
   practiceAreas,
   languages,
   district,
-  avgRating = 0,
+
   locale,
   imageHeight = 'h-[280px]'
 }: LawyerCardProps) {
@@ -62,19 +61,11 @@ export default function LawyerCard({
           <p className="text-neutral-450 text-xs font-light line-clamp-1">
             {bio || 'Vetted legal counsel ready for guidance.'}
           </p>
-          {(avgRating > 0 || district) && (
+          {district && (
             <div className="flex items-center gap-3 pt-2">
-              {avgRating > 0 && (
-                <div className="flex items-center gap-1 text-[10px] font-bold text-neutral-600 bg-neutral-100 px-2 py-1">
-                  <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
-                  {avgRating.toFixed(1)}
-                </div>
-              )}
-              {district && (
-                <div className="text-[9px] font-bold uppercase tracking-widest text-neutral-400 bg-neutral-100 px-2 py-1">
-                  {district}
-                </div>
-              )}
+              <div className="text-[9px] font-bold uppercase tracking-widest text-neutral-400 bg-neutral-100 px-2 py-1">
+                {district}
+              </div>
             </div>
           )}
         </div>

@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import ChatWidget from '@/components/home/ChatWidget';
 import HeroChatInput from '@/components/home/HeroChatInput';
-import HeroReviewsMarquee from '@/components/home/HeroReviewsMarquee';
+
 import { AdBanner, SponsoredListing } from '@/components/ads/AdComponents';
 import prisma from '@/lib/db';
 import LawyerCard from '@/components/lawyer/LawyerCard';
@@ -25,31 +25,12 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
   const { locale } = await params;
   const t = await getTranslations({ locale });
 
-  // Fetch top 12 approved reviews
-  const topReviews = await prisma.review.findMany({
-    where: { isApproved: true },
-    take: 25,
-    include: { lawyer: true, reviewer: true },
-    orderBy: { rating: 'desc' }
-  });
 
-  const serializedReviews = topReviews
-    .filter((r) => r.lawyer?.fullName)
-    .map((r) => ({
-      id: r.id,
-      reviewerName: r.reviewer?.fullName || 'Anonymous',
-      rating: r.rating,
-      comment: r.comment,
-      lawyerName: r.lawyer!.fullName,
-      reviewerImage: r.reviewer?.profileImageUrl || '',
-    }));
 
   // Fetch top lawyers for cards section
   const topLawyers = await prisma.lawyerProfile.findMany({
     where: { isVerified: true },
-    include: { reviews: { where: { isApproved: true } } },
     take: 8,
-    orderBy: { reviews: { _count: 'desc' } }, // Just ordering by most reviewed for demo
   });
 
   // Fetch actual active user count (Clients & Lawyers)
@@ -163,12 +144,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
             </div>
           </div>
 
-          {/* Social Proof Marquee & Ad Placement below the main Hero */}
-          {/* {serializedReviews.length > 0 && (
-            <div className="mt-12 pt-8 border-t border-neutral-100">
-              <HeroReviewsMarquee reviews={serializedReviews} />
-            </div>
-          )} */}
+
           
           <AdBanner placement="HOMEPAGE_BELOW_HERO" locale={locale} className="w-full max-w-[1200px] mx-auto mt-8 rounded-none overflow-hidden shadow-sm border border-neutral-100" />
         </section>
@@ -234,11 +210,6 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
               <SponsoredListing placement="DIRECTORY_TOP" locale={locale} />
 
               {topLawyers.map((lawyer) => {
-                const avgRating =
-                  lawyer.reviews.length > 0
-                    ? lawyer.reviews.reduce((sum, r) => sum + r.rating, 0) / lawyer.reviews.length
-                    : 0;
-
                 return (
                   <LawyerCard
                     key={lawyer.id}
@@ -249,7 +220,6 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
                     practiceAreas={lawyer.practiceAreas}
                     languages={lawyer.languages}
                     district={lawyer.district}
-                    avgRating={avgRating}
                     locale={locale}
                     imageHeight="h-[360px]"
                   />

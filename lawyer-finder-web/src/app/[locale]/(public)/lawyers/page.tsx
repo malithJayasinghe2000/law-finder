@@ -114,10 +114,6 @@ export default async function LawyerDirectory({
             )}
 
             {lawyers.map((lawyer) => {
-              const avgRating =
-                lawyer.reviews.length > 0
-                  ? lawyer.reviews.reduce((sum, r) => sum + r.rating, 0) / lawyer.reviews.length
-                  : 0;
 
               return (
                 <LawyerCard
@@ -129,7 +125,7 @@ export default async function LawyerDirectory({
                   practiceAreas={lawyer.practiceAreas}
                   languages={lawyer.languages}
                   district={lawyer.district}
-                  avgRating={avgRating}
+
                   locale={locale}
                   imageHeight="h-[280px]"
                 />
