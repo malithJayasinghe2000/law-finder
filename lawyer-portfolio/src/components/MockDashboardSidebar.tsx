@@ -49,17 +49,17 @@ export default function MockDashboardSidebar({ activeTab }: MockDashboardSidebar
               </button>
 
               {/* Submenu links */}
-              <div className="pl-6 space-y-1.5 pt-1.5">
-                <button className={`flex items-center gap-2 w-full py-1.5 px-3 text-[11px] font-bold transition-colors ${
+              <div className="pl-4 space-y-1 pt-1">
+                <button className={`flex items-center gap-1.5 w-full py-1 px-2 text-[10.5px] font-bold transition-colors whitespace-nowrap ${
                   activeTab === 'Bookings' ? 'text-[#bfa37a]' : 'text-neutral-500 hover:text-neutral-900'
                 }`}>
-                  <span className={`w-1.5 h-1.5 rounded-full ${activeTab === 'Bookings' ? 'bg-[#bfa37a]' : 'bg-transparent'}`} />
+                  <span className={`w-1 h-1 rounded-full ${activeTab === 'Bookings' ? 'bg-[#bfa37a]' : 'bg-transparent'}`} />
                   <span>Bookings</span>
                 </button>
-                <button className={`flex items-center gap-2 w-full py-1.5 px-3 text-[11px] font-bold transition-colors ${
+                <button className={`flex items-center gap-1.5 w-full py-1 px-2 text-[10.5px] font-bold transition-colors whitespace-nowrap ${
                   activeTab === 'Earnings & Payouts' ? 'text-[#bfa37a]' : 'text-neutral-500 hover:text-neutral-900'
                 }`}>
-                  <span className={`w-1.5 h-1.5 rounded-full ${activeTab === 'Earnings & Payouts' ? 'bg-[#bfa37a]' : 'bg-transparent'}`} />
+                  <span className={`w-1 h-1 rounded-full ${activeTab === 'Earnings & Payouts' ? 'bg-[#bfa37a]' : 'bg-transparent'}`} />
                   <span>Earnings &amp; Payouts</span>
                 </button>
               </div>

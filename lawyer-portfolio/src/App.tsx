@@ -68,18 +68,7 @@ export default function App() {
       {/* 2. Hero Section */}
       <Hero onExploreFeatures={() => scrollToSection('counsel-ai')} />
 
-      {/* Scroll Down Indicator */}
-      <div className="flex justify-center -mt-6 pb-12">
-        <motion.div 
-          animate={{ y: [0, 8, 0] }}
-          transition={{ repeat: Infinity, duration: 1.5 }}
-          className="text-neutral-400 flex flex-col items-center gap-1 cursor-pointer text-xs"
-          onClick={() => scrollToSection('counsel-ai')}
-        >
-          <span className="uppercase tracking-widest text-[9px] font-bold">Scroll to Playgrounds</span>
-          <ArrowDown className="w-4 h-4 text-[#bfa37a]" />
-        </motion.div>
-      </div>
+     
 
       {/* 3. Interactive Scrolling Playgrounds */}
       <main className="max-w-7xl mx-auto w-full px-6 sm:px-12 lg:px-12 py-12 space-y-36">

@@ -337,34 +337,7 @@ export default function Hero({ onExploreFeatures }: HeroProps) {
           </motion.div>
         </motion.div>
 
-        {/* Key Stats Bar */}
-        <motion.div 
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.8, delay: 0.5 }}
-          className="max-w-4xl mx-auto pt-10 grid grid-cols-2 md:grid-cols-4 gap-6 text-center divide-y md:divide-y-0 md:divide-x divide-neutral-200"
-        >
-          <div className="space-y-1.5 p-2">
-            <div className="flex justify-center text-[#bfa37a]"><Scale className="w-5 h-5" /></div>
-            <p className="text-lg font-bold text-neutral-900 tracking-tight">100% compliant</p>
-            <p className="text-[10px] text-neutral-450 uppercase tracking-wider font-bold">Rent Act &amp; Civil codes</p>
-          </div>
-          <div className="space-y-1.5 p-2 pt-6 md:pt-2">
-            <div className="flex justify-center text-[#bfa37a]"><Users className="w-5 h-5" /></div>
-            <p className="text-lg font-bold text-neutral-900 tracking-tight">5,000+ matches</p>
-            <p className="text-[10px] text-neutral-450 uppercase tracking-wider font-bold">Monthly Active intakes</p>
-          </div>
-          <div className="space-y-1.5 p-2 pt-6 md:pt-2">
-            <div className="flex justify-center text-[#bfa37a]"><ShieldCheck className="w-5 h-5" /></div>
-            <p className="text-lg font-bold text-neutral-900 tracking-tight">256-bit encryption</p>
-            <p className="text-[10px] text-neutral-450 uppercase tracking-wider font-bold">Client Advocate Privacy</p>
-          </div>
-          <div className="space-y-1.5 p-2 pt-6 md:pt-2">
-            <div className="flex justify-center text-[#bfa37a]"><Sparkles className="w-5 h-5" /></div>
-            <p className="text-lg font-bold text-neutral-900 tracking-tight">4.9/5 Rating</p>
-            <p className="text-[10px] text-neutral-450 uppercase tracking-wider font-bold">Client review score</p>
-          </div>
-        </motion.div>
+        
       </div>
     </section>
   );

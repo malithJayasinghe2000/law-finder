@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import {
   Users, Search, Edit3, Key, ShieldCheck, ShieldOff,
-  Loader2, X, CheckCircle2, User, Mail, MapPin
+  Loader2, X, CheckCircle2, User, Mail, MapPin, ChevronLeft, ChevronRight
 } from 'lucide-react';
 
 interface PlatformUser {
@@ -29,6 +29,7 @@ export default function UserManagementPage() {
   const [roleFilter, setRoleFilter] = useState('ALL');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
 
   // Edit modal state
   const [editUser, setEditUser] = useState<PlatformUser | null>(null);
@@ -55,7 +56,10 @@ export default function UserManagementPage() {
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => { fetchUsers(); }, [search, roleFilter, statusFilter]);
+  useEffect(() => {
+    setPage(1);
+    fetchUsers();
+  }, [search, roleFilter, statusFilter]);
 
   const handleUpdateDetails = async () => {
     if (!editUser) return;
@@ -131,6 +135,10 @@ export default function UserManagementPage() {
     if (role === 'LAWYER') return 'bg-neutral-100 text-neutral-800 border border-neutral-300';
     return 'bg-neutral-50 text-neutral-600 border border-neutral-200';
   };
+
+  const limit = 10;
+  const totalPages = Math.max(1, Math.ceil(users.length / limit));
+  const paginatedUsers = users.slice((page - 1) * limit, page * limit);
 
   return (
     <div className="w-full space-y-6">
@@ -222,7 +230,7 @@ export default function UserManagementPage() {
               </tr>
             </thead>
             <tbody>
-              {users.map((user) => (
+              {paginatedUsers.map((user) => (
                 <tr key={user.id} className="border-b border-neutral-100 hover:bg-neutral-50/50 transition-colors">
                   <td className="px-5 py-4">
                     <div className="flex items-center gap-3">
@@ -314,6 +322,27 @@ export default function UserManagementPage() {
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-4 pt-4">
+          <button 
+            onClick={() => setPage(p => Math.max(1, p - 1))} 
+            disabled={page === 1} 
+            className="flex items-center justify-center border border-neutral-250 hover:bg-neutral-50 px-3 py-1.5 rounded-none disabled:opacity-50 transition-colors"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+          <span className="text-xs font-semibold text-neutral-600">Page {page} of {totalPages}</span>
+          <button 
+            onClick={() => setPage(p => Math.min(totalPages, p + 1))} 
+            disabled={page === totalPages} 
+            className="flex items-center justify-center border border-neutral-250 hover:bg-neutral-50 px-3 py-1.5 rounded-none disabled:opacity-50 transition-colors"
+          >
+            <ChevronRight className="w-4 h-4" />
+          </button>
         </div>
       )}
 
