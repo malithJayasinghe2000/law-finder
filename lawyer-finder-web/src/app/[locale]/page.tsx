@@ -12,7 +12,8 @@ import {
   FileText,
   PhoneCall,
   Facebook,
-  Linkedin
+  Linkedin,
+  Users
 } from 'lucide-react';
 import ChatWidget from '@/components/home/ChatWidget';
 import HeroChatInput from '@/components/home/HeroChatInput';
@@ -81,11 +82,8 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
 
                 <div className="flex items-center gap-3">
                   <div className="flex -space-x-3">
-                    <img src="/assets/images/home1/author1.png" className="w-9 h-9 rounded-full border-2 border-white object-cover shadow-sm" alt="Client 1" />
-                    <img src="/assets/images/home1/author2.png" className="w-9 h-9 rounded-full border-2 border-white object-cover shadow-sm" alt="Client 2" />
-                    <img src="/assets/images/home1/author3.png" className="w-9 h-9 rounded-full border-2 border-white object-cover shadow-sm" alt="Client 3" />
-                    <div className="w-9 h-9 rounded-full border-2 border-white bg-[#bfa37a] text-white flex items-center justify-center text-[10px] font-bold font-sans">
-                      +{userCount}
+                    <div className="w-9 h-9 rounded-full border-2 border-white bg-[#bfa37a] text-white flex items-center justify-center">
+                      <Users className="w-4 h-4" />
                     </div>
                   </div>
                   <p className="text-[10px] font-bold uppercase tracking-wider text-neutral-400">
