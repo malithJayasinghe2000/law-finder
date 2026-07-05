@@ -59,7 +59,19 @@ export default async function RootLayout({
             {children}
           </div>
         </NextIntlClientProvider>
-        <Toaster position="top-right" richColors />
+        <Toaster position="top-right" 
+          toastOptions={{
+            style: {
+              background: '#000000', // Change background color
+              color: '#ffffff',      // Change text color
+              border: '1px solid #333' // Change border color
+            },
+            classNames: {
+              toast: 'custom-toast-class', // Or use Tailwind classes
+              success: 'bg-green-500 text-white',
+              error: 'bg-red-500 text-white',
+            }
+          }}  />
       </body>
     </html>
   );

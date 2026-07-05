@@ -124,8 +124,14 @@ const updateLawyerProfileSchema = z.object({
     (val) => typeof val === 'string' ? sanitizeString(val) : val,
     z.string().max(2000).optional().nullable()
   ),
-  practiceAreas: z.array(z.enum(PRACTICE_AREAS as unknown as [string, ...string[]])).optional(),
-  languages: z.array(z.enum(LANGUAGES as unknown as [string, ...string[]])).optional(),
+  practiceAreas: z.preprocess(
+    (val) => Array.isArray(val) ? val.filter(v => PRACTICE_AREAS.includes(v as any)) : val,
+    z.array(z.enum(PRACTICE_AREAS as unknown as [string, ...string[]])).optional()
+  ),
+  languages: z.preprocess(
+    (val) => Array.isArray(val) ? val.filter(v => LANGUAGES.includes(v as any)) : val,
+    z.array(z.enum(LANGUAGES as unknown as [string, ...string[]])).optional()
+  ),
   district: z.enum(DISTRICTS as unknown as [string, ...string[]]).optional().or(z.literal('')),
   baseFeeRange: z.preprocess(
     (val) => typeof val === 'string' ? sanitizeString(val) : val,

@@ -8,14 +8,17 @@ import { checkRateLimit, getClientIp } from '@/lib/security';
 export async function POST(req: Request) {
   try {
     // Rate limiting: max 5 login attempts per 15 minutes per IP
-    const clientIp = getClientIp(req);
-    const rateCheck = checkRateLimit(`login:${clientIp}`, 5, 15 * 60 * 1000);
-    if (!rateCheck.allowed) {
-      const retryAfterSec = Math.ceil(rateCheck.retryAfterMs / 1000);
-      return NextResponse.json(
-        { error: `Too many login attempts. Please try again in ${retryAfterSec} seconds.` },
-        { status: 429 }
-      );
+    // Can be disabled via env var (e.g., RATE_LIMIT_ENABLED=false)
+    if (process.env.RATE_LIMIT_ENABLED !== 'false') {
+      const clientIp = getClientIp(req);
+      const rateCheck = checkRateLimit(`login:${clientIp}`, 5, 15 * 60 * 1000);
+      if (!rateCheck.allowed) {
+        const retryAfterSec = Math.ceil(rateCheck.retryAfterMs / 1000);
+        return NextResponse.json(
+          { error: `Too many login attempts. Please try again in ${retryAfterSec} seconds.` },
+          { status: 429 }
+        );
+      }
     }
 
     const body = await req.json();
