@@ -54,7 +54,7 @@ export async function GET(req: Request) {
           lawyer: { select: { id: true, fullName: true, profileImageUrl: true, district: true, address: true, contactPhone: true } },
           payment: true,
         },
-        orderBy: [{ date: 'desc' }, { startTime: 'desc' }],
+        orderBy: { createdAt: 'desc' },
         skip,
         take: limit,
       }),

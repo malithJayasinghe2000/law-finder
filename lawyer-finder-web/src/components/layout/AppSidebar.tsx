@@ -11,7 +11,7 @@ import React, { useState } from 'react';
 export function AppSidebar({ locale, role, userId }: { locale: string; role: string; userId?: string }) {
   const pathname = usePathname();
   const [openSubmenus, setOpenSubmenus] = useState<string[]>(['Payments','Consultations']); // Default open for better UX, or empty
-  const [counts, setCounts] = useState({ pendingInvoicesCount: 0, pendingAdCampaignsCount: 0 });
+  const [counts, setCounts] = useState({ pendingInvoicesCount: 0, pendingAdCampaignsCount: 0, pendingBankPaymentsCount: 0 });
 
   React.useEffect(() => {
     const fetchCounts = async () => {
@@ -160,6 +160,11 @@ export function AppSidebar({ locale, role, userId }: { locale: string; role: str
                               {counts.pendingAdCampaignsCount}
                             </span>
                           )}
+                          {link.label === 'Consultations' && role === 'ADMIN' && counts.pendingBankPaymentsCount > 0 && (
+                            <span className="ml-2 bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full flex items-center justify-center min-w-[16px] h-[16px]">
+                              {counts.pendingBankPaymentsCount}
+                            </span>
+                          )}
                           <ChevronDown className={`w-4 h-4 ml-auto transition-transform ${openSubmenus.includes(link.label) ? 'rotate-180' : ''}`} />
                         </div>
                       </SidebarMenuButton>
@@ -174,7 +179,7 @@ export function AppSidebar({ locale, role, userId }: { locale: string; role: str
                                   render={
                                     <Link 
                                       href={sub.href} 
-                                      className={`flex items-center gap-3 w-full px-3 py-2.5 text-[12px] transition-all rounded-xl border ${
+                                      className={`h-auto flex items-center gap-3 w-full px-3 py-2 text-[12px] transition-all rounded-xl border ${
                                         subActive 
                                           ? 'text-[#bfa37a] font-bold bg-white border-[#efeae0] shadow-sm' 
                                           : 'text-neutral-500 hover:text-neutral-900 hover:bg-white/40 border-transparent'
@@ -182,16 +187,21 @@ export function AppSidebar({ locale, role, userId }: { locale: string; role: str
                                     />
                                   }
                                 >
-                                  <sub.icon className={`w-3.5 h-3.5 ${subActive ? 'text-[#bfa37a]' : 'text-neutral-400'}`} />
-                                  <span>{sub.label}</span>
+                                  <sub.icon className={`w-3.5 h-3.5 shrink-0 ${subActive ? 'text-[#bfa37a]' : 'text-neutral-400'}`} />
+                                  <span className="truncate">{sub.label}</span>
                                   {sub.label === 'Invoices' && role === 'LAWYER' && counts.pendingInvoicesCount > 0 && (
-                                    <span className="ml-auto bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full flex items-center justify-center min-w-[16px] h-[16px]">
+                                    <span className="ml-auto bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full flex items-center justify-center min-w-[16px] h-[16px] shrink-0">
                                       {counts.pendingInvoicesCount}
                                     </span>
                                   )}
                                   {sub.label === 'Campaigns' && role === 'ADMIN' && counts.pendingAdCampaignsCount > 0 && (
-                                    <span className="ml-auto bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full flex items-center justify-center min-w-[16px] h-[16px]">
+                                    <span className="ml-auto bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full flex items-center justify-center min-w-[16px] h-[16px] shrink-0">
                                       {counts.pendingAdCampaignsCount}
+                                    </span>
+                                  )}
+                                  {sub.label === 'Payments & Commission' && role === 'ADMIN' && counts.pendingBankPaymentsCount > 0 && (
+                                    <span className="ml-auto bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full flex items-center justify-center min-w-[16px] h-[16px] shrink-0">
+                                      {counts.pendingBankPaymentsCount}
                                     </span>
                                   )}
                                 </SidebarMenuSubButton>
