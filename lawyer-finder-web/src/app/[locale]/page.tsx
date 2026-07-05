@@ -161,14 +161,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
                 We facilitate a broad spectrum of legal matters by connecting client requirements with dedicated Attorneys-at-Law across the island.
               </p>
               
-              {/* Profile Block */}
-              <div className="flex items-center gap-4 pt-4">
-                <img src="/assets/images/home1/author1.png" className="w-12 h-12 rounded-full border border-[#bfa37a]/30 object-cover" alt="CEO Avatar" />
-                <div>
-                  <p className="text-sm font-bold text-white">Allison Torff</p>
-                  <p className="text-[10px] text-neutral-500 uppercase tracking-wider font-bold">CEO, Factorix</p>
-                </div>
-              </div>
+
             </div>
 
             {/* Right */}
