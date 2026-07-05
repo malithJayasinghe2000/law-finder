@@ -11,16 +11,10 @@ export async function POST(req: Request) {
       return NextResponse.json([]);
     }
 
-    // Find lawyers with ACTIVE subscriptions matching any of the practice areas
+    // Find verified lawyers matching any of the detected practice areas
     const lawyers = await prisma.lawyerProfile.findMany({
       where: {
         isVerified: true,
-        // Only lawyers with at least one ACTIVE subscription
-        Subscription: {
-          some: {
-            status: 'ACTIVE',
-          },
-        },
         // Match any of the detected practice areas
         OR: practiceAreas.map((area: string) => ({
           practiceAreas: {

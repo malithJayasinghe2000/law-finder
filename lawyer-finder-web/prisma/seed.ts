@@ -93,6 +93,87 @@ async function main() {
     },
   })
 
+  // 3.6 Create Third Lawyer (Criminal Law)
+  const existingProfile3 = await prisma.lawyerProfile.findUnique({
+    where: { baslNumber: 'BASL-2024-1102' },
+  });
+
+  const lawyer3 = await prisma.user.upsert({
+    where: { email: 'lawyer3@thelawyr.lk' },
+    update: {},
+    create: {
+      email: 'lawyer3@thelawyr.lk',
+      passwordHash,
+      role: 'LAWYER',
+      profile: existingProfile3 ? undefined : {
+        create: {
+          fullName: 'Anura Bandara',
+          baslNumber: 'BASL-2024-1102',
+          isVerified: true,
+          bio: 'Expert in Criminal Law with 10 years of courtroom experience.',
+          practiceAreas: ['Criminal Law'],
+          languages: ['Sinhala', 'English'],
+          district: 'Colombo',
+          baseFeeRange: 'LKR 15,000 - 30,000',
+        },
+      },
+    },
+  })
+
+  // 3.7 Create Fourth Lawyer (Employment & Civil Litigation)
+  const existingProfile4 = await prisma.lawyerProfile.findUnique({
+    where: { baslNumber: 'BASL-2024-2204' },
+  });
+
+  const lawyer4 = await prisma.user.upsert({
+    where: { email: 'lawyer4@thelawyr.lk' },
+    update: {},
+    create: {
+      email: 'lawyer4@thelawyr.lk',
+      passwordHash,
+      role: 'LAWYER',
+      profile: existingProfile4 ? undefined : {
+        create: {
+          fullName: 'Nethmi Wijesinghe',
+          baslNumber: 'BASL-2024-2204',
+          isVerified: true,
+          bio: 'Specialist in labor disputes, employment contracts, and general civil litigation.',
+          practiceAreas: ['Employment Law', 'Civil Litigation'],
+          languages: ['Sinhala', 'English', 'Tamil'],
+          district: 'Galle',
+          baseFeeRange: 'LKR 8,000 - 20,000',
+        },
+      },
+    },
+  })
+
+  // 3.8 Create Fifth Lawyer (Real Estate & Property)
+  const existingProfile5 = await prisma.lawyerProfile.findUnique({
+    where: { baslNumber: 'BASL-2024-3315' },
+  });
+
+  const lawyer5 = await prisma.user.upsert({
+    where: { email: 'lawyer5@thelawyr.lk' },
+    update: {},
+    create: {
+      email: 'lawyer5@thelawyr.lk',
+      passwordHash,
+      role: 'LAWYER',
+      profile: existingProfile5 ? undefined : {
+        create: {
+          fullName: 'Mohammed Roshan',
+          baslNumber: 'BASL-2024-3315',
+          isVerified: true,
+          bio: 'Notary Public and Real Estate lawyer handling deeds, titles, and property disputes.',
+          practiceAreas: ['Real Estate', 'Property Law'],
+          languages: ['Tamil', 'English'],
+          district: 'Colombo',
+          baseFeeRange: 'LKR 5,000 - 15,000',
+        },
+      },
+    },
+  })
+
   // 4. Seed Subscription Roles
   console.log('Creating subscription tiers...')
   
@@ -313,6 +394,28 @@ async function main() {
           nextBilling: new Date(new Date().setFullYear(new Date().getFullYear() + 1)),
         }
       })
+    }
+  }
+
+  // Assign subscriptions to the other test lawyers (3, 4, 5) so they appear in RAG recommendations
+  const testLawyers = [lawyer3, lawyer4, lawyer5];
+  for (const tLawyer of testLawyers) {
+    const profile = await prisma.lawyerProfile.findUnique({ where: { userId: tLawyer.id } });
+    if (profile) {
+      const exists = await prisma.subscription.findFirst({ where: { lawyerId: profile.id } });
+      if (!exists) {
+        await prisma.subscription.create({
+          data: {
+            lawyerId: profile.id,
+            planId: professionalPlan.id,
+            roleId: professionalRole.id,
+            status: 'ACTIVE',
+            billingCycle: 'YEARLY',
+            startDate: new Date(),
+            nextBilling: new Date(new Date().setFullYear(new Date().getFullYear() + 1)),
+          }
+        });
+      }
     }
   }
 
