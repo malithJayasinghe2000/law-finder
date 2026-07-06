@@ -44,21 +44,27 @@ export async function POST(
         return NextResponse.json({ error: validated.error.format() }, { status: 400 });
       }
 
-      // Use transaction to create payment and update booking status
+      // Use transaction to create or update payment and update booking status
+      const paymentData = {
+        amount: booking.totalAmount,
+        method: 'BANK_TRANSFER' as const,
+        status: 'PENDING' as const,
+        bankName: validated.data.bankName,
+        accountHolder: validated.data.accountHolder,
+        accountNumber: validated.data.accountNumber,
+        transactionDate: validated.data.transactionDate,
+        transactionRef: validated.data.transactionRef,
+        receiptImageUrl: validated.data.receiptImageUrl,
+        notes: validated.data.notes,
+      };
+
       const [payment] = await prisma.$transaction([
-        prisma.bookingPayment.create({
-          data: {
+        prisma.bookingPayment.upsert({
+          where: { bookingId: id },
+          update: paymentData,
+          create: {
             bookingId: id,
-            amount: booking.totalAmount,
-            method: 'BANK_TRANSFER',
-            status: 'PENDING',
-            bankName: validated.data.bankName,
-            accountHolder: validated.data.accountHolder,
-            accountNumber: validated.data.accountNumber,
-            transactionDate: validated.data.transactionDate,
-            transactionRef: validated.data.transactionRef,
-            receiptImageUrl: validated.data.receiptImageUrl,
-            notes: validated.data.notes,
+            ...paymentData,
           },
         }),
         prisma.booking.update({
@@ -68,7 +74,9 @@ export async function POST(
       ]);
 
       EmailService.sendPaymentSubmittedClient(booking.client.email, booking.client.fullName || 'Client', booking.bookingNumber);
-      EmailService.sendPaymentVerificationAdmin(booking.bookingNumber, booking.client.fullName || 'Client', booking.totalAmount);
+      
+      // We don't have a specific email for lawyer payment verification yet, but we can reuse a generic one or assume the dashboard will notify them.
+      // EmailService.sendPaymentVerificationLawyer(booking.lawyer.user.email, booking.lawyer.fullName, booking.bookingNumber, booking.client.fullName || 'Client');
 
       return NextResponse.json({
         success: true,
@@ -81,9 +89,16 @@ export async function POST(
       // Client will redirect to PayHere and webhook will handle confirmation
       const orderId = `BOOK-${booking.bookingNumber}-${Date.now()}`;
 
-      // Create pending payment record
-      const payment = await prisma.bookingPayment.create({
-        data: {
+      // Create or update pending payment record
+      const payment = await prisma.bookingPayment.upsert({
+        where: { bookingId: id },
+        update: {
+          amount: booking.totalAmount,
+          method: 'PAYHERE',
+          status: 'PENDING',
+          payhereOrderId: orderId,
+        },
+        create: {
           bookingId: id,
           amount: booking.totalAmount,
           method: 'PAYHERE',
@@ -127,8 +142,8 @@ export async function PATCH(
 ) {
   try {
     const session = await getSession();
-    if (!session || session.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const { id } = await params;
@@ -144,12 +159,19 @@ export async function PATCH(
       include: {
         payment: true,
         client: { select: { fullName: true, email: true } },
-        lawyer: { select: { fullName: true, onlineMeetingLink: true, user: { select: { email: true } } } },
+        lawyer: { select: { userId: true, fullName: true, onlineMeetingLink: true, user: { select: { email: true } } } },
       },
     });
 
     if (!booking || !booking.payment) {
       return NextResponse.json({ error: 'Booking or payment not found' }, { status: 404 });
+    }
+
+    const isLawyer = booking.lawyer.userId === session.userId;
+    const isAdmin = session.role === 'ADMIN';
+
+    if (!isLawyer && !isAdmin) {
+      return NextResponse.json({ error: 'Access denied' }, { status: 403 });
     }
 
     // Update payment status

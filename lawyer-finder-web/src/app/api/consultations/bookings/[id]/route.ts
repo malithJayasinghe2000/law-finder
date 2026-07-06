@@ -97,10 +97,35 @@ export async function PATCH(
           return NextResponse.json({ error: 'Only pending requests can be accepted' }, { status: 400 });
         }
 
+        const { fee, paymentMethod, paymentInstructions } = body;
+        
+        if (typeof fee !== 'number' || fee < 0) {
+          return NextResponse.json({ error: 'Valid fee is required' }, { status: 400 });
+        }
+
+        if (!['BANK_TRANSFER', 'PAY_AT_OFFICE'].includes(paymentMethod)) {
+          return NextResponse.json({ error: 'Valid payment method is required' }, { status: 400 });
+        }
+
+        if (paymentMethod === 'BANK_TRANSFER' && !paymentInstructions) {
+          return NextResponse.json({ error: 'Payment instructions (bank details) are required for bank transfer' }, { status: 400 });
+        }
+
+        // Platform fee is calculated for internal tracking (e.g. to invoice the lawyer later)
+        // but the client only pays the exact fee quoted by the lawyer.
+        const platformFee = Math.round(fee * booking.commissionRate);
+        const totalAmount = fee;
+        const newStatus = paymentMethod === 'PAY_AT_OFFICE' ? 'CONFIRMED' : 'PENDING_PAYMENT';
+
         const updated = await prisma.booking.update({
           where: { id },
           data: {
-            status: 'CONFIRMED',
+            status: newStatus,
+            lawyerFee: fee,
+            platformFee,
+            totalAmount,
+            paymentMethod: paymentMethod as any,
+            paymentInstructions: paymentMethod === 'BANK_TRANSFER' ? paymentInstructions : null,
           },
         });
 

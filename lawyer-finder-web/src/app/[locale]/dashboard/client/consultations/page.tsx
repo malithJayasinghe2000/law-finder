@@ -51,6 +51,8 @@ export default function ClientConsultationsPage() {
   const [paymentModal, setPaymentModal] = useState<string | null>(null);
   const [bankName, setBankName] = useState('');
   const [accountHolder, setAccountHolder] = useState('');
+  const [accountNumber, setAccountNumber] = useState('');
+  const [transactionDate, setTransactionDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [transactionRef, setTransactionRef] = useState('');
   const [receiptImageUrl, setReceiptImageUrl] = useState('');
   const [receiptUploading, setReceiptUploading] = useState(false);
@@ -145,6 +147,25 @@ export default function ClientConsultationsPage() {
   }
 
 
+  const handleOpenPaymentModal = (booking: any) => {
+    if (booking.payment) {
+      setBankName(booking.payment.bankName || '');
+      setAccountHolder(booking.payment.accountHolder || '');
+      setAccountNumber(booking.payment.accountNumber || '');
+      setTransactionDate(booking.payment.transactionDate || new Date().toISOString().split('T')[0]);
+      setTransactionRef(booking.payment.transactionRef || '');
+      setReceiptImageUrl(booking.payment.receiptImageUrl || '');
+    } else {
+      setBankName('');
+      setAccountHolder('');
+      setAccountNumber('');
+      setTransactionDate(new Date().toISOString().split('T')[0]);
+      setTransactionRef('');
+      setReceiptImageUrl('');
+    }
+    setPaymentModal(booking.id);
+  };
+
   async function submitPaymentDetails() {
     if (!bankName || !accountHolder || !transactionRef) {
       toast.error('Please fill in all bank details');
@@ -159,6 +180,8 @@ export default function ClientConsultationsPage() {
           method: 'BANK_TRANSFER',
           bankName,
           accountHolder,
+          accountNumber,
+          transactionDate,
           transactionRef,
           receiptImageUrl
         }),
@@ -169,11 +192,13 @@ export default function ClientConsultationsPage() {
         setPaymentModal(null);
         setBankName('');
         setAccountHolder('');
+        setAccountNumber('');
+        setTransactionDate(new Date().toISOString().split('T')[0]);
         setTransactionRef('');
         setReceiptImageUrl('');
         loadBookings();
       } else {
-        toast.error(data.error || 'Failed to submit payment details');
+        toast.error(typeof data.error === 'string' ? data.error : 'Validation error, please check the fields');
       }
     } catch { toast.error('Failed to submit'); }
     finally { setActionLoading(false); }
@@ -257,10 +282,25 @@ export default function ClientConsultationsPage() {
                         <span className="text-xs text-green-800">{b.officeAddress}</span>
                       </div>
                     )}
+                    {b.status === 'PENDING_PAYMENT' && b.paymentInstructions && (
+                      <div className="mt-3 p-3 bg-amber-50 border border-amber-200">
+                        <p className="text-[10px] font-bold text-amber-800 uppercase tracking-widest mb-1">Lawyer's Payment Instructions</p>
+                        <p className="text-xs text-amber-900 whitespace-pre-wrap">{b.paymentInstructions}</p>
+                      </div>
+                    )}
                   </div>
                   <div className="text-right shrink-0">
                     {b.status === 'AWAITING_LAWYER_APPROVAL' && (
                        <p className="text-xs text-neutral-500 italic mb-2">Waiting for lawyer's response...</p>
+                    )}
+                    {b.status === 'PENDING_PAYMENT' && (
+                      <div className="mb-3 text-right">
+                        <p className="text-xs text-neutral-500 mb-1">Lawyer's Quoted Fee:</p>
+                        <p className="text-sm font-bold text-[#0a0a0a]">Rs. {b.totalAmount?.toLocaleString()}</p>
+                      </div>
+                    )}
+                    {b.status === 'AWAITING_BANK_TRANSFER_VERIFICATION' && (
+                       <p className="text-[10px] text-neutral-500 italic mb-2 bg-neutral-100 p-1.5 border border-neutral-200">Receipt submitted. Waiting for lawyer verification.</p>
                     )}
                     {b.status === 'CANCELLED_BY_CLIENT' && b.refundAmount !== null && b.refundAmount > 0 && (
                       <div className="mt-2 text-right bg-red-50 p-1.5 border border-red-100">
@@ -271,9 +311,14 @@ export default function ClientConsultationsPage() {
                       </div>
                     )}
                     <div className="flex gap-1.5 mt-3 justify-end flex-wrap">
-                      {['AWAITING_LAWYER_APPROVAL', 'CONFIRMED'].includes(b.status) && (
+                      {['AWAITING_LAWYER_APPROVAL', 'CONFIRMED', 'PENDING_PAYMENT'].includes(b.status) && (
                         <Button size="sm" variant="outline" onClick={() => setCancelModal(b.id)} className="rounded-none h-7 text-[10px] px-2.5 font-bold text-red-600 border-red-300">
                           <XCircle className="w-3 h-3 mr-1" /> Cancel
+                        </Button>
+                      )}
+                      {b.status === 'PENDING_PAYMENT' && (
+                        <Button size="sm" onClick={() => handleOpenPaymentModal(b)} className="bg-[#0a0a0a] text-white hover:bg-neutral-800 rounded-none h-7 text-[10px] px-2.5 font-bold">
+                          Upload Receipt
                         </Button>
                       )}
 
@@ -320,24 +365,56 @@ export default function ClientConsultationsPage() {
       )}
 
       {/* Payment Modal */}
-      {paymentModal && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setPaymentModal(null)}>
-          <div className="bg-white max-w-md w-full shadow-xl" onClick={(e) => e.stopPropagation()}>
-            <div className="p-6 border-b flex justify-between items-center">
-              <h2 className="text-lg font-bold flex items-center gap-2"><Building2 className="w-5 h-5 text-neutral-900" /> Submit Bank Transfer</h2>
-              <button onClick={() => setPaymentModal(null)} className="text-neutral-400 hover:text-neutral-600"><XCircle className="w-5 h-5" /></button>
-            </div>
-            <div className="p-6 space-y-4">
-              <div className="bg-amber-50 border border-amber-200 p-3 text-xs text-amber-800">
-                <p className="font-bold mb-1">Bank Transfer Instructions:</p>
-                <p>Please transfer the exact amount to the account below, then enter the transaction reference.</p>
-                <ul className="mt-2 space-y-1 font-mono text-[11px]">
-                  <li>Bank: Commercial Bank</li>
-                  <li>Account Name: FindLawyer Platform</li>
-                  <li>Account No: 1234567890</li>
-                  <li>Branch: Colombo 01</li>
-                </ul>
+      {paymentModal && (() => {
+        const bookingBeingPaid = bookings.find(b => b.id === paymentModal);
+        const isOnlineOnly = bookingBeingPaid?.mode === 'ONLINE';
+
+        let parsedInstructions: any = null;
+        if (bookingBeingPaid?.paymentInstructions) {
+          try {
+            parsedInstructions = JSON.parse(bookingBeingPaid.paymentInstructions);
+          } catch (e) {
+            // Not JSON, fallback to raw string
+          }
+        }
+        
+        return (
+          <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setPaymentModal(null)}>
+            <div className="bg-white max-w-md w-full max-h-[90vh] flex flex-col shadow-xl" onClick={(e) => e.stopPropagation()}>
+              <div className="p-6 border-b flex justify-between items-center shrink-0">
+                <h2 className="text-lg font-bold flex items-center gap-2"><Building2 className="w-5 h-5 text-neutral-900" /> Submit Bank Transfer</h2>
+                <button onClick={() => setPaymentModal(null)} className="text-neutral-400 hover:text-neutral-600"><XCircle className="w-5 h-5" /></button>
               </div>
+              <div className="p-6 space-y-4 overflow-y-auto">
+                <div className="bg-amber-50 border border-amber-200 p-3 text-xs text-amber-800">
+                  <p className="font-bold mb-1">Bank Transfer Instructions:</p>
+                  <p>Please transfer the exact amount to the account below, then enter the transaction reference.</p>
+                  
+                  {(parsedInstructions && parsedInstructions.bankName) ? (
+                    <div className="mt-2 space-y-1.5 bg-amber-100 border border-amber-200 rounded p-3 text-[11px]">
+                      <div className="grid grid-cols-3 gap-2 border-b border-amber-200 pb-1.5">
+                        <span className="font-semibold text-amber-900 uppercase tracking-wide">Bank:</span>
+                        <span className="col-span-2">{parsedInstructions.bankName}</span>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2 border-b border-amber-200 pb-1.5">
+                        <span className="font-semibold text-amber-900 uppercase tracking-wide">Branch:</span>
+                        <span className="col-span-2">{parsedInstructions.bankBranch}</span>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2 border-b border-amber-200 pb-1.5">
+                        <span className="font-semibold text-amber-900 uppercase tracking-wide">Acc Name:</span>
+                        <span className="col-span-2">{parsedInstructions.accountName}</span>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2">
+                        <span className="font-semibold text-amber-900 uppercase tracking-wide">Acc No:</span>
+                        <span className="col-span-2 font-mono text-xs font-bold">{parsedInstructions.accountNumber}</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="mt-2 p-2 bg-amber-100 border border-amber-200 rounded whitespace-pre-wrap font-mono text-[11px]">
+                      {bookingBeingPaid?.paymentInstructions || 'No instructions provided.'}
+                    </div>
+                  )}
+                </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
@@ -347,6 +424,14 @@ export default function ClientConsultationsPage() {
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold text-neutral-500 uppercase">Account Holder</label>
                   <input value={accountHolder} onChange={e => setAccountHolder(e.target.value)} className="w-full h-9 border border-neutral-300 px-3 text-sm focus:outline-none focus:border-black" placeholder="e.g. John Doe" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-neutral-500 uppercase">Account Number</label>
+                  <input value={accountNumber} onChange={e => setAccountNumber(e.target.value)} className="w-full h-9 border border-neutral-300 px-3 text-sm focus:outline-none focus:border-black" placeholder="e.g. 123456789" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-neutral-500 uppercase">Transaction Date</label>
+                  <input type="date" value={transactionDate} onChange={e => setTransactionDate(e.target.value)} className="w-full h-9 border border-neutral-300 px-3 text-sm focus:outline-none focus:border-black" />
                 </div>
               </div>
               <div className="space-y-1">
@@ -384,13 +469,18 @@ export default function ClientConsultationsPage() {
                 )}
               </div>
 
-              <Button onClick={submitPaymentDetails} disabled={actionLoading} className="w-full bg-[#0a0a0a] text-white hover:bg-neutral-800 rounded-none h-10 font-bold text-xs uppercase tracking-wide">
-                {actionLoading ? 'Submitting...' : 'Submit Payment Details'}
-              </Button>
+                <Button 
+                  onClick={submitPaymentDetails} 
+                  className="w-full bg-[#0a0a0a] text-white hover:bg-neutral-800 rounded-none h-10 font-bold text-xs uppercase tracking-wide"
+                  disabled={actionLoading}
+                >
+                  {actionLoading ? 'Submitting...' : 'Submit Payment Details'}
+                </Button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }

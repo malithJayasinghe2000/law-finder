@@ -48,6 +48,19 @@ export default function LawyerBookingsPage() {
   const [cancelBookingTarget, setCancelBookingTarget] = useState<Booking | null>(null);
   const [cancelReason, setCancelReason] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
+  const [verifyAction, setVerifyAction] = useState<'PAID' | 'RESUBMIT' | 'CANCELLED' | null>(null);
+
+  // Accept Modal states
+  const [acceptModal, setAcceptModal] = useState<string | null>(null);
+  const [acceptFee, setAcceptFee] = useState<number>(5000);
+  const [acceptPaymentMethod, setAcceptPaymentMethod] = useState<'BANK_TRANSFER' | 'PAY_AT_OFFICE'>('BANK_TRANSFER');
+  const [acceptBankName, setAcceptBankName] = useState('');
+  const [acceptAccountName, setAcceptAccountName] = useState('');
+  const [acceptAccountNumber, setAcceptAccountNumber] = useState('');
+  const [acceptBankBranch, setAcceptBankBranch] = useState('');
+
+  // Verify Modal state
+  const [verifyModal, setVerifyModal] = useState<Booking | null>(null);
 
   // Calendar states
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -55,8 +68,33 @@ export default function LawyerBookingsPage() {
   const [calendarBookings, setCalendarBookings] = useState<Booking[]>([]);
   const [loadingCalendar, setLoadingCalendar] = useState(false);
 
+  const [defaultBankName, setDefaultBankName] = useState('');
+  const [defaultAccountName, setDefaultAccountName] = useState('');
+  const [defaultAccountNumber, setDefaultAccountNumber] = useState('');
+  const [defaultBankBranch, setDefaultBankBranch] = useState('');
+  const [defaultPhysicalFee, setDefaultPhysicalFee] = useState(5000);
+  const [defaultOnlineFee, setDefaultOnlineFee] = useState(3000);
+
   useEffect(() => { loadBookings(); }, [page, statusFilter, selectedDate]);
   useEffect(() => { loadCalendarBookings(); }, [currentMonth]);
+  useEffect(() => { loadPricing(); }, []);
+
+  async function loadPricing() {
+    try {
+      const res = await fetch('/api/consultations/pricing');
+      const data = await res.json();
+      if (data.pricing) {
+        setDefaultBankName(data.pricing.bankName || '');
+        setDefaultAccountName(data.pricing.accountName || '');
+        setDefaultAccountNumber(data.pricing.accountNumber || '');
+        setDefaultBankBranch(data.pricing.bankBranch || '');
+        setDefaultPhysicalFee(data.pricing.physicalPrice || 5000);
+        setDefaultOnlineFee(data.pricing.onlinePrice || 3000);
+      }
+    } catch (e) {
+      console.error('Failed to load pricing', e);
+    }
+  }
 
   const getFormattedDateString = (date: Date) => {
     const y = date.getFullYear();
@@ -143,6 +181,79 @@ export default function LawyerBookingsPage() {
     }
 
     await handleAction(cancelBookingTarget.id, 'cancel', { reason: cancelReason });
+  }
+
+  async function handleAcceptSubmit() {
+    if (!acceptModal) return;
+    if (acceptFee < 0) {
+      toast.error('Fee cannot be negative');
+      return;
+    }
+    if (acceptPaymentMethod === 'BANK_TRANSFER' && (!acceptBankName || !acceptAccountName || !acceptAccountNumber || !acceptBankBranch)) {
+      toast.error('All bank details are required for bank transfer');
+      return;
+    }
+
+    const paymentInstructions = JSON.stringify({
+      bankName: acceptBankName,
+      accountName: acceptAccountName,
+      accountNumber: acceptAccountNumber,
+      bankBranch: acceptBankBranch
+    });
+
+    setActionLoading(true);
+    try {
+      const res = await fetch(`/api/consultations/bookings/${acceptModal}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          action: 'accept', 
+          fee: acceptFee,
+          paymentMethod: acceptPaymentMethod,
+          paymentInstructions: paymentInstructions
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success('Booking accepted successfully');
+        setAcceptModal(null);
+        loadBookings();
+        loadCalendarBookings();
+      } else {
+        toast.error(data.error || 'Failed to accept booking');
+      }
+    } catch {
+      toast.error('Action failed');
+    } finally {
+      setActionLoading(false);
+    }
+  }
+
+  async function handleVerifyPayment(status: 'PAID' | 'RESUBMIT' | 'CANCELLED') {
+    if (!verifyModal) return;
+    setVerifyAction(status);
+    setActionLoading(true);
+    try {
+      const res = await fetch(`/api/consultations/bookings/${verifyModal.id}/payment`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast.success(`Payment ${status.toLowerCase()} successfully`);
+        setVerifyModal(null);
+        loadBookings();
+        loadCalendarBookings();
+      } else {
+        toast.error(typeof data.error === 'string' ? data.error : 'Validation error, please check the fields');
+      }
+    } catch {
+      toast.error('Action failed');
+    } finally {
+      setActionLoading(false);
+      setVerifyAction(null);
+    }
   }
 
   const handlePrevMonth = () => {
@@ -325,7 +436,15 @@ export default function LawyerBookingsPage() {
                             <>
                               <Button
                                 size="sm"
-                                onClick={() => handleAction(booking.id, 'accept')}
+                                onClick={() => {
+                                  setAcceptModal(booking.id);
+                                  setAcceptPaymentMethod('BANK_TRANSFER');
+                                  setAcceptBankName(defaultBankName);
+                                  setAcceptAccountName(defaultAccountName);
+                                  setAcceptAccountNumber(defaultAccountNumber);
+                                  setAcceptBankBranch(defaultBankBranch);
+                                  setAcceptFee(booking.mode === 'PHYSICAL' ? defaultPhysicalFee : defaultOnlineFee);
+                                }}
                                 disabled={actionLoading}
                                 className="bg-[#0a0a0a] text-white hover:bg-neutral-800 rounded-none h-7 text-[10px] px-2.5 font-bold"
                               >
@@ -354,6 +473,15 @@ export default function LawyerBookingsPage() {
                               className="rounded-none h-7 text-[10px] px-2.5 font-bold text-red-600 border-red-300"
                             >
                               <XCircle className="w-3 h-3 mr-1" /> Cancel
+                            </Button>
+                          )}
+                          {booking.status === 'AWAITING_BANK_TRANSFER_VERIFICATION' && (
+                            <Button
+                              size="sm"
+                              onClick={() => setVerifyModal(booking)}
+                              className="bg-green-600 text-white hover:bg-green-700 rounded-none h-7 text-[10px] px-2.5 font-bold"
+                            >
+                              <CheckCircle className="w-3 h-3 mr-1" /> Verify Payment
                             </Button>
                           )}
                           {booking.status === 'CONFIRMED' && (
@@ -622,6 +750,150 @@ export default function LawyerBookingsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Accept Modal */}
+      <Dialog open={Boolean(acceptModal)} onOpenChange={(open) => { if (!open) setAcceptModal(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogTitle>Accept Request & Quote Fee</DialogTitle>
+          <DialogDescription>
+            Specify your fee and how you would like the client to pay.
+          </DialogDescription>
+          
+          {(() => {
+            const bookingBeingAccepted = bookings.find(b => b.id === acceptModal) || calendarBookings.find(b => b.id === acceptModal);
+            const isOnlineOnly = bookingBeingAccepted?.mode === 'ONLINE';
+
+            return (
+              <div className="space-y-4 mt-4">
+            <div>
+              <label className="text-xs font-semibold text-neutral-700 uppercase tracking-[0.2em]">Your Fee (Rs.)</label>
+              <input
+                type="number"
+                value={acceptFee}
+                onChange={(e) => setAcceptFee(Number(e.target.value))}
+                className="w-full mt-2 rounded-md border border-neutral-200 px-3 py-2 text-sm outline-none focus:border-[#0a0a0a]"
+              />
+            </div>
+            
+            <div>
+              <label className="text-xs font-semibold text-neutral-700 uppercase tracking-[0.2em]">Payment Method</label>
+              <select
+                value={acceptPaymentMethod}
+                onChange={(e) => setAcceptPaymentMethod(e.target.value as any)}
+                className="w-full mt-2 rounded-md border border-neutral-200 px-3 py-2 text-sm outline-none focus:border-[#0a0a0a]"
+              >
+                <option value="BANK_TRANSFER">Bank Transfer (Pre-paid)</option>
+                {!isOnlineOnly && <option value="PAY_AT_OFFICE">Pay at Office</option>}
+              </select>
+            </div>
+
+            {acceptPaymentMethod === 'BANK_TRANSFER' && (
+              <div className="space-y-3">
+                <div className="flex justify-between items-center mb-1">
+                  <label className="text-xs font-semibold text-neutral-700 uppercase tracking-[0.2em]">Bank Details</label>
+                  <span className="text-[10px] text-neutral-500">Provided to client for payment</span>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[10px] text-neutral-600 font-medium">Bank Name</label>
+                    <input
+                      type="text"
+                      value={acceptBankName}
+                      onChange={(e) => setAcceptBankName(e.target.value)}
+                      placeholder="e.g. Commercial Bank"
+                      className="w-full mt-1 rounded-sm border border-neutral-200 px-2.5 py-1.5 text-xs outline-none focus:border-[#0a0a0a]"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-neutral-600 font-medium">Branch</label>
+                    <input
+                      type="text"
+                      value={acceptBankBranch}
+                      onChange={(e) => setAcceptBankBranch(e.target.value)}
+                      placeholder="e.g. Colombo 01"
+                      className="w-full mt-1 rounded-sm border border-neutral-200 px-2.5 py-1.5 text-xs outline-none focus:border-[#0a0a0a]"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-neutral-600 font-medium">Account Name</label>
+                    <input
+                      type="text"
+                      value={acceptAccountName}
+                      onChange={(e) => setAcceptAccountName(e.target.value)}
+                      placeholder="e.g. John Doe"
+                      className="w-full mt-1 rounded-sm border border-neutral-200 px-2.5 py-1.5 text-xs outline-none focus:border-[#0a0a0a]"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-neutral-600 font-medium">Account Number</label>
+                    <input
+                      type="text"
+                      value={acceptAccountNumber}
+                      onChange={(e) => setAcceptAccountNumber(e.target.value)}
+                      placeholder="e.g. 1234567890"
+                      className="w-full mt-1 rounded-sm border border-neutral-200 px-2.5 py-1.5 text-xs outline-none focus:border-[#0a0a0a]"
+                    />
+                  </div>
+                </div>
+                {(!defaultBankName && (acceptBankName || acceptAccountNumber)) && (
+                  <p className="text-[10px] text-amber-600 mt-1">Tip: You can set a default bank account in Consultations &gt; Consultation Settings to avoid typing this every time.</p>
+                )}
+              </div>
+            )}
+          </div>
+            );
+          })()}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAcceptModal(null)}>Cancel</Button>
+            <Button className="bg-[#0a0a0a] text-white hover:bg-neutral-800" onClick={handleAcceptSubmit} disabled={actionLoading}>
+              {actionLoading ? 'Saving...' : 'Accept & Confirm'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Verify Payment Modal */}
+      {verifyModal && verifyModal.payment && (
+        <Dialog open={true} onOpenChange={(open) => { if (!open) setVerifyModal(null); }}>
+          <DialogContent className="max-w-md">
+            <DialogTitle>Verify Client Payment</DialogTitle>
+            <DialogDescription>
+              Please review the payment receipt uploaded by the client.
+            </DialogDescription>
+            
+            <div className="space-y-4 mt-4 bg-neutral-50 p-4 rounded-md border border-neutral-200">
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <div><span className="text-neutral-500 text-xs">Bank Name</span><p className="font-semibold">{verifyModal.payment.bankName || '-'}</p></div>
+                <div><span className="text-neutral-500 text-xs">Acc Holder</span><p className="font-semibold">{verifyModal.payment.accountHolder || '-'}</p></div>
+                <div><span className="text-neutral-500 text-xs">Ref/Remarks</span><p className="font-semibold">{verifyModal.payment.transactionRef || '-'}</p></div>
+                <div><span className="text-neutral-500 text-xs">Amount Expected</span><p className="font-semibold text-green-700">Rs. {verifyModal.totalAmount.toLocaleString()}</p></div>
+              </div>
+              
+              {verifyModal.payment.receiptImageUrl && (
+                <div className="mt-4">
+                  <p className="text-neutral-500 text-xs mb-2">Receipt Image</p>
+                  <a href={verifyModal.payment.receiptImageUrl} target="_blank" rel="noopener noreferrer">
+                    <img src={verifyModal.payment.receiptImageUrl} alt="Receipt" className="w-full max-h-48 object-contain border border-neutral-300 rounded bg-white cursor-pointer hover:opacity-90" />
+                  </a>
+                </div>
+              )}
+            </div>
+
+            <DialogFooter className="sm:justify-between">
+              <Button variant="outline" onClick={() => setVerifyModal(null)}>Close</Button>
+              <div className="flex gap-2">
+                <Button className="bg-red-600 text-white hover:bg-red-700" onClick={() => handleVerifyPayment('RESUBMIT')} disabled={actionLoading}>
+                  {verifyAction === 'RESUBMIT' ? 'Rejecting...' : 'Reject Receipt'}
+                </Button>
+                <Button className="bg-green-600 text-white hover:bg-green-700" onClick={() => handleVerifyPayment('PAID')} disabled={actionLoading}>
+                  {verifyAction === 'PAID' ? 'Verifying...' : 'Verify & Confirm'}
+                </Button>
+              </div>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

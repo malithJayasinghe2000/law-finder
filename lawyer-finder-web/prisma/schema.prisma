@@ -133,6 +133,7 @@ enum ConsultationPricingType {
 enum BookingPaymentMethod {
   BANK_TRANSFER
   PAYHERE
+  PAY_AT_OFFICE
 }
 
 enum RefundStatus {
@@ -997,9 +998,13 @@ model ConsultationPricing {
 
   freeInitialConsultation   Boolean                 @default(false)
   freeConsultationDuration  Int?                    // minutes
+  minAdvanceNoticeHours     Int                     @default(24) // minimum hours before booking
 
-  minAdvanceNoticeHours     Int                     @default(24) // How many hours in advance a booking must be made
-
+  bankName                  String?
+  accountName               String?
+  accountNumber             String?
+  bankBranch                String?
+  
   createdAt                 DateTime                @default(now())
   updatedAt                 DateTime                @updatedAt
 }
@@ -1040,6 +1045,8 @@ model Booking {
   status          BookingStatus    @default(PENDING_PAYMENT)
 
   // Payment
+  paymentMethod   BookingPaymentMethod?
+  paymentInstructions String?
   payment         BookingPayment?
   paidAt          DateTime?
 

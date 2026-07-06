@@ -86,6 +86,10 @@ export const ConsultationPricingSchema = z.object({
   freeInitialConsultation: z.boolean().default(false),
   freeConsultationDuration: z.number().int().min(10).max(60).optional(),
   minAdvanceNoticeHours: z.number().int().min(1).default(24),
+  bankName: z.preprocess((val) => typeof val === 'string' ? sanitizeString(val) : val, z.string().max(100).optional().nullable()),
+  accountName: z.preprocess((val) => typeof val === 'string' ? sanitizeString(val) : val, z.string().max(100).optional().nullable()),
+  accountNumber: z.preprocess((val) => typeof val === 'string' ? sanitizeString(val) : val, z.string().max(50).optional().nullable()),
+  bankBranch: z.preprocess((val) => typeof val === 'string' ? sanitizeString(val) : val, z.string().max(100).optional().nullable()),
 }).refine(
   (data) => {
     if (data.freeInitialConsultation) {

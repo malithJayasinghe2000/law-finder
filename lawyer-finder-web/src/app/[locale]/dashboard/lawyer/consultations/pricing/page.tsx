@@ -5,7 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
-import { DollarSign, Save, Info, Percent, Gift, Clock } from 'lucide-react';
+import { DollarSign, Save, Info, Percent, Gift, Clock, Building2 } from 'lucide-react';
 
 export default function PricingPage() {
   const [loading, setLoading] = useState(true);
@@ -16,6 +16,10 @@ export default function PricingPage() {
   const [freeInitial, setFreeInitial] = useState(false);
   const [freeDuration, setFreeDuration] = useState(15);
   const [minAdvanceNoticeHours, setMinAdvanceNoticeHours] = useState(24);
+  const [bankName, setBankName] = useState('');
+  const [accountName, setAccountName] = useState('');
+  const [accountNumber, setAccountNumber] = useState('');
+  const [bankBranch, setBankBranch] = useState('');
 
   const COMMISSION_RATE = 0.15;
 
@@ -34,6 +38,10 @@ export default function PricingPage() {
         setFreeInitial(data.pricing.freeInitialConsultation);
         setFreeDuration(data.pricing.freeConsultationDuration || 15);
         setMinAdvanceNoticeHours(data.pricing.minAdvanceNoticeHours || 24);
+        setBankName(data.pricing.bankName || '');
+        setAccountName(data.pricing.accountName || '');
+        setAccountNumber(data.pricing.accountNumber || '');
+        setBankBranch(data.pricing.bankBranch || '');
       }
     } catch {
       toast.error('Failed to load pricing');
@@ -55,6 +63,10 @@ export default function PricingPage() {
           freeInitialConsultation: freeInitial,
           freeConsultationDuration: freeInitial ? freeDuration : undefined,
           minAdvanceNoticeHours,
+          bankName: bankName.trim() || null,
+          accountName: accountName.trim() || null,
+          accountNumber: accountNumber.trim() || null,
+          bankBranch: bankBranch.trim() || null,
         }),
       });
       const data = await res.json();
@@ -247,6 +259,62 @@ export default function PricingPage() {
               <option value={72}>72 Hours (3 Days)</option>
               <option value={168}>168 Hours (1 Week)</option>
             </select>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Bank Details Setting */}
+      <Card className="rounded-none shadow-sm">
+        <CardContent className="p-6">
+          <h3 className="text-sm font-bold text-neutral-900 uppercase tracking-wide mb-4 flex items-center gap-2">
+            <Building2 className="w-4 h-4" /> Default Bank Details
+          </h3>
+          <div className="space-y-4">
+            <p className="text-xs text-neutral-500 mb-3">
+              Set your default bank account details here. This will automatically populate when you accept a consultation request and choose the Bank Transfer payment method.
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs font-semibold text-neutral-700 uppercase tracking-wide">Bank Name</label>
+                <input
+                  type="text"
+                  value={bankName}
+                  onChange={(e) => setBankName(e.target.value)}
+                  placeholder="e.g. Commercial Bank"
+                  className="w-full mt-1.5 border border-neutral-200 px-4 py-2.5 text-sm bg-white outline-none focus:border-[#0a0a0a]"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-neutral-700 uppercase tracking-wide">Branch</label>
+                <input
+                  type="text"
+                  value={bankBranch}
+                  onChange={(e) => setBankBranch(e.target.value)}
+                  placeholder="e.g. Colombo 01"
+                  className="w-full mt-1.5 border border-neutral-200 px-4 py-2.5 text-sm bg-white outline-none focus:border-[#0a0a0a]"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-neutral-700 uppercase tracking-wide">Account Name</label>
+                <input
+                  type="text"
+                  value={accountName}
+                  onChange={(e) => setAccountName(e.target.value)}
+                  placeholder="e.g. John Doe"
+                  className="w-full mt-1.5 border border-neutral-200 px-4 py-2.5 text-sm bg-white outline-none focus:border-[#0a0a0a]"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-neutral-700 uppercase tracking-wide">Account Number</label>
+                <input
+                  type="text"
+                  value={accountNumber}
+                  onChange={(e) => setAccountNumber(e.target.value)}
+                  placeholder="e.g. 1234567890"
+                  className="w-full mt-1.5 border border-neutral-200 px-4 py-2.5 text-sm bg-white outline-none focus:border-[#0a0a0a]"
+                />
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>

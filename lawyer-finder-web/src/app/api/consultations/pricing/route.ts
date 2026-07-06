@@ -26,7 +26,8 @@ export async function GET(req: Request) {
     }
 
     return NextResponse.json({ pricing });
-  } catch {
+  } catch (e) {
+    console.error('Error fetching pricing:', e);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
@@ -55,6 +56,10 @@ export async function POST(req: Request) {
         freeInitialConsultation: validated.data.freeInitialConsultation,
         freeConsultationDuration: validated.data.freeConsultationDuration,
         minAdvanceNoticeHours: validated.data.minAdvanceNoticeHours,
+        bankName: validated.data.bankName,
+        accountName: validated.data.accountName,
+        accountNumber: validated.data.accountNumber,
+        bankBranch: validated.data.bankBranch,
       },
       create: {
         lawyerId: session.profileId,
@@ -64,11 +69,16 @@ export async function POST(req: Request) {
         freeInitialConsultation: validated.data.freeInitialConsultation,
         freeConsultationDuration: validated.data.freeConsultationDuration,
         minAdvanceNoticeHours: validated.data.minAdvanceNoticeHours,
+        bankName: validated.data.bankName,
+        accountName: validated.data.accountName,
+        accountNumber: validated.data.accountNumber,
+        bankBranch: validated.data.bankBranch,
       },
     });
 
     return NextResponse.json({ success: true, pricing });
-  } catch {
+  } catch (e) {
+    console.error('Error saving pricing:', e);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
