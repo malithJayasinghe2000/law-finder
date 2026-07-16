@@ -240,9 +240,9 @@ def health_check():
                 "status": "connected",
                 "url": config.OLLAMA_BASE_URL,
                 "available_models": models,
-                "llm_model": config.LLM_MODEL,
+                "llm_model": config.LLM_MODEL if config.LLM_PROVIDER == "ollama" else None,
                 "embedding_model": config.EMBEDDING_MODEL,
-                "llm_available": any(config.LLM_MODEL in m for m in models),
+                "llm_available": any(config.LLM_MODEL in m for m in models) if config.LLM_PROVIDER == "ollama" else None,
                 "embedding_available": any(config.EMBEDDING_MODEL in m for m in models),
             }
         else:
@@ -251,6 +251,80 @@ def health_check():
     except Exception as e:
         status["services"]["ollama"] = {"status": "unreachable", "error": str(e)}
         status["status"] = "degraded"
+
+    # Check Hugging Face Router if active
+    if config.LLM_PROVIDER.lower() == "huggingface":
+        try:
+            if not config.HF_TOKEN:
+                status["services"]["huggingface"] = {"status": "error", "error": "HF_TOKEN not configured"}
+                status["status"] = "degraded"
+            else:
+                headers = {"Authorization": f"Bearer {config.HF_TOKEN}"}
+                resp = requests.get(f"{config.HF_API_BASE}/models", headers=headers, timeout=5)
+                if resp.status_code == 200:
+                    available_models = [m.get("id") for m in resp.json().get("data", []) if isinstance(m, dict)]
+                    status["services"]["huggingface"] = {
+                        "status": "connected",
+                        "url": config.HF_API_BASE,
+                        "llm_model": config.LLM_MODEL,
+                        "model_available": any(config.LLM_MODEL == m for m in available_models if m),
+                    }
+                else:
+                    status["services"]["huggingface"] = {
+                        "status": "partial",
+                        "code": resp.status_code,
+                        "url": config.HF_API_BASE,
+                        "llm_model": config.LLM_MODEL,
+                        "message": "Connected but models list returned non-200."
+                    }
+        except Exception as e:
+            status["services"]["huggingface"] = {"status": "unreachable", "error": str(e)}
+            status["status"] = "degraded"
+
+    # Check OpenAI if active
+    if config.LLM_PROVIDER.lower() == "openai":
+        try:
+            if not config.OPENAI_API_KEY:
+                status["services"]["openai"] = {"status": "error", "error": "OPENAI_API_KEY not configured"}
+                status["status"] = "degraded"
+            else:
+                headers = {"Authorization": f"Bearer {config.OPENAI_API_KEY}"}
+                resp = requests.get(f"{config.OPENAI_API_BASE}/models", headers=headers, timeout=5)
+                if resp.status_code == 200:
+                    status["services"]["openai"] = {
+                        "status": "connected",
+                        "url": config.OPENAI_API_BASE,
+                        "llm_model": config.LLM_MODEL,
+                    }
+                else:
+                    status["services"]["openai"] = {"status": "error", "code": resp.status_code, "message": resp.text}
+                    status["status"] = "degraded"
+        except Exception as e:
+            status["services"]["openai"] = {"status": "unreachable", "error": str(e)}
+            status["status"] = "degraded"
+
+    # Check OpenRouter if active
+    if config.LLM_PROVIDER.lower() == "openrouter":
+        try:
+            api_key = config.OPENROUTER_API_KEY or config.OPENAI_API_KEY
+            if not api_key:
+                status["services"]["openrouter"] = {"status": "error", "error": "OPENROUTER_API_KEY / OPENAI_API_KEY not configured"}
+                status["status"] = "degraded"
+            else:
+                headers = {"Authorization": f"Bearer {api_key}"}
+                resp = requests.get(f"{config.OPENROUTER_API_BASE}/models", headers=headers, timeout=5)
+                if resp.status_code == 200:
+                    status["services"]["openrouter"] = {
+                        "status": "connected",
+                        "url": config.OPENROUTER_API_BASE,
+                        "llm_model": config.LLM_MODEL,
+                    }
+                else:
+                    status["services"]["openrouter"] = {"status": "error", "code": resp.status_code, "message": resp.text}
+                    status["status"] = "degraded"
+        except Exception as e:
+            status["services"]["openrouter"] = {"status": "unreachable", "error": str(e)}
+            status["status"] = "degraded"
 
     # Check ChromaDB
     try:

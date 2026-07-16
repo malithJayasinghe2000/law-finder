@@ -26,10 +26,27 @@ CHAT_LOG_DIR.mkdir(parents=True, exist_ok=True)
 class Config:
     """Central configuration for the RAG system."""
 
+    # LLM Provider Configuration ("ollama", "huggingface", "openai", "openrouter")
+    LLM_PROVIDER: str = os.getenv("LLM_PROVIDER", "ollama")
+
     # Ollama
     OLLAMA_BASE_URL: str = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
     LLM_MODEL: str = os.getenv("LLM_MODEL", "qwen3.5:9b")
     EMBEDDING_MODEL: str = os.getenv("EMBEDDING_MODEL", "nomic-embed-text")
+
+    # Hugging Face Router Configuration (for LLM_PROVIDER=huggingface)
+    HF_TOKEN: str = os.getenv("HF_TOKEN", "")
+    HF_API_BASE: str = os.getenv("HF_API_BASE", "https://router.huggingface.co/v1")
+
+    # OpenAI Configuration (for LLM_PROVIDER=openai)
+    OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
+    OPENAI_API_BASE: str = os.getenv("OPENAI_API_BASE", "https://api.openai.com/v1")
+
+    # OpenRouter Configuration (for LLM_PROVIDER=openrouter)
+    OPENROUTER_API_KEY: str = os.getenv("OPENROUTER_API_KEY", "")
+    OPENROUTER_API_BASE: str = os.getenv("OPENROUTER_API_BASE", "https://openrouter.ai/api/v1")
+
+
 
     # ChromaDB
     CHROMA_PERSIST_DIR: str = os.getenv("CHROMA_PERSIST_DIR", str(VECTORDB_DIR))
