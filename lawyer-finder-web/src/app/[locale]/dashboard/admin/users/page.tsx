@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import {
   Users, Search, Edit3, Key, ShieldCheck, ShieldOff,
-  Loader2, X, CheckCircle2, User, Mail, MapPin
+  Loader2, X, CheckCircle2, User, Mail, MapPin, ChevronLeft, ChevronRight
 } from 'lucide-react';
 
 interface PlatformUser {
@@ -15,6 +15,8 @@ interface PlatformUser {
   fullName: string | null;
   isVerified: boolean;
   district: string | null;
+  latitude: number | null;
+  longitude: number | null;
   baslNumber: string | null;
   profileId: string | null;
   applicationStatus: string | null;
@@ -27,11 +29,14 @@ export default function UserManagementPage() {
   const [roleFilter, setRoleFilter] = useState('ALL');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
 
   // Edit modal state
   const [editUser, setEditUser] = useState<PlatformUser | null>(null);
   const [editEmail, setEditEmail] = useState('');
   const [editRole, setEditRole] = useState('');
+  const [editLatitude, setEditLatitude] = useState('');
+  const [editLongitude, setEditLongitude] = useState('');
 
   // Password modal state
   const [passwordUser, setPasswordUser] = useState<PlatformUser | null>(null);
@@ -51,7 +56,10 @@ export default function UserManagementPage() {
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => { fetchUsers(); }, [search, roleFilter, statusFilter]);
+  useEffect(() => {
+    setPage(1);
+    fetchUsers();
+  }, [search, roleFilter, statusFilter]);
 
   const handleUpdateDetails = async () => {
     if (!editUser) return;
@@ -60,7 +68,14 @@ export default function UserManagementPage() {
       const res = await fetch('/api/admin/users', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: editUser.id, action: 'update-details', email: editEmail, role: editRole }),
+        body: JSON.stringify({ 
+          userId: editUser.id, 
+          action: 'update-details', 
+          email: editEmail, 
+          role: editRole,
+          latitude: editUser.role === 'LAWYER' ? editLatitude : undefined,
+          longitude: editUser.role === 'LAWYER' ? editLongitude : undefined
+        }),
       });
       const result = await res.json();
       if (!res.ok) throw new Error(result.error);
@@ -120,6 +135,10 @@ export default function UserManagementPage() {
     if (role === 'LAWYER') return 'bg-neutral-100 text-neutral-800 border border-neutral-300';
     return 'bg-neutral-50 text-neutral-600 border border-neutral-200';
   };
+
+  const limit = 10;
+  const totalPages = Math.max(1, Math.ceil(users.length / limit));
+  const paginatedUsers = users.slice((page - 1) * limit, page * limit);
 
   return (
     <div className="w-full space-y-6">
@@ -211,7 +230,7 @@ export default function UserManagementPage() {
               </tr>
             </thead>
             <tbody>
-              {users.map((user) => (
+              {paginatedUsers.map((user) => (
                 <tr key={user.id} className="border-b border-neutral-100 hover:bg-neutral-50/50 transition-colors">
                   <td className="px-5 py-4">
                     <div className="flex items-center gap-3">
@@ -262,7 +281,13 @@ export default function UserManagementPage() {
                   <td className="px-5 py-4">
                     <div className="flex items-center justify-end gap-1.5">
                       <button
-                        onClick={() => { setEditUser(user); setEditEmail(user.email); setEditRole(user.role); }}
+                        onClick={() => { 
+                          setEditUser(user); 
+                          setEditEmail(user.email); 
+                          setEditRole(user.role); 
+                          setEditLatitude(user.latitude?.toString() || '');
+                          setEditLongitude(user.longitude?.toString() || '');
+                        }}
                         title="Edit Details"
                         className="p-2 hover:bg-neutral-100 transition-colors text-neutral-500 hover:text-neutral-900"
                       >
@@ -300,6 +325,27 @@ export default function UserManagementPage() {
         </div>
       )}
 
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-4 pt-4">
+          <button 
+            onClick={() => setPage(p => Math.max(1, p - 1))} 
+            disabled={page === 1} 
+            className="flex items-center justify-center border border-neutral-250 hover:bg-neutral-50 px-3 py-1.5 rounded-none disabled:opacity-50 transition-colors"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+          <span className="text-xs font-semibold text-neutral-600">Page {page} of {totalPages}</span>
+          <button 
+            onClick={() => setPage(p => Math.min(totalPages, p + 1))} 
+            disabled={page === totalPages} 
+            className="flex items-center justify-center border border-neutral-250 hover:bg-neutral-50 px-3 py-1.5 rounded-none disabled:opacity-50 transition-colors"
+          >
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
       {/* Edit User Modal */}
       {editUser && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-6" onClick={() => setEditUser(null)}>
@@ -332,6 +378,30 @@ export default function UserManagementPage() {
                   <option value="ADMIN">Admin</option>
                 </select>
               </div>
+              {editUser.role === 'LAWYER' && (
+                <>
+                  <div>
+                    <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5">Latitude (Optional)</label>
+                    <input
+                      type="text"
+                      value={editLatitude}
+                      onChange={(e) => setEditLatitude(e.target.value)}
+                      placeholder="e.g. 6.927079"
+                      className="w-full py-2.5 px-3 bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-900 outline-none focus:border-[#0a0a0a]"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5">Longitude (Optional)</label>
+                    <input
+                      type="text"
+                      value={editLongitude}
+                      onChange={(e) => setEditLongitude(e.target.value)}
+                      placeholder="e.g. 79.861244"
+                      className="w-full py-2.5 px-3 bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-900 outline-none focus:border-[#0a0a0a]"
+                    />
+                  </div>
+                </>
+              )}
             </div>
             <div className="flex justify-end gap-2 p-5 border-t border-neutral-200">
               <button onClick={() => setEditUser(null)} className="px-5 py-2.5 text-xs font-bold text-neutral-600 hover:text-neutral-900">

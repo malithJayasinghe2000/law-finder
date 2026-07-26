@@ -8,7 +8,9 @@ import {
   Star, MapPin, Languages, ShieldCheck, Phone, Clock, Calendar,
   Briefcase, Scale, Gavel, BookOpen, ArrowRight, ArrowLeft,
   MessageSquare, CalendarCheck, Send, X, Loader2, Globe, User, Zap,
+  Facebook, Linkedin
 } from 'lucide-react';
+import LawyerCard from '@/components/lawyer/LawyerCard';
 
 interface Review {
   id: string;
@@ -27,6 +29,13 @@ interface Subscription {
   billingCycle: string;
   startDate: string;
   nextBilling: string;
+}
+
+interface ConsultationPricing {
+  pricingType: string;
+  physicalPrice: number;
+  onlinePrice: number;
+  currency: string;
 }
 
 interface LawyerData {
@@ -51,6 +60,7 @@ interface LawyerData {
   user: { id: string; createdAt: string } | null;
   reviews: Review[];
   subscription?: Subscription | null;
+  consultationPricing?: ConsultationPricing | null;
 }
 
 interface OtherLawyer {
@@ -84,14 +94,8 @@ export default function LawyerProfileClient({
   currentUserId,
 }: Props) {
   const router = useRouter();
-  const [showReviewModal, setShowReviewModal] = useState(false);
-  const [reviewRating, setReviewRating] = useState(5);
-  const [reviewComment, setReviewComment] = useState('');
-  const [reviewLoading, setReviewLoading] = useState(false);
-  const [hoveredStar, setHoveredStar] = useState(0);
-  const reviewMarqueeRef = useRef<HTMLDivElement>(null);
+
   const lawyerMarqueeRef = useRef<HTMLDivElement>(null);
-  const [reviewPaused, setReviewPaused] = useState(false);
   const [lawyerPaused, setLawyerPaused] = useState(false);
   const [chatLoading, setChatLoading] = useState(false);
 
@@ -102,13 +106,13 @@ export default function LawyerProfileClient({
     }
 
     if (currentUserId === lawyer.user?.id) {
-       toast.error("You cannot chat with yourself.");
-       return;
+      toast.error("You cannot chat with yourself.");
+      return;
     }
 
     if (!lawyer.user?.id) {
-       toast.error("This lawyer does not have an active chat account.");
-       return;
+      toast.error("This lawyer does not have an active chat account.");
+      return;
     }
 
     setChatLoading(true);
@@ -120,7 +124,7 @@ export default function LawyerProfileClient({
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to start chat');
-      
+
       router.push(`/${locale}/messages?conv=${data.id}`);
     } catch (err: any) {
       toast.error(err.message || 'Error starting chat');
@@ -128,45 +132,9 @@ export default function LawyerProfileClient({
     }
   };
 
-  const handleWriteReview = () => {
-    if (!isLoggedIn) {
-      router.push(`/${locale}/login`);
-      return;
-    }
-    setShowReviewModal(true);
-  };
-
-  const submitReview = async () => {
-    if (!reviewComment.trim()) {
-      toast.error('Please write a comment.');
-      return;
-    }
-    setReviewLoading(true);
-    try {
-      const res = await fetch('/api/reviews', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          lawyerId: lawyer.id,
-          rating: reviewRating,
-          comment: reviewComment,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
-      toast.success('Review submitted! It will appear after admin approval.');
-      setShowReviewModal(false);
-      setReviewComment('');
-      setReviewRating(5);
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to submit review.');
-    } finally {
-      setReviewLoading(false);
-    }
-  };
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-[#fcfbf9]">
       <style>{`
         @keyframes marquee-half {
           0% { transform: translateX(0); }
@@ -174,17 +142,17 @@ export default function LawyerProfileClient({
         }
       `}</style>
       {/* ─── Breadcrumb ─── */}
-      <div className="border-b border-neutral-200 bg-white">
-        <div className="mx-auto max-w-[1400px] px-6 lg:px-12 xl:px-24 py-4 flex items-center gap-3 text-sm">
-          <Link href={`/${locale}`} className="text-neutral-400 hover:text-neutral-900 transition-colors flex items-center gap-1">
-            <ArrowLeft className="h-4 w-4" /> Back
+      <div className="border-b border-[#efeae0] bg-[#faf8f6]/80 backdrop-blur-md sticky top-24 z-10">
+        <div className="mx-auto max-w-[1400px] px-6 lg:px-12 xl:px-24 py-4 flex items-center gap-3 text-xs uppercase tracking-widest">
+          <Link href={`/${locale}`} className="text-neutral-500 hover:text-[#bfa37a] transition-colors flex items-center gap-1.5">
+            <ArrowLeft className="h-3.5 w-3.5" /> Back
           </Link>
           <span className="text-neutral-300">/</span>
-          <Link href={`/${locale}/lawyers`} className="text-neutral-400 hover:text-neutral-900 transition-colors">
+          <Link href={`/${locale}/lawyers`} className="text-neutral-500 hover:text-[#bfa37a] transition-colors">
             Lawyers
           </Link>
           <span className="text-neutral-300">/</span>
-          <span className="text-neutral-900 font-semibold">{lawyer.fullName}</span>
+          <span className="text-neutral-900 font-serif font-bold tracking-normal normal-case">{lawyer.fullName}</span>
         </div>
       </div>
 
@@ -194,68 +162,66 @@ export default function LawyerProfileClient({
 
           {/* ─── LEFT: Profile Card ─── */}
           <div className="lg:col-span-5">
-            <div className="sticky top-28">
+            <div className="sticky top-40">
               {/* Profile Image Card */}
-              <div className="relative group overflow-hidden bg-[#1a1a1a]">
-                <img
-                  src={lawyer.profileImageUrl || 'https://images.unsplash.com/photo-1556157382-97eda2d62296?auto=format&fit=crop&w=800&q=80'}
-                  alt={lawyer.fullName}
-                  className="w-full aspect-[4/5] object-cover transition-transform duration-700 group-hover:scale-105"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] via-transparent to-transparent" />
+              <div className="relative group overflow-hidden bg-[#1a1a1a] rounded-none border border-[#efeae0] p-3 bg-[#fdfcfb]">
+                <div className="relative overflow-hidden bg-neutral-900">
+                  <img
+                    src={lawyer.profileImageUrl || 'https://images.unsplash.com/photo-1556157382-97eda2d62296?auto=format&fit=crop&w=800&q=80'}
+                    alt={lawyer.fullName}
+                    className="w-full aspect-[4/5] object-cover transition-all duration-750 group-hover:grayscale group-hover:scale-102"
+                  />
+                  {/* Languages - Always Visible */}
+                  <div className="absolute top-4 left-4 z-10 flex flex-wrap items-center gap-1.5">
+                    {lawyer.languages.map((lang) => (
+                      <span key={lang} className="text-[9px] bg-black/45 backdrop-blur-md text-white font-bold uppercase tracking-widest px-2.5 py-1 border border-white/10">
+                        {lang}
+                      </span>
+                    ))}
+                  </div>
 
-                {/* Overlay Info */}
-                <div className="absolute bottom-0 left-0 right-0 p-6">
-                  <div className="flex items-center gap-2 mb-3 flex-wrap">
+                  {/* Soft Hover Overlay */}
+                  <div className="absolute inset-0 bg-black/25 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+
+                  {/* Verification/Subscription Badges - Always Visible */}
+                  <div className="absolute bottom-4 left-4 right-4 z-10 flex flex-wrap items-center gap-2">
                     {lawyer.isVerified && (
-                      <div className="flex items-center gap-1.5 text-white/90 text-xs font-medium bg-white/10 backdrop-blur-md w-fit px-3 py-1.5">
+                      <div className="flex items-center gap-1.5 text-white text-[9px] font-bold bg-[#bfa37a] w-fit px-3 py-1.5 uppercase tracking-widest rounded-none">
                         <ShieldCheck className="h-3.5 w-3.5" /> BASL Verified
                       </div>
                     )}
                     {lawyer.subscription && (
-                      <div className="flex items-center gap-1.5 text-white/90 text-xs font-medium bg-amber-500/80 backdrop-blur-md w-fit px-3 py-1.5">
-                        <Zap className="h-3.5 w-3.5" /> {lawyer.subscription.tier}
+                      <div className="flex items-center gap-1.5 text-[#bfa37a] text-[9px] font-bold bg-[#1a1a1a] w-fit px-3 py-1.5 uppercase tracking-widest rounded-none border border-[#efeae0]/30">
+                        <Zap className="h-3.5 w-3.5" /> {lawyer.subscription.planName}
                       </div>
                     )}
                   </div>
-                  <h2 className="text-2xl font-bold text-white tracking-tight mb-1">{lawyer.fullName}</h2>
-                  <p className="text-white/70 text-sm font-light">
-                    {lawyer.practiceAreas.slice(0, 2).join(' · ') || 'Legal Professional'}
-                  </p>
                 </div>
               </div>
 
               {/* Action Buttons */}
-              <div className="mt-0 flex gap-0">
-                <button 
+              <div className="mt-4 flex gap-3">
+                <button
                   onClick={() => router.push(`/${locale}/lawyers/${lawyer.id}/book`)}
-                  className="flex-1 flex items-center justify-center gap-2 bg-[#0a0a0a] text-white py-4 text-[15px] font-semibold hover:bg-neutral-800 transition-colors"
+                  className="flex-1 flex items-center justify-center gap-2 bg-[#1a1a1a] text-white py-4.5 text-xs font-bold uppercase tracking-widest hover:bg-neutral-800 transition-all rounded-none text-center leading-tight px-2"
                 >
-                  <CalendarCheck className="h-5 w-5" /> Book Now
+                  <CalendarCheck className="h-4 w-4 shrink-0" /> Request Consultation
                 </button>
-                <button 
+                <button
                   onClick={handleChatClick}
                   disabled={chatLoading}
-                  className="flex-1 flex items-center justify-center gap-2 bg-white border border-neutral-200 text-[#0a0a0a] py-4 text-[15px] font-semibold hover:bg-neutral-50 transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
+                  className="flex-1 flex items-center justify-center gap-2 bg-[#faf8f6] border border-[#efeae0] text-[#1a1a1a] py-4.5 text-xs font-bold uppercase tracking-widest hover:bg-[#efeae0]/30 transition-all rounded-none disabled:opacity-70 disabled:cursor-not-allowed"
                 >
-                  {chatLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <MessageSquare className="h-5 w-5" />} 
+                  {chatLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <MessageSquare className="h-4 w-4" />}
                   {chatLoading ? 'Starting...' : 'Chat'}
                 </button>
               </div>
 
               {/* Quick Stats under card */}
-              <div className="mt-0 grid grid-cols-3 border border-t-0 border-neutral-200 divide-x divide-neutral-200">
+              <div className="mt-4 border border-[#efeae0] bg-[#faf8f6]">
                 <div className="py-4 text-center">
-                  <p className="text-xl font-bold text-[#0a0a0a]">{lawyer.reviews.length}</p>
-                  <p className="text-[11px] text-neutral-500 font-medium uppercase tracking-wide">Reviews</p>
-                </div>
-                <div className="py-4 text-center">
-                  <p className="text-xl font-bold text-[#0a0a0a]">{avgRating > 0 ? avgRating.toFixed(1) : '--'}</p>
-                  <p className="text-[11px] text-neutral-500 font-medium uppercase tracking-wide">Rating</p>
-                </div>
-                <div className="py-4 text-center">
-                  <p className="text-xl font-bold text-[#0a0a0a]">{lawyer.yearsOfExperience || '--'}</p>
-                  <p className="text-[11px] text-neutral-500 font-medium uppercase tracking-wide">Years Exp</p>
+                  <p className="text-xl font-serif font-bold text-[#1a1a1a]">{lawyer.yearsOfExperience || '--'}</p>
+                  <p className="text-[9px] text-neutral-400 font-bold uppercase tracking-widest mt-1">Years Exp</p>
                 </div>
               </div>
             </div>
@@ -265,132 +231,113 @@ export default function LawyerProfileClient({
           <div className="lg:col-span-7">
             {/* Name & Category Header */}
             <div className="mb-8">
-              <div className="flex items-center gap-3 mb-2">
+              <div className="flex items-center gap-3 mb-3">
                 {lawyer.isVerified && (
-                  <div className="flex items-center gap-1 bg-[#0a0a0a] text-white text-[10px] font-bold px-3 py-1 uppercase tracking-widest">
+                  <div className="flex items-center gap-1 bg-[#bfa37a] text-white text-[9px] font-bold px-3 py-1.5 uppercase tracking-widest rounded-none">
                     <ShieldCheck className="h-3.5 w-3.5" />
                     <p>Verified</p>
                   </div>
                 )}
                 {lawyer.practiceType && (
-                  <span className="bg-neutral-100 text-neutral-700 text-[10px] font-bold px-3 py-1 uppercase tracking-widest">{lawyer.practiceType}</span>
+                  <span className="bg-[#efeae0]/40 border border-[#efeae0] text-[#1a1a1a] text-[9px] font-bold px-3 py-1.5 uppercase tracking-widest rounded-none">{lawyer.practiceType}</span>
                 )}
               </div>
-              <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-[#0a0a0a] mb-2">{lawyer.fullName}</h1>
-              <p className="text-lg text-neutral-500 font-light mb-4">
+              <h1 className="text-4xl sm:text-5xl font-serif font-bold tracking-tight text-[#1a1a1a] mb-2">{lawyer.fullName}</h1>
+              <p className="text-lg text-[#bfa37a] font-serif italic mb-4">
                 {lawyer.practiceAreas.join(' · ') || 'Legal Professional'}
               </p>
 
-              {/* Star Rating */}
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-0.5">
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <Star
-                      key={i}
-                      className={`h-5 w-5 ${i < Math.round(avgRating) ? 'fill-amber-400 text-amber-400' : 'text-neutral-200'}`}
-                    />
-                  ))}
-                </div>
-                <span className="text-sm font-semibold text-[#0a0a0a]">{avgRating > 0 ? avgRating.toFixed(1) : '0.0'}</span>
-                <span className="text-sm text-neutral-400">({lawyer.reviews.length} {lawyer.reviews.length === 1 ? 'Review' : 'Reviews'})</span>
-              </div>
+
             </div>
 
-            {/* Fee Range */}
-            <div className="flex items-baseline gap-3 mb-8 pb-8 border-b border-neutral-200">
-              <span className="text-3xl font-bold text-[#0a0a0a]">
-                {lawyer.baseFeeRange ? `LKR ${lawyer.baseFeeRange}` : 'Contact for pricing'}
-              </span>
-              <span className="text-sm text-neutral-400 font-light">consultation fee range</span>
-            </div>
 
             {/* Bio */}
-            <div className="mb-8 pb-8 border-b border-neutral-200">
-              <h3 className="text-sm font-bold text-[#0a0a0a] uppercase tracking-widest mb-4">About</h3>
+            <div className="mb-8 pb-8 border-b border-[#efeae0]">
+              <h3 className="text-xs font-bold text-[#bfa37a] uppercase tracking-[0.2em] mb-4">About</h3>
               <p className="text-neutral-600 leading-relaxed font-light">
                 {lawyer.bio || 'This attorney has not yet added a biography. Contact them directly for more information about their practice and expertise.'}
               </p>
             </div>
 
             {/* Details Grid */}
-            <div className="mb-8 pb-8 border-b border-neutral-200">
-              <h3 className="text-sm font-bold text-[#0a0a0a] uppercase tracking-widest mb-6">Details</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            <div className="mb-8 pb-8 border-b border-[#efeae0]">
+              <h3 className="text-xs font-bold text-[#bfa37a] uppercase tracking-[0.2em] mb-6">Details</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 {lawyer.district && (
-                  <div className="flex items-start gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center bg-neutral-100 shrink-0">
-                      <MapPin className="h-4 w-4 text-neutral-600" />
+                  <div className="flex items-start gap-3.5">
+                    <div className="flex h-10 w-10 items-center justify-center bg-[#faf8f6] border border-[#efeae0] text-[#bfa37a] shrink-0 rounded-none">
+                      <MapPin className="h-4 w-4" />
                     </div>
                     <div>
-                      <p className="text-[11px] text-neutral-400 font-medium uppercase tracking-wide">District</p>
-                      <p className="text-sm font-semibold text-[#0a0a0a]">{lawyer.district}</p>
+                      <p className="text-[9px] text-neutral-450 font-bold uppercase tracking-widest">District</p>
+                      <p className="text-sm font-serif font-bold text-[#1a1a1a] mt-0.5">{lawyer.district}</p>
                     </div>
                   </div>
                 )}
 
                 {lawyer.contactPhone && (
-                  <div className="flex items-start gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center bg-neutral-100 shrink-0">
-                      <Phone className="h-4 w-4 text-neutral-600" />
+                  <div className="flex items-start gap-3.5">
+                    <div className="flex h-10 w-10 items-center justify-center bg-[#faf8f6] border border-[#efeae0] text-[#bfa37a] shrink-0 rounded-none">
+                      <Phone className="h-4 w-4" />
                     </div>
                     <div>
-                      <p className="text-[11px] text-neutral-400 font-medium uppercase tracking-wide">Phone</p>
-                      <p className="text-sm font-semibold text-[#0a0a0a]">{lawyer.contactPhone}</p>
+                      <p className="text-[9px] text-neutral-450 font-bold uppercase tracking-widest">Phone</p>
+                      <p className="text-sm font-serif font-bold text-[#1a1a1a] mt-0.5">{lawyer.contactPhone}</p>
                     </div>
                   </div>
                 )}
                 {lawyer.user?.createdAt && (
-                  <div className="flex items-start gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center bg-neutral-100 shrink-0">
-                      <Calendar className="h-4 w-4 text-neutral-600" />
+                  <div className="flex items-start gap-3.5">
+                    <div className="flex h-10 w-10 items-center justify-center bg-[#faf8f6] border border-[#efeae0] text-[#bfa37a] shrink-0 rounded-none">
+                      <Calendar className="h-4 w-4" />
                     </div>
                     <div>
-                      <p className="text-[11px] text-neutral-400 font-medium uppercase tracking-wide">Member Since</p>
-                      <p className="text-sm font-semibold text-[#0a0a0a]">{new Date(lawyer.user.createdAt).getFullYear()}</p>
+                      <p className="text-[9px] text-neutral-455 font-bold uppercase tracking-widest">Member Since</p>
+                      <p className="text-sm font-serif font-bold text-[#1a1a1a] mt-0.5">{new Date(lawyer.user.createdAt).getFullYear()}</p>
                     </div>
                   </div>
                 )}
                 {lawyer.gender && (
-                  <div className="flex items-start gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center bg-neutral-100 shrink-0">
-                      <User className="h-4 w-4 text-neutral-600" />
+                  <div className="flex items-start gap-3.5">
+                    <div className="flex h-10 w-10 items-center justify-center bg-[#faf8f6] border border-[#efeae0] text-[#bfa37a] shrink-0 rounded-none">
+                      <User className="h-4 w-4" />
                     </div>
                     <div>
-                      <p className="text-[11px] text-neutral-400 font-medium uppercase tracking-wide">Gender</p>
-                      <p className="text-sm font-semibold text-[#0a0a0a]">{lawyer.gender}</p>
+                      <p className="text-[9px] text-neutral-455 font-bold uppercase tracking-widest">Gender</p>
+                      <p className="text-sm font-serif font-bold text-[#1a1a1a] mt-0.5">{lawyer.gender}</p>
                     </div>
                   </div>
                 )}
                 {lawyer.baslNumber && (
-                  <div className="flex items-start gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center bg-neutral-100 shrink-0">
-                      <Scale className="h-4 w-4 text-neutral-600" />
+                  <div className="flex items-start gap-3.5">
+                    <div className="flex h-10 w-10 items-center justify-center bg-[#faf8f6] border border-[#efeae0] text-[#bfa37a] shrink-0 rounded-none">
+                      <Scale className="h-4 w-4" />
                     </div>
                     <div>
-                      <p className="text-[11px] text-neutral-400 font-medium uppercase tracking-wide">BASL Number</p>
-                      <p className="text-sm font-semibold text-[#0a0a0a]">{lawyer.baslNumber}</p>
+                      <p className="text-[9px] text-neutral-455 font-bold uppercase tracking-widest">BASL Number</p>
+                      <p className="text-sm font-serif font-bold text-[#1a1a1a] mt-0.5">{lawyer.baslNumber}</p>
                     </div>
                   </div>
                 )}
                 {lawyer.isNotary && (
-                  <div className="flex items-start gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center bg-neutral-100 shrink-0">
-                      <Gavel className="h-4 w-4 text-neutral-600" />
+                  <div className="flex items-start gap-3.5">
+                    <div className="flex h-10 w-10 items-center justify-center bg-[#faf8f6] border border-[#efeae0] text-[#bfa37a] shrink-0 rounded-none">
+                      <Gavel className="h-4 w-4" />
                     </div>
                     <div>
-                      <p className="text-[11px] text-neutral-400 font-medium uppercase tracking-wide">Notary</p>
-                      <p className="text-sm font-semibold text-[#0a0a0a]">Yes — Notary Public</p>
+                      <p className="text-[9px] text-neutral-455 font-bold uppercase tracking-widest">Notary</p>
+                      <p className="text-sm font-serif font-bold text-[#1a1a1a] mt-0.5">Yes — Notary Public</p>
                     </div>
                   </div>
                 )}
                 {lawyer.address && (
-                  <div className="flex items-start gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center bg-neutral-100 shrink-0">
-                      <Globe className="h-4 w-4 text-neutral-600" />
+                  <div className="flex items-start gap-3.5">
+                    <div className="flex h-10 w-10 items-center justify-center bg-[#faf8f6] border border-[#efeae0] text-[#bfa37a] shrink-0 rounded-none">
+                      <Globe className="h-4 w-4" />
                     </div>
                     <div>
-                      <p className="text-[11px] text-neutral-400 font-medium uppercase tracking-wide">Address</p>
-                      <p className="text-sm font-semibold text-[#0a0a0a]">{lawyer.address}</p>
+                      <p className="text-[9px] text-neutral-455 font-bold uppercase tracking-widest">Address</p>
+                      <p className="text-sm font-serif font-bold text-[#1a1a1a] mt-0.5">{lawyer.address}</p>
                     </div>
                   </div>
                 )}
@@ -398,28 +345,28 @@ export default function LawyerProfileClient({
             </div>
 
             {/* Practice Areas */}
-            <div className="mb-8 pb-8 border-b border-neutral-200">
-              <h3 className="text-sm font-bold text-[#0a0a0a] uppercase tracking-[0.2em] mb-6">Practice Areas</h3>
-              <div className="flex flex-wrap gap-2">
+            <div className="mb-8 pb-8 border-b border-[#efeae0]">
+              <h3 className="text-xs font-bold text-[#bfa37a] uppercase tracking-[0.2em] mb-6">Practice Areas</h3>
+              <div className="flex flex-wrap gap-2.5">
                 {lawyer.practiceAreas.length > 0 ? (
                   lawyer.practiceAreas.map((area) => (
-                    <span key={area} className="bg-[#0a0a0a] text-white px-5 py-3 text-sm font-medium">
+                    <span key={area} className="bg-[#1a1a1a] text-white px-4 py-2.5 text-xs font-bold uppercase tracking-widest rounded-none border border-neutral-800">
                       {area}
                     </span>
                   ))
                 ) : (
-                  <p className="text-sm text-neutral-400">No practice areas specified.</p>
+                  <p className="text-xs text-neutral-400 uppercase tracking-widest font-bold">No practice areas specified.</p>
                 )}
               </div>
             </div>
 
             {/* Languages */}
             {lawyer.languages.length > 0 && (
-              <div className="mb-8 pb-8 border-b border-neutral-200">
-                <h3 className="text-sm font-bold text-[#0a0a0a] uppercase tracking-[0.2em] mb-6">Languages</h3>
-                <div className="flex flex-wrap gap-2">
+              <div className="mb-8 pb-8 border-b border-[#efeae0]">
+                <h3 className="text-xs font-bold text-[#bfa37a] uppercase tracking-[0.2em] mb-6">Languages</h3>
+                <div className="flex flex-wrap gap-2.5">
                   {lawyer.languages.map((lang) => (
-                    <span key={lang} className="bg-[#0a0a0a] text-white px-5 py-3 text-sm font-medium">
+                    <span key={lang} className="bg-[#bfa37a] text-white px-4 py-2.5 text-xs font-bold uppercase tracking-widest rounded-none">
                       {lang}
                     </span>
                   ))}
@@ -429,11 +376,11 @@ export default function LawyerProfileClient({
 
             {/* Courts */}
             {lawyer.courts.length > 0 && (
-              <div className="mb-8 pb-8 border-b border-neutral-200">
-                <h3 className="text-sm font-bold text-[#0a0a0a] uppercase tracking-[0.2em] mb-6">Courts</h3>
-                <div className="flex flex-wrap gap-2">
+              <div className="mb-8 pb-8 border-b border-[#efeae0]">
+                <h3 className="text-xs font-bold text-[#bfa37a] uppercase tracking-[0.2em] mb-6">Courts</h3>
+                <div className="flex flex-wrap gap-2.5">
                   {lawyer.courts.map((court) => (
-                    <span key={court} className="border border-neutral-200 text-neutral-600 px-5 py-3 text-sm font-medium">
+                    <span key={court} className="border border-[#efeae0] bg-[#faf8f6] text-[#1a1a1a] px-4 py-2.5 text-xs font-bold uppercase tracking-widest rounded-none">
                       {court}
                     </span>
                   ))}
@@ -444,99 +391,19 @@ export default function LawyerProfileClient({
         </div>
       </section>
 
-      {/* ─── Reviews Section ─── */}
-      <section className="border-t border-neutral-200 bg-[#fafafa]">
-        <div className="mx-auto max-w-[1400px] px-6 lg:px-12 xl:px-24 py-12 lg:py-16">
-          {/* Reviews Header */}
-          <div className="flex items-center justify-between mb-10">
-            <div className="flex items-center gap-4">
-              <div className="flex h-11 w-11 items-center justify-center bg-[#0a0a0a] text-white">
-                <Star className="h-5 w-5" />
-              </div>
-              <div>
-                <h2 className="text-2xl font-bold tracking-tight text-[#0a0a0a]">Client Reviews</h2>
-                <p className="text-sm text-neutral-500 font-medium">
-                  {lawyer.reviews.length} {lawyer.reviews.length === 1 ? 'review' : 'reviews'} · {avgRating > 0 ? avgRating.toFixed(1) : '0.0'} average
-                </p>
-              </div>
-            </div>
-            <button
-              onClick={handleWriteReview}
-              className="flex items-center gap-2 bg-[#0a0a0a] text-white px-6 py-3 text-sm font-semibold hover:bg-neutral-800 transition-colors"
-            >
-              <Send className="h-4 w-4" /> Write a Review
-            </button>
-          </div>
-
-          {/* Reviews Marquee */}
-          {lawyer.reviews.length > 0 ? (
-            <div
-              className="overflow-hidden relative flex"
-              onMouseEnter={() => setReviewPaused(true)}
-              onMouseLeave={() => setReviewPaused(false)}
-            >
-              <div
-                ref={reviewMarqueeRef}
-                className="flex gap-6 whitespace-nowrap"
-                style={{
-                  width: 'max-content',
-                  animation: `marquee-half ${Math.max(25, lawyer.reviews.length * 7)}s linear infinite`,
-                  animationPlayState: reviewPaused ? 'paused' : 'running',
-                }}
-              >
-                {/* Double the items for seamless loop */}
-                {[...lawyer.reviews, ...lawyer.reviews].map((review, idx) => (
-                  <div
-                    key={`${review.id}-${idx}`}
-                    className="inline-block min-w-[350px] max-w-[400px] bg-white border border-neutral-200 p-6 shrink-0 whitespace-normal"
-                  >
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center gap-3">
-                        <img 
-                          src={review.reviewerImage || '/avatar.png'} 
-                          alt={review.reviewerName} 
-                          className="w-10 h-10 object-cover border border-neutral-100 bg-neutral-50" 
-                        />
-                        <div>
-                          <p className="text-sm font-semibold text-[#0a0a0a]">{review.reviewerName}</p>
-                          <p className="text-[11px] text-neutral-400">{new Date(review.createdAt).toLocaleDateString()}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-0.5">
-                        {Array.from({ length: 5 }).map((_, i) => (
-                          <Star
-                            key={i}
-                            className={`h-3.5 w-3.5 ${i < review.rating ? 'fill-amber-400 text-amber-400' : 'text-neutral-200'}`}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                    <p className="text-sm text-neutral-600 leading-relaxed line-clamp-3">{review.comment}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : (
-            <div className="bg-white border border-neutral-200 p-12 text-center">
-              <Star className="w-10 h-10 text-neutral-200 mx-auto mb-3" />
-              <p className="text-sm text-neutral-500 font-medium">No reviews yet. Be the first to leave a review!</p>
-            </div>
-          )}
-        </div>
-      </section>
 
       {/* ─── Other Lawyers Marquee ─── */}
       {otherLawyers.length > 0 && (
-        <section className="border-t border-neutral-200 bg-white py-12 lg:py-16">
+        <section className="border-t border-[#efeae0] bg-white py-12 lg:py-16">
           <div className="mx-auto max-w-[1400px] px-6 lg:px-12 xl:px-24 mb-10">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-2xl font-bold tracking-tight text-[#0a0a0a]">
+                <h2 className="text-2xl font-serif font-bold tracking-tight text-[#1a1a1a]">
                   Explore <span className="text-neutral-400">Other Lawyers</span>
                 </h2>
-                <p className="text-sm text-neutral-500 mt-1">Discover more verified legal professionals</p>
+                <p className="text-xs text-neutral-400 font-bold uppercase tracking-widest mt-1">Discover more verified legal professionals</p>
               </div>
-              <Link href={`/${locale}/lawyers`} className="flex items-center gap-2 text-sm font-semibold text-[#0a0a0a] hover:text-neutral-600 transition-colors">
+              <Link href={`/${locale}/lawyers`} className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-[#1a1a1a] hover:text-[#bfa37a] transition-colors">
                 View All <ArrowRight className="h-4 w-4" />
               </Link>
             </div>
@@ -556,131 +423,31 @@ export default function LawyerProfileClient({
                   animationPlayState: lawyerPaused ? 'paused' : 'running',
                 }}
               >
-                {[...otherLawyers, ...otherLawyers].map((l, idx) => (
-                  <Link key={`${l.id}-${idx}`} href={`/${locale}/lawyers/${l.id}`} className="shrink-0">
-                    <div className="group relative flex h-[480px] w-[320px] flex-col overflow-hidden bg-[#222a35] text-white transition-transform duration-300 hover:-translate-y-1 hover:shadow-lg">
-                      {/* Top Image Area */}
-                      <div className="relative h-[240px] w-full shrink-0">
-                        <img
-                          src={l.profileImageUrl || 'https://images.unsplash.com/photo-1556157382-97eda2d62296?auto=format&fit=crop&w=800&q=80'}
-                          alt={l.fullName}
-                          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-[#222a35] via-[rgba(34,42,53,0.3)] to-transparent" />
-                        {l.languages && l.languages.length > 0 && (
-                          <div className="absolute right-4 top-4 flex h-7 items-center justify-center rounded-none bg-black/40 backdrop-blur-md px-2.5 text-[10px] font-bold uppercase tracking-widest text-white border border-white/10 transition-colors hover:bg-black/60">
-                            {l.languages.map((lang) => lang.slice(0, 2)).join(' • ')}
-                          </div>
-                        )}
-                      </div>
+                {[...otherLawyers, ...otherLawyers].map((l, idx) => {
+                  return (
+                    <div key={`${l.id}-${idx}`} className="shrink-0 w-[320px]">
+                      <LawyerCard
+                        id={l.id}
+                        fullName={l.fullName}
+                        profileImageUrl={l.profileImageUrl}
+                        bio={l.bio}
+                        practiceAreas={l.practiceAreas}
+                        languages={l.languages}
+                        district={l.district}
 
-                      {/* Content Area */}
-                      <div className="relative z-10 flex flex-1 flex-col px-6 pb-6 -mt-3">
-                        <div className="mb-2 flex items-start justify-between gap-3">
-                          <h3 className="text-[20px] font-bold tracking-tight text-white drop-shadow-sm leading-tight mt-1 max-w-[70%] line-clamp-1">
-                            {l.fullName}
-                          </h3>
-                          <div className="shrink-0 bg-white/10 px-3 py-1.5 text-xs font-bold text-white backdrop-blur-md border border-white/5 uppercase tracking-wider">
-                            {l.baseFeeRange ? `LKR ${l.baseFeeRange.split('-')[0].trim()}` : 'TBD'}
-                          </div>
-                        </div>
-
-                        <div className="h-[40px] mb-4">
-                          <p className="line-clamp-2 text-[13px] text-white/70 leading-snug font-light text-balance">
-                            {l.bio || 'Experienced legal professional dedicated to providing precise and strategic guidance.'}
-                          </p>
-                        </div>
-
-                        <div className="mt-auto flex gap-2 overflow-x-hidden whitespace-nowrap mb-6 scrollbar-hide">
-                          {l.avgRating > 0 && (
-                            <div className="flex shrink-0 items-center gap-1.5 bg-white/10 px-3 py-[5px] text-[10px] font-bold backdrop-blur-md border border-white/5">
-                              <Star className="h-3 w-3 fill-current text-amber-400" />
-                              {l.avgRating.toFixed(1)}
-                            </div>
-                          )}
-                          {l.district && (
-                            <div className="flex shrink-0 items-center bg-white/10 px-3 py-[5px] text-[10px] font-bold backdrop-blur-md border border-white/5 text-white/90 uppercase tracking-widest">
-                              {l.district}
-                            </div>
-                          )}
-                          {l.practiceAreas.slice(0, 1).map((area) => (
-                            <div key={area} className="flex shrink-0 items-center bg-white/10 px-3 py-[5px] text-[10px] font-bold backdrop-blur-md border border-white/5 text-white/90 uppercase tracking-widest">
-                              {area}
-                            </div>
-                          ))}
-                        </div>
-
-                        <button className="w-full bg-white py-3.5 text-[13px] font-bold text-[#222a35] transition-colors hover:bg-neutral-200 uppercase tracking-widest mt-auto">
-                          View Profile
-                        </button>
-                      </div>
+                        locale={locale}
+                        imageHeight="h-[280px]"
+                      />
                     </div>
-                  </Link>
-                ))}
+                  );
+                })}
               </div>
             </div>
           </div>
         </section>
       )}
 
-      {/* ─── Review Modal ─── */}
-      {showReviewModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="bg-white w-full max-w-md mx-4 shadow-2xl border border-neutral-200">
-            <div className="flex items-center justify-between p-6 border-b border-neutral-200">
-              <h3 className="text-lg font-bold text-[#0a0a0a]">Write a Review</h3>
-              <button onClick={() => setShowReviewModal(false)} className="text-neutral-400 hover:text-neutral-900 transition-colors">
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            <div className="p-6 space-y-5">
-              <div>
-                <label className="text-[11px] font-bold text-neutral-900 uppercase tracking-widest mb-3 block">Rating</label>
-                <div className="flex items-center gap-1">
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <button
-                      key={i}
-                      type="button"
-                      onMouseEnter={() => setHoveredStar(i + 1)}
-                      onMouseLeave={() => setHoveredStar(0)}
-                      onClick={() => setReviewRating(i + 1)}
-                    >
-                      <Star
-                        className={`h-8 w-8 transition-colors cursor-pointer ${
-                          i < (hoveredStar || reviewRating)
-                            ? 'fill-amber-400 text-amber-400'
-                            : 'text-neutral-200'
-                        }`}
-                      />
-                    </button>
-                  ))}
-                  <span className="ml-3 text-sm font-semibold text-neutral-500">{hoveredStar || reviewRating}/5</span>
-                </div>
-              </div>
-              <div>
-                <label className="text-[11px] font-bold text-neutral-900 uppercase tracking-widest mb-3 block">Your Review</label>
-                <textarea
-                  value={reviewComment}
-                  onChange={(e) => setReviewComment(e.target.value)}
-                  placeholder="Share your experience with this lawyer..."
-                  rows={4}
-                  className="w-full bg-neutral-50 border border-neutral-200 text-[#0a0a0a] px-4 py-3 outline-none focus:border-[#0a0a0a] focus:bg-white transition-all text-sm"
-                />
-              </div>
-            </div>
-            <div className="p-6 pt-0">
-              <button
-                onClick={submitReview}
-                disabled={reviewLoading}
-                className="w-full flex items-center justify-center gap-2 bg-[#0a0a0a] text-white py-4 font-semibold hover:bg-neutral-800 transition-colors disabled:opacity-50"
-              >
-                {reviewLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
-                {reviewLoading ? 'Submitting...' : 'Submit Review'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+
     </div>
   );
 }

@@ -134,12 +134,10 @@ export default function InvoiceClient({ locale, planId, plan, user, billingCycle
       <div className="flex-1 bg-white shadow-xl p-4 sm:p-8 md:p-10 overflow-x-auto print:p-0 print:shadow-none print:m-0 border border-neutral-200 print:border-none rounded-none relative print:overflow-visible print:block print:w-full print:max-w-none">
         <div className="print-area mx-auto text-[#0a0a0a] font-sans w-full max-w-[850px] min-w-[320px] flex flex-col print:max-w-none print:w-full print:min-w-0">
           {/* Header Section */}
-          <div className="flex justify-between items-start mb-8 border-b-2 border-black pb-8">
+          <div className="flex flex-col sm:flex-row justify-between items-start gap-4 sm:gap-2 mb-8 border-b-2 border-black pb-8">
             <div>
-              <div className="flex items-center gap-2 mb-1">
-                <div className="bg-black text-white p-2 print:bg-black print:text-white shrink-0" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                   <ShieldCheck className="w-5 h-5 text-white" />
-                </div>
+              <div className="flex items-center gap-3 mb-1">
+                <img src="/logo.png" alt="TheLawyr Logo" className="h-10 w-auto object-contain" />
                 <h1 className="text-xl sm:text-2xl font-black tracking-tight uppercase text-black">Lawyer.ai</h1>
               </div>
               <p className="text-[9px] sm:text-[10px] uppercase tracking-[0.2em] font-bold text-neutral-400">
@@ -147,7 +145,7 @@ export default function InvoiceClient({ locale, planId, plan, user, billingCycle
               </p>
             </div>
             
-            <div className="text-right">
+            <div className="text-left sm:text-right w-full sm:w-auto">
               <h2 className="text-2xl sm:text-3xl font-light tracking-tighter mb-0 text-neutral-900 uppercase">Invoice</h2>
               <p className="text-[9px] sm:text-[10px] font-mono text-neutral-500 uppercase tracking-wider">#{invoiceNumber}</p>
             </div>

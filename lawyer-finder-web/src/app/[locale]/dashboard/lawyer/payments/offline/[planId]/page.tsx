@@ -19,7 +19,11 @@ export default async function OfflinePaymentPage({
   const invoice = await prisma.invoice.findUnique({
     where: { id: planId },
     include: {
-      lawyer: true,
+      lawyer: {
+        include: {
+          user: true
+        }
+      },
       plan: true,
       remarks: {
         orderBy: { createdAt: 'desc' }

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { EmailService } from '@/lib/email/EmailService';
 
 // POST /api/admin/ads/invoice — Generate an invoice for an ad campaign
 export async function POST(req: Request) {
@@ -57,6 +58,22 @@ export async function POST(req: Request) {
       where: { id: campaignId },
       data: { invoiceId: invoice.id },
     });
+
+    // Fetch lawyer profile & user details to send invoice email
+    const lawyerProfile = await prisma.lawyerProfile.findUnique({
+      where: { id: campaign.lawyerId },
+      include: { user: true },
+    });
+
+    if (lawyerProfile?.user?.email) {
+      EmailService.sendInvoiceCreated(
+        lawyerProfile.user.email,
+        lawyerProfile.user.fullName || 'Valued Lawyer',
+        invoice.id,
+        invoice.amount,
+        invoice.paymentReason
+      ).catch(err => console.error('Failed to send invoice creation email:', err));
+    }
 
     return NextResponse.json({ invoice, message: 'Invoice generated successfully.' });
   } catch (error) {

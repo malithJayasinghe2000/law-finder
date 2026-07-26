@@ -166,6 +166,7 @@ function SingleComment({
             currentUserRole={currentUserRole}
             locale={locale}
             onReply={onReply}
+            onEdit={onEdit}
             onVote={onVote}
             onDelete={onDelete}
             onReport={onReport}

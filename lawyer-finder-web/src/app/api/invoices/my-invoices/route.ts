@@ -11,10 +11,11 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Get pagination params
+    // Get pagination & filter params
     const { searchParams } = new URL(req.url);
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '10');
+    const filter = searchParams.get('filter') || 'all';
     const skip = (page - 1) * limit;
 
     // Get lawyer profile
@@ -26,12 +27,26 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Lawyer profile not found' }, { status: 404 });
     }
 
+    // Determine status filter
+    let statusFilter: any = undefined;
+    if (filter === 'actionable') {
+      statusFilter = { in: ['PENDING', 'RESUBMIT', 'UNPAID'] };
+    } else if (filter === 'history') {
+      statusFilter = { in: ['PAID', 'CANCELLED'] };
+    }
+
+    const whereClause: any = {
+      lawyerId: lawyerProfile.id,
+    };
+    
+    if (statusFilter) {
+      whereClause.status = statusFilter;
+    }
+
     // Get invoices for this lawyer
     const [invoices, total] = await Promise.all([
       prisma.invoice.findMany({
-        where: {
-          lawyerId: lawyerProfile.id,
-        },
+        where: whereClause,
         include: {
           plan: true,
           subscription: true,
@@ -46,9 +61,7 @@ export async function GET(req: NextRequest) {
         take: limit,
       }),
       prisma.invoice.count({
-        where: {
-          lawyerId: lawyerProfile.id,
-        },
+        where: whereClause,
       }),
     ]);
 

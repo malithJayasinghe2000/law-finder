@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import {
-  CalendarDays, Clock, MapPin, Video, Star, XCircle, ChevronLeft, ChevronRight, AlertTriangle,
+  CalendarDays, Clock, MapPin, Video, Star, XCircle, ChevronLeft, ChevronRight, AlertTriangle, CreditCard, Building2, Loader2, ImagePlus
 } from 'lucide-react';
 import { BOOKING_STATUS_COLORS, BOOKING_STATUS_LABELS } from '@/schemas/consultation.schema';
 import { formatDateOnlyString } from '@/lib/utils';
@@ -27,6 +27,7 @@ interface Booking {
   lawyerFee: number;
   platformFee: number;
   totalAmount: number;
+  refundAmount: number | null;
   subject: string;
   description: string;
   status: string;
@@ -46,9 +47,16 @@ export default function ClientConsultationsPage() {
   const [statusFilter, setStatusFilter] = useState('');
   const [cancelModal, setCancelModal] = useState<string | null>(null);
   const [cancelReason, setCancelReason] = useState('');
-  const [rateModal, setRateModal] = useState<string | null>(null);
-  const [rating, setRating] = useState(5);
-  const [feedback, setFeedback] = useState('');
+
+  const [paymentModal, setPaymentModal] = useState<string | null>(null);
+  const [bankName, setBankName] = useState('');
+  const [accountHolder, setAccountHolder] = useState('');
+  const [accountNumber, setAccountNumber] = useState('');
+  const [transactionDate, setTransactionDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [transactionRef, setTransactionRef] = useState('');
+  const [receiptImageUrl, setReceiptImageUrl] = useState('');
+  const [receiptUploading, setReceiptUploading] = useState(false);
+  
   const [actionLoading, setActionLoading] = useState(false);
 
   useEffect(() => { loadBookings(); }, [page, statusFilter]);
@@ -65,6 +73,58 @@ export default function ClientConsultationsPage() {
     } catch { toast.error('Failed to load'); }
     finally { setLoading(false); }
   }
+
+  const uploadReceiptImage = async (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('folder', 'receipts');
+
+    const response = await fetch('/api/upload', {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to upload receipt image');
+    }
+
+    const data = await response.json();
+    return data.url as string;
+  };
+
+  const handleReceiptUpload = async () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/jpeg,image/png,image/webp';
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+
+      if (!file.type.startsWith('image/')) {
+        toast.error('Please select an image file for the receipt.');
+        return;
+      }
+
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('Image must be under 5MB.');
+        return;
+      }
+
+      setReceiptUploading(true);
+      try {
+        const url = await uploadReceiptImage(file);
+        setReceiptImageUrl(url);
+        toast.success('Receipt uploaded successfully.');
+      } catch (uploadError: any) {
+        toast.error(uploadError?.message || 'Receipt upload failed.');
+      } finally {
+        setReceiptUploading(false);
+      }
+    };
+
+    input.click();
+  };
 
   async function cancelBooking() {
     if (!cancelModal || cancelReason.length < 5) { toast.error('Please provide a reason (min 5 chars)'); return; }
@@ -86,31 +146,71 @@ export default function ClientConsultationsPage() {
     finally { setActionLoading(false); }
   }
 
-  async function submitRating() {
-    if (!rateModal) return;
+
+  const handleOpenPaymentModal = (booking: any) => {
+    if (booking.payment) {
+      setBankName(booking.payment.bankName || '');
+      setAccountHolder(booking.payment.accountHolder || '');
+      setAccountNumber(booking.payment.accountNumber || '');
+      setTransactionDate(booking.payment.transactionDate || new Date().toISOString().split('T')[0]);
+      setTransactionRef(booking.payment.transactionRef || '');
+      setReceiptImageUrl(booking.payment.receiptImageUrl || '');
+    } else {
+      setBankName('');
+      setAccountHolder('');
+      setAccountNumber('');
+      setTransactionDate(new Date().toISOString().split('T')[0]);
+      setTransactionRef('');
+      setReceiptImageUrl('');
+    }
+    setPaymentModal(booking.id);
+  };
+
+  async function submitPaymentDetails() {
+    if (!bankName || !accountHolder || !transactionRef) {
+      toast.error('Please fill in all bank details');
+      return;
+    }
     setActionLoading(true);
     try {
-      const res = await fetch(`/api/consultations/bookings/${rateModal}`, {
-        method: 'PATCH',
+      const res = await fetch(`/api/consultations/bookings/${paymentModal}/payment`, {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'rate', rating, feedback: feedback || undefined }),
+        body: JSON.stringify({
+          method: 'BANK_TRANSFER',
+          bankName,
+          accountHolder,
+          accountNumber,
+          transactionDate,
+          transactionRef,
+          receiptImageUrl
+        }),
       });
       const data = await res.json();
-      if (data.success) {
-        toast.success('Thank you for your feedback!');
-        setRateModal(null);
-        setFeedback('');
+      if (res.ok) {
+        toast.success('Payment details submitted successfully! Awaiting admin verification.');
+        setPaymentModal(null);
+        setBankName('');
+        setAccountHolder('');
+        setAccountNumber('');
+        setTransactionDate(new Date().toISOString().split('T')[0]);
+        setTransactionRef('');
+        setReceiptImageUrl('');
         loadBookings();
-      } else toast.error(data.error || 'Failed');
-    } catch { toast.error('Failed'); }
+      } else {
+        toast.error(typeof data.error === 'string' ? data.error : 'Validation error, please check the fields');
+      }
+    } catch { toast.error('Failed to submit'); }
     finally { setActionLoading(false); }
   }
 
   const statusTabs = [
     { value: '', label: 'All' },
+    { value: 'AWAITING_LAWYER_APPROVAL', label: 'Pending Request' },
     { value: 'CONFIRMED', label: 'Upcoming' },
-    { value: 'PENDING_PAYMENT', label: 'Pending Payment' },
     { value: 'COMPLETED', label: 'Completed' },
+    { value: 'REJECTED_BY_LAWYER', label: 'Declined' },
+    { value: 'CANCELLED_BY_CLIENT', label: 'Cancelled' },
   ];
 
   return (
@@ -182,21 +282,46 @@ export default function ClientConsultationsPage() {
                         <span className="text-xs text-green-800">{b.officeAddress}</span>
                       </div>
                     )}
+                    {b.status === 'PENDING_PAYMENT' && b.paymentInstructions && (
+                      <div className="mt-3 p-3 bg-amber-50 border border-amber-200">
+                        <p className="text-[10px] font-bold text-amber-800 uppercase tracking-widest mb-1">Lawyer's Payment Instructions</p>
+                        <p className="text-xs text-amber-900 whitespace-pre-wrap">{b.paymentInstructions}</p>
+                      </div>
+                    )}
                   </div>
                   <div className="text-right shrink-0">
-                    <p className="text-lg font-bold text-neutral-900">Rs. {b.totalAmount.toLocaleString()}</p>
-                    <p className="text-[10px] text-neutral-400">Total paid</p>
-                    <div className="flex gap-1.5 mt-3">
-                      {['PENDING_PAYMENT', 'CONFIRMED'].includes(b.status) && (
+                    {b.status === 'AWAITING_LAWYER_APPROVAL' && (
+                       <p className="text-xs text-neutral-500 italic mb-2">Waiting for lawyer's response...</p>
+                    )}
+                    {b.status === 'PENDING_PAYMENT' && (
+                      <div className="mb-3 text-right">
+                        <p className="text-xs text-neutral-500 mb-1">Lawyer's Quoted Fee:</p>
+                        <p className="text-sm font-bold text-[#0a0a0a]">Rs. {b.totalAmount?.toLocaleString()}</p>
+                      </div>
+                    )}
+                    {b.status === 'AWAITING_BANK_TRANSFER_VERIFICATION' && (
+                       <p className="text-[10px] text-neutral-500 italic mb-2 bg-neutral-100 p-1.5 border border-neutral-200">Receipt submitted. Waiting for lawyer verification.</p>
+                    )}
+                    {b.status === 'CANCELLED_BY_CLIENT' && b.refundAmount !== null && b.refundAmount > 0 && (
+                      <div className="mt-2 text-right bg-red-50 p-1.5 border border-red-100">
+                        {b.refundAmount < b.totalAmount && (
+                          <p className="text-[10px] text-red-600 font-bold">- Rs. {(b.totalAmount - b.refundAmount).toLocaleString()} (Late Cancel Penalty)</p>
+                        )}
+                        <p className="text-xs text-green-600 font-bold">Refund: Rs. {b.refundAmount.toLocaleString()}</p>
+                      </div>
+                    )}
+                    <div className="flex gap-1.5 mt-3 justify-end flex-wrap">
+                      {['AWAITING_LAWYER_APPROVAL', 'CONFIRMED', 'PENDING_PAYMENT'].includes(b.status) && (
                         <Button size="sm" variant="outline" onClick={() => setCancelModal(b.id)} className="rounded-none h-7 text-[10px] px-2.5 font-bold text-red-600 border-red-300">
                           <XCircle className="w-3 h-3 mr-1" /> Cancel
                         </Button>
                       )}
-                      {b.status === 'COMPLETED' && !b.clientRating && (
-                        <Button size="sm" onClick={() => setRateModal(b.id)} className="bg-amber-500 text-white hover:bg-amber-600 rounded-none h-7 text-[10px] px-2.5 font-bold">
-                          <Star className="w-3 h-3 mr-1" /> Rate
+                      {b.status === 'PENDING_PAYMENT' && (
+                        <Button size="sm" onClick={() => handleOpenPaymentModal(b)} className="bg-[#0a0a0a] text-white hover:bg-neutral-800 rounded-none h-7 text-[10px] px-2.5 font-bold">
+                          Upload Receipt
                         </Button>
                       )}
+
                     </div>
                   </div>
                 </div>
@@ -239,23 +364,123 @@ export default function ClientConsultationsPage() {
         </div>
       )}
 
-      {/* Rate Modal */}
-      {rateModal && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setRateModal(null)}>
-          <div className="bg-white max-w-sm w-full shadow-xl" onClick={(e) => e.stopPropagation()}>
-            <div className="p-6 border-b"><h2 className="text-lg font-bold flex items-center gap-2"><Star className="w-5 h-5 text-amber-500" /> Rate Consultation</h2></div>
-            <div className="p-6 space-y-4">
-              <div className="flex justify-center gap-2">
-                {[1,2,3,4,5].map((v) => (
-                  <button key={v} onClick={() => setRating(v)} className={`text-3xl transition-transform hover:scale-110 ${v <= rating ? 'text-amber-400' : 'text-neutral-200'}`}>★</button>
-                ))}
+      {/* Payment Modal */}
+      {paymentModal && (() => {
+        const bookingBeingPaid = bookings.find(b => b.id === paymentModal);
+        const isOnlineOnly = bookingBeingPaid?.mode === 'ONLINE';
+
+        let parsedInstructions: any = null;
+        if (bookingBeingPaid?.paymentInstructions) {
+          try {
+            parsedInstructions = JSON.parse(bookingBeingPaid.paymentInstructions);
+          } catch (e) {
+            // Not JSON, fallback to raw string
+          }
+        }
+        
+        return (
+          <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setPaymentModal(null)}>
+            <div className="bg-white max-w-md w-full max-h-[90vh] flex flex-col shadow-xl" onClick={(e) => e.stopPropagation()}>
+              <div className="p-6 border-b flex justify-between items-center shrink-0">
+                <h2 className="text-lg font-bold flex items-center gap-2"><Building2 className="w-5 h-5 text-neutral-900" /> Submit Bank Transfer</h2>
+                <button onClick={() => setPaymentModal(null)} className="text-neutral-400 hover:text-neutral-600"><XCircle className="w-5 h-5" /></button>
               </div>
-              <textarea value={feedback} onChange={(e) => setFeedback(e.target.value)} rows={3} placeholder="Share your experience (optional)" className="w-full border border-neutral-200 px-3 py-2 text-sm" />
-              <Button onClick={submitRating} disabled={actionLoading} className="w-full bg-[#0a0a0a] text-white hover:bg-neutral-800 rounded-none h-10 font-bold text-xs uppercase tracking-wide">{actionLoading ? 'Submitting...' : 'Submit Rating'}</Button>
+              <div className="p-6 space-y-4 overflow-y-auto">
+                <div className="bg-amber-50 border border-amber-200 p-3 text-xs text-amber-800">
+                  <p className="font-bold mb-1">Bank Transfer Instructions:</p>
+                  <p>Please transfer the exact amount to the account below, then enter the transaction reference.</p>
+                  
+                  {(parsedInstructions && parsedInstructions.bankName) ? (
+                    <div className="mt-2 space-y-1.5 bg-amber-100 border border-amber-200 rounded p-3 text-[11px]">
+                      <div className="grid grid-cols-3 gap-2 border-b border-amber-200 pb-1.5">
+                        <span className="font-semibold text-amber-900 uppercase tracking-wide">Bank:</span>
+                        <span className="col-span-2">{parsedInstructions.bankName}</span>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2 border-b border-amber-200 pb-1.5">
+                        <span className="font-semibold text-amber-900 uppercase tracking-wide">Branch:</span>
+                        <span className="col-span-2">{parsedInstructions.bankBranch}</span>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2 border-b border-amber-200 pb-1.5">
+                        <span className="font-semibold text-amber-900 uppercase tracking-wide">Acc Name:</span>
+                        <span className="col-span-2">{parsedInstructions.accountName}</span>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2">
+                        <span className="font-semibold text-amber-900 uppercase tracking-wide">Acc No:</span>
+                        <span className="col-span-2 font-mono text-xs font-bold">{parsedInstructions.accountNumber}</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="mt-2 p-2 bg-amber-100 border border-amber-200 rounded whitespace-pre-wrap font-mono text-[11px]">
+                      {bookingBeingPaid?.paymentInstructions || 'No instructions provided.'}
+                    </div>
+                  )}
+                </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-neutral-500 uppercase">Your Bank Name</label>
+                  <input value={bankName} onChange={e => setBankName(e.target.value)} className="w-full h-9 border border-neutral-300 px-3 text-sm focus:outline-none focus:border-black" placeholder="e.g. HNB" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-neutral-500 uppercase">Account Holder</label>
+                  <input value={accountHolder} onChange={e => setAccountHolder(e.target.value)} className="w-full h-9 border border-neutral-300 px-3 text-sm focus:outline-none focus:border-black" placeholder="e.g. John Doe" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-neutral-500 uppercase">Account Number</label>
+                  <input value={accountNumber} onChange={e => setAccountNumber(e.target.value)} className="w-full h-9 border border-neutral-300 px-3 text-sm focus:outline-none focus:border-black" placeholder="e.g. 123456789" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-neutral-500 uppercase">Transaction Date</label>
+                  <input type="date" value={transactionDate} onChange={e => setTransactionDate(e.target.value)} className="w-full h-9 border border-neutral-300 px-3 text-sm focus:outline-none focus:border-black" />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-neutral-500 uppercase">Transaction Reference Number</label>
+                <input value={transactionRef} onChange={e => setTransactionRef(e.target.value)} className="w-full h-9 border border-neutral-300 px-3 text-sm focus:outline-none focus:border-black" />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-neutral-500 uppercase mb-2">Receipt Photo (optional)</label>
+                {receiptImageUrl ? (
+                  <div className="relative rounded-lg overflow-hidden border border-neutral-200">
+                    <img src={receiptImageUrl} alt="Receipt preview" className="w-full h-48 object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => setReceiptImageUrl('')}
+                      className="absolute top-2 right-2 bg-black/60 text-white px-2 py-1 text-[10px] rounded-md hover:bg-black/80"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleReceiptUpload}
+                    disabled={receiptUploading}
+                    className="flex items-center justify-center gap-2 w-full p-4 border-2 border-dashed rounded-lg text-sm text-muted-foreground hover:border-primary/50 hover:text-foreground transition-colors"
+                  >
+                    {receiptUploading ? (
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                    ) : (
+                      <ImagePlus className="h-5 w-5" />
+                    )}
+                    {receiptUploading ? 'Uploading receipt...' : 'Click to upload receipt image'}
+                  </button>
+                )}
+              </div>
+
+                <Button 
+                  onClick={submitPaymentDetails} 
+                  className="w-full bg-[#0a0a0a] text-white hover:bg-neutral-800 rounded-none h-10 font-bold text-xs uppercase tracking-wide"
+                  disabled={actionLoading}
+                >
+                  {actionLoading ? 'Submitting...' : 'Submit Payment Details'}
+                </Button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }

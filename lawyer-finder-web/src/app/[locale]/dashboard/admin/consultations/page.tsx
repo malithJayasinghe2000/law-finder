@@ -50,11 +50,18 @@ export default function AdminConsultationsPage() {
             <p className="text-sm text-neutral-500 font-medium">Platform-wide booking overview</p>
           </div>
         </div>
-        <Link href={`/${locale}/dashboard/admin/consultations/payments`}>
-          <Button className="bg-amber-500 text-white hover:bg-amber-600 rounded-none h-10 px-6 text-xs font-bold uppercase tracking-wide">
-            Manage Payments
-          </Button>
-        </Link>
+        <div className="flex items-center gap-3">
+          <Link href={`/${locale}/dashboard/admin/consultations/create-booking`}>
+            <Button className="bg-[#0a0a0a] text-white hover:bg-neutral-800 rounded-none h-10 px-6 text-xs font-bold uppercase tracking-wide">
+              Create Booking
+            </Button>
+          </Link>
+          <Link href={`/${locale}/dashboard/admin/consultations/payments`}>
+            <Button className="bg-amber-500 text-white hover:bg-amber-600 rounded-none h-10 px-6 text-xs font-bold uppercase tracking-wide">
+              Manage Payments
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {/* Filters */}

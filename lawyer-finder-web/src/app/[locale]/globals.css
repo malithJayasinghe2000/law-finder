@@ -10,7 +10,7 @@
   --color-foreground: var(--foreground);
   --font-sans: 'Outfit', ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono);
-  --font-heading: 'Outfit', ui-sans-serif, system-ui, sans-serif;
+  --font-heading: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
   --animate-marquee: marquee 30s linear infinite;
   --animate-marquee2: marquee2 30s linear infinite;
   --color-sidebar-ring: var(--sidebar-ring);
@@ -130,6 +130,9 @@
   html {
     @apply font-sans scroll-smooth;
   }
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-heading;
+  }
 }
 @keyframes marquee {
   0% { transform: translateX(0%); }
@@ -147,4 +150,22 @@
   height: 0;
   pointer-events: none;
   opacity: 0.5;
+}
+
+@keyframes scrollUp {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(-50%); }
+}
+
+@keyframes scrollDown {
+  0% { transform: translateY(-50%); }
+  100% { transform: translateY(0); }
+}
+
+.animate-marquee-vertical-up {
+  animation: scrollUp 25s linear infinite;
+}
+
+.animate-marquee-vertical-down {
+  animation: scrollDown 25s linear infinite;
 }

@@ -1,18 +1,31 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter, useParams } from 'next/navigation';
 import { toast } from 'sonner';
 import {
-  Image, Plus, Loader2, Trash2, Eye, EyeOff,
-  Calendar, CheckCircle2, XCircle, Clock, Pause,
-  BarChart3, MousePointerClick, TrendingUp,
-  ChevronDown, ChevronUp, Search, Filter, FileText, ImagePlus
+  Image as ImageIcon, Plus, Loader2, Trash2, Eye,
+  CheckCircle2, XCircle, Clock, Pause, Settings,
+  ChevronDown, ChevronUp, Filter, FileText, ImagePlus
 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
+import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
+import FieldError from '@/components/ui/FieldError';
+import {
+  AD_TYPES,
+  PLACEMENT_DETAILS,
+  AdminCreateAdSchema,
+  formatZodFieldErrors,
+  getComputedTotalBudget,
+  getPlacementsForType,
+  isImageRequiredType,
+  formatAdLabel,
+  type AdPlacementValue,
+  type AdTypeValue,
+  type PlacementConfigClient,
+} from '@/schemas/ad.schema';
 
 interface Campaign {
   id: string;
@@ -64,23 +77,15 @@ interface Lawyer {
   baslNumber: string;
 }
 
-const AD_TYPES = ['BANNER', 'SPONSORED_LISTING', 'FEATURED_PROFILE', 'IN_FEED', 'SIDEBAR'];
-const AD_PLACEMENTS = ['HOMEPAGE_HERO', 'HOMEPAGE_MID', 'DIRECTORY_TOP', 'DIRECTORY_INLINE', 'BLOG_SIDEBAR', 'BLOG_FEED', 'BLOG_POST_BOTTOM'];
+interface LawyerApiItem {
+  id: string;
+  fullName: string;
+  baslNumber: string;
+}
+
 const AD_STATUSES = ['DRAFT', 'PENDING_REVIEW', 'APPROVED', 'ACTIVE', 'PAUSED', 'EXPIRED', 'REJECTED'];
 
-const DISTRICTS = ['Colombo', 'Gampaha', 'Kalutara', 'Kandy', 'Matale', 'Nuwara Eliya', 'Galle', 'Matara', 'Hambantota', 'Jaffna', 'Kilinochchi', 'Mannar', 'Vavuniya', 'Mullaitivu', 'Batticaloa', 'Ampara', 'Trincomalee', 'Kurunegala', 'Puttalam', 'Anuradhapura', 'Polonnaruwa', 'Badulla', 'Monaragala', 'Ratnapura', 'Kegalle'];
-const PRACTICE_AREAS = ['Criminal Law', 'Family Law', 'Property Law', 'Labor Law', 'Corporate Law', 'Civil Law', 'Constitutional Law', 'Tax Law', 'Immigration Law', 'Environmental Law', 'Intellectual Property', 'Human Rights'];
-
-function formatLabel(str: string) {
-  return str.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
-}
-
-function ctr(impressions: number, clicks: number) {
-  if (impressions === 0) return '0.00';
-  return ((clicks / impressions) * 100).toFixed(2);
-}
-
-const statusConfig: Record<string, { color: string; icon: any }> = {
+const statusConfig: Record<string, { color: string; icon: LucideIcon }> = {
   DRAFT: { color: 'bg-neutral-100 text-neutral-600 border-neutral-200', icon: Clock },
   PENDING_REVIEW: { color: 'bg-amber-50 text-amber-700 border-amber-200', icon: Clock },
   APPROVED: { color: 'bg-blue-50 text-blue-700 border-blue-200', icon: CheckCircle2 },
@@ -91,10 +96,17 @@ const statusConfig: Record<string, { color: string; icon: any }> = {
 };
 
 export default function AdvertisementsPage() {
+  const router = useRouter();
+  const params = useParams();
+  const locale = params.locale as string || 'en';
+
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
   const [lawyers, setLawyers] = useState<Lawyer[]>([]);
+  const [configs, setConfigs] = useState<PlacementConfigClient[]>([]);
+  const [selectedConfig, setSelectedConfig] = useState<PlacementConfigClient | null>(null);
+  
   const [showCreate, setShowCreate] = useState(false);
   const [createLoading, setCreateLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -103,12 +115,13 @@ export default function AdvertisementsPage() {
   const [rejectId, setRejectId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState('');
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
   const [form, setForm] = useState({
     lawyerId: '',
     name: '',
-    type: 'BANNER',
-    placement: 'HOMEPAGE_HERO',
+    type: 'BANNER_IMAGE' as AdTypeValue,
+    placement: 'HOMEPAGE_BELOW_HERO' as AdPlacementValue,
     title: '',
     description: '',
     imageUrl: '',
@@ -122,6 +135,65 @@ export default function AdvertisementsPage() {
     pricePerDay: '',
     status: 'DRAFT',
   });
+
+  const validPlacements = selectedConfig ? [selectedConfig.placement] : configs.map(c => c.placement);
+  const placementDetails = PLACEMENT_DETAILS[form.placement];
+  const imageRequired = isImageRequiredType(form.type);
+  const computedTotalBudget = getComputedTotalBudget(form.pricePerDay || selectedConfig?.pricePerDay, form.startDate, form.endDate);
+
+  const fetchConfigs = async () => {
+    try {
+      const res = await fetch('/api/admin/ad-config');
+      const data = await res.json();
+      setConfigs(data.configs || []);
+      if (data.configs && data.configs.length > 0) {
+        const firstConf = data.configs[0] as PlacementConfigClient;
+        setSelectedConfig(firstConf);
+        setForm(prev => ({
+          ...prev,
+          placement: firstConf.placement,
+          type: firstConf.allowedAdTypes[0] || 'BANNER_IMAGE',
+          pricePerDay: String(firstConf.pricePerDay),
+        }));
+      }
+    } catch {
+      toast.error('Failed to load ad placement configurations.');
+    }
+  };
+
+  const updateForm = (field: keyof typeof form, value: any) => {
+    setFormErrors((prev) => {
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+
+    setForm((prev) => {
+      const updated = { ...prev, [field]: value };
+      
+      if (field === 'type') {
+        const compatibleConfigs = configs.filter(c => c.allowedAdTypes.includes(value));
+        if (compatibleConfigs.length > 0) {
+          updated.placement = compatibleConfigs[0].placement;
+          setSelectedConfig(compatibleConfigs[0]);
+          updated.pricePerDay = String(compatibleConfigs[0].pricePerDay);
+        }
+      }
+
+      if (field === 'placement') {
+        const conf = configs.find(c => c.placement === value);
+        if (conf) {
+          setSelectedConfig(conf);
+          updated.pricePerDay = String(conf.pricePerDay);
+          if (!conf.allowedAdTypes.includes(updated.type)) {
+            updated.type = conf.allowedAdTypes[0] || 'BANNER_IMAGE';
+          }
+        }
+      }
+
+      return updated;
+    });
+  };
 
   const fetchCampaigns = async () => {
     setLoading(true);
@@ -147,7 +219,7 @@ export default function AdvertisementsPage() {
       const list = data.lawyers || data || [];
       setLawyers(
         Array.isArray(list)
-          ? list.map((l: any) => ({ id: l.id, fullName: l.fullName, baslNumber: l.baslNumber }))
+          ? list.map((l: LawyerApiItem) => ({ id: l.id, fullName: l.fullName, baslNumber: l.baslNumber }))
           : []
       );
     } catch {}
@@ -156,6 +228,7 @@ export default function AdvertisementsPage() {
   useEffect(() => {
     fetchCampaigns();
     fetchLawyers();
+    fetchConfigs();
   }, [filterStatus]);
 
   const handleImageUpload = async () => {
@@ -193,29 +266,41 @@ export default function AdvertisementsPage() {
   };
 
   const handleCreate = async () => {
-    if (!form.lawyerId || !form.name || !form.startDate || !form.endDate) {
-      return toast.error('Lawyer, campaign name, start date, and end date are required.');
+    const dataToSend = {
+      ...form,
+      pricePerDay: Number(form.pricePerDay),
+    };
+    const parsed = AdminCreateAdSchema.safeParse(dataToSend);
+    if (!parsed.success) {
+      setFormErrors(formatZodFieldErrors(parsed.error));
+      toast.error('Please fix the highlighted fields.');
+      return;
     }
+
+    setFormErrors({});
     setCreateLoading(true);
     try {
       const res = await fetch('/api/admin/ads', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
+        body: JSON.stringify(dataToSend),
       });
       const result = await res.json();
-      if (!res.ok) throw new Error(result.error);
+      if (!res.ok) {
+        if (result.fieldErrors) setFormErrors(result.fieldErrors);
+        throw new Error(result.error);
+      }
       toast.success('Campaign created successfully.');
       setShowCreate(false);
       setForm({
-        lawyerId: '', name: '', type: 'BANNER', placement: 'HOMEPAGE_HERO',
+        lawyerId: '', name: '', type: 'BANNER_IMAGE', placement: 'HOMEPAGE_BELOW_HERO',
         title: '', description: '', imageUrl: '', targetUrl: '', ctaText: 'View Profile',
         targetDistricts: [], targetPracticeAreas: [], startDate: '', endDate: '',
-        totalBudget: '', pricePerDay: '', status: 'DRAFT',
+        totalBudget: '', pricePerDay: String(selectedConfig?.pricePerDay || 2000), status: 'DRAFT',
       });
       fetchCampaigns();
-    } catch (e: any) {
-      toast.error(e.message || 'Failed to create campaign.');
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to create campaign.');
     } finally {
       setCreateLoading(false);
     }
@@ -229,11 +314,12 @@ export default function AdvertisementsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, status: newStatus }),
       });
-      if (!res.ok) throw new Error('Failed.');
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed.');
       toast.success(`Campaign ${newStatus.toLowerCase().replace('_', ' ')}.`);
       fetchCampaigns();
-    } catch {
-      toast.error('Failed to update status.');
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to update status.');
     } finally {
       setActionLoading(null);
     }
@@ -287,8 +373,8 @@ export default function AdvertisementsPage() {
       if (!res.ok) throw new Error(data.error);
       toast.success('Invoice generated successfully.');
       fetchCampaigns();
-    } catch (e: any) {
-      toast.error(e.message || 'Failed to generate invoice.');
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to generate invoice.');
     } finally {
       setActionLoading(null);
     }
@@ -300,19 +386,28 @@ export default function AdvertisementsPage() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <div className="flex h-11 w-11 items-center justify-center bg-[#0a0a0a] text-white">
-            <Image className="h-5 w-5" />
+            <ImageIcon className="h-5 w-5" />
           </div>
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-neutral-900">Ad Campaigns</h1>
             <p className="text-sm text-neutral-500 font-medium">Manage lawyer advertisements & promotions</p>
           </div>
         </div>
-        <Button
-          onClick={() => setShowCreate(!showCreate)}
-          className="bg-[#0a0a0a] hover:bg-neutral-800 text-white text-xs font-bold uppercase tracking-wide"
-        >
-          <Plus className="w-3.5 h-3.5 mr-2" /> New Campaign
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={() => router.push(`/${locale}/dashboard/admin/ad-config`)}
+            className="text-xs font-bold uppercase tracking-wide"
+          >
+            <Settings className="w-3.5 h-3.5 mr-2" /> Configure Placements
+          </Button>
+          <Button
+            onClick={() => setShowCreate(!showCreate)}
+            className="bg-[#0a0a0a] hover:bg-neutral-800 text-white text-xs font-bold uppercase tracking-wide"
+          >
+            <Plus className="w-3.5 h-3.5 mr-2" /> New Campaign
+          </Button>
+        </div>
       </div>
 
       {/* Stats Cards */}
@@ -347,7 +442,7 @@ export default function AdvertisementsPage() {
         >
           <option value="">All Statuses</option>
           {AD_STATUSES.map((s) => (
-            <option key={s} value={s}>{formatLabel(s)}</option>
+            <option key={s} value={s}>{formatAdLabel(s)}</option>
           ))}
         </select>
         {filterStatus && (
@@ -362,134 +457,141 @@ export default function AdvertisementsPage() {
         <div className="bg-white border border-neutral-200 p-6 space-y-5 animate-in fade-in duration-300">
           <h3 className="text-xs font-bold text-neutral-900 uppercase tracking-wide">Create New Campaign</h3>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {/* Lawyer */}
-            <div>
-              <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5">Lawyer *</label>
-              <select value={form.lawyerId} onChange={(e) => setForm({ ...form, lawyerId: e.target.value })} className="w-full py-2.5 px-3 bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-900 outline-none focus:border-[#0a0a0a]">
-                <option value="">Select Lawyer</option>
-                {lawyers.map((l) => (
-                  <option key={l.id} value={l.id}>{l.fullName} ({l.baslNumber})</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Campaign Name */}
-            <div>
-              <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5">Campaign Name *</label>
-              <input type="text" placeholder="e.g. January Property Law Push" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="w-full py-2.5 px-3 bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-900 outline-none focus:border-[#0a0a0a]" />
-            </div>
-
-            {/* Ad Type */}
-            <div>
-              <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5">Ad Type *</label>
-              <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} className="w-full py-2.5 px-3 bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-900 outline-none focus:border-[#0a0a0a]">
-                {AD_TYPES.map((t) => (
-                  <option key={t} value={t}>{formatLabel(t)}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Placement */}
-            <div>
-              <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5">Placement *</label>
-              <select value={form.placement} onChange={(e) => setForm({ ...form, placement: e.target.value })} className="w-full py-2.5 px-3 bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-900 outline-none focus:border-[#0a0a0a]">
-                {AD_PLACEMENTS.map((p) => (
-                  <option key={p} value={p}>{formatLabel(p)}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Ad Title */}
-            <div>
-              <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5">Ad Title</label>
-              <input type="text" placeholder="Headline text" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="w-full py-2.5 px-3 bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-900 outline-none focus:border-[#0a0a0a]" />
-            </div>
-
-            {/* CTA Text */}
-            <div>
-              <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5">CTA Button Text</label>
-              <input type="text" placeholder="View Profile" value={form.ctaText} onChange={(e) => setForm({ ...form, ctaText: e.target.value })} className="w-full py-2.5 px-3 bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-900 outline-none focus:border-[#0a0a0a]" />
-            </div>
-
-            {/* Image URL */}
-            <div className="md:col-span-2">
-              <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5">Banner Image</label>
-              {form.imageUrl ? (
-                <div className="relative rounded overflow-hidden border border-neutral-200 h-[42px]">
-                  <img src={form.imageUrl} alt="Banner" className="w-full h-full object-cover" />
-                  <button
-                    type="button"
-                    onClick={() => setForm({ ...form, imageUrl: '' })}
-                    className="absolute top-1 right-1 bg-black/60 text-white px-2 py-0.5 rounded-sm text-[10px] hover:bg-black/80 transition-colors"
-                  >
-                    Remove
-                  </button>
+          <div className="space-y-6">
+            <section className="space-y-3">
+              <div>
+                <h4 className="text-[11px] font-bold uppercase tracking-wide text-neutral-900">1. Ad Format</h4>
+                <p className="text-xs text-neutral-500">Choose the campaign type first so placement options stay compatible.</p>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5">Lawyer *</label>
+                  <select value={form.lawyerId} onChange={(e) => updateForm('lawyerId', e.target.value)} className="w-full py-2.5 px-3 bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-900 outline-none focus:border-[#0a0a0a]">
+                    <option value="">Select Lawyer</option>
+                    {lawyers.map((l) => (
+                      <option key={l.id} value={l.id}>{l.fullName} ({l.baslNumber})</option>
+                    ))}
+                  </select>
+                  <FieldError message={formErrors.lawyerId} />
                 </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={handleImageUpload}
-                  disabled={uploadingImage}
-                  className="flex items-center justify-center gap-2 w-full h-[42px] bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-500 hover:border-[#0a0a0a] hover:text-neutral-900 transition-colors rounded-sm"
-                >
-                  {uploadingImage ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
+                <div>
+                  <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5">Placement *</label>
+                  <select value={form.placement} onChange={(e) => updateForm('placement', e.target.value)} className="w-full py-2.5 px-3 bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-900 outline-none focus:border-[#0a0a0a]">
+                    {configs.map((c) => (
+                      <option key={c.placement} value={c.placement}>{c.displayName}</option>
+                    ))}
+                  </select>
+                  <FieldError message={formErrors.placement} />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5">Ad Type *</label>
+                  <select value={form.type} onChange={(e) => updateForm('type', e.target.value)} className="w-full py-2.5 px-3 bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-900 outline-none focus:border-[#0a0a0a]">
+                    {selectedConfig?.allowedAdTypes.map((t) => (
+                      <option key={t} value={t}>{formatAdLabel(t)}</option>
+                    ))}
+                  </select>
+                  <FieldError message={formErrors.type} />
+                </div>
+              </div>
+            </section>
+
+            <Separator />
+
+            <section className="space-y-3">
+              <div>
+                <h4 className="text-[11px] font-bold uppercase tracking-wide text-neutral-900">2. Creative Content</h4>
+                <p className="text-xs text-neutral-500">Profile-based formats can use the lawyer profile photo automatically.</p>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div>
+                  <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5">Campaign Name *</label>
+                  <input type="text" placeholder="e.g. January Property Law Push" value={form.name} onChange={(e) => updateForm('name', e.target.value)} className="w-full py-2.5 px-3 bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-900 outline-none focus:border-[#0a0a0a]" />
+                  <FieldError message={formErrors.name} />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5">Ad Title {form.type === 'BANNER_IMAGE' ? '*' : ''}</label>
+                  <input type="text" placeholder="Headline text" value={form.title} onChange={(e) => updateForm('title', e.target.value)} className="w-full py-2.5 px-3 bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-900 outline-none focus:border-[#0a0a0a]" />
+                  <FieldError message={formErrors.title} />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5">CTA Button Text</label>
+                  <input type="text" placeholder="View Profile" value={form.ctaText} onChange={(e) => updateForm('ctaText', e.target.value)} className="w-full py-2.5 px-3 bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-900 outline-none focus:border-[#0a0a0a]" />
+                  <FieldError message={formErrors.ctaText} />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5">Banner Image {imageRequired ? '*' : ''}</label>
+                  {imageRequired || form.imageUrl ? (
+                    form.imageUrl ? (
+                      <div className="relative rounded overflow-hidden border border-neutral-200 h-[42px]">
+                        <img src={form.imageUrl} alt="Banner" className="w-full h-full object-cover" />
+                        <button type="button" onClick={() => updateForm('imageUrl', '')} className="absolute top-1 right-1 bg-black/60 text-white px-2 py-0.5 rounded-sm text-[10px] hover:bg-black/80 transition-colors">Remove</button>
+                      </div>
+                    ) : (
+                      <button type="button" onClick={handleImageUpload} disabled={uploadingImage} className="flex items-center justify-center gap-2 w-full h-[42px] bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-500 hover:border-[#0a0a0a] hover:text-neutral-900 transition-colors rounded-sm">
+                        {uploadingImage ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImagePlus className="w-4 h-4" />}
+                        {uploadingImage ? 'Uploading...' : 'Upload Image'}
+                      </button>
+                    )
                   ) : (
-                    <ImagePlus className="w-4 h-4" />
+                    <div className="min-h-[42px] flex items-center px-3 bg-neutral-50 border border-neutral-200 text-sm text-neutral-500">
+                      The lawyer profile photo will be used automatically for this format.
+                    </div>
                   )}
-                  {uploadingImage ? 'Uploading...' : 'Upload Image'}
-                </button>
-              )}
-            </div>
+                  <FieldError message={formErrors.imageUrl} />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5">Target Link</label>
+                  <input type="text" placeholder="/lawyers/abc-123" value={form.targetUrl} onChange={(e) => updateForm('targetUrl', e.target.value)} className="w-full py-2.5 px-3 bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-900 outline-none focus:border-[#0a0a0a]" />
+                  <FieldError message={formErrors.targetUrl} />
+                </div>
+                <div className="md:col-span-3">
+                  <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5">Description</label>
+                  <textarea placeholder="Ad body text..." value={form.description} onChange={(e) => updateForm('description', e.target.value)} rows={2} className="w-full py-2.5 px-3 bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-900 outline-none focus:border-[#0a0a0a] resize-none" />
+                  <FieldError message={formErrors.description} />
+                </div>
+              </div>
+            </section>
 
-            {/* Target URL */}
-            <div>
-              <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5">Target Link</label>
-              <input type="text" placeholder="/lawyers/abc-123" value={form.targetUrl} onChange={(e) => setForm({ ...form, targetUrl: e.target.value })} className="w-full py-2.5 px-3 bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-900 outline-none focus:border-[#0a0a0a]" />
-            </div>
+            <Separator />
 
-            {/* Description */}
-            <div className="md:col-span-3">
-              <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5">Description</label>
-              <textarea placeholder="Ad body text..." value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={2} className="w-full py-2.5 px-3 bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-900 outline-none focus:border-[#0a0a0a] resize-none" />
-            </div>
-
-            <Separator className="md:col-span-3" />
-
-            {/* Start Date */}
-            <div>
-              <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5">Start Date *</label>
-              <input type="date" value={form.startDate} onChange={(e) => setForm({ ...form, startDate: e.target.value })} className="w-full py-2.5 px-3 bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-900 outline-none focus:border-[#0a0a0a]" />
-            </div>
-
-            {/* End Date */}
-            <div>
-              <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5">End Date *</label>
-              <input type="date" value={form.endDate} onChange={(e) => setForm({ ...form, endDate: e.target.value })} className="w-full py-2.5 px-3 bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-900 outline-none focus:border-[#0a0a0a]" />
-            </div>
-
-            {/* Price Per Day */}
-            <div>
-              <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5">Price / Day (LKR)</label>
-              <input type="number" placeholder="500" value={form.pricePerDay} onChange={(e) => setForm({ ...form, pricePerDay: e.target.value })} className="w-full py-2.5 px-3 bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-900 outline-none focus:border-[#0a0a0a]" />
-            </div>
-
-            {/* Total Budget */}
-            <div>
-              <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5">Total Budget (LKR)</label>
-              <input type="number" placeholder="15000" value={form.totalBudget} onChange={(e) => setForm({ ...form, totalBudget: e.target.value })} className="w-full py-2.5 px-3 bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-900 outline-none focus:border-[#0a0a0a]" />
-            </div>
-
-            {/* Initial Status */}
-            <div>
-              <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5">Initial Status</label>
-              <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })} className="w-full py-2.5 px-3 bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-900 outline-none focus:border-[#0a0a0a]">
-                <option value="DRAFT">Draft</option>
-                <option value="APPROVED">Approved</option>
-                <option value="ACTIVE">Active</option>
-              </select>
-            </div>
+            <section className="space-y-3">
+              <div>
+                <h4 className="text-[11px] font-bold uppercase tracking-wide text-neutral-900">3. Schedule & Budget</h4>
+                <p className="text-xs text-neutral-500">Set the daily rate; the total is calculated from the campaign dates.</p>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                <div>
+                  <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5">Start Date *</label>
+                  <input type="date" value={form.startDate} onChange={(e) => updateForm('startDate', e.target.value)} className="w-full py-2.5 px-3 bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-900 outline-none focus:border-[#0a0a0a]" />
+                  <FieldError message={formErrors.startDate} />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5">End Date *</label>
+                  <input type="date" value={form.endDate} onChange={(e) => updateForm('endDate', e.target.value)} className="w-full py-2.5 px-3 bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-900 outline-none focus:border-[#0a0a0a]" />
+                  <FieldError message={formErrors.endDate} />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5">Price / Day (LKR) *</label>
+                  <input type="number" min="0" placeholder="500" value={form.pricePerDay} onChange={(e) => updateForm('pricePerDay', e.target.value)} className="w-full py-2.5 px-3 bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-900 outline-none focus:border-[#0a0a0a]" />
+                  <FieldError message={formErrors.pricePerDay} />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5">Computed Total</label>
+                  <div className="w-full py-2.5 px-3 bg-neutral-100 border border-neutral-200 text-sm font-bold text-neutral-900 min-h-[42px]">
+                    {computedTotalBudget ? `LKR ${computedTotalBudget.toLocaleString()}` : 'Set dates and rate'}
+                  </div>
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5">Initial Status</label>
+                  <select value={form.status} onChange={(e) => updateForm('status', e.target.value)} className="w-full py-2.5 px-3 bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-900 outline-none focus:border-[#0a0a0a]">
+                    <option value="DRAFT">Draft</option>
+                    <option value="APPROVED">Approved</option>
+                    <option value="ACTIVE">Active</option>
+                  </select>
+                  <FieldError message={formErrors.status} />
+                </div>
+              </div>
+            </section>
           </div>
 
           {/* Action Buttons */}
@@ -533,7 +635,7 @@ export default function AdvertisementsPage() {
         </div>
       ) : campaigns.length === 0 ? (
         <div className="bg-white border border-neutral-200 p-12 text-center">
-          <Image className="w-10 h-10 text-neutral-300 mx-auto mb-3" />
+          <ImageIcon className="w-10 h-10 text-neutral-300 mx-auto mb-3" />
           <p className="text-sm text-neutral-500 font-medium">No campaigns found.</p>
           <p className="text-xs text-neutral-400 mt-1">Create a new campaign to get started.</p>
         </div>
@@ -552,30 +654,27 @@ export default function AdvertisementsPage() {
                   className="flex items-center gap-4 px-5 py-4 cursor-pointer"
                   onClick={() => setExpandedId(isExpanded ? null : campaign.id)}
                 >
-                  {/* Preview */}
                   <div className="w-12 h-12 rounded bg-neutral-100 flex items-center justify-center shrink-0 overflow-hidden">
                     {campaign.imageUrl ? (
                       <img src={campaign.imageUrl} alt="" className="w-full h-full object-cover" />
                     ) : (
-                      <Image className="w-5 h-5 text-neutral-300" />
+                      <ImageIcon className="w-5 h-5 text-neutral-300" />
                     )}
                   </div>
 
-                  {/* Info */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-0.5">
                       <p className="text-sm font-bold text-neutral-900 truncate">{campaign.name}</p>
                       <span className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 border ${sc.color} inline-flex items-center gap-1`}>
                         <StatusIcon className="w-3 h-3" />
-                        {formatLabel(campaign.status)}
+                        {formatAdLabel(campaign.status)}
                       </span>
                     </div>
                     <p className="text-xs text-neutral-500">
-                      {campaign.lawyer.fullName} • {formatLabel(campaign.type)} • {formatLabel(campaign.placement)}
+                      {campaign.lawyer.fullName} • {formatAdLabel(campaign.type)} • {formatAdLabel(campaign.placement)}
                     </p>
                   </div>
 
-                  {/* Metrics */}
                   <div className="hidden sm:flex items-center gap-6 text-xs text-neutral-600">
                     <div className="text-center">
                       <p className="font-bold text-neutral-900">{campaign.impressions.toLocaleString()}</p>
@@ -585,10 +684,6 @@ export default function AdvertisementsPage() {
                       <p className="font-bold text-neutral-900">{campaign.clicks.toLocaleString()}</p>
                       <p className="text-[10px] text-neutral-400">Clicks</p>
                     </div>
-                    <div className="text-center">
-                      <p className="font-bold text-neutral-900">{ctr(campaign.impressions, campaign.clicks)}%</p>
-                      <p className="text-[10px] text-neutral-400">CTR</p>
-                    </div>
                     {campaign.status === 'ACTIVE' && (
                       <div className="text-center">
                         <p className="font-bold text-blue-600">{daysLeft}d</p>
@@ -597,7 +692,6 @@ export default function AdvertisementsPage() {
                     )}
                   </div>
 
-                  {/* Expand Arrow */}
                   {isExpanded ? <ChevronUp className="w-4 h-4 text-neutral-400" /> : <ChevronDown className="w-4 h-4 text-neutral-400" />}
                 </div>
 
@@ -605,7 +699,6 @@ export default function AdvertisementsPage() {
                 {isExpanded && (
                   <div className="border-t border-neutral-100 px-5 py-5 bg-neutral-50/50 space-y-4 animate-in fade-in duration-200">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                      {/* Schedule */}
                       <div>
                         <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1">Schedule</p>
                         <p className="text-neutral-700">
@@ -615,7 +708,6 @@ export default function AdvertisementsPage() {
                         </p>
                       </div>
 
-                      {/* Budget */}
                       <div>
                         <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1">Pricing</p>
                         <p className="text-neutral-700">
@@ -629,7 +721,6 @@ export default function AdvertisementsPage() {
                         )}
                       </div>
 
-                      {/* Targeting */}
                       <div>
                         <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1">Targeting</p>
                         <p className="text-neutral-700">
@@ -639,7 +730,6 @@ export default function AdvertisementsPage() {
                         </p>
                       </div>
 
-                      {/* Creative */}
                       {campaign.title && (
                         <div className="md:col-span-2">
                           <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1">Creative</p>
@@ -648,7 +738,6 @@ export default function AdvertisementsPage() {
                         </div>
                       )}
 
-                      {/* Rejection Reason */}
                       {campaign.rejectionReason && (
                         <div className="md:col-span-3 bg-red-50 border border-red-200 p-3 rounded">
                           <p className="text-[10px] font-bold text-red-600 uppercase tracking-wider mb-1">Rejection Reason</p>
@@ -660,7 +749,6 @@ export default function AdvertisementsPage() {
                     {/* Action Buttons */}
                     <Separator />
                     <div className="flex flex-wrap gap-2">
-                      {/* Approve */}
                       {['DRAFT', 'PENDING_REVIEW'].includes(campaign.status) && (
                         <Button
                           size="sm"
@@ -672,7 +760,6 @@ export default function AdvertisementsPage() {
                         </Button>
                       )}
 
-                      {/* Activate */}
                       {['APPROVED', 'PAUSED'].includes(campaign.status) && (
                         <Button
                           size="sm"
@@ -684,7 +771,6 @@ export default function AdvertisementsPage() {
                         </Button>
                       )}
 
-                      {/* Pause */}
                       {campaign.status === 'ACTIVE' && (
                         <Button
                           size="sm"
@@ -697,7 +783,6 @@ export default function AdvertisementsPage() {
                         </Button>
                       )}
 
-                      {/* Reject */}
                       {!['REJECTED', 'EXPIRED'].includes(campaign.status) && (
                         <Button
                           size="sm"
@@ -709,7 +794,6 @@ export default function AdvertisementsPage() {
                         </Button>
                       )}
 
-                      {/* Generate Invoice */}
                       {!campaign.invoiceId && ['APPROVED', 'ACTIVE'].includes(campaign.status) && (
                         <Button
                           size="sm"
@@ -723,7 +807,6 @@ export default function AdvertisementsPage() {
                         </Button>
                       )}
 
-                      {/* Delete */}
                       <Button
                         size="sm"
                         variant="ghost"

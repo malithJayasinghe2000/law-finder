@@ -14,14 +14,17 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
 
+    // Adjust to Sri Lankan timezone (GMT +5:30) to get matching local calendar date
     const now = new Date();
-    const todayUTCMidnight = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+    const lkrOffset = 5.5 * 60 * 60 * 1000;
+    const lkrNow = new Date(now.getTime() + lkrOffset);
+    const lkrTodayMidnight = new Date(Date.UTC(lkrNow.getUTCFullYear(), lkrNow.getUTCMonth(), lkrNow.getUTCDate()));
 
     // Find all active/approved campaigns that have passed their end date
     const expiredCampaigns = await prisma.adCampaign.updateMany({
       where: {
         status: { in: ['ACTIVE', 'APPROVED'] },
-        endDate: { lt: todayUTCMidnight }, // Expire only when the day has completely passed
+        endDate: { lt: lkrTodayMidnight }, // Expire only when the day has completely passed
       },
       data: {
         status: 'EXPIRED',
@@ -32,8 +35,8 @@ export async function POST(req: Request) {
     const activatedCampaigns = await prisma.adCampaign.updateMany({
       where: {
         status: 'APPROVED',
-        startDate: { lte: now },
-        endDate: { gte: todayUTCMidnight }, // Ensure it activates even on the final day
+        startDate: { lte: lkrTodayMidnight },
+        endDate: { gte: lkrTodayMidnight }, // Ensure it activates even on the final day
       },
       data: {
         status: 'ACTIVE',

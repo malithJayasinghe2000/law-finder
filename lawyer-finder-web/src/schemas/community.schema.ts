@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { sanitizeString, sanitizeHtml } from '@/lib/sanitize';
 
 // ============= Community Schemas =============
 
@@ -8,17 +9,30 @@ export const createCommunitySchema = z.object({
     .min(3, 'Community name must be at least 3 characters')
     .max(50, 'Community name cannot exceed 50 characters')
     .regex(/^[a-z0-9-]+$/, 'Name must be lowercase letters, numbers, and hyphens only'),
-  displayName: z
-    .string()
-    .min(3, 'Display name must be at least 3 characters')
-    .max(100, 'Display name cannot exceed 100 characters'),
-  description: z
-    .string()
-    .min(10, 'Description must be at least 10 characters')
-    .max(500, 'Description cannot exceed 500 characters'),
-  category: z.string().min(1, 'Category is required'),
-  rules: z.string().max(5000).optional(),
-  icon: z.string().max(10).optional(),
+  displayName: z.preprocess(
+    (val) => typeof val === 'string' ? sanitizeString(val) : val,
+    z.string()
+      .min(3, 'Display name must be at least 3 characters')
+      .max(100, 'Display name cannot exceed 100 characters')
+  ),
+  description: z.preprocess(
+    (val) => typeof val === 'string' ? sanitizeString(val) : val,
+    z.string()
+      .min(10, 'Description must be at least 10 characters')
+      .max(500, 'Description cannot exceed 500 characters')
+  ),
+  category: z.preprocess(
+    (val) => typeof val === 'string' ? sanitizeString(val) : val,
+    z.string().min(1, 'Category is required')
+  ),
+  rules: z.preprocess(
+    (val) => typeof val === 'string' ? sanitizeString(val) : val,
+    z.string().max(5000).optional()
+  ),
+  icon: z.preprocess(
+    (val) => typeof val === 'string' ? sanitizeString(val) : val,
+    z.string().max(10).optional()
+  ),
 });
 
 export const communityRequestSchema = z.object({
@@ -27,26 +41,47 @@ export const communityRequestSchema = z.object({
     .min(3, 'Community name must be at least 3 characters')
     .max(50, 'Community name cannot exceed 50 characters')
     .regex(/^[a-z0-9-]+$/, 'Name must be lowercase letters, numbers, and hyphens only'),
-  displayName: z
-    .string()
-    .min(3, 'Display name must be at least 3 characters')
-    .max(100, 'Display name cannot exceed 100 characters'),
-  description: z
-    .string()
-    .min(10, 'Description must be at least 10 characters')
-    .max(500, 'Description cannot exceed 500 characters'),
-  category: z.string().min(1, 'Category is required'),
-  reason: z
-    .string()
-    .min(20, 'Please provide a detailed reason (at least 20 characters)')
-    .max(1000, 'Reason cannot exceed 1000 characters'),
+  displayName: z.preprocess(
+    (val) => typeof val === 'string' ? sanitizeString(val) : val,
+    z.string()
+      .min(3, 'Display name must be at least 3 characters')
+      .max(100, 'Display name cannot exceed 100 characters')
+  ),
+  description: z.preprocess(
+    (val) => typeof val === 'string' ? sanitizeString(val) : val,
+    z.string()
+      .min(10, 'Description must be at least 10 characters')
+      .max(500, 'Description cannot exceed 500 characters')
+  ),
+  category: z.preprocess(
+    (val) => typeof val === 'string' ? sanitizeString(val) : val,
+    z.string().min(1, 'Category is required')
+  ),
+  reason: z.preprocess(
+    (val) => typeof val === 'string' ? sanitizeString(val) : val,
+    z.string()
+      .min(20, 'Please provide a detailed reason (at least 20 characters)')
+      .max(1000, 'Reason cannot exceed 1000 characters')
+  ),
 });
 
 export const updateCommunitySchema = z.object({
-  displayName: z.string().min(3).max(100).optional(),
-  description: z.string().min(10).max(500).optional(),
-  rules: z.string().max(5000).optional(),
-  icon: z.string().max(10).optional(),
+  displayName: z.preprocess(
+    (val) => typeof val === 'string' ? sanitizeString(val) : val,
+    z.string().min(3).max(100).optional()
+  ),
+  description: z.preprocess(
+    (val) => typeof val === 'string' ? sanitizeString(val) : val,
+    z.string().min(10).max(500).optional()
+  ),
+  rules: z.preprocess(
+    (val) => typeof val === 'string' ? sanitizeString(val) : val,
+    z.string().max(5000).optional()
+  ),
+  icon: z.preprocess(
+    (val) => typeof val === 'string' ? sanitizeString(val) : val,
+    z.string().max(10).optional()
+  ),
   coverImage: z.string().optional().nullable(),
   status: z.enum(['ACTIVE', 'ARCHIVED', 'SUSPENDED']).optional(),
 });
@@ -55,14 +90,18 @@ export const updateCommunitySchema = z.object({
 
 export const createPostSchema = z.object({
   communityId: z.string().uuid('Invalid community ID'),
-  title: z
-    .string()
-    .max(200, 'Title cannot exceed 200 characters')
-    .optional().default(''),
-  content: z
-    .string()
-    .max(50000, 'Content cannot exceed 50,000 characters')
-    .optional().default(''),
+  title: z.preprocess(
+    (val) => typeof val === 'string' ? sanitizeString(val) : val,
+    z.string()
+      .max(200, 'Title cannot exceed 200 characters')
+      .optional().default('')
+  ),
+  content: z.preprocess(
+    (val) => typeof val === 'string' ? sanitizeHtml(val) : val,
+    z.string()
+      .max(50000, 'Content cannot exceed 50,000 characters')
+      .optional().default('')
+  ),
   coverImage: z.string().optional().nullable(),
   images: z.array(z.string()).max(5, 'Maximum 5 images allowed').optional(),
   language: z.enum(['en', 'si', 'ta']).default('en'),
@@ -80,8 +119,14 @@ export const createPostSchema = z.object({
 });
 
 export const updatePostSchema = z.object({
-  title: z.string().max(200).optional(),
-  content: z.string().max(50000).optional(),
+  title: z.preprocess(
+    (val) => typeof val === 'string' ? sanitizeString(val) : val,
+    z.string().max(200).optional()
+  ),
+  content: z.preprocess(
+    (val) => typeof val === 'string' ? sanitizeHtml(val) : val,
+    z.string().max(50000).optional()
+  ),
   coverImage: z.string().optional().nullable(),
   images: z.array(z.string()).max(5).optional(),
   language: z.enum(['en', 'si', 'ta']).optional(),
@@ -105,20 +150,24 @@ export const updatePostSchema = z.object({
 
 export const createCommentSchema = z.object({
   postId: z.string().uuid('Invalid post ID'),
-  content: z
-    .string()
-    .min(1, 'Comment cannot be empty')
-    .max(5000, 'Comment cannot exceed 5,000 characters'),
+  content: z.preprocess(
+    (val) => typeof val === 'string' ? sanitizeHtml(val) : val,
+    z.string()
+      .min(1, 'Comment cannot be empty')
+      .max(5000, 'Comment cannot exceed 5,000 characters')
+  ),
   parentId: z.string().uuid().optional().nullable(),
   language: z.enum(['en', 'si', 'ta']).default('en'),
   isAnonymous: z.boolean().optional().default(false),
 });
 
 export const updateCommentSchema = z.object({
-  content: z
-    .string()
-    .min(1, 'Comment cannot be empty')
-    .max(5000, 'Comment cannot exceed 5,000 characters'),
+  content: z.preprocess(
+    (val) => typeof val === 'string' ? sanitizeHtml(val) : val,
+    z.string()
+      .min(1, 'Comment cannot be empty')
+      .max(5000, 'Comment cannot exceed 5,000 characters')
+  ),
 });
 
 // ============= Vote Schema =============
@@ -131,7 +180,10 @@ export const voteSchema = z.object({
 
 export const reportSchema = z.object({
   reason: z.enum(['spam', 'harassment', 'misinformation', 'inappropriate', 'off-topic', 'other']),
-  description: z.string().max(500).optional(),
+  description: z.preprocess(
+    (val) => typeof val === 'string' ? sanitizeString(val) : val,
+    z.string().max(500).optional()
+  ),
   postId: z.string().uuid().optional().nullable(),
   commentId: z.string().uuid().optional().nullable(),
 }).refine(
@@ -141,19 +193,28 @@ export const reportSchema = z.object({
 
 export const reviewReportSchema = z.object({
   status: z.enum(['REVIEWED', 'DISMISSED', 'ACTION_TAKEN']),
-  adminNotes: z.string().max(1000).optional(),
+  adminNotes: z.preprocess(
+    (val) => typeof val === 'string' ? sanitizeString(val) : val,
+    z.string().max(1000).optional()
+  ),
 });
 
 // ============= Admin Moderation Schema =============
 
 export const moderatePostSchema = z.object({
   status: z.enum(['PUBLISHED', 'REJECTED', 'REMOVED']),
-  adminNotes: z.string().max(1000).optional(),
+  adminNotes: z.preprocess(
+    (val) => typeof val === 'string' ? sanitizeString(val) : val,
+    z.string().max(1000).optional()
+  ),
 });
 
 export const reviewCommunityRequestSchema = z.object({
   status: z.enum(['APPROVED', 'REJECTED']),
-  adminNotes: z.string().max(1000).optional(),
+  adminNotes: z.preprocess(
+    (val) => typeof val === 'string' ? sanitizeString(val) : val,
+    z.string().max(1000).optional()
+  ),
 });
 
 // ============= UI Constants =============

@@ -1,17 +1,18 @@
 'use client';
-
+ 
 import { useState, useEffect, useCallback } from 'react';
 import PostCard from './PostCard';
 import { Button } from '@/components/ui/button';
-import { Loader2 } from 'lucide-react';
-
+import { Loader2, Flame, Sparkles, TrendingUp } from 'lucide-react';
+ 
 interface PostFeedProps {
   locale: string;
   communityId?: string;
   communitySlug?: string;
   initialSort?: string;
+  search?: string;
 }
-
+ 
 interface Post {
   id: string;
   title: string;
@@ -42,15 +43,15 @@ interface Post {
     icon: string | null;
   };
 }
-
-export default function PostFeed({ locale, communityId, communitySlug, initialSort = 'hot' }: PostFeedProps) {
+ 
+export default function PostFeed({ locale, communityId, communitySlug, initialSort = 'hot', search = '' }: PostFeedProps) {
   const [posts, setPosts] = useState<Post[]>([]);
   const [sort, setSort] = useState(initialSort);
   const [timeRange, setTimeRange] = useState('week');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
-
+ 
   const fetchPosts = useCallback(async () => {
     setLoading(true);
     try {
@@ -61,8 +62,9 @@ export default function PostFeed({ locale, communityId, communitySlug, initialSo
       });
       if (communityId) params.set('communityId', communityId);
       if (communitySlug) params.set('community', communitySlug);
+      if (search) params.set('search', search);
       if (sort === 'top') params.set('time', timeRange);
-
+ 
       const res = await fetch(`/api/posts?${params}`);
       const data = await res.json();
       setPosts(data.posts || []);
@@ -72,12 +74,16 @@ export default function PostFeed({ locale, communityId, communitySlug, initialSo
     } finally {
       setLoading(false);
     }
-  }, [sort, page, communityId, communitySlug, timeRange]);
-
+  }, [sort, page, communityId, communitySlug, timeRange, search]);
+ 
   useEffect(() => {
     fetchPosts();
   }, [fetchPosts]);
 
+  useEffect(() => {
+    setPage(1);
+  }, [search]);
+ 
   const handleVote = async (postId: string, type: 'UPVOTE' | 'DOWNVOTE') => {
     const res = await fetch(`/api/posts/${postId}/vote`, {
       method: 'POST',
@@ -94,13 +100,13 @@ export default function PostFeed({ locale, communityId, communitySlug, initialSo
       )
     );
   };
-
+ 
   const sortTabs = [
-    { key: 'hot', label: '🔥 Hot' },
-    { key: 'new', label: '✨ New' },
-    { key: 'top', label: '📈 Top' },
+    { key: 'hot', label: 'Hot', icon: Flame },
+    { key: 'new', label: 'New', icon: Sparkles },
+    { key: 'top', label: 'Top', icon: TrendingUp },
   ];
-
+ 
   const timeRanges = [
     { key: 'day', label: 'Today' },
     { key: 'week', label: 'This Week' },
@@ -108,24 +114,28 @@ export default function PostFeed({ locale, communityId, communitySlug, initialSo
     { key: 'year', label: 'This Year' },
     { key: 'all', label: 'All Time' },
   ];
-
+ 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 text-left">
       {/* Sort tabs */}
-      <div className="flex items-center gap-1 p-1 bg-muted/50 rounded-lg w-fit">
-        {sortTabs.map((tab) => (
-          <button
-            key={tab.key}
-            onClick={() => { setSort(tab.key); setPage(1); }}
-            className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${
-              sort === tab.key
-                ? 'bg-background text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
+      <div className="flex items-center gap-1 p-1 bg-neutral-100 rounded-none w-fit border border-[#efeae0]">
+        {sortTabs.map((tab) => {
+          const Icon = tab.icon;
+          return (
+            <button
+              key={tab.key}
+              onClick={() => { setSort(tab.key); setPage(1); }}
+              className={`flex items-center gap-1.5 px-4 py-2 text-xs font-bold uppercase tracking-wider transition-all rounded-none ${
+                sort === tab.key
+                  ? 'bg-white text-neutral-900 shadow-sm border border-[#efeae0]/40'
+                  : 'text-neutral-500 hover:text-neutral-900'
+              }`}
+            >
+              <Icon className="h-3.5 w-3.5" />
+              <span>{tab.label}</span>
+            </button>
+          );
+        })}
       </div>
 
       {/* Time range for "top" */}

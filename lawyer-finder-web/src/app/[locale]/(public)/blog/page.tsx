@@ -1,12 +1,11 @@
 import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Users, FileText, TrendingUp, PenSquare, Search } from 'lucide-react';
+import { Users, FileText, TrendingUp, PenSquare, Search, ArrowRight, Scale, BookOpen } from 'lucide-react';
 import Link from 'next/link';
 import PostFeed from '@/components/community/PostFeed';
-import { SidebarAd } from '@/components/ads/AdComponents';
+import { SidebarAd, AdBanner, StickyBottomAd } from '@/components/ads/AdComponents';
 
 export const metadata = {
   title: 'Legal Community Hub — Sri Lanka',
@@ -16,10 +15,13 @@ export const metadata = {
 
 export default async function CommunityHubPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ locale: string }>;
+  searchParams: Promise<{ search?: string }>;
 }) {
   const { locale } = await params;
+  const { search = '' } = await searchParams;
   const session = await getSession();
 
   // Fetch communities
@@ -40,133 +42,157 @@ export default async function CommunityHubPage({
   ]);
 
   return (
-    <div className="py-8 sm:py-12">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6">
-        {/* Hero Section */}
-        <div className="relative mb-10 rounded-2xl overflow-hidden bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border border-primary/10 p-8 sm:p-12">
-          <div className="relative z-10 max-w-2xl">
-            <Badge className="mb-4 bg-primary/10 text-primary border-primary/20 hover:bg-primary/20">
+    <div className="py-12 sm:py-16 bg-white selection:bg-[#bfa37a]/30">
+      <div className="mx-auto max-w-[1400px] px-6 lg:px-12 xl:px-24">
+        {/* Editorial Hero Header */}
+        <div className="relative mb-12 border border-[#efeae0] bg-[#faf8f6] p-8 sm:p-12 transition-all duration-300">
+          <div className="relative z-10 max-w-2xl space-y-6">
+            <span className="inline-flex text-[9px] font-bold uppercase tracking-[0.2em] text-[#bfa37a] bg-[#bfa37a]/10 px-3.5 py-1.5 border border-[#bfa37a]/20">
               Community Hub
-            </Badge>
-            <h1 className="text-3xl sm:text-4xl font-bold tracking-tight mb-3">
-              Sri Lanka&apos;s Legal Knowledge Community
+            </span>
+            <h1 className="text-3xl sm:text-5xl font-serif tracking-tight text-neutral-900 leading-tight">
+              Sri Lanka&apos;s Legal <br />Knowledge Community
             </h1>
-            <p className="text-muted-foreground text-lg mb-6">
+            <p className="text-neutral-550 text-sm sm:text-base font-light leading-relaxed max-w-xl">
               Connect with verified lawyers, share legal experiences, and discover expert insights across all areas of Sri Lankan law.
             </p>
-            <div className="flex flex-wrap gap-3">
+            <div className="flex flex-wrap items-center gap-4 pt-2">
               {session ? (
                 <Link href={`/${locale}/blog/create`}>
-                  <Button size="lg" className="gap-2 font-semibold">
-                    <PenSquare className="h-4 w-4" /> Create Post
+                  <Button className="bg-[#bfa37a] text-white hover:bg-[#a68d67] rounded-none px-7 py-5.5 text-xs font-bold uppercase tracking-widest transition-all">
+                    <PenSquare className="h-4 w-4 mr-1.5" /> Create Post
                   </Button>
                 </Link>
               ) : (
                 <Link href={`/${locale}/login`}>
-                  <Button size="lg" className="gap-2 font-semibold">
+                  <Button className="bg-[#bfa37a] text-white hover:bg-[#a68d67] rounded-none px-7 py-5.5 text-xs font-bold uppercase tracking-widest transition-all">
                     Join Community
                   </Button>
                 </Link>
               )}
               <a href="#communities">
-                <Button size="lg" variant="outline" className="gap-2">
-                  <Search className="h-4 w-4" /> Browse Communities
+                <Button variant="outline" className="border border-[#bfa37a] text-[#bfa37a] hover:bg-[#bfa37a]/5 rounded-none px-7 py-5.5 text-xs font-bold uppercase tracking-widest transition-all">
+                  <Search className="h-3.5 w-3.5 mr-1.5" /> Browse Communities
                 </Button>
               </a>
             </div>
           </div>
 
-          {/* Stats */}
-          <div className="absolute right-8 top-8 hidden lg:flex gap-6">
+          {/* Stats on Right */}
+          <div className="absolute right-12 top-1/2 -translate-y-1/2 hidden lg:flex gap-8 border-l border-[#efeae0] pl-10 py-6">
             {[
               { icon: Users, value: totalMembers, label: 'Members' },
               { icon: FileText, value: totalPosts, label: 'Posts' },
               { icon: TrendingUp, value: totalCommunities, label: 'Communities' },
             ].map((stat) => (
-              <div key={stat.label} className="text-center">
-                <stat.icon className="h-5 w-5 text-primary mx-auto mb-1" />
-                <div className="text-2xl font-bold">{stat.value}</div>
-                <div className="text-xs text-muted-foreground">{stat.label}</div>
+              <div key={stat.label} className="text-center space-y-1 min-w-[80px]">
+                <stat.icon className="h-5 w-5 text-[#bfa37a] mx-auto mb-1.5 stroke-[1.5]" />
+                <div className="text-2xl font-serif font-bold text-neutral-900">{stat.value}</div>
+                <div className="text-[10px] text-neutral-400 font-bold uppercase tracking-widest">{stat.label}</div>
               </div>
             ))}
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-10">
           {/* Main Feed */}
           <div>
-            <PostFeed locale={locale} />
+            <PostFeed locale={locale} search={search} />
           </div>
 
           {/* Sidebar */}
-          <aside className="space-y-6">
-            {/* Communities List */}
-            <Card id="communities">
-              <CardContent className="p-5">
-                <h2 className="font-semibold text-lg mb-4 flex items-center gap-2">
-                  <Users className="h-5 w-5 text-primary" /> Communities
+          <aside className="space-y-8">
+            {/* Search Box */}
+            <Card className="border border-[#efeae0] rounded-none bg-[#faf8f6] shadow-none">
+              <CardContent className="p-6 space-y-4 text-left">
+                <h3 className="font-serif font-bold text-base text-neutral-900 uppercase tracking-wider border-b border-[#efeae0] pb-2.5">Search Here</h3>
+                <form action={`/${locale}/blog`} method="GET" className="flex">
+                  <input
+                    type="text"
+                    name="search"
+                    defaultValue={search}
+                    placeholder="Search Here"
+                    className="w-full bg-white border border-[#efeae0] border-r-0 px-4 py-3 outline-none focus:border-[#bfa37a] text-neutral-800 text-xs font-light"
+                  />
+                  <button
+                    type="submit"
+                    className="bg-[#bfa37a] hover:bg-[#a68d67] text-white px-5 flex items-center justify-center transition-colors shrink-0"
+                  >
+                    <Search className="h-4 w-4" />
+                  </button>
+                </form>
+              </CardContent>
+            </Card>
+
+            {/* Top of Category Card Banner */}
+            <AdBanner placement="BLOG_TOP_BANNER" locale={locale} className="mb-6" />
+
+            {/* Communities list as Dark Categories list */}
+            <Card id="communities" className="border border-neutral-900 bg-[#1e1e21] text-white rounded-none shadow-none">
+              <CardContent className="p-6 text-left">
+                <h2 className="font-serif font-bold text-base uppercase tracking-wider text-white mb-5 flex items-center gap-2 border-b border-white/10 pb-3">
+                  <Users className="h-4.5 w-4.5 text-[#bfa37a] stroke-[1.8]" /> Categories
                 </h2>
                 <div className="space-y-1">
-                  {communities.map((community, index) => (
+                  {communities.map((community) => (
                     <Link
                       key={community.id}
                       href={`/${locale}/blog/community/${community.name}`}
-                      className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-muted transition-colors group"
+                      className="flex items-center justify-between py-3.5 border-b border-white/5 hover:border-[#bfa37a]/30 transition-all group"
                     >
-                      <span className="text-xs font-bold text-muted-foreground w-5 text-right">
-                        {index + 1}
+                      <span className="text-xs font-semibold text-neutral-300 group-hover:text-[#bfa37a] group-hover:translate-x-1.5 transition-all truncate pr-4 uppercase tracking-wider">
+                        {community.displayName}
                       </span>
-                      <span className="text-lg flex-shrink-0">{community.icon || '📋'}</span>
-                      <div className="min-w-0 flex-1">
-                        <div className="text-sm font-medium truncate group-hover:text-primary transition-colors">
-                          {community.displayName}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {community._count.members} members • {community._count.posts} posts
-                        </div>
-                      </div>
+                      <ArrowRight className="h-3.5 w-3.5 text-white/40 group-hover:text-[#bfa37a] group-hover:translate-x-0.5 transition-all shrink-0" />
                     </Link>
                   ))}
                 </div>
               </CardContent>
             </Card>
 
-            {/* Sponsored Lawyers */}
-            <SidebarAd placement="BLOG_FEED" locale={locale} />
-
             {/* Community Guidelines */}
-            <Card>
-              <CardContent className="p-5">
-                <h3 className="font-semibold mb-3">📜 Community Guidelines</h3>
-                <ul className="space-y-2 text-sm text-muted-foreground">
-                  <li className="flex gap-2"><span className="text-primary">1.</span> Be respectful and professional</li>
-                  <li className="flex gap-2"><span className="text-primary">2.</span> No personal legal advice — for general discussion only</li>
-                  <li className="flex gap-2"><span className="text-primary">3.</span> Cite sources when discussing legal provisions</li>
-                  <li className="flex gap-2"><span className="text-primary">4.</span> No spam, self-promotion, or advertisements</li>
-                  <li className="flex gap-2"><span className="text-primary">5.</span> Respect privacy — never share case details</li>
+            <Card className="border border-[#efeae0] rounded-none bg-white shadow-none">
+              <CardContent className="p-6 text-left">
+                <h3 className="font-serif font-bold text-base uppercase tracking-wider text-neutral-900 mb-4 border-b border-[#efeae0] pb-3 flex items-center gap-2">
+                  <BookOpen className="h-4.5 w-4.5 text-[#bfa37a] stroke-[1.8]" /> Guidelines
+                </h3>
+                <ul className="space-y-3.5 text-xs text-neutral-500 font-light">
+                  <li className="flex gap-2"><span className="text-[#bfa37a] font-bold">1.</span> Be respectful and professional</li>
+                  <li className="flex gap-2"><span className="text-[#bfa37a] font-bold">2.</span> General discussion only — no legal advice</li>
+                  <li className="flex gap-2"><span className="text-[#bfa37a] font-bold">3.</span> Cite sources when discussing legal provisions</li>
+                  <li className="flex gap-2"><span className="text-[#bfa37a] font-bold">4.</span> No spam, self-promotion, or advertisements</li>
+                  <li className="flex gap-2"><span className="text-[#bfa37a] font-bold">5.</span> Respect privacy — never share case details</li>
                 </ul>
               </CardContent>
             </Card>
 
             {/* Lawyer CTA */}
             {session?.role === 'LAWYER' && (
-              <Card className="border-primary/20 bg-primary/[0.02]">
-                <CardContent className="p-5 text-center">
-                  <h3 className="font-semibold mb-2">Want to create a community?</h3>
-                  <p className="text-sm text-muted-foreground mb-3">
+              <Card className="border border-[#bfa37a]/30 bg-[#faf8f6] rounded-none shadow-none">
+                <CardContent className="p-6 text-center space-y-4">
+                  <h3 className="font-serif font-bold text-base text-neutral-900">Want to create a community?</h3>
+                  <p className="text-xs text-neutral-500 font-light leading-relaxed">
                     Request a new legal community for your area of expertise.
                   </p>
-                  <Link href={`/${locale}/dashboard/lawyer`}>
-                    <Button size="sm" variant="outline" className="w-full">
+                  <Link href={`/${locale}/dashboard/lawyer`} className="block">
+                    <Button size="sm" className="w-full bg-[#bfa37a] text-white hover:bg-[#a68d67] rounded-none py-4.5 text-xs font-bold uppercase tracking-wider">
                       Request Community
                     </Button>
                   </Link>
                 </CardContent>
               </Card>
             )}
+
+            {/* Sticky Ad Sidebar (rotated 3sec, 5 ads max) */}
+            <div className="sticky top-24 pt-4">
+              <SidebarAd placement="BLOG_RIGHT_SIDEBAR" locale={locale} />
+            </div>
           </aside>
         </div>
       </div>
+      
+      {/* Blog bottom fixed sticky ad */}
+      <StickyBottomAd placement="BLOG_BOTTOM_STICKY" locale={locale} />
     </div>
   );
 }

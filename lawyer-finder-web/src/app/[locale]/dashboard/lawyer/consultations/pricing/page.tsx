@@ -5,7 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
-import { DollarSign, Save, Info, Percent, Gift } from 'lucide-react';
+import { DollarSign, Save, Info, Percent, Gift, Clock, Building2 } from 'lucide-react';
 
 export default function PricingPage() {
   const [loading, setLoading] = useState(true);
@@ -15,6 +15,11 @@ export default function PricingPage() {
   const [onlinePrice, setOnlinePrice] = useState(3000);
   const [freeInitial, setFreeInitial] = useState(false);
   const [freeDuration, setFreeDuration] = useState(15);
+  const [minAdvanceNoticeHours, setMinAdvanceNoticeHours] = useState(24);
+  const [bankName, setBankName] = useState('');
+  const [accountName, setAccountName] = useState('');
+  const [accountNumber, setAccountNumber] = useState('');
+  const [bankBranch, setBankBranch] = useState('');
 
   const COMMISSION_RATE = 0.15;
 
@@ -32,6 +37,11 @@ export default function PricingPage() {
         setOnlinePrice(data.pricing.onlinePrice);
         setFreeInitial(data.pricing.freeInitialConsultation);
         setFreeDuration(data.pricing.freeConsultationDuration || 15);
+        setMinAdvanceNoticeHours(data.pricing.minAdvanceNoticeHours || 24);
+        setBankName(data.pricing.bankName || '');
+        setAccountName(data.pricing.accountName || '');
+        setAccountNumber(data.pricing.accountNumber || '');
+        setBankBranch(data.pricing.bankBranch || '');
       }
     } catch {
       toast.error('Failed to load pricing');
@@ -52,6 +62,11 @@ export default function PricingPage() {
           onlinePrice,
           freeInitialConsultation: freeInitial,
           freeConsultationDuration: freeInitial ? freeDuration : undefined,
+          minAdvanceNoticeHours,
+          bankName: bankName.trim() || null,
+          accountName: accountName.trim() || null,
+          accountNumber: accountNumber.trim() || null,
+          bankBranch: bankBranch.trim() || null,
         }),
       });
       const data = await res.json();
@@ -90,8 +105,8 @@ export default function PricingPage() {
             <DollarSign className="h-5 w-5" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-neutral-900">Consultation Pricing</h1>
-            <p className="text-sm text-neutral-500 font-medium">Set your consultation fees for clients</p>
+            <h1 className="text-4xl font-normal tracking-tight text-neutral-900">Consultation Settings</h1>
+            <p className="text-sm text-neutral-500 font-medium">Set your availability preferences and reference fees</p>
           </div>
         </div>
         <Button
@@ -152,7 +167,7 @@ export default function PricingPage() {
                   <span className="text-amber-600 font-semibold">Rs. {physicalPlatformFee.toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between text-sm font-bold text-neutral-900 pt-1 border-t border-neutral-100">
-                  <span>Client pays</span>
+                  <span>Total (Internal Ref)</span>
                   <span>Rs. {physicalClientPays.toLocaleString()}</span>
                 </div>
               </div>
@@ -178,7 +193,7 @@ export default function PricingPage() {
                   <span className="text-amber-600 font-semibold">Rs. {onlinePlatformFee.toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between text-sm font-bold text-neutral-900 pt-1 border-t border-neutral-100">
-                  <span>Client pays</span>
+                  <span>Total (Internal Ref)</span>
                   <span>Rs. {onlineClientPays.toLocaleString()}</span>
                 </div>
               </div>
@@ -188,7 +203,7 @@ export default function PricingPage() {
       </Card>
 
       {/* Free Consultation */}
-      <Card className="rounded-none shadow-sm">
+      {/* <Card className="rounded-none shadow-sm">
         <CardContent className="p-6">
           <h3 className="text-sm font-bold text-neutral-900 uppercase tracking-wide mb-4 flex items-center gap-2">
             <Gift className="w-4 h-4" /> Free Initial Consultation
@@ -221,14 +236,95 @@ export default function PricingPage() {
             </div>
           </div>
         </CardContent>
+      </Card> */}
+
+      {/* Advance Notice Setting */}
+      <Card className="rounded-none shadow-sm">
+        <CardContent className="p-6">
+          <h3 className="text-sm font-bold text-neutral-900 uppercase tracking-wide mb-4 flex items-center gap-2">
+            <Clock className="w-4 h-4" /> Minimum Advance Notice
+          </h3>
+          <div className="space-y-2">
+            <p className="text-xs text-neutral-500 mb-3">
+              How much notice do you need before a consultation? Slots within this timeframe will be shown as "Call to Book" rather than allowing instant booking.
+            </p>
+            <select
+              value={minAdvanceNoticeHours}
+              onChange={(e) => setMinAdvanceNoticeHours(parseInt(e.target.value))}
+              className="border border-neutral-200 px-4 py-3 w-full md:w-64 text-sm bg-white outline-none focus:border-[#0a0a0a]"
+            >
+              <option value={12}>12 Hours</option>
+              <option value={24}>24 Hours (1 Day)</option>
+              <option value={48}>48 Hours (2 Days)</option>
+              <option value={72}>72 Hours (3 Days)</option>
+              <option value={168}>168 Hours (1 Week)</option>
+            </select>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Bank Details Setting */}
+      <Card className="rounded-none shadow-sm">
+        <CardContent className="p-6">
+          <h3 className="text-sm font-bold text-neutral-900 uppercase tracking-wide mb-4 flex items-center gap-2">
+            <Building2 className="w-4 h-4" /> Default Bank Details
+          </h3>
+          <div className="space-y-4">
+            <p className="text-xs text-neutral-500 mb-3">
+              Set your default bank account details here. This will automatically populate when you accept a consultation request and choose the Bank Transfer payment method.
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs font-semibold text-neutral-700 uppercase tracking-wide">Bank Name</label>
+                <input
+                  type="text"
+                  value={bankName}
+                  onChange={(e) => setBankName(e.target.value)}
+                  placeholder="e.g. Commercial Bank"
+                  className="w-full mt-1.5 border border-neutral-200 px-4 py-2.5 text-sm bg-white outline-none focus:border-[#0a0a0a]"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-neutral-700 uppercase tracking-wide">Branch</label>
+                <input
+                  type="text"
+                  value={bankBranch}
+                  onChange={(e) => setBankBranch(e.target.value)}
+                  placeholder="e.g. Colombo 01"
+                  className="w-full mt-1.5 border border-neutral-200 px-4 py-2.5 text-sm bg-white outline-none focus:border-[#0a0a0a]"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-neutral-700 uppercase tracking-wide">Account Name</label>
+                <input
+                  type="text"
+                  value={accountName}
+                  onChange={(e) => setAccountName(e.target.value)}
+                  placeholder="e.g. John Doe"
+                  className="w-full mt-1.5 border border-neutral-200 px-4 py-2.5 text-sm bg-white outline-none focus:border-[#0a0a0a]"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-neutral-700 uppercase tracking-wide">Account Number</label>
+                <input
+                  type="text"
+                  value={accountNumber}
+                  onChange={(e) => setAccountNumber(e.target.value)}
+                  placeholder="e.g. 1234567890"
+                  className="w-full mt-1.5 border border-neutral-200 px-4 py-2.5 text-sm bg-white outline-none focus:border-[#0a0a0a]"
+                />
+              </div>
+            </div>
+          </div>
+        </CardContent>
       </Card>
 
       {/* Info Box */}
       <div className="flex items-start gap-3 p-4 bg-blue-50 border border-blue-200">
         <Info className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
         <div className="text-xs text-blue-800 space-y-1">
-          <p className="font-semibold">How pricing works</p>
-          <p>You set your consultation fee. The platform adds a 15% service fee on top. The total is what the client sees and pays. You receive your full fee after the consultation is completed.</p>
+          <p className="font-semibold">Internal Reference Only</p>
+          <p>These fees are for your internal reference and scheduling purposes. To comply with BASL Rule 39, your fees will <strong>not</strong> be publicly advertised or displayed on your profile. You will discuss fees directly with clients after accepting their consultation request.</p>
         </div>
       </div>
     </div>

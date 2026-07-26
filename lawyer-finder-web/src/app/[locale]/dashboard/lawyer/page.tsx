@@ -83,7 +83,7 @@ export default function LawyerDashboard() {
       {/* Header */}
       <div className="mb-8">
         <div className="flex items-center gap-3 mb-1">
-          <h1 className="text-2xl font-bold tracking-tight">Welcome, {profile.fullName}</h1>
+          <h1 className="text-4xl font-normal tracking-tight">Welcome, {profile.fullName}</h1>
           {profile.isVerified ? (
             <Badge className="gap-1 rounded-none bg-[#0a0a0a] text-white">
               <ShieldCheck className="h-3 w-3" />
@@ -198,7 +198,7 @@ export default function LawyerDashboard() {
             <div>
               <p className="text-2xl font-bold">{publishedArticles}</p>
               <p className="text-xs text-muted-foreground font-medium">Published Articles</p>
-              <Link href={`/${locale}/blog/my-posts`} className="text-[10px] text-primary hover:underline mt-2 block font-semibold">
+              <Link href={`/${locale}/dashboard/blog/my-posts`} className="text-[10px] text-primary hover:underline mt-2 block font-semibold">
                 Manage articles →
               </Link>
             </div>

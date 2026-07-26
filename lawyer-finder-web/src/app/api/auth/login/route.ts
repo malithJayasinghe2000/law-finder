@@ -3,9 +3,24 @@ import bcrypt from 'bcryptjs';
 import prisma from '@/lib/db';
 import { createSession, SessionPayload } from '@/lib/auth';
 import { loginSchema } from '@/schemas/auth.schema';
+import { checkRateLimit, getClientIp } from '@/lib/security';
 
 export async function POST(req: Request) {
   try {
+    // Rate limiting: max 5 login attempts per 15 minutes per IP
+    // Can be disabled via env var (e.g., RATE_LIMIT_ENABLED=false)
+    if (process.env.RATE_LIMIT_ENABLED !== 'false') {
+      const clientIp = getClientIp(req);
+      const rateCheck = checkRateLimit(`login:${clientIp}`, 5, 15 * 60 * 1000);
+      if (!rateCheck.allowed) {
+        const retryAfterSec = Math.ceil(rateCheck.retryAfterMs / 1000);
+        return NextResponse.json(
+          { error: `Too many login attempts. Please try again in ${retryAfterSec} seconds.` },
+          { status: 429 }
+        );
+      }
+    }
+
     const body = await req.json();
     const validated = loginSchema.safeParse(body);
 
@@ -14,10 +29,24 @@ export async function POST(req: Request) {
     }
 
     const { email, password } = validated.data;
-    const user = await prisma.user.findUnique({ where: { email } });
+    const normalizedEmail = email.toLowerCase().trim();
+    const user = await prisma.user.findUnique({ where: { email: normalizedEmail } });
 
-    if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
+    // Constant-time pattern: always compare against a dummy hash when user not found
+    // This prevents timing-based user enumeration
+    const hashToCompare = user?.passwordHash || '$2a$10$dummyhashtopreventtimingattackpadding';
+    const passwordValid = await bcrypt.compare(password, hashToCompare);
+
+    if (!user || !user.passwordHash || !passwordValid) {
+      console.warn(`[AUTH] Failed login attempt for email: ${normalizedEmail.substring(0, 3)}*** from IP: ${clientIp}`);
       return NextResponse.json({ error: 'Invalid email or password.' }, { status: 401 });
+    }
+
+    if (user.authProvider === 'LOCAL' && !user.isEmailVerified) {
+      return NextResponse.json(
+        { error: 'Please verify your email address before logging in.', unverifiedEmail: user.email },
+        { status: 403 }
+      );
     }
 
     const sessionPayload: SessionPayload = { 

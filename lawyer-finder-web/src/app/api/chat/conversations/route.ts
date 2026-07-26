@@ -94,13 +94,17 @@ export async function GET(request: Request) {
   }
 }
 
+import { isValidUUID } from '@/lib/security';
+
 export async function POST(request: Request) {
   try {
     const session = await getSession();
     if (!session?.userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const { targetUserId } = await request.json();
-    if (!targetUserId) return NextResponse.json({ error: 'Missing target user' }, { status: 400 });
+    if (!targetUserId || !isValidUUID(targetUserId)) {
+      return NextResponse.json({ error: 'A valid target user reference is required' }, { status: 400 });
+    }
 
     if (targetUserId === session.userId) {
        return NextResponse.json({ error: 'Cannot chat with yourself' }, { status: 400 });

@@ -1,23 +1,35 @@
 """
-LawyerAI RAG System - RAG Chain
+LawyerAI RAG System - Hybrid Graph + Vector RAG Chain
 
-The core RAG pipeline that:
+The upgraded RAG pipeline that:
 1. Takes a user query
-2. Retrieves relevant legal document chunks from ChromaDB (Active only)
-3. Searches the web for additional context
-4. Formats them into a structured prompt
-5. Sends to Ollama LLM for response generation
-6. Returns the answer with source citations and detected practice areas
+2. Retrieves relevant legal document chunks from ChromaDB (Vector search)
+3. Extracts entities from the query and traverses the knowledge graph
+4. Expands retrieval with graph-discovered related documents
+5. Searches the web for additional context
+6. Formats everything into a structured, AI-readable prompt
+7. Sends to Ollama LLM for response generation
+8. Returns the answer with source citations, graph context, and detected practice areas
 """
 
 import logging
 from typing import Optional
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.messages import HumanMessage, AIMessage
+from langsmith import traceable
 
 from app.core.llm import get_llm
 from app.core.vectorstore import search_documents
 from app.core.web_search import web_search, format_web_results
+from app.core.graph_store import get_knowledge_graph
+from app.core.entity_extractor import extract_entities_regex
+from app.core.query_router import (
+    classify_intent,
+    rewrite_query,
+    generate_conversational_response,
+    generate_clarification_response,
+    generate_lawyer_response,
+)
 from app.config import config
 
 logger = logging.getLogger(__name__)
@@ -26,45 +38,61 @@ logger = logging.getLogger(__name__)
 # Practice Areas Mapping — for lawyer suggestion matching
 # ---------------------------------------------------------------------------
 PRACTICE_AREA_KEYWORDS = {
-    "Criminal Law": ["criminal", "penal", "offence", "murder", "theft", "robbery", "assault", "bail", "arrest"],
-    "Civil Litigation": ["civil", "procedure", "plaint", "defendant", "plaintiff", "suit", "decree", "appeal"],
+    "Criminal Law": ["criminal", "penal", "murder", "theft", "robbery", "assault", "bail", "arrest", "prison", "sentence"],
+    "Civil Litigation": ["civil", "plaint", "defendant", "plaintiff", "suit", "decree", "appeal", "court case", "file a case"],
     "Corporate Law": ["company", "companies", "director", "shareholder", "incorporation", "corporate", "board", "dividend"],
     "Family Law": ["marriage", "divorce", "custody", "maintenance", "adoption", "matrimonial", "dowry"],
-    "Property Law": ["property", "land", "deed", "title", "lease", "rent", "tenant", "landlord", "partition"],
+    "Property Law": ["property", "property dispute", "land", "deed", "title", "lease", "rent", "tenant", "landlord", "partition", "tree", "boundary", "fence"],
     "Labour Law": ["labour", "labor", "employment", "worker", "wages", "termination", "industrial", "workmen"],
     "Tax Law": ["tax", "revenue", "income tax", "vat", "customs", "duty", "fiscal"],
     "Constitutional Law": ["constitution", "fundamental rights", "supreme court", "constitutional"],
     "Environmental Law": ["environment", "pollution", "forest", "wildlife", "conservation", "ecological"],
     "Intellectual Property": ["patent", "copyright", "trademark", "intellectual property", "ip rights"],
-    "Motor Traffic Law": ["motor", "traffic", "vehicle", "driving", "license", "road", "accident"],
+    "Motor Traffic Law": ["motor", "traffic", "vehicle", "driving", "license", "road", "accident", "bike", "speed", "speeding", "pedestrian", "drunk driving", "hit and run", "collision"],
     "Banking Law": ["banking", "bank", "finance", "loan", "mortgage", "financial", "cheque"],
     "Immigration Law": ["immigration", "visa", "passport", "citizenship", "alien", "deportation"],
     "Insurance Law": ["insurance", "claim", "policy", "premium", "indemnity"],
-    "Real Estate": ["real estate", "property", "conveyance", "deed", "land registry", "notary"],
-    "Notary Services": ["notary", "attestation", "affidavit", "power of attorney", "deed"],
+    "Real Estate": ["real estate", "property", "conveyance", "land registry", "property transaction"],
+    "Notary Services": ["notary", "attestation", "affidavit", "power of attorney"],
 }
 
 # ---------------------------------------------------------------------------
-# System Prompt — Designed for Sri Lankan Legal Context
+# System Prompt — Enhanced for Graph RAG with AI-readable formatting
 # ---------------------------------------------------------------------------
 SYSTEM_PROMPT = """You are LawyerAI, an expert legal assistant specialized in Sri Lankan law. 
 You help users understand Sri Lankan legislation, legal procedures, and their rights.
 
-CRITICAL RULES YOU MUST FOLLOW:
-1. Base your answers primarily on the provided LEGAL CONTEXT below. If the context is insufficient, you may use WEB SEARCH RESULTS for supplementary information.
+AVAILABLE LEGISLATION IN YOUR DATABASE:
+- Companies Act (Consolidated, 2024)
+- Civil Procedure Code (Consolidated, 2024)
+- Motor Traffic Act (Consolidated, 2024)
+- Act No. 24 of 2007 — Computer Crimes Act
+- Act No. 24 of 2025 — Amendment
+
+IMPORTANT: If the user's question is about a legal area NOT covered by these Acts
+(e.g. Family Law, Property Law, Labour Law, Tax Law, Criminal Law, etc.),
+be HONEST that your legislation database does not yet include that specific area.
+Still try to help using WEB SEARCH RESULTS and your general legal knowledge,
+but clearly note that the information may not be from the official legislation text.
+Always recommend consulting a qualified lawyer for areas outside your database.
+
+CRITICAL RULES:
+1. Base your answers primarily on the provided LEGAL CONTEXT. If insufficient, use WEB SEARCH RESULTS.
 2. ALWAYS cite the specific Act name, Section number, and Part/Chapter when referencing a law.
-3. If neither the legal context nor web results contain enough information, clearly state:
-   "I don't have enough information in my Knowledge Base to answer this question accurately. 
-   Please consult a qualified lawyer for specific legal advice."
-4. Distinguish between Consolidated Acts (full compiled laws) and Amendment Acts (changes to existing laws).
+3. If neither legal context nor web results have enough info, clearly say so and recommend a lawyer.
+4. Distinguish between Consolidated Acts and Amendment Acts.
 5. When multiple sections are relevant, reference all of them.
 6. Use clear, simple language that non-lawyers can understand, but maintain legal accuracy.
-7. NEVER provide specific legal advice — always recommend consulting a professional lawyer for specific cases.
-8. Format your response clearly with proper paragraph breaks and section references.
-9. When using information from web search results, mention that the information was found online and may need verification.
+7. NEVER provide specific legal advice — always recommend consulting a professional lawyer.
+8. Format your response with proper paragraph breaks and section references.
+9. When using web search results, mention the information was found online and may need verification.
+10. When RELATED DOCUMENTS are provided, mention connections between acts/laws.
+11. Be conversational and empathetic — the user may be in a stressful legal situation.
 
 LEGAL CONTEXT FROM SRI LANKAN LEGISLATION:
 {context}
+
+{graph_context}
 
 {web_context}
 """
@@ -81,9 +109,8 @@ PROMPT_TEMPLATE = ChatPromptTemplate.from_messages([
 
 def format_context(docs_with_scores: list) -> str:
     """
-    Format retrieved documents into a structured context string.
-
-    Each chunk includes its source metadata for citation.
+    Format retrieved documents into a structured, AI-readable context string.
+    Each chunk includes full hierarchy path and source metadata for citation.
     """
     if not docs_with_scores:
         return "No relevant legal documents found in the database."
@@ -91,21 +118,56 @@ def format_context(docs_with_scores: list) -> str:
     context_parts = []
     for i, (doc, score) in enumerate(docs_with_scores, 1):
         meta = doc.metadata
+
+        # Build a clear hierarchy path
+        hierarchy_parts = []
+        if meta.get('document_name') and meta.get('document_name') != 'Unknown':
+            hierarchy_parts.append(f"Document: {meta['document_name']}")
+        if meta.get('part') and meta.get('part') != 'Unknown':
+            hierarchy_parts.append(f"Part: {meta['part']}")
+        if meta.get('chapter') and meta.get('chapter') != 'Unknown':
+            hierarchy_parts.append(f"Chapter: {meta['chapter']}")
+        if meta.get('section_number') and not meta.get('section_number', '').startswith('Chunk_'):
+            hierarchy_parts.append(f"Section: {meta['section_number']}")
+
+        hierarchy = " → ".join(hierarchy_parts) if hierarchy_parts else "Unknown Location"
+
         header = (
-            f"--- Source {i} ---\n"
-            f"Document: {meta.get('document_name', 'Unknown')}\n"
-            f"Type: {meta.get('document_type', 'Unknown')}\n"
-            f"Section: {meta.get('section_number', 'N/A')}\n"
-            f"Part: {meta.get('part', 'N/A')}\n"
-            f"Chapter: {meta.get('chapter', 'N/A')}\n"
-            f"Status: {meta.get('status', 'Unknown')}\n"
-            f"Last Updated: {meta.get('last_updated_year', 'N/A')}\n"
-            f"Relevance Score: {score:.3f}\n"
-            f"---\n"
+            f"━━━ SOURCE {i} (Relevance: {score:.1%}) ━━━\n"
+            f"📍 {hierarchy}\n"
+            f"📋 Type: {meta.get('document_type', 'Unknown')} | "
+            f"Status: {meta.get('status', 'Unknown')} | "
+            f"Updated: {meta.get('last_updated_year', 'N/A')}\n"
+            f"{'─' * 40}\n"
         )
         context_parts.append(header + doc.page_content)
 
     return "\n\n".join(context_parts)
+
+
+def format_graph_context(graph_entities: list, related_docs: list) -> str:
+    """
+    Format graph-discovered relationships into readable context for the LLM.
+    """
+    if not graph_entities and not related_docs:
+        return ""
+
+    parts = ["\n━━━ RELATED LEGAL CONTEXT (Knowledge Graph) ━━━"]
+
+    if graph_entities:
+        parts.append("\n📊 Related Legal Entities:")
+        for entity in graph_entities[:10]:  # Limit to top 10
+            rel_type = entity.get("relationship", "RELATED_TO")
+            name = entity.get("name", "Unknown")
+            etype = entity.get("type", "")
+            parts.append(f"  • [{etype}] {name} — ({rel_type})")
+
+    if related_docs:
+        parts.append("\n📎 Related Documents:")
+        for doc in related_docs[:5]:
+            parts.append(f"  • {doc}")
+
+    return "\n".join(parts)
 
 
 def format_sources(docs_with_scores: list) -> list[dict]:
@@ -162,6 +224,94 @@ def detect_practice_areas(question: str, context: str) -> list[str]:
     return detected[:5]  # Limit to top 5 areas
 
 
+@traceable(name="Graph Expansion Retrieval")
+def _graph_expand_retrieval(question: str, initial_docs: list) -> tuple[list, list[str]]:
+    """
+    Use the knowledge graph to expand retrieval beyond vector search results.
+
+    1. Extract entities from the question
+    2. Find matching entities in the graph
+    3. Traverse to find related documents
+    4. Return graph entities and related document names
+
+    Args:
+        question: The user's query
+        initial_docs: Already-retrieved docs (for context)
+
+    Returns:
+        Tuple of (graph_entities, related_document_names)
+    """
+    if not config.ENABLE_GRAPH_RAG:
+        return [], []
+
+    try:
+        kg = get_knowledge_graph()
+
+        # Extract entities from the question text
+        entities, _ = extract_entities_regex(question)
+
+        all_graph_entities = []
+        related_doc_names = set()
+
+        # For each extracted entity, find related entities in the graph
+        for entity in entities:
+            graph_related = kg.get_related_entities(
+                entity.entity_id,
+                max_depth=config.GRAPH_TRAVERSAL_DEPTH,
+            )
+            all_graph_entities.extend(graph_related)
+
+            # Collect document names from related entities
+            for rel in graph_related:
+                doc_name = rel.get("document_name", "")
+                if doc_name:
+                    related_doc_names.add(doc_name)
+
+        # Also search by name for broader matching
+        query_words = question.lower().split()
+        important_terms = [w for w in query_words if len(w) > 4 and w not in {
+            "what", "which", "where", "about", "legal", "under", "section",
+        }]
+
+        for term in important_terms[:3]:  # Limit searches
+            name_matches = kg.find_entities_by_name(term)
+            for match in name_matches[:5]:
+                related = kg.get_related_entities(match["id"], max_depth=1)
+                all_graph_entities.extend(related)
+                for rel in related:
+                    doc_name = rel.get("document_name", "")
+                    if doc_name:
+                        related_doc_names.add(doc_name)
+
+        # Remove docs that are already in the initial results
+        initial_doc_names = set()
+        for doc, _ in initial_docs:
+            initial_doc_names.add(doc.metadata.get("document_name", ""))
+
+        related_doc_names -= initial_doc_names
+
+        # Deduplicate graph entities
+        seen_ids = set()
+        unique_entities = []
+        for e in all_graph_entities:
+            eid = e.get("id", "")
+            if eid not in seen_ids:
+                seen_ids.add(eid)
+                unique_entities.append(e)
+
+        logger.info(
+            f"Graph expansion: {len(unique_entities)} related entities, "
+            f"{len(related_doc_names)} related docs"
+        )
+
+        return unique_entities, sorted(related_doc_names)
+
+    except Exception as e:
+        logger.warning(f"Graph expansion failed: {e}")
+        return [], []
+
+
+@traceable(name="RAG Query Dispatcher")
 def query_rag(
     question: str,
     chat_history: Optional[list[dict]] = None,
@@ -169,21 +319,26 @@ def query_rag(
     filter_metadata: Optional[dict] = None,
 ) -> dict:
     """
-    Execute the full RAG pipeline:
-    1. Retrieve relevant chunks from ChromaDB
-    2. Search the web for additional context
-    3. Format context with source metadata
-    4. Generate response using Ollama LLM
-    5. Return answer + source citations + detected practice areas
+    Main entry point for the RAG pipeline. Dispatches to either the
+    LangGraph ReAct agentic orchestrator (default) or the original linear
+    pipeline (fallback / when ENABLE_AGENTIC_RAG=false).
+
+    Agentic path: The LLM agent decides which tools (vector search, graph
+    lookup, web search) to call and in what order, iterating until it has
+    enough context to produce a high-quality answer.
+
+    Linear path: Fixed sequence — vector search → graph expand → web search
+    → LLM generate. Kept as a reliable fallback.
 
     Args:
         question: User's legal question
         chat_history: Previous conversation messages
-        top_k: Number of chunks to retrieve
-        filter_metadata: Additional metadata filters
+        top_k: Number of chunks to retrieve (linear path only)
+        filter_metadata: Additional metadata filters (linear path only)
 
     Returns:
-        Dict with 'answer', 'sources', 'chunks_retrieved', 'web_sources', 'detected_practice_areas'
+        Dict with 'answer', 'sources', 'chunks_retrieved', 'web_sources',
+        'detected_practice_areas', 'graph_entities', 'related_documents'
     """
     if top_k is None:
         top_k = config.TOP_K_RESULTS
@@ -193,32 +348,201 @@ def query_rag(
 
     logger.info(f"RAG Query: '{question[:100]}...' (top_k={top_k})")
 
-    # Step 1: Retrieve relevant documents
+    # Step 0: Intent Routing + Smart Document Filter (6-intent system)
+    routing = classify_intent(question, chat_history)
+    intent = routing["intent"]
+    document_filter = routing["document_filter"]
+    logger.info(f"Detected intent: {intent}, document_filter: {document_filter}")
+
+    # ── Fast paths (no RAG needed) ────────────────────────────────────────
+
+    if intent == "conversational":
+        answer = generate_conversational_response(question, chat_history)
+        return {
+            "answer": answer,
+            "sources": [],
+            "web_sources": [],
+            "chunks_retrieved": 0,
+            "detected_practice_areas": [],
+            "graph_entities": [],
+            "related_documents": [],
+        }
+
+    if intent == "clarification_needed":
+        logger.info("Handling clarification_needed — asking user for specifics")
+        return generate_clarification_response(question, chat_history)
+
+    if intent == "lawyer_request":
+        logger.info("Handling lawyer_request via dedicated handler")
+        return generate_lawyer_response(question, chat_history)
+
+    # ── RAG paths (need search) ───────────────────────────────────────────
+
+    if intent == "follow_up":
+        search_query = rewrite_query(question, chat_history)
+        logger.info(f"Follow-up rewritten: '{search_query[:80]}'")
+    else:
+        # Both legal_query and situation_report use the original question
+        search_query = question
+
+    # Run the RAG pipeline
+    if config.ENABLE_AGENTIC_RAG:
+        result = _query_rag_agentic(
+            question=question,
+            search_query=search_query,
+            chat_history=chat_history,
+            document_filter=document_filter,
+        )
+    else:
+        result = _query_rag_linear(
+            question=question,
+            search_query=search_query,
+            chat_history=chat_history,
+            document_filter=document_filter,
+            top_k=top_k,
+            filter_metadata=filter_metadata,
+        )
+
+    # ── Post-processing for situation_report ───────────────────────────────
+    # When the user describes a personal situation, append a proactive offer
+    # to connect them with a specialist lawyer. Don't auto-show lawyer cards;
+    # wait for the user to explicitly ask (smoother, more human-like flow).
+    if intent == "situation_report":
+        result["answer"] += (
+            "\n\n---\n\n"
+            "💡 **Would you like me to recommend a lawyer who specializes in this area?** "
+            "Just let me know and I'll show you some options on our platform."
+        )
+        # Suppress auto-display of lawyer cards — user should ask first
+        result["detected_practice_areas"] = []
+        logger.info("Appended lawyer offer to situation_report response")
+
+    return result
+
+
+@traceable(name="Agentic RAG Pipeline")
+def _query_rag_agentic(
+    question: str,
+    search_query: str,
+    chat_history: list[dict],
+    document_filter: str,
+) -> dict:
+    """
+    Agentic path: delegates to the LangGraph ReAct orchestrator.
+    The agent decides which tools to call and in what order.
+    Falls back to the linear pipeline if the agent raises an exception.
+    """
+    from app.core.legal_agent import run_legal_agent
+
+    try:
+        # Enrich the question with the document filter hint so the agent
+        # can pass it directly to vector_search without extra reasoning steps
+        enriched_question = search_query
+        if document_filter and document_filter != "All":
+            enriched_question = (
+                f"{search_query}\n\n[Hint: This question is likely covered by the "
+                f"'{document_filter}'. Use it as the document_filter in vector_search.]"
+            )
+
+        result = run_legal_agent(
+            question=enriched_question,
+            chat_history=chat_history[-4:],
+        )
+
+        # Strip internal debug keys before returning to the API
+        result.pop("_agent_tool_calls", None)
+        return result
+
+    except Exception as e:
+        logger.error(f"Agentic pipeline failed, falling back to linear: {e}")
+        # Graceful degradation — fall through to the linear pipeline
+        return _query_rag_linear(
+            question=question,
+            search_query=search_query,
+            chat_history=chat_history,
+            document_filter=document_filter,
+            top_k=config.TOP_K_RESULTS,
+            filter_metadata=None,
+        )
+
+
+@traceable(name="Linear RAG Pipeline")
+def _query_rag_linear(
+    question: str,
+    search_query: str,
+    chat_history: list[dict],
+    document_filter: str,
+    top_k: int,
+    filter_metadata: Optional[dict],
+) -> dict:
+    """
+    Original linear RAG pipeline — kept as a reliable fallback.
+    Runs when ENABLE_AGENTIC_RAG=false or when the agent raises an exception.
+    """
+    # Build metadata filter from Smart Router's document_filter
+    smart_filter = filter_metadata  # Preserve any user-provided filter
+    if document_filter and document_filter != "All":
+        smart_filter = smart_filter.copy() if smart_filter else {}
+        smart_filter["document_name"] = document_filter
+        logger.info(f"Smart filter applied: searching only '{document_filter}'")
+
+    # Step 1: Retrieve relevant documents (vector search with smart filter)
     docs_with_scores = search_documents(
-        query=question,
+        query=search_query,
         top_k=top_k,
-        filter_metadata=filter_metadata,
+        filter_metadata=smart_filter,
     )
 
-    logger.info(f"Retrieved {len(docs_with_scores)} relevant chunks")
+    # If smart filter returned too few results, fall back to unfiltered search
+    if len(docs_with_scores) < 2 and document_filter != "All":
+        logger.info(f"Smart filter '{document_filter}' returned only {len(docs_with_scores)} results, falling back to unfiltered search")
+        docs_with_scores = search_documents(
+            query=search_query,
+            top_k=top_k,
+            filter_metadata=filter_metadata,  # Use original filter (or None)
+        )
 
-    # Step 2: Format context
+    logger.info(f"Vector search: {len(docs_with_scores)} chunks retrieved")
+
+    # Step 2: Graph expansion — find related entities and documents
+    graph_entities, related_doc_names = _graph_expand_retrieval(search_query, docs_with_scores)
+
+    # Step 3: Retrieve additional chunks from graph-discovered documents
+    if related_doc_names and config.ENABLE_GRAPH_RAG:
+        for doc_name in list(related_doc_names)[:config.GRAPH_EXPANSION_K]:
+            try:
+                expanded_docs = search_documents(
+                    query=search_query,
+                    top_k=2,  # Get top 2 chunks from each related doc
+                    filter_metadata={"document_name": doc_name},
+                )
+                docs_with_scores.extend(expanded_docs)
+            except Exception as e:
+                logger.warning(f"Failed to expand with doc '{doc_name}': {e}")
+
+        logger.info(f"After graph expansion: {len(docs_with_scores)} total chunks")
+
+    # Step 4: Format context
     context = format_context(docs_with_scores)
 
-    # Step 3: Web search for additional context
-    web_results = web_search(question, max_results=3)
+    # Step 5: Format graph context
+    graph_context = format_graph_context(graph_entities, related_doc_names)
+
+    # Step 6: Web search for additional context
+    web_results = web_search(search_query, max_results=3)
     web_context = format_web_results(web_results) if web_results else ""
 
-    # Step 4: Detect practice areas for lawyer suggestions
-    detected_areas = detect_practice_areas(question, context)
+    # Step 7: Detect practice areas for lawyer suggestions
+    detected_areas = detect_practice_areas(search_query, context)
     logger.info(f"Detected practice areas: {detected_areas}")
 
-    # Step 5: Build prompt and invoke LLM
+    # Step 8: Build prompt and invoke LLM
     llm = get_llm()
     langchain_history = convert_chat_history(chat_history)
 
     prompt = PROMPT_TEMPLATE.invoke({
         "context": context,
+        "graph_context": graph_context,
         "web_context": web_context,
         "chat_history": langchain_history,
         "question": question,
@@ -227,10 +551,10 @@ def query_rag(
     response = llm.invoke(prompt)
     answer = response.content
 
-    # Step 6: Extract source citations
+    # Step 9: Extract source citations
     sources = format_sources(docs_with_scores)
 
-    # Step 7: Format web sources
+    # Step 10: Format web sources
     web_sources = [
         {
             "title": r.get("title", ""),
@@ -240,7 +564,10 @@ def query_rag(
         for r in web_results
     ]
 
-    logger.info(f"Generated response: {len(answer)} chars, {len(sources)} sources, {len(web_sources)} web sources")
+    logger.info(
+        f"Generated response: {len(answer)} chars, {len(sources)} sources, "
+        f"{len(web_sources)} web sources, {len(graph_entities)} graph entities"
+    )
 
     return {
         "answer": answer,
@@ -248,4 +575,9 @@ def query_rag(
         "web_sources": web_sources,
         "chunks_retrieved": len(docs_with_scores),
         "detected_practice_areas": detected_areas,
+        "graph_entities": [
+            {"name": e.get("name", ""), "type": e.get("type", ""), "relationship": e.get("relationship", "")}
+            for e in graph_entities[:10]
+        ],
+        "related_documents": related_doc_names[:5],
     }

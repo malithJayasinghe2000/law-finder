@@ -4,13 +4,14 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { MessageCircle, Share2, Flag, Loader2, PenSquare, Trash2, ShieldAlert } from 'lucide-react';
+import { MessageCircle, Share2, Flag, Loader2, PenSquare, Trash2, ShieldAlert, Lock } from 'lucide-react';
 import VoteButtons from '@/components/community/VoteButtons';
 import CommentThread from '@/components/community/CommentThread';
 import TranslationBadge from '@/components/community/TranslationBadge';
 import ReportDialog from '@/components/community/ReportDialog';
 import { toast } from 'sonner';
 import Link from 'next/link';
+import { SidebarAd } from '@/components/ads/AdComponents';
 
 interface PostData {
   id: string;
@@ -20,6 +21,7 @@ interface PostData {
   isLocked: boolean;
   commentCount: number;
   authorId: string;
+  communityName: string;
 }
 
 interface Translation {
@@ -267,7 +269,7 @@ export default function PostInteractions({
 
       {/* Post content */}
       {(currentUserId === post.authorId || currentUserRole === 'ADMIN') && (
-        <div className="mb-6 p-4 bg-muted/30 border-2 border-dashed rounded-xl flex items-center justify-between gap-4">
+        <div className="mb-6 p-4 bg-muted/30 border-2 border-dashed rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-2 text-sm font-medium">
             <ShieldAlert className="h-4 w-4 text-primary" />
             <span>You have management access to this post</span>
@@ -290,8 +292,17 @@ export default function PostInteractions({
         dangerouslySetInnerHTML={{ __html: displayContent }}
       />
 
+      {/* Mobile Inline Ads (Only shows on mobile, hidden on desktop since they appear in the real sidebar there) */}
+      <div className="block lg:hidden my-8">
+        <SidebarAd 
+          placement="BLOG_POST_SIDEBAR" 
+          locale={locale} 
+          practiceArea={post.communityName} 
+        />
+      </div>
+
       {/* Engagement bar */}
-      <div className="flex items-center gap-2 py-3 border-y">
+      <div className="flex flex-wrap items-center gap-2 sm:gap-4 py-3 border-y">
         <VoteButtons
           score={post.score}
           userVote={userVote}
@@ -340,7 +351,7 @@ export default function PostInteractions({
                 className="w-full p-4 text-sm border rounded-xl bg-background resize-none focus:outline-none focus:ring-2 focus:ring-primary/50 min-h-[100px]"
                 rows={4}
               />
-              <div className="flex items-center justify-between mt-2">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mt-2 gap-4">
                 <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer hover:text-foreground transition-colors">
                   <input
                     type="checkbox"
@@ -360,15 +371,15 @@ export default function PostInteractions({
               </div>
             </div>
           ) : (
-            <div className="mb-6 p-4 bg-muted/50 rounded-xl text-sm text-muted-foreground text-center">
-              🔒 Comments are locked on this post.
+            <div className="mb-6 p-4 bg-[#faf8f6] border border-[#efeae0] rounded-none text-xs font-bold uppercase tracking-widest text-neutral-450 flex items-center justify-center gap-2">
+              <Lock className="h-4 w-4 text-[#bfa37a]" /> Comments are locked on this post
             </div>
           )
         ) : (
-          <div className="mb-6 p-4 bg-muted/50 rounded-xl text-sm text-center">
-            <span className="text-muted-foreground">Sign in to join the discussion. </span>
-            <a href={`/${locale}/login`} className="text-primary font-semibold hover:underline">
-              Sign In →
+          <div className="mb-6 p-4 bg-[#faf8f6] border border-[#efeae0] rounded-none text-xs font-bold uppercase tracking-widest text-center text-neutral-400">
+            <span>Sign in to join the discussion. </span>
+            <a href={`/${locale}/login`} className="text-[#bfa37a] hover:text-[#a68d67] hover:underline ml-1.5 transition-colors">
+              Sign In
             </a>
           </div>
         )}

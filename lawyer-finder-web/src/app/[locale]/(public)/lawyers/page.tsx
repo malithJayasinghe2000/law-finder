@@ -4,10 +4,14 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import Link from 'next/link';
-import { Search, MapPin, Languages, ShieldCheck, Star, Briefcase } from 'lucide-react';
+import { Search, MapPin, Languages, ShieldCheck, Briefcase, ChevronLeft, ChevronRight } from 'lucide-react';
 import { SponsoredListing, AdBanner } from '@/components/ads/AdComponents';
+import LawyerCard from '@/components/lawyer/LawyerCard';
+import LawyerFilterForm from './LawyerFilterForm';
 
 export const metadata = { title: 'Lawyer Directory' };
+
+const PAGE_SIZE = 12;
 
 export default async function LawyerDirectory({
   params,
@@ -19,80 +23,74 @@ export default async function LawyerDirectory({
   const { locale } = await params;
   const filters = await searchParams;
 
+  // --- Build Prisma where clause ---
   const where: Record<string, unknown> = { isVerified: true };
   if (filters.district) where.district = filters.district;
   if (filters.practiceArea) where.practiceAreas = { has: filters.practiceArea };
   if (filters.language) where.languages = { has: filters.language };
   if (filters.search) {
+    const searchTerm = filters.search.trim();
     where.OR = [
-      { fullName: { contains: filters.search, mode: 'insensitive' } },
-      { bio: { contains: filters.search, mode: 'insensitive' } },
+      { fullName: { contains: searchTerm, mode: 'insensitive' } },
+      { bio: { contains: searchTerm, mode: 'insensitive' } },
+      { district: { contains: searchTerm, mode: 'insensitive' } },
+      { practiceAreas: { has: searchTerm } },
     ];
   }
 
-  const lawyers = await prisma.lawyerProfile.findMany({
-    where,
-    include: { reviews: { where: { isApproved: true } } },
-    orderBy: { fullName: 'asc' },
-  });
+  // --- Pagination ---
+  const currentPage = Math.max(1, parseInt(filters.page || '1', 10) || 1);
+  const skip = (currentPage - 1) * PAGE_SIZE;
+
+  const [lawyers, totalCount] = await Promise.all([
+    prisma.lawyerProfile.findMany({
+      where,
+      include: { reviews: { where: { isApproved: true } } },
+      orderBy: { fullName: 'asc' },
+      skip,
+      take: PAGE_SIZE,
+    }),
+    prisma.lawyerProfile.count({ where }),
+  ]);
+
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+  const hasFilters = !!(filters.search || filters.district || filters.practiceArea || filters.language);
+
+  // --- Build pagination URL helper ---
+  function buildPageUrl(page: number) {
+    const params = new URLSearchParams();
+    if (filters.search) params.set('search', filters.search);
+    if (filters.district) params.set('district', filters.district);
+    if (filters.practiceArea) params.set('practiceArea', filters.practiceArea);
+    if (filters.language) params.set('language', filters.language);
+    if (page > 1) params.set('page', String(page));
+    const qs = params.toString();
+    return `/${locale}/lawyers${qs ? `?${qs}` : ''}`;
+  }
 
   return (
     <div className="py-8 sm:py-9">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6">
+      <div className="mx-auto max-w-[1400px] px-6 lg:px-12 xl:px-24">
         {/* Header */}
         <div className="mb-10 max-w-2xl">
-          <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Lawyer Directory</h1>
+          <h1 className="text-3xl font-light tracking-tight sm:text-4xl">Lawyer Directory</h1>
           <p className="mt-3 text-muted-foreground">
             Browse verified Sri Lankan legal professionals. Use the filters to find the right match.
           </p>
         </div>
 
-        {/* Search + Filters */}
-        <form className="mb-10">
-          <div className="flex flex-col gap-3 sm:flex-row">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                name="search"
-                placeholder="Search by name or specialty..."
-                defaultValue={filters.search || ''}
-                className="pl-10 h-9"
-              />
-            </div>
-            <select
-              name="district"
-              defaultValue={filters.district || ''}
-              className="h-9 rounded-md border border-input bg-background px-3 text-sm ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2 outline-none"
-            >
-              <option value="">All Districts</option>
-              {['Colombo', 'Gampaha', 'Kalutara', 'Kandy', 'Matale', 'Nuwara Eliya', 'Galle', 'Matara', 'Hambantota', 'Jaffna', 'Kilinochchi', 'Mannar', 'Vavuniya', 'Mullaitivu', 'Batticaloa', 'Ampara', 'Trincomalee', 'Kurunegala', 'Puttalam', 'Anuradhapura', 'Polonnaruwa', 'Badulla', 'Monaragala', 'Ratnapura', 'Kegalle'].map((d) => (
-                <option key={d} value={d}>{d}</option>
-              ))}
-            </select>
-            <select
-              name="practiceArea"
-              defaultValue={filters.practiceArea || ''}
-              className="h-9 rounded-md border border-input bg-background px-3 text-sm ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2 outline-none"
-            >
-              <option value="">All Practice Areas</option>
-              {['Criminal Law', 'Family Law', 'Property Law', 'Labor Law', 'Corporate Law', 'Civil Law', 'Constitutional Law', 'Tax Law', 'Immigration Law', 'Environmental Law', 'Intellectual Property', 'Human Rights'].map((p) => (
-                <option key={p} value={p}>{p}</option>
-              ))}
-            </select>
-            <button type="submit" className="h-9 px-5 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors">
-              Filter
-            </button>
-            <button type="reset" className="h-9 px-5 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors">
-              Clear
-            </button>
-          </div>
-        </form>
+        <LawyerFilterForm locale={locale} filters={filters} />
 
         <Separator className="mb-8" />
 
         {/* Results count */}
         <p className="mb-6 text-sm text-muted-foreground">
-          {lawyers.length} verified {lawyers.length === 1 ? 'lawyer' : 'lawyers'} found
+          {totalCount} verified {totalCount === 1 ? 'lawyer' : 'lawyers'} found
+          {hasFilters && (
+            <span className="text-xs text-neutral-400 ml-2">
+              (Showing page {currentPage} of {totalPages})
+            </span>
+          )}
         </p>
 
         {/* Grid */}
@@ -110,83 +108,98 @@ export default async function LawyerDirectory({
           </Card>
         ) : (
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {/* Sponsored Listings at the top */}
-              <SponsoredListing placement="DIRECTORY_INLINE" locale={locale} />
+            {/* Sponsored Listings at the top (only on page 1) */}
+            {currentPage === 1 && (
+              <SponsoredListing placement="DIRECTORY_INLINE" locale={locale} imageHeight="h-[280px]" />
+            )}
 
-              {lawyers.map((lawyer) => {
-              const avgRating =
-                lawyer.reviews.length > 0
-                  ? lawyer.reviews.reduce((sum, r) => sum + r.rating, 0) / lawyer.reviews.length
-                  : 0;
+            {lawyers.map((lawyer) => {
 
               return (
-                <Link key={lawyer.id} href={`/${locale}/lawyers/${lawyer.id}`}>
-                  <div className="group relative flex h-[400px] flex-col overflow-hidden rounded-none bg-[#222a35] text-white transition-transform duration-300 hover:-translate-y-1 hover:shadow-lg">
-                    {/* Top Image Area */}
-                    <div className="relative h-[200px] w-full shrink-0">
-                      <img
-                        src={lawyer.profileImageUrl || 'https://images.unsplash.com/photo-1556157382-97eda2d62296?auto=format&fit=crop&w=800&q=80'}
-                        alt={lawyer.fullName}
-                        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-[#222a35] via-[rgba(214, 214, 214, 0.3)] to-transparent" />
+                <LawyerCard
+                  key={lawyer.id}
+                  id={lawyer.id}
+                  fullName={lawyer.fullName}
+                  profileImageUrl={lawyer.profileImageUrl}
+                  bio={lawyer.bio}
+                  practiceAreas={lawyer.practiceAreas}
+                  languages={lawyer.languages}
+                  district={lawyer.district}
 
-                      {lawyer.languages.length > 0 && (
-                        <div className="absolute right-4 top-4 flex h-7 items-center justify-center rounded-none bg-black/40 backdrop-blur-md px-2.5 text-[10px] font-bold uppercase tracking-widest text-white border border-white/10 transition-colors hover:bg-black/60">
-                          {lawyer.languages.map((l) => l.slice(0, 2)).join(' • ')}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Content Area */}
-                    <div className="relative z-10 flex flex-1 flex-col px-5 pb-5 -mt-3">
-                      {/* Title & Price */}
-                      <div className="mb-2 flex items-start justify-between gap-3">
-                        <h3 className="text-[18px] font-semibold tracking-tight text-white drop-shadow-sm leading-tight mt-1 max-w-[70%] line-clamp-1">
-                          {lawyer.fullName}
-                        </h3>
-                        <div className="shrink-0 rounded-none bg-white/10 px-3 py-1.5 text-sm font-semibold text-white backdrop-blur-md border border-white/5">
-                          {lawyer.baseFeeRange ? `LKR ${lawyer.baseFeeRange.split('-')[0].trim()}` : 'TBD'}
-                        </div>
-                      </div>
-
-                      {/* Bio */}
-                      <p className="line-clamp-2 text-[13px] text-white/70 leading-relaxed font-light mb-4 text-balance">
-                        {lawyer.bio || 'Experienced legal professional dedicated to providing precise and strategic guidance.'}
-                      </p>
-
-                      {/* Badges row */}
-                      <div className="mt-auto flex gap-2 overflow-x-hidden whitespace-nowrap mb-6 scrollbar-hide">
-                        {avgRating > 0 && (
-                          <div className="flex shrink-0 items-center gap-1.5 rounded-none bg-white/10 px-3 py-[5px] text-xs font-medium backdrop-blur-md border border-yellow-500">
-                            <Star className="h-3.5 w-3.5 fill-yellow-500" />
-                            {avgRating.toFixed(1)}
-                          </div>
-                        )}
-                        {lawyer.district && (
-                          <div className="flex shrink-0 items-center rounded-none bg-white/10 px-3 py-[5px] text-xs font-medium backdrop-blur-md border border-white/5 text-white/90">
-                            <MapPin className="h-3.5 w-3.5 mr-1" />
-                            {lawyer.district}
-                          </div>
-                        )}
-                        
-                        {lawyer.practiceAreas.slice(0, 1).map((area) => (
-                          <div key={area} className="flex shrink-0 items-center rounded-none bg-white/10 px-3 py-[5px] text-xs font-medium backdrop-blur-md border border-white/5 text-white/90">
-                            {area}
-                          </div>
-                        ))}
-                      </div>
-
-                      {/* Button */}
-                      <button className="w-full rounded-none bg-white py-3.5 text-[15px] font-bold text-[#222a35] transition-colors hover:bg-neutral-200 mt-auto">
-                        View Profile
-                      </button>
-                    </div>
-                  </div>
-                </Link>
+                  locale={locale}
+                  imageHeight="h-[280px]"
+                />
               );
             })}
           </div>
+        )}
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <nav className="flex items-center justify-center gap-2 mt-12 pt-8 border-t border-neutral-100" aria-label="Pagination">
+            {/* Previous */}
+            {currentPage > 1 ? (
+              <Link
+                href={buildPageUrl(currentPage - 1)}
+                className="inline-flex items-center gap-1 h-9 px-4 rounded-md border border-input bg-background text-sm font-medium hover:bg-muted transition-colors"
+              >
+                <ChevronLeft className="h-4 w-4" /> Previous
+              </Link>
+            ) : (
+              <span className="inline-flex items-center gap-1 h-9 px-4 rounded-md border border-input bg-muted/50 text-sm font-medium text-muted-foreground cursor-not-allowed">
+                <ChevronLeft className="h-4 w-4" /> Previous
+              </span>
+            )}
+
+            {/* Page numbers */}
+            <div className="flex items-center gap-1">
+              {Array.from({ length: totalPages }, (_, i) => i + 1)
+                .filter((page) => {
+                  // Show: first, last, current, and ±1 neighbors
+                  if (page === 1 || page === totalPages) return true;
+                  if (Math.abs(page - currentPage) <= 1) return true;
+                  return false;
+                })
+                .reduce<(number | 'ellipsis')[]>((acc, page, idx, arr) => {
+                  if (idx > 0) {
+                    const prev = arr[idx - 1];
+                    if (page - prev > 1) acc.push('ellipsis');
+                  }
+                  acc.push(page);
+                  return acc;
+                }, [])
+                .map((item, idx) =>
+                  item === 'ellipsis' ? (
+                    <span key={`ellipsis-${idx}`} className="px-2 text-sm text-muted-foreground">…</span>
+                  ) : (
+                    <Link
+                      key={item}
+                      href={buildPageUrl(item)}
+                      className={`h-9 w-9 rounded-md inline-flex items-center justify-center text-sm font-medium transition-colors ${item === currentPage
+                        ? 'bg-primary text-primary-foreground'
+                        : 'border border-input bg-background hover:bg-muted'
+                        }`}
+                    >
+                      {item}
+                    </Link>
+                  )
+                )}
+            </div>
+
+            {/* Next */}
+            {currentPage < totalPages ? (
+              <Link
+                href={buildPageUrl(currentPage + 1)}
+                className="inline-flex items-center gap-1 h-9 px-4 rounded-md border border-input bg-background text-sm font-medium hover:bg-muted transition-colors"
+              >
+                Next <ChevronRight className="h-4 w-4" />
+              </Link>
+            ) : (
+              <span className="inline-flex items-center gap-1 h-9 px-4 rounded-md border border-input bg-muted/50 text-sm font-medium text-muted-foreground cursor-not-allowed">
+                Next <ChevronRight className="h-4 w-4" />
+              </span>
+            )}
+          </nav>
         )}
       </div>
     </div>

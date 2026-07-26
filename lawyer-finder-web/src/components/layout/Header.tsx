@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useState, useEffect } from 'react';
@@ -33,7 +34,9 @@ export default function Header({ locale, userRole = null, appStatus = null, user
   }
   const navLinks = [
     { href: `/${locale}/lawyers`, label: t('directory'), icon: Search },
-    { href: `/${locale}/blog`, label: t('blog'), icon: BookOpen },
+    { href: `/${locale}/chat`, label: t('chat'), icon: MessageCircle },
+    { href: `/${locale}/legal-library`, label: t('legalLibrary'), icon: BookOpen },
+    { href: `/${locale}/blog`, label: t('blog'), icon: FileText },
     { href: `/${locale}/about`, label: t('about'), icon: Scale },
   ];
 
@@ -49,8 +52,8 @@ export default function Header({ locale, userRole = null, appStatus = null, user
     if (link.href === `/${locale}/messages` && userId) {
       return (
         <div className="flex items-center gap-2">
-           <ChatBadge userId={userId} />
-           <span>{link.label}</span>
+          <ChatBadge userId={userId} />
+          <span>{link.label}</span>
         </div>
       );
     }
@@ -73,7 +76,23 @@ export default function Header({ locale, userRole = null, appStatus = null, user
 
   const renderAuthAction = (isMobile: boolean = false) => {
     if (!userRole) {
-      if (isPremiumDesign && !isMobile) {
+      if (isMobile) {
+        return (
+          <div className="flex flex-col gap-2 mt-4 pt-4 border-t border-border">
+            <Link href={`/${locale}/login`} onClick={() => setOpen(false)} className="w-full">
+              <Button variant="outline" className="w-full gap-2 font-bold rounded-none border-[#0a0a0a] text-[#0a0a0a] hover:bg-neutral-50 py-5 text-xs uppercase tracking-widest">
+                Sign In
+              </Button>
+            </Link>
+            <Link href={`/${locale}/register`} onClick={() => setOpen(false)} className="w-full">
+              <Button className="w-full gap-2 font-bold rounded-none bg-[#0a0a0a] text-white hover:bg-neutral-800 py-5 text-xs uppercase tracking-widest">
+                Sign Up
+              </Button>
+            </Link>
+          </div>
+        );
+      }
+      if (isPremiumDesign) {
         return (
           <Link href={`/${locale}/login`} onClick={() => setOpen(false)} className="ml-2">
             <Button variant="outline" className="gap-2 rounded-none border-white/50 bg-transparent text-white hover:bg-white/10 hover:text-white px-6 font-light">
@@ -84,15 +103,15 @@ export default function Header({ locale, userRole = null, appStatus = null, user
         );
       }
       return (
-        <Link href={`/${locale}/login`} onClick={() => setOpen(false)} className={isMobile ? "w-full block mt-2" : "ml-4"}>
-          <Button className={isMobile ? "w-full gap-2 font-semibold rounded-none bg-[#0a0a0a] text-white hover:bg-neutral-800 py-6" : "gap-2 font-medium rounded-none bg-[#0a0a0a] text-white px-7 hover:bg-neutral-800 transition-all hover:scale-105"}>
+        <Link href={`/${locale}/login`} onClick={() => setOpen(false)} className="ml-4">
+          <Button className="gap-2 font-medium rounded-none bg-[#0a0a0a] text-white px-7 hover:bg-neutral-800 transition-all hover:scale-105">
             <UserCircle className="h-4 w-4" />
             {t('login')}
           </Button>
         </Link>
       );
     }
-    
+
     // Authenticated Users (Avatar Dropdown)
     if (isMobile) {
       // Mobile simplistic render
@@ -100,7 +119,7 @@ export default function Header({ locale, userRole = null, appStatus = null, user
         <div className="flex flex-col gap-2 mt-4">
           <DropdownMenuSeparator className="bg-border my-2" />
           <Button variant="ghost" className="w-full justify-start gap-2" disabled>
-             <UserCircle className="h-5 w-5" /> Account Menu
+            <UserCircle className="h-5 w-5" /> Account Menu
           </Button>
           {userRole === 'ADMIN' && <Link href={`/${locale}/dashboard/admin`}><Button variant="outline" className="w-full justify-start gap-2 text-primary border-primary/20 hover:bg-primary/5">Admin Panel</Button></Link>}
           {userRole === 'LAWYER' && <Link href={`/${locale}/dashboard/lawyer`}><Button variant="outline" className="w-full justify-start gap-2 text-primary border-primary/20 hover:bg-primary/5">Lawyer Dashboard</Button></Link>}
@@ -108,7 +127,7 @@ export default function Header({ locale, userRole = null, appStatus = null, user
           {userRole === 'CLIENT' && (appStatus === 'SUBMITTED' || appStatus === 'IN_REVIEW') && <Button variant="secondary" className="w-full justify-start gap-2" disabled>App Pending</Button>}
           {userRole === 'CLIENT' && (!appStatus || appStatus === 'REJECTED') && <Link href={`/${locale}/apply`}><Button className="w-full justify-start gap-2 text-white">Become a Lawyer</Button></Link>}
           <Button variant="destructive" className="w-full justify-start gap-2 mt-2" onClick={handleLogout}>
-             <LogOut className="h-4 w-4" /> Logout
+            <LogOut className="h-4 w-4" /> Logout
           </Button>
         </div>
       );
@@ -140,16 +159,16 @@ export default function Header({ locale, userRole = null, appStatus = null, user
                   </div>
                 </div>
               )}
-              {userRole === 'LAWYER' && !subscriptionTier && (
+              {/* {userRole === 'LAWYER' && !subscriptionTier && (
                 <Link href={`/${locale}/pricing`} className="mt-2 pt-2 border-t border-neutral-200 block">
                   <p className="text-xs font-semibold text-amber-600 hover:text-amber-700">Upgrade your subscription</p>
                 </Link>
-              )}
+              )} */}
             </div>
           </div>
-          
+
           <div className="py-1">
-            <Link href={`/${locale}/profile`}>
+            <Link href={`/${locale}/dashboard/profile`}>
               <DropdownMenuItem className="cursor-pointer font-medium py-3 px-6 rounded-none focus:bg-neutral-50 group">
                 <UserCircle className="mr-3 h-4 w-4 text-neutral-400 group-hover:text-neutral-900 transition-colors" /> Profile Settings
               </DropdownMenuItem>
@@ -170,11 +189,11 @@ export default function Header({ locale, userRole = null, appStatus = null, user
                     <LayoutDashboard className="mr-3 h-4 w-4 text-neutral-400 group-hover:text-neutral-900 transition-colors" /> My Dashboard
                   </DropdownMenuItem>
                 </Link>
-                <Link href={`/${locale}/profile`}>
+                {/* <Link href={`/${locale}/profile`}>
                   <DropdownMenuItem className="cursor-pointer font-medium py-3 px-6 rounded-none focus:bg-neutral-50 group">
                     <Zap className="mr-3 h-4 w-4 text-amber-400 group-hover:text-amber-500 transition-colors" /> Subscription Plan
                   </DropdownMenuItem>
-                </Link>
+                </Link> */}
               </>
             )}
 
@@ -188,7 +207,7 @@ export default function Header({ locale, userRole = null, appStatus = null, user
                 <Link href={`/${locale}/messages`}>
                   <DropdownMenuItem className="cursor-pointer font-medium py-3 px-6 rounded-none focus:bg-neutral-50 group">
                     <div className="flex items-center w-full">
-                      <MessageCircle className="mr-3 h-4 w-4 text-neutral-400 group-hover:text-neutral-900 transition-colors" /> 
+                      <MessageCircle className="mr-3 h-4 w-4 text-neutral-400 group-hover:text-neutral-900 transition-colors" />
                       <span>Messages</span>
                     </div>
                   </DropdownMenuItem>
@@ -202,7 +221,7 @@ export default function Header({ locale, userRole = null, appStatus = null, user
                 )}
                 {(appStatus === 'SUBMITTED' || appStatus === 'IN_REVIEW') && (
                   <DropdownMenuItem disabled className="opacity-80 font-medium py-3 px-6">
-                     <FileText className="mr-3 h-4 w-4 text-neutral-400" /> Application Pending
+                    <FileText className="mr-3 h-4 w-4 text-neutral-400" /> Application Pending
                   </DropdownMenuItem>
                 )}
                 {(!appStatus || appStatus === 'REJECTED') && (
@@ -216,7 +235,7 @@ export default function Header({ locale, userRole = null, appStatus = null, user
             )}
 
             <DropdownMenuSeparator className="my-1" />
-            
+
             <DropdownMenuItem onClick={handleLogout} className="text-red-600 focus:text-red-700 focus:bg-red-50 cursor-pointer font-semibold py-3 px-6 rounded-none group">
               <LogOut className="mr-3 h-4 w-4 text-red-500/60 group-hover:text-red-600 transition-colors" /> Log out
             </DropdownMenuItem>
@@ -228,14 +247,16 @@ export default function Header({ locale, userRole = null, appStatus = null, user
 
   return (
     <header className={`${isPremiumDesign ? 'absolute top-0 w-full z-50 bg-transparent border-none' : 'sticky top-0 z-50 border-b bg-background/80 backdrop-blur-xl'}`}>
-      <div className={`mx-auto flex h-24 max-w-[1400px] items-center justify-between px-6 lg:px-12 xl:px-24 ${isPremiumDesign ? 'border-b border-white/20' : ''}`}>
-        <Link href={`/${locale}`} className="flex items-center gap-2.5 group">
-          <div className={`flex items-center justify-center ${isPremiumDesign ? 'text-white' : 'text-primary transition-transform group-hover:scale-105'}`}>
-            <Scale className="h-7 w-7" />
-          </div>
-          <span className={`text-xl font-medium tracking-tight ${isPremiumDesign ? 'text-white' : 'text-foreground'}`}>
-            LawFinder<span className={isPremiumDesign ? "opacity-70" : "text-muted-foreground font-normal"}>.</span>
-          </span>
+      <div className={`mx-auto flex h-24 max-w-[1400px] items-center justify-between px-6 lg:px-12 xl:px-24 ${isPremiumDesign ? 'border-b border-neutral-100' : ''}`}>
+        <Link href={`/${locale}`} className="flex items-center gap-2 group">
+          <Image
+            src="/logo.png"
+            alt="TheLawyr Logo"
+            width={160}
+            height={55}
+            className="h-14 w-auto object-contain transition-transform group-hover:scale-105"
+            priority
+          />
         </Link>
 
         {/* Desktop Nav - Centered */}
@@ -244,13 +265,12 @@ export default function Header({ locale, userRole = null, appStatus = null, user
             <Link
               key={link.href}
               href={link.href}
-              className={`flex items-center gap-2 text-[15px] transition-colors ${
-                isPremiumDesign 
-                  ? 'text-white/80 hover:text-white font-light'
+              className={`flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest transition-colors ${isPremiumDesign
+                  ? 'text-neutral-600 hover:text-[#bfa37a]'
                   : isActive(link.href)
-                    ? 'text-foreground font-medium'
-                    : 'text-muted-foreground hover:text-foreground font-medium'
-              }`}
+                    ? 'text-foreground font-bold'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
             >
               {renderNavLabel(link)}
             </Link>
@@ -259,39 +279,170 @@ export default function Header({ locale, userRole = null, appStatus = null, user
 
         {/* Desktop Right Action */}
         <div className="hidden md:block">
-          {renderAuthAction(false)}
+          {userRole ? (
+            renderAuthAction(false)
+          ) : (
+            <div className="flex items-center gap-6">
+              {!(pathname === `/${locale}/login` || pathname === '/login') && (
+                <Link href={`/${locale}/login`}>
+                  <Button className="bg-[#1a1a1a] text-white hover:bg-neutral-800 rounded-none px-6 py-6 text-xs font-bold uppercase tracking-widest transition-all">
+                    Sign In
+                  </Button>
+                </Link>
+              )}
+              {(pathname === `/${locale}/login` || pathname === '/login') && (
+                <Link href={`/${locale}/register`}>
+                  <Button className="bg-[#1a1a1a] text-white hover:bg-neutral-800 rounded-none px-6 py-6 text-xs font-bold uppercase tracking-widest transition-all">
+                    Sign Up
+                  </Button>
+                </Link>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Mobile Nav */}
         <Sheet open={open} onOpenChange={setOpen}>
           <SheetTrigger className="md:hidden">
-            <Menu className="h-5 w-5" />
+            <Menu className="h-5 w-5 text-neutral-800" />
           </SheetTrigger>
-          <SheetContent side="right" className="w-72">
-            <SheetTitle className="flex items-center gap-2 px-1 mb-2">
-              <Scale className="h-5 w-5" />
-              LawFinder SL
-            </SheetTitle>
-            <SheetDescription className="sr-only">Mobile navigation menu</SheetDescription>
-            <div className="my-4 h-px bg-border" />
-            <nav className="flex flex-col gap-1">
-              {navLinks.map((link) => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  onClick={() => setOpen(false)}
-                  className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
-                    isActive(link.href)
-                      ? 'bg-secondary text-foreground'
-                      : 'text-muted-foreground hover:bg-secondary'
-                  }`}
-                >
-                  {link.icon && <link.icon className="h-4 w-4" />}
-                  {link.label}
-                </Link>
-              ))}
-              {renderAuthAction(true)}
-            </nav>
+          <SheetContent side="right" className="w-72 bg-[#fbf9f6] border-l border-[#efeae0] p-6 flex flex-col justify-between">
+            <div className="flex flex-col flex-1">
+              <SheetTitle className="flex items-center gap-2 px-1 mb-6">
+                <Image
+                  src="/logo.png"
+                  alt="TheLawyr Logo"
+                  width={110}
+                  height={28}
+                  className="h-7 w-auto object-contain"
+                />
+              </SheetTitle>
+              <SheetDescription className="sr-only">Mobile navigation menu</SheetDescription>
+              
+              <nav className="flex flex-col gap-4">
+                {navLinks.map((link) => (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    onClick={() => setOpen(false)}
+                    className={`flex items-center gap-3 py-1.5 text-xs font-bold uppercase tracking-widest transition-colors ${
+                      isActive(link.href)
+                        ? 'text-[#bfa37a]'
+                        : 'text-neutral-600 hover:text-[#bfa37a]'
+                    }`}
+                  >
+                    {link.icon && <link.icon className="h-4 w-4 text-[#bfa37a]" />}
+                    <span>{renderNavLabel(link)}</span>
+                  </Link>
+                ))}
+
+                {/* Divider */}
+                <div className="my-4 border-t border-[#efeae0]" />
+
+                {/* Account Actions / Auth */}
+                {userRole ? (
+                  <div className="flex flex-col gap-4">
+                    <p className="text-[9px] font-bold text-neutral-400 uppercase tracking-[0.2em] mb-1">Account Menu</p>
+                    
+                    <Link
+                      href={`/${locale}/dashboard/profile`}
+                      onClick={() => setOpen(false)}
+                      className="flex items-center gap-3 text-xs font-bold uppercase tracking-widest text-neutral-600 hover:text-[#bfa37a] py-1 transition-colors"
+                    >
+                      <UserCircle className="h-4 w-4 text-[#bfa37a]" />
+                      <span>Profile Settings</span>
+                    </Link>
+
+                    {userRole === 'ADMIN' && (
+                      <Link
+                        href={`/${locale}/dashboard/admin`}
+                        onClick={() => setOpen(false)}
+                        className="flex items-center gap-3 text-xs font-bold uppercase tracking-widest text-[#bfa37a] py-1 transition-colors font-semibold"
+                      >
+                        <LayoutDashboard className="h-4 w-4" />
+                        <span>Admin Panel</span>
+                      </Link>
+                    )}
+
+                    {userRole === 'LAWYER' && (
+                      <Link
+                        href={`/${locale}/dashboard/lawyer`}
+                        onClick={() => setOpen(false)}
+                        className="flex items-center gap-3 text-xs font-bold uppercase tracking-widest text-[#bfa37a] py-1 transition-colors font-semibold"
+                      >
+                        <LayoutDashboard className="h-4 w-4" />
+                        <span>Lawyer Dashboard</span>
+                      </Link>
+                    )}
+
+                    {userRole === 'CLIENT' && (
+                      <Link
+                        href={`/${locale}/dashboard/client`}
+                        onClick={() => setOpen(false)}
+                        className="flex items-center gap-3 text-xs font-bold uppercase tracking-widest text-[#bfa37a] py-1 transition-colors font-semibold"
+                      >
+                        <LayoutDashboard className="h-4 w-4" />
+                        <span>My Dashboard</span>
+                      </Link>
+                    )}
+
+                    {userRole === 'CLIENT' && appStatus === 'DRAFT' && (
+                      <Link
+                        href={`/${locale}/apply`}
+                        onClick={() => setOpen(false)}
+                        className="flex items-center gap-3 text-xs font-bold uppercase tracking-widest text-amber-600 py-1 transition-colors"
+                      >
+                        <FileText className="h-4 w-4 text-amber-500" />
+                        <span>Resume Application</span>
+                      </Link>
+                    )}
+
+                    {userRole === 'CLIENT' && (appStatus === 'SUBMITTED' || appStatus === 'IN_REVIEW') && (
+                      <div className="flex items-center gap-3 text-xs font-bold uppercase tracking-widest text-neutral-400 py-1 select-none">
+                        <FileText className="h-4 w-4 text-neutral-350" />
+                        <span>Application Pending</span>
+                      </div>
+                    )}
+
+                    {userRole === 'CLIENT' && (!appStatus || appStatus === 'REJECTED') && (
+                      <Link
+                        href={`/${locale}/apply`}
+                        onClick={() => setOpen(false)}
+                        className="flex items-center gap-3 text-xs font-bold uppercase tracking-widest text-neutral-600 hover:text-[#bfa37a] py-1 transition-colors"
+                      >
+                        <Scale className="h-4 w-4 text-[#bfa37a]" />
+                        <span>Become a Lawyer</span>
+                      </Link>
+                    )}
+
+                    <button
+                      onClick={() => { setOpen(false); handleLogout(); }}
+                      className="w-full flex items-center justify-center gap-2 mt-4 px-4 py-3 bg-[#efeae0]/40 border border-[#efeae0] text-red-650 text-xs font-bold uppercase tracking-widest hover:bg-red-50 hover:border-red-200 transition-all duration-300 rounded-none"
+                    >
+                      <LogOut className="h-3.5 w-3.5" />
+                      <span>Log Out</span>
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-2 mt-4">
+                    {!(pathname === `/${locale}/login` || pathname === '/login') && (
+                      <Link href={`/${locale}/login`} onClick={() => setOpen(false)} className="w-full">
+                        <button className="w-full py-3 bg-[#1a1a1a] text-white hover:bg-neutral-800 text-xs font-bold uppercase tracking-widest transition-colors rounded-none">
+                          Sign In
+                        </button>
+                      </Link>
+                    )}
+                    {(pathname === `/${locale}/login` || pathname === '/login') && (
+                      <Link href={`/${locale}/register`} onClick={() => setOpen(false)} className="w-full">
+                        <button className="w-full py-3 bg-[#1a1a1a] text-white hover:bg-neutral-800 text-xs font-bold uppercase tracking-widest transition-colors rounded-none">
+                          Sign Up
+                        </button>
+                      </Link>
+                    )}
+                  </div>
+                )}
+              </nav>
+            </div>
           </SheetContent>
         </Sheet>
       </div>

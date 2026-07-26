@@ -175,8 +175,13 @@ async function getAvailableSlots(lawyerId: string, dateStr: string, currentUserI
   const dayOfWeek = REVERSE_DAY_MAP[targetDate.getDay()];
   const now = new Date();
 
-  // Minimum 24 hours notice
-  const minBookingTime = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+  const pricing = await prisma.consultationPricing.findUnique({
+    where: { lawyerId },
+    include: { lawyer: { select: { contactPhone: true } } }
+  });
+
+  const minAdvanceNoticeHours = pricing?.minAdvanceNoticeHours ?? 24;
+  const contactPhone = pricing?.lawyer?.contactPhone ?? null;
 
   // Maximum 30 days ahead
   const maxBookingDate = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
@@ -233,13 +238,22 @@ async function getAvailableSlots(lawyerId: string, dateStr: string, currentUserI
   }
 
   // Get existing bookings for this date (exclude cancelled)
-  const existingBookings = await prisma.booking.findMany({
+  const rawBookings = await prisma.booking.findMany({
     where: {
       lawyerId,
       date: targetDate,
       status: { notIn: ['CANCELLED_BY_CLIENT', 'CANCELLED_BY_LAWYER'] },
     },
-    select: { startTime: true, endTime: true },
+    select: { startTime: true, endTime: true, status: true, createdAt: true },
+  });
+
+  // Filter out PENDING_PAYMENT bookings that are older than 24 hours
+  const existingBookings = rawBookings.filter((b) => {
+    if (b.status === 'PENDING_PAYMENT') {
+      const hoursSinceCreation = (now.getTime() - b.createdAt.getTime()) / (1000 * 60 * 60);
+      if (hoursSinceCreation > 24) return false;
+    }
+    return true;
   });
 
   // Get active slot holds for this date
@@ -252,11 +266,6 @@ async function getAvailableSlots(lawyerId: string, dateStr: string, currentUserI
     select: { startTime: true, endTime: true, clientId: true },
   });
 
-  // Get pricing info
-  const pricing = await prisma.consultationPricing.findUnique({
-    where: { lawyerId },
-  });
-
   // Generate slots
   const allSlots: {
     startTime: string;
@@ -264,6 +273,8 @@ async function getAvailableSlots(lawyerId: string, dateStr: string, currentUserI
     duration: number;
     mode: string;
     isAvailable: boolean;
+    isCallToBook: boolean;
+    contactPhone: string | null;
     physicalPrice: number | null;
     onlinePrice: number | null;
     platformFee: number | null;
@@ -290,20 +301,28 @@ async function getAvailableSlots(lawyerId: string, dateStr: string, currentUserI
                h.clientId !== currentUserId
       );
 
-      // Check notice period (24 hours minimum)
+      // Check notice period for standard booking
       const slotDateTime = new Date(`${dateStr}T${slot.start}:00+05:30`);
+      const minBookingTime = new Date(now.getTime() + minAdvanceNoticeHours * 60 * 60 * 1000);
       const meetsNotice = slotDateTime > minBookingTime;
+      const isPast = slotDateTime < now;
 
       const commissionRate = pricing?.commissionRate || 0.15;
       const physicalPrice = pricing?.physicalPrice || null;
       const onlinePrice = pricing?.onlinePrice || null;
+
+      // Slot is available if not booked, not held, and not in the past
+      // But if it doesn't meet notice, it's 'Call to Book'
+      const isSlotFree = !isBooked && !isHeld && !isPast;
 
       allSlots.push({
         startTime: slot.start,
         endTime: slot.end,
         duration: window.slotDuration,
         mode: window.mode,
-        isAvailable: !isBooked && !isHeld && meetsNotice,
+        isAvailable: isSlotFree,
+        isCallToBook: false,
+        contactPhone,
         physicalPrice,
         onlinePrice,
         platformFee: physicalPrice ? Math.round(physicalPrice * commissionRate) : null,

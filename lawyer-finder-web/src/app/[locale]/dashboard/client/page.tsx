@@ -98,7 +98,7 @@ export default async function ClientDashboardPage({ params }: { params: Promise<
               <PenSquare className="w-4 h-4" />
               Recent Posts
             </h3>
-            <Link href={`/${locale}/blog/my-posts`} className="text-xs font-semibold text-neutral-600 hover:text-neutral-900 flex items-center gap-1">
+            <Link href={`/${locale}/dashboard/blog/my-posts`} className="text-xs font-semibold text-neutral-600 hover:text-neutral-900 flex items-center gap-1">
               View All <ArrowRight className="w-3 h-3" />
             </Link>
           </div>
@@ -120,7 +120,7 @@ export default async function ClientDashboardPage({ params }: { params: Promise<
                 <div key={post.id} className="flex items-center justify-between border border-neutral-100 p-4 hover:shadow-sm transition-shadow">
                   <div className="flex-1 min-w-0 pr-4">
                     <Link
-                      href={post.status === 'PUBLISHED' ? `/${locale}/blog/${post.slug}` : `/${locale}/blog/my-posts`}
+                      href={post.status === 'PUBLISHED' ? `/${locale}/blog/${post.slug}` : `/${locale}/dashboard/blog/my-posts`}
                       className="block truncate text-sm font-semibold text-neutral-900 hover:text-neutral-600 transition-colors mb-1"
                     >
                       {post.title}
@@ -153,7 +153,7 @@ export default async function ClientDashboardPage({ params }: { params: Promise<
                 <PenSquare className="w-4 h-4" /> Create New Post
               </Button>
             </Link>
-            <Link href={`/${locale}/blog/my-posts`} className="block">
+            <Link href={`/${locale}/dashboard/blog/my-posts`} className="block">
               <Button variant="outline" className="w-full bg-transparent border-neutral-700 text-white hover:bg-neutral-800 hover:text-white rounded-none h-11 text-sm font-bold uppercase tracking-wide flex items-center justify-center gap-2">
                 <FileText className="w-4 h-4" /> Manage My Posts
               </Button>

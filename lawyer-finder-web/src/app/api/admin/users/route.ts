@@ -24,6 +24,8 @@ export async function GET(req: Request) {
             fullName: true,
             isVerified: true,
             district: true,
+            latitude: true,
+            longitude: true,
             baslNumber: true,
           },
         },
@@ -44,6 +46,8 @@ export async function GET(req: Request) {
       fullName: u.profile?.fullName || null,
       isVerified: u.profile?.isVerified || false,
       district: u.profile?.district || null,
+      latitude: u.profile?.latitude || null,
+      longitude: u.profile?.longitude || null,
       baslNumber: u.profile?.baslNumber || null,
       profileId: u.profile?.id || null,
       applicationStatus: u.application?.status || null,
@@ -88,7 +92,7 @@ export async function PATCH(req: Request) {
     }
 
     const body = await req.json();
-    const { userId, action, email, role, password } = body;
+    const { userId, action, email, role, password, latitude, longitude } = body;
 
     if (!userId || !action) {
       return NextResponse.json({ error: 'Missing required fields.' }, { status: 400 });
@@ -103,6 +107,21 @@ export async function PATCH(req: Request) {
         where: { id: userId },
         data: updateData,
       });
+
+      // Also update lawyer profile if applicable
+      if (latitude !== undefined || longitude !== undefined) {
+        const profile = await prisma.lawyerProfile.findFirst({ where: { userId } });
+        if (profile) {
+          const profileUpdate: any = {};
+          if (latitude !== undefined) profileUpdate.latitude = latitude === '' ? null : parseFloat(latitude);
+          if (longitude !== undefined) profileUpdate.longitude = longitude === '' ? null : parseFloat(longitude);
+          
+          await prisma.lawyerProfile.update({
+            where: { id: profile.id },
+            data: profileUpdate,
+          });
+        }
+      }
 
       return NextResponse.json({ message: 'User details updated.' }, { status: 200 });
     }

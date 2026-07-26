@@ -30,6 +30,7 @@ export default async function LawyerProfilePage({
         include: { plan: true, role: true },
         take: 1,
       },
+      consultationPricing: true,
     },
   });
 
@@ -78,7 +79,6 @@ export default async function LawyerProfilePage({
       bio: l.bio,
       practiceAreas: l.practiceAreas,
       district: l.district,
-      baseFeeRange: l.baseFeeRange,
       avgRating: Math.round(avg * 10) / 10,
       reviewCount: l.reviews.length,
       languages: l.languages,

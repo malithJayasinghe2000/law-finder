@@ -3,6 +3,7 @@ import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { CreateBookingSchema, BookingFilterSchema } from '@/schemas/consultation.schema';
 import { formatSriLankaDateIso, parseDateOnlyToUtc } from '@/lib/utils';
+import { EmailService } from '@/lib/email/EmailService';
 
 // GET: List bookings (filtered by role)
 export async function GET(req: Request) {
@@ -53,7 +54,7 @@ export async function GET(req: Request) {
           lawyer: { select: { id: true, fullName: true, profileImageUrl: true, district: true, address: true, contactPhone: true } },
           payment: true,
         },
-        orderBy: [{ date: 'desc' }, { startTime: 'desc' }],
+        orderBy: { createdAt: 'desc' },
         skip,
         take: limit,
       }),
@@ -89,6 +90,16 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Verify user actually exists in database (handles DB resets while cookie remains)
+    const userExists = await prisma.user.findUnique({
+      where: { id: session.userId },
+      select: { id: true },
+    });
+
+    if (!userExists) {
+      return NextResponse.json({ error: 'Your session is invalid or your account was deleted. Please log out and log in again.' }, { status: 401 });
+    }
+
     const body = await req.json();
     const validated = CreateBookingSchema.safeParse(body);
 
@@ -96,45 +107,20 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: validated.error.format() }, { status: 400 });
     }
 
-    const { lawyerId, date, startTime, endTime, mode, subject, description, practiceArea, paymentMethod } = validated.data;
+    const { lawyerId, date, startTime, endTime, mode, subject, description, practiceArea } = validated.data;
     const targetDate = parseDateOnlyToUtc(date);
     const now = new Date();
 
-    // Enforce 24-hour notice period
-    const slotDateTime = new Date(`${date}T${startTime}:00+05:30`);
-    const minNotice = new Date(now.getTime() + 24 * 60 * 60 * 1000);
-
-    if (slotDateTime < minNotice) {
-      return NextResponse.json(
-        { error: 'Bookings require at least 24 hours advance notice' },
-        { status: 400 }
-      );
-    }
-
-    // For bank transfer (offline), enforce 48-hour notice since admin verification takes time
-    if (paymentMethod === 'BANK_TRANSFER') {
-      const minOfflineNotice = new Date(now.getTime() + 48 * 60 * 60 * 1000);
-      if (slotDateTime < minOfflineNotice) {
-        return NextResponse.json(
-          { error: 'Offline payment bookings require at least 48 hours advance notice to allow payment verification' },
-          { status: 400 }
-        );
-      }
-    }
-
-    // Verify lawyer exists and has pricing
     const lawyer = await prisma.lawyerProfile.findUnique({
       where: { id: lawyerId },
-      include: { consultationPricing: true },
+      include: { consultationPricing: true, user: { select: { email: true } } },
     });
 
-    if (!lawyer) {
-      return NextResponse.json({ error: 'Lawyer not found' }, { status: 404 });
+    if (!lawyer || !lawyer.consultationPricing || !lawyer.user) {
+      return NextResponse.json({ error: 'Lawyer or pricing not found' }, { status: 404 });
     }
 
-    if (!lawyer.consultationPricing) {
-      return NextResponse.json({ error: 'Lawyer has not configured consultation pricing' }, { status: 400 });
-    }
+
 
     // Cannot book yourself
     if (lawyer.userId === session.userId) {
@@ -151,7 +137,7 @@ export async function POST(req: Request) {
     // Race-condition-safe booking creation using serializable transaction
     const booking = await prisma.$transaction(async (tx) => {
       // Check for conflicting bookings (atomic check)
-      const conflict = await tx.booking.findFirst({
+      const conflicts = await tx.booking.findMany({
         where: {
           lawyerId,
           date: targetDate,
@@ -162,7 +148,15 @@ export async function POST(req: Request) {
         },
       });
 
-      if (conflict) {
+      const validConflict = conflicts.find((b) => {
+        if (b.status === 'PENDING_PAYMENT') {
+          const hoursSinceCreation = (now.getTime() - b.createdAt.getTime()) / (1000 * 60 * 60);
+          if (hoursSinceCreation > 24) return false;
+        }
+        return true;
+      });
+
+      if (validConflict) {
         throw new Error('SLOT_TAKEN');
       }
 
@@ -218,12 +212,27 @@ export async function POST(req: Request) {
           subject,
           description,
           practiceArea,
-          status: 'PENDING_PAYMENT',
+          status: 'AWAITING_LAWYER_APPROVAL',
         },
       });
     }, {
       isolationLevel: 'Serializable',
     });
+
+    // Send emails asynchronously
+    const client = await prisma.user.findUnique({ where: { id: session.userId } });
+    if (client && client.email) {
+      const formattedDate = formatSriLankaDateIso(booking.date);
+      const clientName = client.fullName || 'Client';
+      
+      EmailService.sendBookingCreatedClient(client.email, clientName, lawyer.fullName, formattedDate, startTime, booking.bookingNumber);
+      
+      if (lawyer.user?.email) {
+        EmailService.sendBookingCreatedLawyer(lawyer.user.email, lawyer.fullName, clientName, formattedDate, startTime);
+      }
+      
+      EmailService.sendBookingCreatedAdmin(clientName, lawyer.fullName, formattedDate, startTime, booking.bookingNumber);
+    }
 
     return NextResponse.json({
       success: true,

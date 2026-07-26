@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { formatSriLankaDateIso } from '@/lib/utils';
+import { EmailService } from '@/lib/email/EmailService';
 
 // GET: List bookings with pending refunds (Admin only)
 export async function GET(req: Request) {
@@ -46,6 +47,8 @@ export async function GET(req: Request) {
         lawyerFee: b.lawyerFee,
         platformFee: b.platformFee,
         refundAmount: b.refundAmount || 0,
+        retainedLawyerFee: b.retainedLawyerFee || 0,
+        retainedPlatformFee: b.retainedPlatformFee || 0,
         refundStatus: b.refundStatus,
         refundProcessedAt: b.refundProcessedAt?.toISOString() || null,
         refundNotes: b.refundNotes,
@@ -94,6 +97,7 @@ export async function PATCH(req: Request) {
 
     const booking = await prisma.booking.findUnique({
       where: { id: bookingId },
+      include: { client: { select: { email: true, fullName: true } } },
     });
 
     if (!booking) {
@@ -112,6 +116,12 @@ export async function PATCH(req: Request) {
         refundNotes: notes || (action === 'process' ? 'Refund processed by admin' : 'Refund declined by admin'),
       },
     });
+
+    if (action === 'process') {
+      await EmailService.sendRefundProcessed(booking.client.email, booking.client.fullName || 'Client', booking.bookingNumber, booking.refundAmount || 0);
+    } else {
+      await EmailService.sendRefundDeclined(booking.client.email, booking.client.fullName || 'Client', booking.bookingNumber, notes || 'Refund declined by admin');
+    }
 
     return NextResponse.json({
       success: true,

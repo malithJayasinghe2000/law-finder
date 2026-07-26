@@ -2,6 +2,7 @@ import { NextResponse, NextRequest } from 'next/server';
 import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { CreateInvoiceSchema } from '@/schemas/subscription.schema';
+import { EmailService } from '@/lib/email/EmailService';
 
 export async function POST(req: NextRequest) {
   try {
@@ -123,13 +124,29 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    // Fetch lawyer user details for the email
+    const lawyerUser = await prisma.user.findUnique({
+      where: { id: session.userId },
+    });
+
+    if (lawyerUser?.email) {
+      EmailService.sendInvoiceCreated(
+        lawyerUser.email,
+        lawyerUser.fullName || 'Valued Lawyer',
+        invoice.id,
+        invoice.amount,
+        invoice.paymentReason,
+        billingCycle
+      ).catch(err => console.error('Failed to send invoice creation email:', err));
+    }
+
     return NextResponse.json(
       {
         invoice: {
           id: invoice.id,
           amount: invoice.amount,
           status: invoice.status,
-          planName: invoice.plan.name,
+          planName: invoice.plan?.name || plan.name,
           createdAt: invoice.createdAt,
         },
         subscription: {
