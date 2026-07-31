@@ -58,13 +58,30 @@ Replaces today's `BookingStatus`, which has two duplicate paths out of
    details. The *firm* marks payment received. Platform never sees, holds, verifies, or
    moves money. Admin removed from the loop entirely.
 
-### Tasks
-- New Prisma models: `EngagementRequest`, `ConflictCheck`, `Quote`, `EngagementLetter`
-- Migration path from `Booking` (keep old rows readable; do not destroy history)
+### Architecture note (corrected during 1a)
+
+An earlier draft of this roadmap called for a new `EngagementRequest` model with a
+migration path off `Booking`. That was wrong: `Booking` already *is* an engagement
+request (client, lawyer, subject, description, schedule, status). A parallel table
+would have meant dual code paths through every dashboard, email and admin screen —
+exactly the "break a working flow" risk the guardrails warn against.
+
+**We evolve `Booking` in place** and add `ConflictCheck` / `Quote` /
+`EngagementLetter` as related models. Same end state, far less risk.
+
+### 1a — state machine, conflict check, quote *(done)*
+- Rewrite `BookingStatus` as the engagement lifecycle; delete the pre-Phase-1 states
+- Centralise transitions in `src/lib/consultations/bookingStatus.ts`
+- New models `ConflictCheck` and `Quote` (versioned, with expiry)
+- New routes `[id]/conflict-check` and `[id]/quotes`
+- Consolidate the duplicate `accept`/`approve` and `decline`/`reject` paths
+
+### 1b — engagement letter + intake wizard *(next)*
+- `EngagementLetter` model + generation on quote acceptance
 - Rebuild `BookingWizardClient` as an intake wizard — no prices anywhere client-side
-- Firm/lawyer console: triage queue, conflict check, quote composer, letter preview
+- Firm console: triage queue, conflict-check form, quote composer
 - Client console: quote review, accept/decline, letter download
-- Zod schemas shared client/server; emails for each transition
+- Emails for each new transition
 
 ---
 

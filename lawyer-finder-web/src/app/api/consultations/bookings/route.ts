@@ -4,6 +4,7 @@ import { getSession } from '@/lib/auth';
 import { CreateBookingSchema, BookingFilterSchema } from '@/schemas/consultation.schema';
 import { formatSriLankaDateIso, parseDateOnlyToUtc } from '@/lib/utils';
 import { EmailService } from '@/lib/email/EmailService';
+import { SLOT_BLOCKING_STATUSES } from '@/lib/consultations/bookingStatus';
 
 // GET: List bookings (filtered by role)
 export async function GET(req: Request) {
@@ -150,22 +151,17 @@ export async function POST(req: Request) {
         where: {
           lawyerId,
           date: targetDate,
-          status: { notIn: ['CANCELLED_BY_CLIENT', 'CANCELLED_BY_LAWYER'] },
+          status: { in: SLOT_BLOCKING_STATUSES },
           OR: [
             { startTime: { lt: endTime }, endTime: { gt: startTime } },
           ],
         },
       });
 
-      const validConflict = conflicts.find((b) => {
-        if (b.status === 'PENDING_PAYMENT') {
-          const hoursSinceCreation = (now.getTime() - b.createdAt.getTime()) / (1000 * 60 * 60);
-          if (hoursSinceCreation > 24) return false;
-        }
-        return true;
-      });
-
-      if (validConflict) {
+      // SLOT_BLOCKING_STATUSES already excludes released slots, so any hit is a
+      // genuine conflict. The old 24h grace period for unpaid bookings is gone —
+      // an unanswered quote now expires explicitly into QUOTE_EXPIRED.
+      if (conflicts.length > 0) {
         throw new Error('SLOT_TAKEN');
       }
 
@@ -229,13 +225,11 @@ export async function POST(req: Request) {
           mode: mode as any,
           officeAddress: mode === 'PHYSICAL' ? (lawyer.address || lawyer.district || 'Contact lawyer for address') : null,
           lawyerFee: 0,
-          platformFee: 0,
           totalAmount: 0,
-          commissionRate: 0,
           subject,
           description,
           practiceArea,
-          status: 'AWAITING_LAWYER_APPROVAL',
+          status: 'REQUESTED',
         },
       });
     }, {

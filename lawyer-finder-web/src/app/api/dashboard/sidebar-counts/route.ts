@@ -34,7 +34,7 @@ export async function GET() {
       });
       pendingBankPaymentsCount = await prisma.booking.count({
         where: {
-          status: 'AWAITING_BANK_TRANSFER_VERIFICATION',
+          status: 'ACCEPTED',
           payment: {
             method: 'BANK_TRANSFER',
             status: 'PENDING',

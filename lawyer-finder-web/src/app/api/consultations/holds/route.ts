@@ -3,6 +3,7 @@ import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { z } from 'zod';
 import { parseDateOnlyToUtc } from '@/lib/utils';
+import { SLOT_BLOCKING_STATUSES } from '@/lib/consultations/bookingStatus';
 
 const CreateHoldSchema = z.object({
   lawyerId: z.string().uuid(),
@@ -43,7 +44,7 @@ export async function POST(req: Request) {
       where: {
         lawyerId,
         date: targetDate,
-        status: { notIn: ['CANCELLED_BY_CLIENT', 'CANCELLED_BY_LAWYER'] },
+        status: { in: SLOT_BLOCKING_STATUSES },
         OR: [
           { startTime: { lt: endTime }, endTime: { gt: startTime } },
         ],

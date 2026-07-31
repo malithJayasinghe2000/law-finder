@@ -1,11 +1,24 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
-import { BankTransferPaymentSchema, AdminVerifyPaymentSchema } from '@/schemas/consultation.schema';
+import { BankTransferPaymentSchema } from '@/schemas/consultation.schema';
 import { EmailService } from '@/lib/email/EmailService';
-import { formatSriLankaDateIso } from '@/lib/utils';
 
-// POST: Submit payment for a booking
+/**
+ * Payment notification.
+ *
+ * The client pays the FIRM directly, into the account given on the accepted
+ * quote. This endpoint only lets the client tell the firm they have paid and
+ * attach a reference — the platform never receives, holds, or verifies the money.
+ *
+ * The firm confirms receipt via
+ *   PATCH /api/consultations/bookings/[id]  { action: 'confirm_payment_received' }
+ * which is what actually moves the request to SCHEDULED. Admin verification was
+ * removed: platform staff cannot see a transfer into a firm's own account, and
+ * have no business adjudicating it.
+ *
+ * See docs/restructure/LEGAL-GUARDRAILS.md (rules 2 and 7).
+ */
 export async function POST(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -21,211 +34,72 @@ export async function POST(
 
     const booking = await prisma.booking.findUnique({
       where: { id },
-      include: { payment: true, client: { select: { email: true, fullName: true } } },
+      include: {
+        payment: true,
+        client: { select: { email: true, fullName: true } },
+        lawyer: { select: { fullName: true, user: { select: { email: true } } } },
+      },
     });
 
     if (!booking) {
-      return NextResponse.json({ error: 'Booking not found' }, { status: 404 });
+      return NextResponse.json({ error: 'Request not found' }, { status: 404 });
     }
 
     if (booking.clientId !== session.userId) {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 });
     }
 
-    if (booking.status !== 'PENDING_PAYMENT') {
-      return NextResponse.json({ error: 'Payment already submitted or booking is not in payment pending state' }, { status: 400 });
-    }
-
-    const method = body.method as string;
-
-    if (method === 'BANK_TRANSFER') {
-      const validated = BankTransferPaymentSchema.safeParse(body);
-      if (!validated.success) {
-        return NextResponse.json({ error: validated.error.format() }, { status: 400 });
-      }
-
-      // Use transaction to create or update payment and update booking status
-      const paymentData = {
-        amount: booking.totalAmount,
-        method: 'BANK_TRANSFER' as const,
-        status: 'PENDING' as const,
-        bankName: validated.data.bankName,
-        accountHolder: validated.data.accountHolder,
-        accountNumber: validated.data.accountNumber,
-        transactionDate: validated.data.transactionDate,
-        transactionRef: validated.data.transactionRef,
-        receiptImageUrl: validated.data.receiptImageUrl,
-        notes: validated.data.notes,
-      };
-
-      const [payment] = await prisma.$transaction([
-        prisma.bookingPayment.upsert({
-          where: { bookingId: id },
-          update: paymentData,
-          create: {
-            bookingId: id,
-            ...paymentData,
-          },
-        }),
-        prisma.booking.update({
-          where: { id },
-          data: { status: 'AWAITING_BANK_TRANSFER_VERIFICATION' },
-        })
-      ]);
-
-      EmailService.sendPaymentSubmittedClient(booking.client.email, booking.client.fullName || 'Client', booking.bookingNumber);
-      
-      // We don't have a specific email for lawyer payment verification yet, but we can reuse a generic one or assume the dashboard will notify them.
-      // EmailService.sendPaymentVerificationLawyer(booking.lawyer.user.email, booking.lawyer.fullName, booking.bookingNumber, booking.client.fullName || 'Client');
-
-      return NextResponse.json({
-        success: true,
-        payment,
-        message: 'Payment receipt submitted. Your booking will be confirmed once admin verifies the payment.',
-      }, { status: 201 });
-
-    } else {
-      // PayHere was removed here. It settled consultation fees into a platform
-      // merchant account, which is exactly the client-money problem the
-      // restructure exists to fix. See docs/restructure/LEGAL-GUARDRAILS.md
-      // (rule 2). Clients pay lawyers directly using the bank details the lawyer
-      // supplies when quoting.
+    // Payment is only meaningful once terms have been accepted.
+    if (booking.status !== 'ACCEPTED') {
       return NextResponse.json(
-        { error: 'Unsupported payment method. Pay the lawyer directly using the bank details on your booking.' },
+        { error: 'You can only record a payment once you have accepted the firm’s quote.' },
         { status: 400 }
       );
     }
-  } catch (error) {
-    console.error('Payment error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
-  }
-}
 
-// PATCH: Admin verify/reject payment
-export async function PATCH(
-  req: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const session = await getSession();
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const { id } = await params;
-    const body = await req.json();
-    const validated = AdminVerifyPaymentSchema.safeParse(body);
-
+    const validated = BankTransferPaymentSchema.safeParse(body);
     if (!validated.success) {
       return NextResponse.json({ error: validated.error.format() }, { status: 400 });
     }
 
-    const booking = await prisma.booking.findUnique({
-      where: { id },
-      include: {
-        payment: true,
-        client: { select: { fullName: true, email: true } },
-        lawyer: { select: { userId: true, fullName: true, onlineMeetingLink: true, user: { select: { email: true } } } },
-      },
+    const paymentData = {
+      amount: booking.totalAmount,
+      method: 'BANK_TRANSFER' as const,
+      status: 'PENDING' as const,
+      bankName: validated.data.bankName,
+      accountHolder: validated.data.accountHolder,
+      accountNumber: validated.data.accountNumber,
+      transactionDate: validated.data.transactionDate,
+      transactionRef: validated.data.transactionRef,
+      receiptImageUrl: validated.data.receiptImageUrl,
+      notes: validated.data.notes,
+    };
+
+    const payment = await prisma.bookingPayment.upsert({
+      where: { bookingId: id },
+      update: paymentData,
+      create: { bookingId: id, ...paymentData },
     });
 
-    if (!booking || !booking.payment) {
-      return NextResponse.json({ error: 'Booking or payment not found' }, { status: 404 });
-    }
+    // The booking status does not change here — only the firm confirming receipt
+    // can move it forward.
+    EmailService.sendPaymentSubmittedClient(
+      booking.client.email,
+      booking.client.fullName || 'Client',
+      booking.bookingNumber
+    );
 
-    const isLawyer = booking.lawyer.userId === session.userId;
-    const isAdmin = session.role === 'ADMIN';
-
-    if (!isLawyer && !isAdmin) {
-      return NextResponse.json({ error: 'Access denied' }, { status: 403 });
-    }
-
-    // Update payment status
-    await prisma.bookingPayment.update({
-      where: { id: booking.payment.id },
-      data: {
-        status: validated.data.status as any,
-        adminNotes: validated.data.adminNotes,
-        verifiedBy: session.userId,
-        verifiedAt: new Date(),
+    return NextResponse.json(
+      {
+        success: true,
+        payment,
+        message:
+          'Payment details recorded. Your consultation will be confirmed once the firm verifies the payment has reached their account.',
       },
-    });
-
-    // If payment approved, confirm the booking
-    if (validated.data.status === 'PAID') {
-      let meetingLink = booking.meetingLink;
-      
-      if (!meetingLink && (booking.mode === 'ONLINE' || booking.mode === 'BOTH')) {
-        meetingLink = booking.lawyer.onlineMeetingLink || null;
-      }
-
-      await prisma.booking.update({
-        where: { id },
-        data: {
-          status: 'CONFIRMED',
-          paidAt: new Date(),
-          meetingLink,
-        },
-      });
-
-      // Send emails
-      await EmailService.sendBookingConfirmationClient(
-        booking.client.email,
-        booking.client.fullName || 'Client',
-        booking.lawyer.fullName,
-        formatSriLankaDateIso(booking.date),
-        booking.startTime,
-        meetingLink || undefined,
-        booking.mode === 'PHYSICAL' ? booking.officeAddress || undefined : undefined
-      );
-
-      if (booking.lawyer.user?.email) {
-        await EmailService.sendBookingConfirmationLawyer(
-          booking.lawyer.user.email,
-          booking.lawyer.fullName,
-          booking.client.fullName || 'Client',
-          formatSriLankaDateIso(booking.date),
-          booking.startTime,
-          booking.mode
-        );
-      }
-    }
-
-    // If resubmit or cancelled, update booking accordingly
-    if (validated.data.status === 'CANCELLED') {
-      await prisma.booking.update({
-        where: { id },
-        data: {
-          status: 'CANCELLED_BY_CLIENT',
-          cancelReason: 'Payment rejected by admin',
-          cancelledAt: new Date(),
-        },
-      });
-      
-      await EmailService.sendBookingCancelledClient(
-        booking.client.email,
-        booking.client.fullName || 'Client',
-        booking.bookingNumber,
-        'Payment rejected by admin',
-        0
-      );
-    } else if (validated.data.status === 'RESUBMIT') {
-      await prisma.booking.update({
-        where: { id },
-        data: {
-          status: 'PENDING_PAYMENT',
-        },
-      });
-      await EmailService.sendPaymentResubmitClient(
-        booking.client.email,
-        booking.client.fullName || 'Client',
-        booking.bookingNumber,
-        validated.data.adminNotes || 'Payment receipt was unclear or invalid.'
-      );
-    }
-
-    return NextResponse.json({ success: true });
-  } catch {
+      { status: 201 }
+    );
+  } catch (error) {
+    console.error('Payment notification error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

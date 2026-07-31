@@ -3,6 +3,7 @@ import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { formatSriLankaDateIso, parseDateOnlyToUtc } from '@/lib/utils';
 import { z } from 'zod';
+import { SLOT_BLOCKING_STATUSES } from '@/lib/consultations/bookingStatus';
 
 const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
@@ -16,7 +17,7 @@ const AdminCreateBookingSchema = z.object({
   subject: z.string().min(3).max(200),
   description: z.string().min(10).max(2000),
   practiceArea: z.string().optional(),
-  status: z.enum(['CONFIRMED', 'PENDING_PAYMENT']).default('CONFIRMED'),
+  status: z.enum(['SCHEDULED', 'ACCEPTED']).default('SCHEDULED'),
   adminNotes: z.string().max(500).optional(),
 });
 
@@ -75,23 +76,14 @@ export async function POST(req: Request) {
         where: {
           lawyerId,
           date: targetDate,
-          status: { notIn: ['CANCELLED_BY_CLIENT', 'CANCELLED_BY_LAWYER'] },
+          status: { in: SLOT_BLOCKING_STATUSES },
           OR: [
             { startTime: { lt: endTime }, endTime: { gt: startTime } },
           ],
         },
       });
 
-      const now = new Date();
-      const validConflict = conflicts.find((b) => {
-        if (b.status === 'PENDING_PAYMENT') {
-          const hoursSinceCreation = (now.getTime() - b.createdAt.getTime()) / (1000 * 60 * 60);
-          if (hoursSinceCreation > 24) return false;
-        }
-        return true;
-      });
-
-      if (validConflict) {
+      if (conflicts.length > 0) {
         throw new Error('SLOT_TAKEN');
       }
 
@@ -135,16 +127,14 @@ export async function POST(req: Request) {
           officeAddress: mode === 'PHYSICAL' ? (lawyer.address || lawyer.district || 'Contact lawyer for address') : null,
           meetingLink: mode === 'ONLINE' ? (lawyer.onlineMeetingLink || null) : null,
           lawyerFee: 0,
-          platformFee: 0,
           totalAmount: 0,
-          commissionRate: 0,
           subject,
           description: adminNotes 
             ? `[Admin Notes: ${adminNotes}]\n\n${description}`
             : `[Admin Notes: Booking created by admin (call-to-book)]\n\n${description}`,
           practiceArea,
           status: status as any,
-          paidAt: status === 'CONFIRMED' ? new Date() : null,
+          paidAt: status === 'SCHEDULED' ? new Date() : null,
         },
       });
     }, {

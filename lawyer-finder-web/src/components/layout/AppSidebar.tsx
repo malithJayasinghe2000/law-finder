@@ -61,7 +61,6 @@ export function AppSidebar({ locale, role, userId }: { locale: string; role: str
       ]
     },
     { href: `/${locale}/dashboard/admin/finances`, icon: DollarSign, label: 'Financial Reports' },
-    { href: `/${locale}/dashboard/admin/withdrawals`, icon: Banknote, label: 'Legacy Payouts' },
     { href: `/${locale}/dashboard/admin/settings`, icon: Settings, label: 'Settings' },
     { href: `/${locale}/dashboard/admin/subscriptions`, icon: ShieldPlus, label: 'Subscription Config' },
   ];

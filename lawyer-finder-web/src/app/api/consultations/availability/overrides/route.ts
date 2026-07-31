@@ -3,6 +3,7 @@ import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { AvailabilityOverrideSchema } from '@/schemas/consultation.schema';
 import { parseDateOnlyToUtc } from '@/lib/utils';
+import { SLOT_BLOCKING_STATUSES } from '@/lib/consultations/bookingStatus';
 
 // GET: Fetch lawyer's date overrides for a month
 export async function GET(req: Request) {
@@ -67,7 +68,7 @@ export async function POST(req: Request) {
         where: {
           lawyerId: session.profileId,
           date: targetDate,
-          status: { in: ['CONFIRMED', 'PENDING_PAYMENT'] },
+          status: { in: SLOT_BLOCKING_STATUSES },
         },
       });
 

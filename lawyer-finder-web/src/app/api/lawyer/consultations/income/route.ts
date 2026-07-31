@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { CONFIRMED_STATUSES } from '@/lib/consultations/bookingStatus';
 
 /**
  * GET: The lawyer's own consultation income record.
@@ -33,7 +34,7 @@ export async function GET() {
     const consultations = await prisma.booking.findMany({
       where: {
         lawyerId: lawyer.id,
-        status: { in: ['CONFIRMED', 'IN_PROGRESS', 'COMPLETED'] },
+        status: { in: CONFIRMED_STATUSES },
       },
       select: {
         id: true,

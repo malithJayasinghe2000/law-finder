@@ -9,10 +9,16 @@ export const DayOfWeekEnum = z.enum([
 
 export const ConsultationModeEnum = z.enum(['PHYSICAL', 'ONLINE', 'BOTH']);
 
+// Engagement request lifecycle — see src/lib/consultations/bookingStatus.ts
 export const BookingStatusEnum = z.enum([
-  'PENDING_PAYMENT', 'AWAITING_BANK_TRANSFER_VERIFICATION', 'AWAITING_LAWYER_APPROVAL', 'RESCHEDULE_REQUESTED', 'REJECTED_BY_LAWYER', 'CONFIRMED', 'IN_PROGRESS', 'COMPLETED',
-  'CANCELLED_BY_CLIENT', 'CANCELLED_BY_LAWYER', 'NO_SHOW', 'DISPUTED',
+  'REQUESTED', 'CONFLICT_CHECK', 'DECLINED', 'QUOTED', 'QUOTE_EXPIRED',
+  'CLIENT_DECLINED', 'ACCEPTED', 'SCHEDULED', 'RESCHEDULE_REQUESTED',
+  'IN_PROGRESS', 'COMPLETED', 'CANCELLED_BY_CLIENT', 'CANCELLED_BY_FIRM',
+  'NO_SHOW', 'DISPUTED',
 ]);
+
+export const ConflictCheckOutcomeEnum = z.enum(['CLEAR', 'CONFLICT_FOUND', 'NEEDS_REVIEW']);
+export const FeeBasisEnum = z.enum(['CONSULTATION_FEE', 'FIXED_FEE', 'HOURLY']);
 
 export const ConsultationPricingTypeEnum = z.enum(['HOURLY', 'PER_SESSION']);
 
@@ -229,32 +235,42 @@ export type AdminVerifyPaymentInput = z.infer<typeof AdminVerifyPaymentSchema>;
 // ============= Status Colors & Labels =============
 
 export const BOOKING_STATUS_COLORS: Record<string, string> = {
-  PENDING_PAYMENT: 'bg-amber-100 text-amber-800',
-  AWAITING_BANK_TRANSFER_VERIFICATION: 'bg-sky-100 text-sky-800',
-  AWAITING_LAWYER_APPROVAL: 'bg-indigo-100 text-indigo-800',
+  REQUESTED: 'bg-indigo-100 text-indigo-800',
+  CONFLICT_CHECK: 'bg-sky-100 text-sky-800',
+  DECLINED: 'bg-rose-100 text-rose-800',
+  QUOTED: 'bg-amber-100 text-amber-800',
+  QUOTE_EXPIRED: 'bg-neutral-100 text-neutral-800',
+  CLIENT_DECLINED: 'bg-rose-100 text-rose-800',
+  ACCEPTED: 'bg-cyan-100 text-cyan-800',
+  SCHEDULED: 'bg-blue-100 text-blue-800',
   RESCHEDULE_REQUESTED: 'bg-teal-100 text-teal-800',
-  REJECTED_BY_LAWYER: 'bg-rose-100 text-rose-800',
-  CONFIRMED: 'bg-blue-100 text-blue-800',
   IN_PROGRESS: 'bg-purple-100 text-purple-800',
   COMPLETED: 'bg-green-100 text-green-800',
   CANCELLED_BY_CLIENT: 'bg-red-100 text-red-800',
-  CANCELLED_BY_LAWYER: 'bg-red-100 text-red-800',
+  CANCELLED_BY_FIRM: 'bg-red-100 text-red-800',
   NO_SHOW: 'bg-neutral-100 text-neutral-800',
   DISPUTED: 'bg-orange-100 text-orange-800',
 };
 
+/**
+ * Client-facing status labels. Deliberately avoids "booking" and "payment"
+ * language — the client is requesting an engagement, not buying a slot.
+ */
 export const BOOKING_STATUS_LABELS: Record<string, string> = {
-  PENDING_PAYMENT: 'Pending Payment',
-  AWAITING_BANK_TRANSFER_VERIFICATION: 'Pending Bank Transfer Verification',
-  AWAITING_LAWYER_APPROVAL: 'Awaiting Lawyer Approval',
-  RESCHEDULE_REQUESTED: 'Reschedule Requested',
-  REJECTED_BY_LAWYER: 'Rejected by Lawyer',
-  CONFIRMED: 'Confirmed',
-  IN_PROGRESS: 'In Progress',
+  REQUESTED: 'Request submitted',
+  CONFLICT_CHECK: 'Under review',
+  DECLINED: 'Not accepted',
+  QUOTED: 'Fee proposal received',
+  QUOTE_EXPIRED: 'Proposal expired',
+  CLIENT_DECLINED: 'Proposal declined',
+  ACCEPTED: 'Terms accepted',
+  SCHEDULED: 'Scheduled',
+  RESCHEDULE_REQUESTED: 'New time proposed',
+  IN_PROGRESS: 'In progress',
   COMPLETED: 'Completed',
-  CANCELLED_BY_CLIENT: 'Cancelled',
-  CANCELLED_BY_LAWYER: 'Cancelled by Lawyer',
-  NO_SHOW: 'No Show',
+  CANCELLED_BY_CLIENT: 'Cancelled by client',
+  CANCELLED_BY_FIRM: 'Cancelled by firm',
+  NO_SHOW: 'Missed',
   DISPUTED: 'Disputed',
 };
 
@@ -271,3 +287,88 @@ export const DAY_LABELS: Record<string, string> = {
   SATURDAY: 'Saturday',
   SUNDAY: 'Sunday',
 };
+
+// ============= Conflict Check (Phase 1a) =============
+
+/**
+ * A firm must screen for conflicts of interest before accepting a client.
+ * `notes` and `screenedParties` are firm-internal and privileged — never
+ * returned to the client or to platform staff.
+ */
+export const RecordConflictCheckSchema = z.object({
+  outcome: ConflictCheckOutcomeEnum,
+  screenedParties: z
+    .array(z.string().min(1).max(200))
+    .max(50, 'Too many parties to screen at once')
+    .default([]),
+  notes: z
+    .string()
+    .max(2000, 'Notes cannot exceed 2000 characters')
+    .optional()
+    .transform((v) => (v ? sanitizeString(v, 2000) : undefined)),
+});
+
+export type RecordConflictCheckInput = z.infer<typeof RecordConflictCheckSchema>;
+
+// ============= Quotes (Phase 1a) =============
+
+/**
+ * A fee quote issued by the firm. The amount is the firm's fee in full — the
+ * platform derives nothing from it and receives none of it.
+ * See docs/restructure/LEGAL-GUARDRAILS.md (rules 1 and 2).
+ */
+export const IssueQuoteSchema = z
+  .object({
+    feeBasis: FeeBasisEnum,
+    // LKR, whole rupees. Never cents.
+    amount: z
+      .number()
+      .int('Fee must be a whole number of rupees')
+      .min(0, 'Fee cannot be negative')
+      .max(100_000_000, 'Fee looks implausibly large — please check'),
+    hourlyRate: z.number().int().min(0).optional(),
+    estimatedHours: z.number().min(0).max(10_000).optional(),
+    scopeOfWork: z
+      .string()
+      .min(10, 'Describe what the fee covers (at least 10 characters)')
+      .max(2000)
+      .transform((v) => sanitizeString(v, 2000)),
+    exclusions: z
+      .string()
+      .max(2000)
+      .optional()
+      .transform((v) => (v ? sanitizeString(v, 2000) : undefined)),
+    // The firm's own bank details. The platform records these; it never collects.
+    paymentInstructions: z
+      .string()
+      .min(10, 'Provide the account details the client should pay into')
+      .max(1000)
+      .transform((v) => sanitizeString(v, 1000)),
+    validUntil: z
+      .string()
+      .min(1, 'A quote must have an expiry date')
+      .refine((v) => !Number.isNaN(Date.parse(v)), 'Invalid expiry date')
+      .refine((v) => Date.parse(v) > Date.now(), 'Expiry date must be in the future'),
+  })
+  .refine(
+    (d) => d.feeBasis !== 'HOURLY' || typeof d.hourlyRate === 'number',
+    { message: 'An hourly quote needs an hourly rate', path: ['hourlyRate'] }
+  );
+
+export type IssueQuoteInput = z.infer<typeof IssueQuoteSchema>;
+
+export const RespondToQuoteSchema = z
+  .object({
+    action: z.enum(['accept', 'decline']),
+    reason: z
+      .string()
+      .max(1000)
+      .optional()
+      .transform((v) => (v ? sanitizeString(v, 1000) : undefined)),
+  })
+  .refine((d) => d.action !== 'decline' || Boolean(d.reason), {
+    message: 'Please tell the firm why you are declining',
+    path: ['reason'],
+  });
+
+export type RespondToQuoteInput = z.infer<typeof RespondToQuoteSchema>;

@@ -15,8 +15,6 @@ export default function AdminFinancesPage() {
     platformTotalIncome: 0,
     totalConsultationFeesToLawyers: 0,
     consultationCount: 0,
-    legacyWithdrawalsPaid: 0,
-    legacyWithdrawalsPending: 0,
   });
   const [lawyerBreakdowns, setLawyerBreakdowns] = useState<any[]>([]);
 
@@ -103,26 +101,6 @@ export default function AdminFinancesPage() {
           </div>
         </CardContent>
       </Card>
-
-      {/* Legacy escrow figures */}
-      {(summary.legacyWithdrawalsPaid > 0 || summary.legacyWithdrawalsPending > 0) && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Card className="rounded-none border-neutral-200 shadow-sm">
-            <CardContent className="p-6">
-              <p className="text-xs font-bold uppercase tracking-widest text-neutral-500 mb-2">Legacy Payouts Settled</p>
-              <p className="text-2xl font-bold text-neutral-800">LKR {summary.legacyWithdrawalsPaid.toLocaleString()}</p>
-              <span className="text-[10px] text-neutral-400 block mt-1">Retired escrow model — reconciliation only</span>
-            </CardContent>
-          </Card>
-          <Card className="rounded-none border-neutral-200 shadow-sm">
-            <CardContent className="p-6">
-              <p className="text-xs font-bold uppercase tracking-widest text-neutral-500 mb-2">Legacy Payouts Outstanding</p>
-              <p className="text-2xl font-bold text-amber-600">LKR {summary.legacyWithdrawalsPending.toLocaleString()}</p>
-              <span className="text-[10px] text-neutral-400 block mt-1">Settle only after manual reconciliation</span>
-            </CardContent>
-          </Card>
-        </div>
-      )}
 
       {/* Lawyer Breakdown Table */}
       <Card className="rounded-none border-neutral-200 shadow-sm">

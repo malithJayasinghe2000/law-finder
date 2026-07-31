@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { CONFIRMED_STATUSES } from '@/lib/consultations/bookingStatus';
 
 // GET: Retrieve financial summary and breakdown by lawyer (ADMIN only)
 export async function GET(req: Request) {
@@ -43,7 +44,7 @@ export async function GET(req: Request) {
     const paidBookings = await prisma.booking.findMany({
       where: {
         paidAt: { not: null },
-        status: { notIn: ['CANCELLED_BY_CLIENT', 'CANCELLED_BY_LAWYER', 'PENDING_PAYMENT', 'AWAITING_BANK_TRANSFER_VERIFICATION'] },
+        status: { in: CONFIRMED_STATUSES },
       },
       select: {
         id: true,
@@ -55,14 +56,8 @@ export async function GET(req: Request) {
     // Fees paid by clients directly to lawyers. Platform share is always zero.
     const totalConsultationFeesToLawyers = paidBookings.reduce((sum, b) => sum + b.lawyerFee, 0);
 
-    // 4. Fetch all withdrawal requests
-    const withdrawals = await prisma.withdrawRequest.findMany();
-    const totalPaidPayouts = withdrawals
-      .filter((w: any) => w.status === 'APPROVED')
-      .reduce((sum: number, w: any) => sum + w.amount, 0);
-    const totalPendingPayouts = withdrawals
-      .filter((w: any) => w.status === 'PENDING')
-      .reduce((sum: number, w: any) => sum + w.amount, 0);
+    // Withdrawal requests were removed in Phase 1a — the platform never holds a
+    // lawyer's fees, so there is no balance to pay out.
 
     // 5. Calculate breakdown per lawyer
     const lawyers = await prisma.lawyerProfile.findMany({
@@ -96,15 +91,6 @@ export async function GET(req: Request) {
       const lawyerBookings = paidBookings.filter((b) => b.lawyerId === lawyer.id);
       const consultationFeesCollected = lawyerBookings.reduce((sum, b) => sum + b.lawyerFee, 0);
 
-      // Legacy withdrawal requests, retained for reconciliation only.
-      const lawyerWithdrawals = withdrawals.filter((w) => w.lawyerId === lawyer.id);
-      const legacyWithdrawalsPaid = lawyerWithdrawals
-        .filter((w) => w.status === 'APPROVED')
-        .reduce((sum, w) => sum + w.amount, 0);
-      const legacyWithdrawalsPending = lawyerWithdrawals
-        .filter((w) => w.status === 'PENDING')
-        .reduce((sum, w) => sum + w.amount, 0);
-
       return {
         lawyerId: lawyer.id,
         fullName: lawyer.fullName,
@@ -116,9 +102,6 @@ export async function GET(req: Request) {
         // What this lawyer collected from clients (NOT our revenue)
         consultationFeesCollected,
         consultationCount: lawyerBookings.length,
-        // Legacy escrow records, reconciliation only
-        legacyWithdrawalsPaid,
-        legacyWithdrawalsPending,
       };
     });
 
@@ -135,10 +118,6 @@ export async function GET(req: Request) {
         // platform. Reported for visibility; must not be summed into revenue.
         totalConsultationFeesToLawyers,
         consultationCount: paidBookings.length,
-
-        // Legacy escrow figures, retained for reconciliation only.
-        legacyWithdrawalsPaid: totalPaidPayouts,
-        legacyWithdrawalsPending: totalPendingPayouts,
       },
       lawyerBreakdowns,
     });

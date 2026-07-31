@@ -9,7 +9,8 @@
 | Phase | Scope | Status |
 | --- | --- | --- |
 | 0 | Stop the bleeding (remove commission, escrow, PayHere; fix bugs; disclaimers) | 🟢 **Done** |
-| 1 | Rebuild booking as engagement request flow | ⚪ Not started |
+| 1a | Engagement state machine, conflict check, quotes | 🟢 **Done** |
+| 1b | Engagement letter + intake wizard UI | ⚪ Next |
 | 2 | Law firm entity | ⚪ Not started |
 | 3 | Billing restructure (SaaS licence) | ⚪ Not started |
 | 4 | Advertising split | ⚪ Not started |
@@ -21,12 +22,10 @@ Legend: ⚪ not started · 🟡 in progress · 🟢 done · 🔴 blocked
 
 ## Next up
 
-**Phase 1** — rebuild the booking flow as an engagement request.
-See [ROADMAP.md](./ROADMAP.md#phase-1--rebuild-the-booking-flow). Design it for
-firms from the start (solo lawyer = firm of one) so Phase 2 is not a migration.
+**Phase 1b** — engagement letter generation + the rebuilt intake wizard and firm
+triage console. The 1a server layer is in place; 1b is the UI on top of it.
 
-Phase 0 is complete — all sub-tasks done, `npm run build` and
-`npx tsc --noEmit` both clean.
+Phase 0 and Phase 1a are complete. `npm run build` and `npx tsc --noEmit` clean.
 
 ## Decisions taken
 
@@ -172,3 +171,61 @@ without a pricing row.
 **0.7 — verification.** `npx tsc --noEmit` clean, `npm run build` compiles
 successfully (77 static pages). Guardrail sweep confirms: no commission derived
 anywhere, no PayHere code paths, no way to create a withdrawal request.
+
+### 2026-07-31 — Phase 1a (engagement state machine)
+
+**Context change:** the user confirmed this project is **not in production**. The
+Neon URL in `.env` is commented out; the live datasource is a local Postgres
+(`localhost:5432/lawfinder`) with 7 dev bookings. That removed the need for
+backwards-compatible schema work, so Phase 1a cleaned up rather than accreted.
+
+**Architecture correction.** The roadmap had called for a new `EngagementRequest`
+model with a migration off `Booking`. Rejected: `Booking` already *is* an
+engagement request, and a parallel table would have meant dual code paths through
+every dashboard, email and admin screen. We evolve `Booking` in place instead.
+ROADMAP.md updated to match.
+
+**Schema**
+- `BookingStatus` rewritten as the engagement lifecycle. Old states deleted
+  outright (no production data to preserve)
+- New `ConflictCheck` model — outcome, screened parties, firm-internal notes.
+  Privileged: not readable by the client *or* by `ADMIN`
+- New `Quote` model — versioned with `@@unique([bookingId, version])`, fee basis,
+  scope/exclusions, the firm's own payment instructions, and an expiry
+- `Booking.termsAcceptedAt` added
+- **Deleted for good:** `Booking.platformFee`, `Booking.commissionRate`,
+  `Booking.retainedPlatformFee`, `ConsultationPricing.commissionRate`,
+  `BookingPayment.payhere*`, the `WithdrawRequest` model and `WithdrawStatus` enum,
+  and `PAYHERE` from `BookingPaymentMethod` (still present in the Prisma enum after
+  Phase 0.3 — only the Zod schema had been updated)
+
+**State machine.** `src/lib/consultations/bookingStatus.ts` is now the single
+source of truth: allowed transitions, slot-blocking vs slot-releasing sets,
+terminal states, and client-facing labels. Every route guards through
+`canTransition()`. This kills the two competing state machines — `accept`/`decline`
+and `approve`/`reject` were separate paths out of the same state doing different
+things.
+
+**New routes**
+- `POST/GET [id]/conflict-check` — only the attorney handling the request may run
+  or read it. A non-clear outcome declines the request and tells the client only
+  that the firm cannot act, never why (the reason belongs to the other client)
+- `GET/POST/PATCH [id]/quotes` — firm issues, client accepts/declines. Issuing a
+  new quote supersedes any outstanding one. Accepting an expired quote is refused
+  with 410 and the request moves to `QUOTE_EXPIRED`
+- `[id]/payment` reduced to a client *notification*; admin verification removed.
+  Only the firm confirming receipt (`confirm_payment_received`) moves a request to
+  `SCHEDULED`
+
+**Removed:** `api/lawyer/withdraw`, `api/admin/withdraw`, the admin withdrawals
+page, and their sidebar entries.
+
+**Dev data:** the 7 local bookings were remapped to the new statuses before
+`prisma db push` rather than dropped.
+
+**Verification:** `npx tsc --noEmit` clean, `npm run build` compiles, schema in
+sync with the local database.
+
+**Note for later:** `prisma/migrations/` is badly out of sync — `0_init` creates 22
+tables and contains no `Booking` at all. The project runs on `db push`. Before
+production there needs to be a real migration baseline.

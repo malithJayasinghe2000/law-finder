@@ -3,6 +3,7 @@ import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { LawyerAvailabilitySchema, WeeklyScheduleSchema, AvailableSlotsQuerySchema } from '@/schemas/consultation.schema';
 import { parseDateOnlyToUtc } from '@/lib/utils';
+import { SLOT_BLOCKING_STATUSES } from '@/lib/consultations/bookingStatus';
 
 // GET: Fetch lawyer's weekly availability schedule OR available slots for a date
 export async function GET(req: Request) {
@@ -242,19 +243,15 @@ async function getAvailableSlots(lawyerId: string, dateStr: string, currentUserI
     where: {
       lawyerId,
       date: targetDate,
-      status: { notIn: ['CANCELLED_BY_CLIENT', 'CANCELLED_BY_LAWYER'] },
+      status: { in: SLOT_BLOCKING_STATUSES },
     },
     select: { startTime: true, endTime: true, status: true, createdAt: true },
   });
 
-  // Filter out PENDING_PAYMENT bookings that are older than 24 hours
-  const existingBookings = rawBookings.filter((b) => {
-    if (b.status === 'PENDING_PAYMENT') {
-      const hoursSinceCreation = (now.getTime() - b.createdAt.getTime()) / (1000 * 60 * 60);
-      if (hoursSinceCreation > 24) return false;
-    }
-    return true;
-  });
+  // The query already restricts to SLOT_BLOCKING_STATUSES, so every row here
+  // genuinely occupies its slot. The old 24h grace period for unpaid bookings is
+  // gone — an unanswered quote now expires explicitly into QUOTE_EXPIRED.
+  const existingBookings = rawBookings;
 
   // Get active slot holds for this date
   const activeHolds = await prisma.slotHold.findMany({
@@ -290,7 +287,7 @@ async function getAvailableSlots(lawyerId: string, dateStr: string, currentUserI
     for (const slot of slots) {
       // Check if slot is already booked or held
       const isBooked = existingBookings.some(
-        (b) => b.startTime === slot.start || 
+        (b) => b.startTime === slot.start ||
                (b.startTime < slot.end && b.endTime > slot.start)
       );
 
