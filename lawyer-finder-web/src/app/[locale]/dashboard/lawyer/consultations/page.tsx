@@ -12,10 +12,11 @@ import {
   ChevronLeft, ChevronRight, Eye, FileText,
 } from 'lucide-react';
 import { BOOKING_STATUS_COLORS, BOOKING_STATUS_LABELS } from '@/schemas/consultation.schema';
-import { ShieldCheck } from 'lucide-react';
+import { ShieldCheck, Banknote } from 'lucide-react';
 import { formatDateOnlyString } from '@/lib/utils';
 import ConflictCheckDialog from '@/components/consultations/ConflictCheckDialog';
 import QuoteComposerDialog from '@/components/consultations/QuoteComposerDialog';
+import PaymentReviewDialog from '@/components/consultations/PaymentReviewDialog';
 
 interface Booking {
   id: string;
@@ -50,21 +51,13 @@ export default function LawyerBookingsPage() {
   const [cancelBookingTarget, setCancelBookingTarget] = useState<Booking | null>(null);
   const [cancelReason, setCancelReason] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
-  const [verifyAction, setVerifyAction] = useState<'PAID' | 'RESUBMIT' | 'CANCELLED' | null>(null);
 
   // Accept Modal states
   const [conflictTarget, setConflictTarget] = useState<Booking | null>(null);
+  const [paymentReview, setPaymentReview] = useState<Booking | null>(null);
   const [quoteTarget, setQuoteTarget] = useState<Booking | null>(null);
-  const [acceptModal, setAcceptModal] = useState<string | null>(null);
-  const [acceptFee, setAcceptFee] = useState<number>(5000);
-  const [acceptPaymentMethod, setAcceptPaymentMethod] = useState<'BANK_TRANSFER' | 'PAY_AT_OFFICE'>('BANK_TRANSFER');
-  const [acceptBankName, setAcceptBankName] = useState('');
-  const [acceptAccountName, setAcceptAccountName] = useState('');
-  const [acceptAccountNumber, setAcceptAccountNumber] = useState('');
-  const [acceptBankBranch, setAcceptBankBranch] = useState('');
 
   // Verify Modal state
-  const [verifyModal, setVerifyModal] = useState<Booking | null>(null);
 
   // Calendar states
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -187,6 +180,16 @@ export default function LawyerBookingsPage() {
     }
   }
 
+  /**
+   * A consultation can only be completed or marked as a no-show once it has
+   * actually happened — otherwise a future booking could be closed off, which
+   * misstates the record and invites the client to rate a meeting that never
+   * occurred. Mirrors the server-side guard.
+   */
+  function hasTakenPlace(b: Booking): boolean {
+    return new Date(`${b.date}T${b.endTime}:00+05:30`).getTime() <= Date.now();
+  }
+
   async function handleCancelBooking() {
     if (!cancelBookingTarget) return;
     if (cancelReason.trim().length < 5) {
@@ -195,79 +198,6 @@ export default function LawyerBookingsPage() {
     }
 
     await handleAction(cancelBookingTarget.id, 'cancel', { reason: cancelReason });
-  }
-
-  async function handleAcceptSubmit() {
-    if (!acceptModal) return;
-    if (acceptFee < 0) {
-      toast.error('Fee cannot be negative');
-      return;
-    }
-    if (acceptPaymentMethod === 'BANK_TRANSFER' && (!acceptBankName || !acceptAccountName || !acceptAccountNumber || !acceptBankBranch)) {
-      toast.error('All bank details are required for bank transfer');
-      return;
-    }
-
-    const paymentInstructions = JSON.stringify({
-      bankName: acceptBankName,
-      accountName: acceptAccountName,
-      accountNumber: acceptAccountNumber,
-      bankBranch: acceptBankBranch
-    });
-
-    setActionLoading(true);
-    try {
-      const res = await fetch(`/api/consultations/bookings/${acceptModal}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          action: 'accept', 
-          fee: acceptFee,
-          paymentMethod: acceptPaymentMethod,
-          paymentInstructions: paymentInstructions
-        }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        toast.success('Booking accepted successfully');
-        setAcceptModal(null);
-        loadBookings();
-        loadCalendarBookings();
-      } else {
-        toast.error(data.error || 'Failed to accept booking');
-      }
-    } catch {
-      toast.error('Action failed');
-    } finally {
-      setActionLoading(false);
-    }
-  }
-
-  async function handleVerifyPayment(status: 'PAID' | 'RESUBMIT' | 'CANCELLED') {
-    if (!verifyModal) return;
-    setVerifyAction(status);
-    setActionLoading(true);
-    try {
-      const res = await fetch(`/api/consultations/bookings/${verifyModal.id}/payment`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status }),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        toast.success(`Payment ${status.toLowerCase()} successfully`);
-        setVerifyModal(null);
-        loadBookings();
-        loadCalendarBookings();
-      } else {
-        toast.error(typeof data.error === 'string' ? data.error : 'Validation error, please check the fields');
-      }
-    } catch {
-      toast.error('Action failed');
-    } finally {
-      setActionLoading(false);
-      setVerifyAction(null);
-    }
   }
 
   const handlePrevMonth = () => {
@@ -483,11 +413,11 @@ export default function LawyerBookingsPage() {
                             <>
                               <Button
                                 size="sm"
-                                onClick={() => handleAction(booking.id, 'confirm_payment_received')}
+                                onClick={() => setPaymentReview(booking)}
                                 disabled={actionLoading}
                                 className="bg-green-600 text-white hover:bg-green-700 rounded-none h-7 text-[10px] px-2.5 font-bold"
                               >
-                                <CheckCircle className="w-3 h-3 mr-1" /> Payment received
+                                <Banknote className="w-3 h-3 mr-1" /> Review payment
                               </Button>
                               <Button
                                 size="sm"
@@ -508,8 +438,9 @@ export default function LawyerBookingsPage() {
                               <Button
                                 size="sm"
                                 onClick={() => handleAction(booking.id, 'complete')}
-                                disabled={actionLoading}
-                                className="bg-green-600 text-white hover:bg-green-700 rounded-none h-7 text-[10px] px-2.5 font-bold animate-pulse hover:animate-none"
+                                disabled={actionLoading || !hasTakenPlace(booking)}
+                                title={hasTakenPlace(booking) ? undefined : 'Available once the consultation has taken place'}
+                                className="bg-green-600 text-white hover:bg-green-700 rounded-none h-7 text-[10px] px-2.5 font-bold disabled:opacity-40"
                               >
                                 <CheckCircle className="w-3 h-3 mr-1" /> Complete
                               </Button>
@@ -778,6 +709,20 @@ export default function LawyerBookingsPage() {
           clientName={conflictTarget.client?.fullName || 'Client'}
           open={Boolean(conflictTarget)}
           onOpenChange={(o) => { if (!o) setConflictTarget(null); }}
+          onCompleted={() => { loadBookings(); loadCalendarBookings(); }}
+        />
+      )}
+
+      {/* Payment review — only the firm can verify money reaching its own account */}
+      {paymentReview && (
+        <PaymentReviewDialog
+          bookingId={paymentReview.id}
+          bookingNumber={paymentReview.bookingNumber}
+          clientName={paymentReview.client?.fullName || 'Client'}
+          amount={paymentReview.totalAmount}
+          payment={paymentReview.payment || null}
+          open={Boolean(paymentReview)}
+          onOpenChange={(o) => { if (!o) setPaymentReview(null); }}
           onCompleted={() => { loadBookings(); loadCalendarBookings(); }}
         />
       )}

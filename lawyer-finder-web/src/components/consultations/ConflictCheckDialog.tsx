@@ -117,12 +117,24 @@ export function ConflictCheckDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex items-start gap-2 border border-neutral-200 bg-neutral-50 px-3 py-2">
-          <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0 text-neutral-500" aria-hidden="true" />
+        {/* Explains the step. Without this the screen reads as unexplained
+            paperwork — the first thing a real user asked about. */}
+        <div className="space-y-2 border border-neutral-200 bg-neutral-50 px-3 py-2.5">
           <p className="text-[11px] leading-relaxed text-neutral-600">
-            Everything on this screen stays inside your firm. The client is never
-            shown the parties you screened or your notes — only whether you are
-            able to act.
+            <strong className="text-neutral-800">Why this step exists.</strong> You
+            cannot act for a client where your firm has a competing loyalty — for
+            example if you already act for the other side, or advised them in the
+            past. Checking before you take the client is a professional duty.
+          </p>
+          <p className="text-[11px] leading-relaxed text-neutral-600">
+            <strong className="text-neutral-800">What to enter below.</strong> The
+            names of the people or companies on the <em>other side</em> of this
+            matter, then check them against your existing and former clients.
+          </p>
+          <p className="flex items-start gap-1.5 text-[11px] leading-relaxed text-neutral-500">
+            <Lock className="mt-0.5 h-3 w-3 shrink-0" aria-hidden="true" />
+            Everything here stays inside your firm. The client never sees the names
+            you screened or your notes — only whether you are able to act.
           </p>
         </div>
 
@@ -132,6 +144,10 @@ export function ConflictCheckDialog({
             <Label className="text-xs font-bold uppercase tracking-wide">
               Parties screened
             </Label>
+            <p className="-mt-1 text-[11px] text-neutral-500">
+              Who is on the other side? Add each name, then check them against your
+              client records.
+            </p>
             <div className="flex gap-2">
               <Input
                 value={partyInput}
@@ -139,7 +155,7 @@ export function ConflictCheckDialog({
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') { e.preventDefault(); addParty(); }
                 }}
-                placeholder="Name of a party, company, or opposing side"
+                placeholder="e.g. Perera Holdings (Pvt) Ltd"
                 className="rounded-none"
               />
               <Button

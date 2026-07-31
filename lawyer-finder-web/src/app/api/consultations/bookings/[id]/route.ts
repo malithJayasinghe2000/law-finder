@@ -142,6 +142,33 @@ export async function PATCH(
         const blocked = guard('SCHEDULED');
         if (blocked) return blocked;
 
+        // Where the client owes a transfer, they must have recorded it first —
+        // otherwise the firm would be confirming a payment with nothing to check
+        // against. PAY_AT_OFFICE has nothing to record in advance.
+        if (booking.paymentMethod !== 'PAY_AT_OFFICE') {
+          const payment = await prisma.bookingPayment.findUnique({
+            where: { bookingId: id },
+            select: { id: true },
+          });
+
+          if (!payment) {
+            return NextResponse.json(
+              { error: 'The client has not recorded a payment yet. There is nothing to confirm.' },
+              { status: 400 }
+            );
+          }
+
+          await prisma.bookingPayment.update({
+            where: { bookingId: id },
+            data: {
+              status: 'PAID',
+              verifiedBy: session.userId,
+              verifiedAt: new Date(),
+              adminNotes: typeof body.notes === 'string' ? body.notes : undefined,
+            },
+          });
+        }
+
         const meetingLink =
           booking.meetingLink ||
           (booking.mode !== 'PHYSICAL' ? booking.lawyer.onlineMeetingLink : null);
@@ -165,6 +192,46 @@ export async function PATCH(
           success: true,
           booking: { ...updated, date: formatSriLankaDateIso(updated.date) },
         });
+      }
+
+      /**
+       * The firm reviewed the payment the client recorded and it does not match —
+       * wrong amount, unreadable receipt, never arrived. The request stays in
+       * ACCEPTED so the client can correct and resubmit.
+       */
+      case 'reject_payment': {
+        if (!isLawyer && !isAdmin) {
+          return NextResponse.json({ error: 'Only the firm can reject a payment' }, { status: 403 });
+        }
+
+        if (booking.status !== 'ACCEPTED') {
+          return NextResponse.json(
+            { error: 'Only a payment on an accepted engagement can be rejected.' },
+            { status: 400 }
+          );
+        }
+
+        const reason = typeof body.reason === 'string' ? body.reason.trim() : '';
+        if (reason.length < 5) {
+          return NextResponse.json(
+            { error: 'Tell the client what was wrong so they can correct it.' },
+            { status: 400 }
+          );
+        }
+
+        await prisma.bookingPayment.update({
+          where: { bookingId: id },
+          data: { status: 'RESUBMIT', adminNotes: reason, verifiedBy: session.userId, verifiedAt: new Date() },
+        });
+
+        await EmailService.sendPaymentResubmitClient(
+          booking.client.email,
+          booking.client.fullName || 'Client',
+          booking.bookingNumber,
+          reason
+        );
+
+        return NextResponse.json({ success: true });
       }
 
       case 'cancel': {
@@ -245,6 +312,22 @@ export async function PATCH(
         const blocked = guard('COMPLETED');
         if (blocked) return blocked;
 
+        // A consultation cannot be completed before it has happened. Without this
+        // a firm could mark a future booking complete, which would misstate the
+        // record and let the client be asked to rate a meeting that never occurred.
+        const endsAt = new Date(
+          `${formatSriLankaDateIso(booking.date)}T${booking.endTime}:00+05:30`
+        );
+
+        if (endsAt.getTime() > Date.now()) {
+          return NextResponse.json(
+            {
+              error: `This consultation is scheduled for ${formatSriLankaDateIso(booking.date)} at ${booking.startTime}. It can be marked complete once it has taken place.`,
+            },
+            { status: 400 }
+          );
+        }
+
         const validated = CompleteBookingSchema.safeParse(body);
         if (!validated.success) {
           return NextResponse.json({ error: validated.error.format() }, { status: 400 });
@@ -274,6 +357,19 @@ export async function PATCH(
 
         const blocked = guard('NO_SHOW');
         if (blocked) return blocked;
+
+        // Same reasoning as 'complete' — a client cannot have missed a
+        // consultation that has not started yet.
+        const startsAt = new Date(
+          `${formatSriLankaDateIso(booking.date)}T${booking.startTime}:00+05:30`
+        );
+
+        if (startsAt.getTime() > Date.now()) {
+          return NextResponse.json(
+            { error: 'This consultation has not started yet.' },
+            { status: 400 }
+          );
+        }
 
         const updated = await prisma.booking.update({
           where: { id },

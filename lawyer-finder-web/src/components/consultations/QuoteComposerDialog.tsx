@@ -12,9 +12,11 @@ import { FileText, Loader2, Info } from 'lucide-react';
 type FeeBasis = 'CONSULTATION_FEE' | 'FIXED_FEE' | 'HOURLY';
 
 const FEE_BASES: { value: FeeBasis; label: string; hint: string }[] = [
-  { value: 'CONSULTATION_FEE', label: 'Consultation fee', hint: 'Flat fee for this consultation' },
-  { value: 'FIXED_FEE', label: 'Fixed fee', hint: 'Fixed fee for a defined scope' },
-  { value: 'HOURLY', label: 'Hourly', hint: 'Charged by the hour' },
+  // Consultation fee is the normal case here. The other two exist for when a firm
+  // wants to quote for the whole matter rather than just the meeting.
+  { value: 'CONSULTATION_FEE', label: 'Consultation fee', hint: 'For this meeting only. The usual choice.' },
+  { value: 'FIXED_FEE', label: 'Fixed fee', hint: 'For a defined job, e.g. drafting and filing a plaint.' },
+  { value: 'HOURLY', label: 'Hourly', hint: 'Charged per hour worked.' },
 ];
 
 /** Default quote validity: 7 days from now, as a yyyy-MM-dd string. */

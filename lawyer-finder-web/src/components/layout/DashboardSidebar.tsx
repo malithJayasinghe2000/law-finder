@@ -25,6 +25,7 @@ export default function DashboardSidebar({ role, locale }: DashboardSidebarProps
     { href: `/${locale}/dashboard/lawyer/inquiries`, label: 'Inquiries', icon: Inbox },
     { href: `/${locale}/dashboard/lawyer/articles`, label: 'Articles', icon: FileText },
     { href: `/${locale}/dashboard/lawyer/consultations/earnings`, label: 'Consultation Income', icon: Banknote },
+    { href: `/${locale}/dashboard/lawyer/consultations/refunds`, label: 'Refunds', icon: Banknote },
   ];
 
   const adminLinks = [

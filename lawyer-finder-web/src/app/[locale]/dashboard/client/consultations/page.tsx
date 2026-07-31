@@ -313,6 +313,16 @@ export default function ClientConsultationsPage() {
                       <div className="mb-3 text-right">
                         <p className="mb-1 text-xs text-neutral-500">Agreed fee, payable to the firm:</p>
                         <p className="text-sm font-bold text-[#0a0a0a]">Rs. {b.totalAmount?.toLocaleString()}</p>
+                        {b.payment?.status === 'RESUBMIT' ? (
+                          <p className="mt-1.5 border border-amber-200 bg-amber-50 p-1.5 text-[10px] text-amber-800">
+                            The firm needs you to correct your payment details
+                            {b.payment?.adminNotes ? `: ${b.payment.adminNotes}` : '.'}
+                          </p>
+                        ) : b.payment ? (
+                          <p className="mt-1.5 text-[10px] italic text-neutral-500">
+                            Payment recorded — waiting for the firm to confirm it arrived.
+                          </p>
+                        ) : null}
                       </div>
                     )}
                     {b.status === 'CANCELLED_BY_CLIENT' && b.refundAmount !== null && b.refundAmount > 0 && (
@@ -339,11 +349,38 @@ export default function ClientConsultationsPage() {
                           <ScrollText className="w-3 h-3 mr-1" /> Engagement letter
                         </Button>
                       )}
-                      {b.status === 'ACCEPTED' && (
-                        <Button size="sm" onClick={() => handleOpenPaymentModal(b)} className="bg-[#0a0a0a] text-white hover:bg-neutral-800 rounded-none h-7 text-[10px] px-2.5 font-bold">
-                          I have paid
-                        </Button>
-                      )}
+                      {b.status === 'ACCEPTED' && (() => {
+                        // Once a payment is recorded the client should not be able
+                        // to submit it again as if nothing happened. They can still
+                        // correct it, and must if the firm sent it back.
+                        const needsCorrection = b.payment?.status === 'RESUBMIT';
+                        const alreadyRecorded = Boolean(b.payment) && !needsCorrection;
+
+                        if (alreadyRecorded) {
+                          return (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleOpenPaymentModal(b)}
+                              className="rounded-none h-7 text-[10px] px-2.5 font-bold"
+                            >
+                              Update payment details
+                            </Button>
+                          );
+                        }
+
+                        return (
+                          <Button
+                            size="sm"
+                            onClick={() => handleOpenPaymentModal(b)}
+                            className={`rounded-none h-7 text-[10px] px-2.5 font-bold text-white ${
+                              needsCorrection ? 'bg-amber-600 hover:bg-amber-700' : 'bg-[#0a0a0a] hover:bg-neutral-800'
+                            }`}
+                          >
+                            {needsCorrection ? 'Correct payment details' : 'I have paid'}
+                          </Button>
+                        );
+                      })()}
 
                     </div>
                   </div>

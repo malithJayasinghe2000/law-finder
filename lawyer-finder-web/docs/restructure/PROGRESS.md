@@ -282,3 +282,54 @@ sweep finds no commission, no PayHere, no withdrawals, no pre-Phase-1 statuses.
 
 **Still open:** the engagement letter wording is a good-faith draft and needs
 BASL-member counsel review before real clients see it (open question #3).
+
+### 2026-07-31 — Post-test fixes (Phase 1 hardening)
+
+The user walked the full flow and found real problems. All fixed, plus three more
+found by auditing for the same *class* of bug.
+
+**Reported and fixed**
+1. **Engagement letter downloaded as `.md`** — wrong artefact for a legal document.
+   Added a print-ready A4 route (`/[locale]/engagement-letter/[id]`) rendered
+   through the browser's "Save as PDF". No PDF library needed
+2. **"I have paid" stayed enabled after submission** — the client could resubmit as
+   if nothing happened. Now shows "Update payment details" once recorded, or
+   "Correct payment details" if the firm sent it back
+3. **"Payment received" auto-scheduled with no review** — replaced with
+   `PaymentReviewDialog`: the firm sees the bank details, reference, and receipt
+   image, then confirms or rejects with a reason. New `reject_payment` action puts
+   it back to the client. `confirm_payment_received` now refuses when no payment
+   was recorded
+4. **"Complete" was clickable before the consultation date** — guarded server-side
+   (and disabled client-side) until the end time has passed. Same guard on
+   `no_show` from the start time
+5. **No lawyer-side refund management** — added
+   `/dashboard/lawyer/consultations/refunds` plus sidebar entries. The API was
+   already scoped to the owning lawyer in Phase 0.3; there was simply no page
+
+**Found by audit, not reported**
+6. **Expired quotes blocked slots forever.** A quote only expired when the client
+   happened to open it. `QUOTED` is a slot-blocking status, so an unanswered quote
+   silently held a slot off the calendar indefinitely. Added
+   `src/lib/consultations/expireQuotes.ts`, swept lazily on the bookings list
+7. **Dead handlers still shipping.** `handleAcceptSubmit` (called the removed
+   `accept` action) and `handleVerifyPayment` (called the removed payment `PATCH`)
+   were still in the lawyer page with their state, after their modals were deleted
+   in Phase 1b. Both would have 400/404'd. Removed
+8. **`NO_SHOW` was unreachable** — no UI path existed. Guard added; UI exposure
+   still outstanding
+
+**UX confusion is a bug, not a user error.** The conflict-check modal did not
+explain what a conflict of interest is or what "parties screened" means — the first
+real user had no idea. Rewritten with a plain-language explanation. Fee-basis
+options now say when to use each rather than restating their names.
+
+**Also:** created [QUESTIONS-FOR-COUNSEL.md](./QUESTIONS-FOR-COUNSEL.md) — 15
+questions across 3 priority tiers, each stating what we built, why we believe it is
+permissible, and what needs confirming, with an answer log to fill in.
+
+**Verification:** `npm run build` compiles, `npx tsc --noEmit` clean.
+
+**Still outstanding:** `NO_SHOW` has no UI trigger; `IN_PROGRESS` is unreachable
+(may be fine — consider removing); the flow has not been re-tested end to end since
+these fixes.

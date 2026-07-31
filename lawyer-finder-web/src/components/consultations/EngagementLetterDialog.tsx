@@ -7,7 +7,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { ScrollText, Download, Loader2 } from 'lucide-react';
+import { ScrollText, FileDown } from 'lucide-react';
+import { useParams } from 'next/navigation';
 
 interface Letter {
   reference: string;
@@ -31,6 +32,8 @@ export function EngagementLetterDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  const params = useParams();
+  const locale = (params?.locale as string) || 'en';
   const [letter, setLetter] = useState<Letter | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -47,17 +50,10 @@ export function EngagementLetterDialog({
       .finally(() => setLoading(false));
   }, [open, bookingId]);
 
-  function download() {
-    if (!letter) return;
-    const blob = new Blob([letter.body], { type: 'text/markdown;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${letter.reference}.md`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+  // Opens the print-ready A4 view, where the browser's "Save as PDF" produces the
+  // PDF. A markdown download was the wrong artefact for a legal document.
+  function openPdfView() {
+    window.open(`/${locale}/engagement-letter/${bookingId}`, '_blank', 'noopener');
   }
 
   return (
@@ -91,9 +87,9 @@ export function EngagementLetterDialog({
 
         {letter && (
           <DialogFooter className="gap-2 sm:gap-2">
-            <Button variant="outline" onClick={download} className="rounded-none">
-              <Download className="mr-2 h-4 w-4" aria-hidden="true" />
-              Download
+            <Button variant="outline" onClick={openPdfView} className="rounded-none">
+              <FileDown className="mr-2 h-4 w-4" aria-hidden="true" />
+              Download PDF
             </Button>
             <Button onClick={() => onOpenChange(false)} className="rounded-none">
               Close

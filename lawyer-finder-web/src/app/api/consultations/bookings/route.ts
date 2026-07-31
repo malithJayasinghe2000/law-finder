@@ -5,6 +5,7 @@ import { CreateBookingSchema, BookingFilterSchema } from '@/schemas/consultation
 import { formatSriLankaDateIso, parseDateOnlyToUtc } from '@/lib/utils';
 import { EmailService } from '@/lib/email/EmailService';
 import { SLOT_BLOCKING_STATUSES } from '@/lib/consultations/bookingStatus';
+import { expireStaleQuotes } from '@/lib/consultations/expireQuotes';
 
 // GET: List bookings (filtered by role)
 export async function GET(req: Request) {
@@ -26,6 +27,9 @@ export async function GET(req: Request) {
     if (!filters.success) {
       return NextResponse.json({ error: filters.error.format() }, { status: 400 });
     }
+
+    // Sweep lapsed quotes so a stale QUOTED row cannot keep blocking a slot.
+    await expireStaleQuotes();
 
     const { status, dateFrom, dateTo, page, limit } = filters.data;
     const skip = (page - 1) * limit;

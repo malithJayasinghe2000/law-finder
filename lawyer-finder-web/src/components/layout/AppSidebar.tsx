@@ -75,6 +75,7 @@ export function AppSidebar({ locale, role, userId }: { locale: string; role: str
         { href: `/${locale}/dashboard/lawyer/consultations/availability`, icon: History, label: 'Set Availability' },
         { href: `/${locale}/dashboard/lawyer/consultations/pricing`, icon: DollarSign, label: 'Pricing' },
         { href: `/${locale}/dashboard/lawyer/consultations/earnings`, icon: Banknote, label: 'Consultation Income' },
+        { href: `/${locale}/dashboard/lawyer/consultations/refunds`, icon: Banknote, label: 'Refunds' },
       ]
     },
     { href: `/${locale}/dashboard/lawyer/chat`, icon: MessageCircle, label: 'Messages', hasBadge: true },
