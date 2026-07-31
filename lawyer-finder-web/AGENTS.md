@@ -38,6 +38,9 @@ the AI chatbot, read in this order:**
 - API routes only under `src/app/api/{feature}/route.ts`. No API logic in components
 - Zod validation on **both** client and server. Schemas in `src/schemas/`
 - Prisma for all DB access. Soft delete via status fields — no hard deletes
+- **Schema changes ship as migrations** — `npm run db:migrate -- --name <name>`,
+  and commit `prisma/migrations/` with the schema change. Never `prisma db push`
+  on a shared database. See `docs/database-migrations.md`
 - shadcn/ui + Tailwind only. Mobile-first, responsive at all breakpoints, WCAG 2.1 AA
 - Tables: server-side pagination, filters, search, status toggles
 - Run `npm run build` after every change set and fix all errors
