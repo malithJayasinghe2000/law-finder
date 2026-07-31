@@ -266,7 +266,9 @@ async function getAvailableSlots(lawyerId: string, dateStr: string, currentUserI
     select: { startTime: true, endTime: true, clientId: true },
   });
 
-  // Generate slots
+  // Generate slots.
+  // Phase 0: no fee information is exposed here. Fees are quoted by the lawyer
+  // after they review the request — see docs/restructure/LEGAL-GUARDRAILS.md (rule 1).
   const allSlots: {
     startTime: string;
     endTime: string;
@@ -275,9 +277,6 @@ async function getAvailableSlots(lawyerId: string, dateStr: string, currentUserI
     isAvailable: boolean;
     isCallToBook: boolean;
     contactPhone: string | null;
-    physicalPrice: number | null;
-    onlinePrice: number | null;
-    platformFee: number | null;
   }[] = [];
 
   for (const window of timeWindows) {
@@ -307,10 +306,6 @@ async function getAvailableSlots(lawyerId: string, dateStr: string, currentUserI
       const meetsNotice = slotDateTime > minBookingTime;
       const isPast = slotDateTime < now;
 
-      const commissionRate = pricing?.commissionRate || 0.15;
-      const physicalPrice = pricing?.physicalPrice || null;
-      const onlinePrice = pricing?.onlinePrice || null;
-
       // Slot is available if not booked, not held, and not in the past
       // But if it doesn't meet notice, it's 'Call to Book'
       const isSlotFree = !isBooked && !isHeld && !isPast;
@@ -323,9 +318,6 @@ async function getAvailableSlots(lawyerId: string, dateStr: string, currentUserI
         isAvailable: isSlotFree,
         isCallToBook: false,
         contactPhone,
-        physicalPrice,
-        onlinePrice,
-        platformFee: physicalPrice ? Math.round(physicalPrice * commissionRate) : null,
       });
     }
   }
@@ -334,14 +326,13 @@ async function getAvailableSlots(lawyerId: string, dateStr: string, currentUserI
     date: dateStr,
     dayOfWeek,
     slots: allSlots,
-    pricing: pricing
+    // Fee amounts and commission are deliberately NOT returned. Only the
+    // non-monetary consultation terms a client needs in order to request a slot.
+    consultationTerms: pricing
       ? {
-          pricingType: pricing.pricingType,
-          physicalPrice: pricing.physicalPrice,
-          onlinePrice: pricing.onlinePrice,
-          commissionRate: pricing.commissionRate,
           freeInitialConsultation: pricing.freeInitialConsultation,
           freeConsultationDuration: pricing.freeConsultationDuration,
+          minAdvanceNoticeHours: pricing.minAdvanceNoticeHours,
         }
       : null,
   };

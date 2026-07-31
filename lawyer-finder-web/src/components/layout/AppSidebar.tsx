@@ -61,7 +61,7 @@ export function AppSidebar({ locale, role, userId }: { locale: string; role: str
       ]
     },
     { href: `/${locale}/dashboard/admin/finances`, icon: DollarSign, label: 'Financial Reports' },
-    { href: `/${locale}/dashboard/admin/withdrawals`, icon: Banknote, label: 'Payout Approvals' },
+    { href: `/${locale}/dashboard/admin/withdrawals`, icon: Banknote, label: 'Legacy Payouts' },
     { href: `/${locale}/dashboard/admin/settings`, icon: Settings, label: 'Settings' },
     { href: `/${locale}/dashboard/admin/subscriptions`, icon: ShieldPlus, label: 'Subscription Config' },
   ];
@@ -76,7 +76,7 @@ export function AppSidebar({ locale, role, userId }: { locale: string; role: str
         { href: `/${locale}/dashboard/lawyer/consultations`, icon: CalendarDays, label: 'Bookings' },
         { href: `/${locale}/dashboard/lawyer/consultations/availability`, icon: History, label: 'Set Availability' },
         { href: `/${locale}/dashboard/lawyer/consultations/pricing`, icon: DollarSign, label: 'Pricing' },
-        { href: `/${locale}/dashboard/lawyer/consultations/earnings`, icon: Banknote, label: 'Earnings & Payouts' },
+        { href: `/${locale}/dashboard/lawyer/consultations/earnings`, icon: Banknote, label: 'Consultation Income' },
       ]
     },
     { href: `/${locale}/dashboard/lawyer/chat`, icon: MessageCircle, label: 'Messages', hasBadge: true },

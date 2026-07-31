@@ -113,25 +113,25 @@ export async function POST(req: Request) {
 
     const lawyer = await prisma.lawyerProfile.findUnique({
       where: { id: lawyerId },
-      include: { consultationPricing: true, user: { select: { email: true } } },
+      include: { user: { select: { email: true } } },
     });
 
-    if (!lawyer || !lawyer.consultationPricing || !lawyer.user) {
-      return NextResponse.json({ error: 'Lawyer or pricing not found' }, { status: 404 });
+    // A consultation request no longer depends on the lawyer having configured a
+    // price. Previously this 404'd when consultationPricing was missing, which
+    // blocked requests entirely in a flow that is not supposed to have prices.
+    if (!lawyer || !lawyer.user) {
+      return NextResponse.json({ error: 'Lawyer not found' }, { status: 404 });
     }
-
-
 
     // Cannot book yourself
     if (lawyer.userId === session.userId) {
       return NextResponse.json({ error: 'Cannot book a consultation with yourself' }, { status: 400 });
     }
 
-    // Calculate pricing
-    const pricing = lawyer.consultationPricing;
-    const lawyerFee = mode === 'PHYSICAL' ? pricing.physicalPrice : pricing.onlinePrice;
-    const platformFee = Math.round(lawyerFee * pricing.commissionRate);
-    const totalAmount = lawyerFee + platformFee;
+    // No fee is set at request time and the platform never derives one.
+    // The lawyer quotes their fee when they accept the request, and the client
+    // pays that exact amount directly to the lawyer.
+    // See docs/restructure/LEGAL-GUARDRAILS.md (rules 1 and 2).
     const duration = calculateDuration(startTime, endTime);
 
     // Race-condition-safe booking creation using serializable transaction
@@ -188,10 +188,24 @@ export async function POST(req: Request) {
         },
       });
 
-      // Generate booking number
-      const bookingCount = await tx.booking.count();
+      // Generate booking number, scoped to the current year.
+      // Previously this used count() + 1 across all bookings, which collided
+      // whenever a booking was deleted and restarted numbering incorrectly at
+      // each year boundary. Deriving from the highest existing number for the
+      // year is stable; the Serializable isolation level below prevents races.
       const year = new Date().getFullYear();
-      const bookingNumber = `BK-${year}-${String(bookingCount + 1).padStart(4, '0')}`;
+      const prefix = `BK-${year}-`;
+
+      const latest = await tx.booking.findFirst({
+        where: { bookingNumber: { startsWith: prefix } },
+        orderBy: { bookingNumber: 'desc' },
+        select: { bookingNumber: true },
+      });
+
+      const lastSequence = latest
+        ? parseInt(latest.bookingNumber.slice(prefix.length), 10) || 0
+        : 0;
+      const bookingNumber = `${prefix}${String(lastSequence + 1).padStart(4, '0')}`;
 
       // Create booking
       return tx.booking.create({
@@ -205,10 +219,10 @@ export async function POST(req: Request) {
           duration,
           mode: mode as any,
           officeAddress: mode === 'PHYSICAL' ? (lawyer.address || lawyer.district || 'Contact lawyer for address') : null,
-          lawyerFee,
-          platformFee,
-          totalAmount,
-          commissionRate: pricing.commissionRate,
+          lawyerFee: 0,
+          platformFee: 0,
+          totalAmount: 0,
+          commissionRate: 0,
           subject,
           description,
           practiceArea,

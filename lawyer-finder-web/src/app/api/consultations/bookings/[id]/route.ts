@@ -111,10 +111,10 @@ export async function PATCH(
           return NextResponse.json({ error: 'Payment instructions (bank details) are required for bank transfer' }, { status: 400 });
         }
 
-        // Platform fee is calculated for internal tracking (e.g. to invoice the lawyer later)
-        // but the client only pays the exact fee quoted by the lawyer.
-        const platformFee = Math.round(fee * booking.commissionRate);
-        const totalAmount = fee;
+        // The client pays the lawyer's quoted fee, in full, directly to the lawyer.
+        // The platform takes no share of it — not at payment time, and not by
+        // invoicing the lawyer afterwards. Deferring a commission does not stop it
+        // being a commission. See docs/restructure/LEGAL-GUARDRAILS.md (rule 1).
         const newStatus = paymentMethod === 'PAY_AT_OFFICE' ? 'CONFIRMED' : 'PENDING_PAYMENT';
 
         const updated = await prisma.booking.update({
@@ -122,8 +122,9 @@ export async function PATCH(
           data: {
             status: newStatus,
             lawyerFee: fee,
-            platformFee,
-            totalAmount,
+            platformFee: 0,
+            totalAmount: fee,
+            commissionRate: 0,
             paymentMethod: paymentMethod as any,
             paymentInstructions: paymentMethod === 'BANK_TRANSFER' ? paymentInstructions : null,
           },
@@ -176,12 +177,16 @@ export async function PATCH(
           return NextResponse.json({ error: validated.error.format() }, { status: 400 });
         }
 
-        // Calculate refund and retained fees based on cancellation policy
+        // Calculate the refund the LAWYER owes the client under the cancellation
+        // policy. The platform holds no funds, so this is a record of what the
+        // lawyer should return directly — the platform never moves the money and
+        // retains nothing. See docs/restructure/LEGAL-GUARDRAILS.md (rule 2).
         let refundAmount = 0;
         let retainedLawyerFee = 0;
-        let retainedPlatformFee = 0;
+        const retainedPlatformFee = 0;
 
-        if (booking.status === 'CONFIRMED') {
+        // Only a booking that was actually paid can generate a refund.
+        if (booking.status === 'CONFIRMED' && booking.paidAt) {
           const bookingDateTime = new Date(`${formatSriLankaDateIso(booking.date)}T${booking.startTime}:00+05:30`);
           const hoursUntilBooking = (bookingDateTime.getTime() - Date.now()) / (1000 * 60 * 60);
 
@@ -192,10 +197,9 @@ export async function PATCH(
             // Client cancels 24+ hrs before = full refund
             refundAmount = booking.totalAmount;
           } else {
-            // Client cancels <24 hrs = 50% refund, 50% retained split evenly between lawyer & platform
+            // Client cancels <24 hrs = 50% refund; the lawyer retains the other 50%
             refundAmount = Math.round(booking.totalAmount * 0.5);
-            retainedLawyerFee = Math.round(booking.lawyerFee * 0.5);
-            retainedPlatformFee = Math.round(booking.platformFee * 0.5);
+            retainedLawyerFee = booking.totalAmount - refundAmount;
           }
         }
 
@@ -332,13 +336,15 @@ export async function PATCH(
           return NextResponse.json({ error: 'This booking is not awaiting approval' }, { status: 400 });
         }
         const remarks = body.remarks || 'Rejected by lawyer';
+        // A booking awaiting approval has never been paid, so there is nothing to
+        // refund. This previously wrote refundAmount + refundStatus PENDING on
+        // every rejection, filling the refund queue with refunds for money that
+        // was never sent.
         const updated = await prisma.booking.update({
           where: { id },
           data: {
             status: 'REJECTED_BY_LAWYER',
             lawyerRemarks: remarks,
-            refundAmount: booking.totalAmount,
-            refundStatus: 'PENDING',
           },
         });
         await EmailService.sendBookingRejectedClient(
@@ -423,6 +429,10 @@ export async function PATCH(
         if (booking.status !== 'RESCHEDULE_REQUESTED') {
           return NextResponse.json({ error: 'No reschedule requested' }, { status: 400 });
         }
+        // Only refund if the client actually paid.
+        const wasPaid = Boolean(booking.paidAt);
+        const refundDue = wasPaid ? booking.totalAmount : 0;
+
         const updated = await prisma.booking.update({
           where: { id },
           data: {
@@ -430,8 +440,8 @@ export async function PATCH(
             cancelReason: 'Client declined reschedule proposed by lawyer',
             cancelledAt: new Date(),
             cancelledBy: session.userId,
-            refundAmount: booking.totalAmount,
-            refundStatus: 'PENDING',
+            refundAmount: refundDue,
+            refundStatus: refundDue > 0 ? 'PENDING' : 'NONE',
             rescheduleProposedDate: null,
             rescheduleProposedTime: null,
           },
@@ -441,7 +451,7 @@ export async function PATCH(
           booking.client.fullName || 'Client',
           booking.bookingNumber,
           'Reschedule request declined by client',
-          booking.totalAmount
+          refundDue
         );
         return NextResponse.json({ success: true, booking: { ...updated, date: formatSriLankaDateIso(updated.date) } });
       }

@@ -31,6 +31,9 @@ interface Booking {
   subject: string;
   description: string;
   status: string;
+  // Bank details the lawyer supplies when quoting. The client pays the lawyer
+  // directly using these; the platform never receives the funds.
+  paymentInstructions: string | null;
   clientRating: number | null;
   createdAt: string;
   lawyer: { id: string; fullName: string; profileImageUrl: string | null; district: string | null; contactPhone: string | null };

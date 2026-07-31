@@ -54,21 +54,18 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'The specified user is not a client' }, { status: 400 });
     }
 
-    // Fetch lawyer with pricing
     const lawyer = await prisma.lawyerProfile.findUnique({
       where: { id: lawyerId },
-      include: { consultationPricing: true },
     });
 
-    if (!lawyer || !lawyer.consultationPricing) {
-      return NextResponse.json({ error: 'Lawyer or pricing not found' }, { status: 404 });
+    if (!lawyer) {
+      return NextResponse.json({ error: 'Lawyer not found' }, { status: 404 });
     }
 
-    const pricing = lawyer.consultationPricing;
+    // No fee is set here and the platform derives nothing from one. The lawyer
+    // quotes their fee when they accept the request.
+    // See docs/restructure/LEGAL-GUARDRAILS.md (rule 1).
     const targetDate = parseDateOnlyToUtc(date);
-    const lawyerFee = mode === 'PHYSICAL' ? pricing.physicalPrice : pricing.onlinePrice;
-    const platformFee = Math.round(lawyerFee * pricing.commissionRate);
-    const totalAmount = lawyerFee + platformFee;
     const duration = calculateDuration(startTime, endTime);
 
     // Create booking in a transaction (check for conflicts)
@@ -108,10 +105,21 @@ export async function POST(req: Request) {
         },
       });
 
-      // Generate booking number
-      const bookingCount = await tx.booking.count();
+      // Generate booking number, scoped to the current year (see the matching
+      // logic in api/consultations/bookings/route.ts).
       const year = new Date().getFullYear();
-      const bookingNumber = `BK-${year}-${String(bookingCount + 1).padStart(4, '0')}`;
+      const prefix = `BK-${year}-`;
+
+      const latest = await tx.booking.findFirst({
+        where: { bookingNumber: { startsWith: prefix } },
+        orderBy: { bookingNumber: 'desc' },
+        select: { bookingNumber: true },
+      });
+
+      const lastSequence = latest
+        ? parseInt(latest.bookingNumber.slice(prefix.length), 10) || 0
+        : 0;
+      const bookingNumber = `${prefix}${String(lastSequence + 1).padStart(4, '0')}`;
 
       // Create booking with admin-specified status
       return tx.booking.create({
@@ -126,10 +134,10 @@ export async function POST(req: Request) {
           mode: mode as any,
           officeAddress: mode === 'PHYSICAL' ? (lawyer.address || lawyer.district || 'Contact lawyer for address') : null,
           meetingLink: mode === 'ONLINE' ? (lawyer.onlineMeetingLink || null) : null,
-          lawyerFee,
-          platformFee,
-          totalAmount,
-          commissionRate: pricing.commissionRate,
+          lawyerFee: 0,
+          platformFee: 0,
+          totalAmount: 0,
+          commissionRate: 0,
           subject,
           description: adminNotes 
             ? `[Admin Notes: ${adminNotes}]\n\n${description}`
@@ -185,13 +193,7 @@ export async function GET(req: Request) {
           fullName: true,
           district: true,
           contactPhone: true,
-          consultationPricing: {
-            select: {
-              physicalPrice: true,
-              onlinePrice: true,
-              commissionRate: true,
-            },
-          },
+          // Fee data is not returned. Admin staff do not set or see lawyers' fees.
         },
         orderBy: { fullName: 'asc' },
       });

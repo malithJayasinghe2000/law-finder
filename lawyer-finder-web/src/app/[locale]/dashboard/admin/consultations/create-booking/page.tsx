@@ -18,11 +18,6 @@ interface Lawyer {
   fullName: string;
   district: string | null;
   contactPhone: string | null;
-  consultationPricing: {
-    physicalPrice: number;
-    onlinePrice: number;
-    commissionRate: number;
-  } | null;
 }
 
 interface Slot {
@@ -268,8 +263,7 @@ export default function AdminCreateBookingPage() {
                         )}
                       </div>
                       <div className="text-right">
-                        <p className="text-xs text-neutral-500">Physical: <span className="font-bold text-neutral-900">Rs. {lawyer.consultationPricing?.physicalPrice?.toLocaleString()}</span></p>
-                        <p className="text-xs text-neutral-500">Online: <span className="font-bold text-neutral-900">Rs. {lawyer.consultationPricing?.onlinePrice?.toLocaleString()}</span></p>
+                        <p className="text-xs text-neutral-500">{lawyer.district || 'District not set'}</p>
                       </div>
                     </div>
                   </button>
@@ -533,13 +527,11 @@ export default function AdminCreateBookingPage() {
                   <p className="font-semibold text-neutral-900">{subject}</p>
                 </div>
                 <div>
-                  <p className="text-[10px] font-bold text-neutral-500 uppercase">Total Amount</p>
-                  <p className="font-semibold text-neutral-900">
-                    Rs. {(() => {
-                      const fee = mode === 'PHYSICAL' ? selectedLawyer.consultationPricing!.physicalPrice : selectedLawyer.consultationPricing!.onlinePrice;
-                      const pfee = Math.round(fee * selectedLawyer.consultationPricing!.commissionRate);
-                      return (fee + pfee).toLocaleString();
-                    })()}
+                  <p className="text-[10px] font-bold text-neutral-500 uppercase">Fee</p>
+                  <p className="font-semibold text-neutral-900">Quoted by the lawyer</p>
+                  <p className="text-[11px] text-neutral-500 mt-0.5">
+                    The lawyer sets their fee when they accept this request, and the
+                    client pays them directly.
                   </p>
                 </div>
               </div>

@@ -2,6 +2,18 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
 
+/**
+ * LEGACY — withdrawals are retired. Lawyers can no longer create new requests
+ * (see api/lawyer/withdraw/route.ts). These handlers remain so admins can view
+ * and close out requests that already exist.
+ *
+ * IMPORTANT: the platform does not hold consultation fees. Any legacy request
+ * settled here must be reconciled manually against what was actually collected —
+ * do not assume a platform balance exists to pay from.
+ *
+ * See docs/restructure/LEGAL-GUARDRAILS.md (rule 2).
+ */
+
 // GET: Retrieve all lawyer withdrawal requests (ADMIN only)
 export async function GET(req: Request) {
   try {
@@ -26,6 +38,9 @@ export async function GET(req: Request) {
 
     return NextResponse.json({
       success: true,
+      retired: true,
+      message:
+        'Withdrawals are retired — lawyers can no longer submit new requests. Clients pay lawyers directly, so the platform holds no balance. Settle any request below only after manual reconciliation.',
       withdrawals,
     });
   } catch (error: any) {

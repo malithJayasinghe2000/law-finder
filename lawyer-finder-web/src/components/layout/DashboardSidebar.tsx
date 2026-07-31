@@ -24,7 +24,7 @@ export default function DashboardSidebar({ role, locale }: DashboardSidebarProps
     { href: `/${locale}/dashboard/lawyer/profile`, label: 'My Profile', icon: User },
     { href: `/${locale}/dashboard/lawyer/inquiries`, label: 'Inquiries', icon: Inbox },
     { href: `/${locale}/dashboard/lawyer/articles`, label: 'Articles', icon: FileText },
-    { href: `/${locale}/dashboard/lawyer/consultations/earnings`, label: 'Earnings & Payouts', icon: Banknote },
+    { href: `/${locale}/dashboard/lawyer/consultations/earnings`, label: 'Consultation Income', icon: Banknote },
   ];
 
   const adminLinks = [
@@ -34,7 +34,7 @@ export default function DashboardSidebar({ role, locale }: DashboardSidebarProps
     { href: `/${locale}/dashboard/admin/subscription-conf`, label: 'Subscription Config', icon: Star },
     { href: `/${locale}/dashboard/admin/legal-documents`, label: 'Legal Documents', icon: BookOpen },
     { href: `/${locale}/dashboard/admin/finances`, label: 'Financial Reports', icon: Landmark },
-    { href: `/${locale}/dashboard/admin/withdrawals`, label: 'Payout Approvals', icon: ArrowRightLeft },
+    { href: `/${locale}/dashboard/admin/withdrawals`, label: 'Legacy Payouts', icon: ArrowRightLeft },
   ];
 
   const links = role === 'ADMIN' ? adminLinks : lawyerLinks;

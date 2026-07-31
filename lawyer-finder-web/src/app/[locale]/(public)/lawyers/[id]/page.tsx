@@ -30,7 +30,10 @@ export default async function LawyerProfilePage({
         include: { plan: true, role: true },
         take: 1,
       },
-      consultationPricing: true,
+      // consultationPricing is deliberately NOT loaded. It was serialized into the
+      // RSC payload and readable in page source even though the UI never rendered
+      // it. Fees are quoted per-matter by the lawyer.
+      // See docs/restructure/LEGAL-GUARDRAILS.md (rule 1).
     },
   });
 

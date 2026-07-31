@@ -31,13 +31,6 @@ interface Subscription {
   nextBilling: string;
 }
 
-interface ConsultationPricing {
-  pricingType: string;
-  physicalPrice: number;
-  onlinePrice: number;
-  currency: string;
-}
-
 interface LawyerData {
   id: string;
   fullName: string;
@@ -60,7 +53,6 @@ interface LawyerData {
   user: { id: string; createdAt: string } | null;
   reviews: Review[];
   subscription?: Subscription | null;
-  consultationPricing?: ConsultationPricing | null;
 }
 
 interface OtherLawyer {
@@ -70,7 +62,6 @@ interface OtherLawyer {
   bio: string | null;
   practiceAreas: string[];
   district: string | null;
-  baseFeeRange: string | null;
   avgRating: number;
   reviewCount: number;
   languages: string[];

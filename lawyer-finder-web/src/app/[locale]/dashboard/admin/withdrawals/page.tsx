@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
-import { ArrowUpRight, CheckCircle2, Clock, XCircle, Landmark, Upload, ImagePlus, Loader2, Eye } from 'lucide-react';
+import { ArrowUpRight, CheckCircle2, Clock, XCircle, Landmark, Upload, ImagePlus, Loader2, Eye, AlertTriangle } from 'lucide-react';
 
 export default function AdminWithdrawalsPage() {
   const [loading, setLoading] = useState(true);
@@ -133,8 +133,26 @@ export default function AdminWithdrawalsPage() {
           <Landmark className="h-5 w-5" />
         </div>
         <div>
-          <h1 className="text-4xl font-normal tracking-tight text-neutral-900">Payout Approvals</h1>
-          <p className="text-sm text-neutral-500 font-medium">Verify, approve, and upload reference receipts for lawyer withdrawals</p>
+          <h1 className="text-4xl font-normal tracking-tight text-neutral-900">Legacy Payouts</h1>
+          <p className="text-sm text-neutral-500 font-medium">Historical withdrawal requests, retained for reconciliation</p>
+        </div>
+      </div>
+
+      {/* Retired-model notice */}
+      <div
+        role="alert"
+        className="flex items-start gap-3 border border-amber-200 bg-amber-50 p-4"
+      >
+        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" aria-hidden="true" />
+        <div className="space-y-1 text-sm">
+          <p className="font-semibold text-amber-900">Withdrawals have been retired</p>
+          <p className="text-amber-800">
+            The platform no longer holds consultation fees — clients pay lawyers
+            directly — so lawyers can no longer submit withdrawal requests and there
+            is no platform balance to pay from. Anything listed below predates that
+            change. <strong>Reconcile manually against funds actually collected
+            before settling any request.</strong>
+          </p>
         </div>
       </div>
 
