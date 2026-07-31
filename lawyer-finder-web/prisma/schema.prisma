@@ -174,11 +174,25 @@ enum BookingPaymentMethod {
   PAY_AT_OFFICE
 }
 
+/// Refund lifecycle.
+///
+/// The firm holds the fee, so the firm makes the refund and the platform records
+/// it. A record that rests on the firm's word alone is not enough — the client
+/// confirms receipt, or disputes it.
+///
+///   NONE -> PENDING -> PROCESSED -> CONFIRMED   (client acknowledged receipt)
+///                           |
+///                           +----> DISPUTED     (client says it never arrived)
+///                   -> DECLINED
+///
+/// See docs/restructure/LEGAL-GUARDRAILS.md (rule 2).
 enum RefundStatus {
-  NONE // No refund needed
-  PENDING // Refund calculated, awaiting admin action
-  PROCESSED // Admin has sent the refund
-  DECLINED // Refund was declined (e.g., policy violation)
+  NONE // No refund owed
+  PENDING // Owed, not yet returned
+  PROCESSED // The firm says it has returned the money
+  CONFIRMED // The client confirms they received it
+  DISPUTED // The client says they did not receive it
+  DECLINED // Refund declined under the cancellation policy
 }
 
 model User {
@@ -1114,6 +1128,18 @@ model Booking {
   refundStatus      RefundStatus @default(NONE)
   refundProcessedAt DateTime?
   refundNotes       String?
+
+  // Evidence that the refund was actually made. A note alone is the firm's
+  // unsupported word; these make the record checkable by the client.
+  refundMethod    String? // e.g. "Bank transfer", "Cash", "Cheque"
+  refundReference String? // transaction reference from the firm's bank
+  refundProofUrl  String? // uploaded receipt or transfer confirmation
+  refundSentOn    String? // the date the firm actually sent it (yyyy-MM-dd)
+
+  // The client's side of the record.
+  refundConfirmedAt   DateTime?
+  refundDisputedAt    DateTime?
+  refundDisputeReason String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

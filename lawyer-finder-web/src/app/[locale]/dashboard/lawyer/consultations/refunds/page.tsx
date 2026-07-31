@@ -25,6 +25,7 @@ interface RefundItem {
   refundStatus: string;
   refundProcessedAt: string | null;
   refundNotes: string | null;
+  refundDisputeReason: string | null;
   status: string;
   cancelReason: string | null;
 }
@@ -37,8 +38,18 @@ interface Stats {
 
 const STATUS_COLORS: Record<string, string> = {
   PENDING: 'bg-amber-100 text-amber-800',
-  PROCESSED: 'bg-green-100 text-green-800',
-  DECLINED: 'bg-red-100 text-red-800',
+  PROCESSED: 'bg-sky-100 text-sky-800',
+  CONFIRMED: 'bg-green-100 text-green-800',
+  DISPUTED: 'bg-red-100 text-red-800',
+  DECLINED: 'bg-neutral-200 text-neutral-700',
+};
+
+const STATUS_LABELS: Record<string, string> = {
+  PENDING: 'To refund',
+  PROCESSED: 'Awaiting client confirmation',
+  CONFIRMED: 'Confirmed by client',
+  DISPUTED: 'Client says not received',
+  DECLINED: 'Declined',
 };
 
 /**
@@ -56,7 +67,42 @@ export default function LawyerRefundsPage() {
   const [target, setTarget] = useState<RefundItem | null>(null);
   const [action, setAction] = useState<'process' | 'decline'>('process');
   const [notes, setNotes] = useState('');
+  const [method, setMethod] = useState('Bank transfer');
+  const [reference, setReference] = useState('');
+  const [sentOn, setSentOn] = useState(() => new Date().toISOString().split('T')[0]);
+  const [proofUrl, setProofUrl] = useState('');
+  const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
+  async function uploadProof() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/jpeg,image/png,image/webp,application/pdf';
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('File must be under 5MB');
+        return;
+      }
+      setUploading(true);
+      try {
+        const fd = new FormData();
+        fd.append('file', file);
+        fd.append('folder', 'refunds');
+        const res = await fetch('/api/upload', { method: 'POST', body: fd });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Upload failed');
+        setProofUrl(data.url);
+        toast.success('Proof attached');
+      } catch (err: any) {
+        toast.error(err?.message || 'Upload failed');
+      } finally {
+        setUploading(false);
+      }
+    };
+    input.click();
+  }
 
   useEffect(() => { load(); }, [statusFilter]);
 
@@ -81,22 +127,36 @@ export default function LawyerRefundsPage() {
       toast.error('Give the client a reason for declining');
       return;
     }
+    if (action === 'process') {
+      if (method.trim().length < 2) { toast.error('Record how you sent the refund'); return; }
+      if (reference.trim().length < 3) { toast.error('Record the transaction reference so the client can match it'); return; }
+      if (!sentOn) { toast.error('Record the date you sent it'); return; }
+    }
 
     setSubmitting(true);
     try {
       const res = await fetch('/api/consultations/refunds', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ bookingId: target.id, action, notes: notes.trim() || undefined }),
+        body: JSON.stringify({
+          bookingId: target.id,
+          action,
+          notes: notes.trim() || undefined,
+          ...(action === 'process'
+            ? { method: method.trim(), reference: reference.trim(), sentOn, proofUrl: proofUrl || undefined }
+            : {}),
+        }),
       });
       const data = await res.json();
       if (!res.ok) {
         toast.error(data.error || 'Action failed');
         return;
       }
-      toast.success(action === 'process' ? 'Recorded as refunded' : 'Refund declined');
+      toast.success(action === 'process' ? 'Recorded — the client will be asked to confirm receipt' : 'Refund declined');
       setTarget(null);
       setNotes('');
+      setReference('');
+      setProofUrl('');
       load();
     } catch {
       toast.error('Action failed');
@@ -107,7 +167,8 @@ export default function LawyerRefundsPage() {
 
   const tabs = [
     { value: 'PENDING', label: 'To refund', icon: Clock },
-    { value: 'PROCESSED', label: 'Refunded', icon: CheckCircle },
+    { value: 'PROCESSED', label: 'Awaiting confirmation', icon: Clock },
+    { value: 'DISPUTED', label: 'Disputed', icon: Info },
     { value: 'ALL', label: 'All', icon: RefreshCcw },
   ];
 
@@ -201,7 +262,7 @@ export default function LawyerRefundsPage() {
                       {r.bookingNumber}
                     </p>
                     <Badge className={`rounded-sm px-2 py-0.5 text-[10px] uppercase ${STATUS_COLORS[r.refundStatus] || ''}`}>
-                      {r.refundStatus}
+                      {STATUS_LABELS[r.refundStatus] || r.refundStatus}
                     </Badge>
                   </div>
                   <p className="flex items-center gap-1.5 font-semibold text-neutral-900">
@@ -218,6 +279,11 @@ export default function LawyerRefundsPage() {
                   {r.refundNotes && (
                     <p className="text-xs italic text-neutral-400">{r.refundNotes}</p>
                   )}
+                  {r.refundStatus === 'DISPUTED' && r.refundDisputeReason && (
+                    <p className="border border-red-200 bg-red-50 p-2 text-xs text-red-700">
+                      <strong>Client says this did not arrive:</strong> {r.refundDisputeReason}
+                    </p>
+                  )}
                 </div>
 
                 <div className="text-right">
@@ -229,7 +295,7 @@ export default function LawyerRefundsPage() {
                     </p>
                   )}
 
-                  {r.refundStatus === 'PENDING' && (
+                  {(r.refundStatus === 'PENDING' || r.refundStatus === 'DISPUTED') && (
                     <div className="mt-3 flex justify-end gap-1.5">
                       <Button
                         size="sm"
@@ -244,7 +310,7 @@ export default function LawyerRefundsPage() {
                         onClick={() => { setTarget(r); setAction('process'); setNotes('Refund sent by bank transfer'); }}
                         className="h-7 rounded-none bg-green-600 px-2.5 text-[10px] font-bold text-white hover:bg-green-700"
                       >
-                        Mark as refunded
+                        {r.refundStatus === 'DISPUTED' ? 'Re-record refund' : 'Mark as refunded'}
                       </Button>
                     </div>
                   )}
@@ -268,10 +334,72 @@ export default function LawyerRefundsPage() {
           </DialogHeader>
 
           {action === 'process' && (
-            <p className="border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
-              Only confirm once you have actually sent the money from your own
-              account. The client is notified immediately.
-            </p>
+            <>
+              <p className="border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+                Only record this once you have actually sent the money from your own
+                account. The client is notified and asked to confirm they received
+                it — so the record does not rest on your word alone.
+              </p>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label htmlFor="rf-method" className="text-xs font-bold uppercase tracking-wide">
+                    How you sent it <span className="text-red-600">*</span>
+                  </Label>
+                  <select
+                    id="rf-method"
+                    value={method}
+                    onChange={(e) => setMethod(e.target.value)}
+                    className="h-9 w-full border border-neutral-200 bg-white px-2 text-sm"
+                  >
+                    {['Bank transfer', 'Cash', 'Cheque', 'Other'].map((m) => (
+                      <option key={m} value={m}>{m}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="rf-date" className="text-xs font-bold uppercase tracking-wide">
+                    Date sent <span className="text-red-600">*</span>
+                  </Label>
+                  <input
+                    id="rf-date"
+                    type="date"
+                    value={sentOn}
+                    max={new Date().toISOString().split('T')[0]}
+                    onChange={(e) => setSentOn(e.target.value)}
+                    className="h-9 w-full border border-neutral-200 bg-white px-2 text-sm"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="rf-ref" className="text-xs font-bold uppercase tracking-wide">
+                  Transaction reference <span className="text-red-600">*</span>
+                </Label>
+                <input
+                  id="rf-ref"
+                  value={reference}
+                  onChange={(e) => setReference(e.target.value)}
+                  placeholder="The reference from your bank, so the client can match it"
+                  className="h-9 w-full border border-neutral-200 bg-white px-2 text-sm"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-bold uppercase tracking-wide">Proof (optional)</Label>
+                <div className="flex items-center gap-2">
+                  <Button type="button" variant="outline" onClick={uploadProof} disabled={uploading} className="rounded-none">
+                    {uploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                    {proofUrl ? 'Replace file' : 'Attach receipt'}
+                  </Button>
+                  {proofUrl && (
+                    <a href={proofUrl} target="_blank" rel="noopener noreferrer" className="text-xs underline">
+                      View attached
+                    </a>
+                  )}
+                </div>
+              </div>
+            </>
           )}
 
           <div className="space-y-1.5">

@@ -333,3 +333,48 @@ permissible, and what needs confirming, with an answer log to fill in.
 **Still outstanding:** `NO_SHOW` has no UI trigger; `IN_PROGRESS` is unreachable
 (may be fine — consider removing); the flow has not been re-tested end to end since
 these fixes.
+
+### 2026-08-01 — Settings cleanup, refund evidence, Phase 2 brief
+
+**Found a live guardrail violation.** `Consultation Settings` still had
+`COMMISSION_RATE = 0.15` hardcoded and showed lawyers "client pays = your fee +
+platform fee" — the exact thing the restructure deleted, sitting in the lawyer's
+own settings screen. Surfaced only because the user asked whether the section was
+still needed. Removed, along with the obsolete pricing-model and consultation-fee
+cards. The page keeps what still matters: minimum advance notice, free initial
+consultation, and default bank details used to pre-fill quotes.
+
+Also closed a second RSC price leak: `lawyers/[id]/book/page.tsx` still loaded
+`consultationPricing` into the payload (the same bug fixed on the profile page in
+Phase 0.1, missed here).
+
+**Section review** (in answer to "are these still needed?"):
+- *Availability Management* — keep, core to booking, unaffected by the restructure
+- *Consultation Settings* — reworked as above
+- *Consultation Income* — keep; becomes richer in Phase 3 with fee notes
+
+**Refunds were not good enough.** Marking a refund with a note rested entirely on
+the firm's word: no proof, no way for the client to confirm or contest it. Extended
+to a real lifecycle:
+
+```
+NONE -> PENDING -> PROCESSED -> CONFIRMED   (client acknowledged receipt)
+                        |
+                        +-----> DISPUTED    (client says it never arrived)
+                -> DECLINED
+```
+
+- Recording a refund now **requires** method, transaction reference, and date sent,
+  with optional proof upload
+- The client sees that evidence and either confirms receipt or disputes it
+- A dispute shows on the firm's refunds page with the client's reason, and can be
+  cleared by a fresh evidenced record
+- New migrations: `refund_evidence_and_acknowledgement`, `refund_evidence_fields`
+
+**Phase 2 brief written.** [PHASE-2-BRIEF.md](./PHASE-2-BRIEF.md) — a copy-paste
+prompt for a fresh session, current state, scope, design decisions already made,
+Phase-2-specific traps, carried-forward known issues, and a verification checklist
+that explicitly says a green build is not sufficient evidence.
+
+**Verification:** `npm run build` compiles, `npx tsc --noEmit` clean, migrations in
+sync.

@@ -35,6 +35,11 @@ interface Booking {
   // Bank details the lawyer supplies when quoting. The client pays the lawyer
   // directly using these; the platform never receives the funds.
   paymentInstructions: string | null;
+  refundStatus: string;
+  refundMethod: string | null;
+  refundReference: string | null;
+  refundProofUrl: string | null;
+  refundSentOn: string | null;
   clientRating: number | null;
   createdAt: string;
   lawyer: { id: string; fullName: string; profileImageUrl: string | null; district: string | null; contactPhone: string | null };
@@ -152,6 +157,35 @@ export default function ClientConsultationsPage() {
     finally { setActionLoading(false); }
   }
 
+
+  async function respondToRefund(bookingId: string, action: 'confirm' | 'dispute') {
+    let notes: string | undefined;
+    if (action === 'dispute') {
+      const input = window.prompt('What happened? The firm will see this.');
+      if (!input || input.trim().length < 5) {
+        toast.error('Please describe the problem so the firm can look into it');
+        return;
+      }
+      notes = input.trim();
+    }
+
+    try {
+      const res = await fetch('/api/consultations/refunds', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bookingId, action, notes }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.error || 'Could not send your response');
+        return;
+      }
+      toast.success(action === 'confirm' ? 'Thank you — refund confirmed' : 'The firm has been notified');
+      loadBookings();
+    } catch {
+      toast.error('Could not send your response');
+    }
+  }
 
   const handleOpenPaymentModal = (booking: any) => {
     if (booking.payment) {
@@ -325,7 +359,50 @@ export default function ClientConsultationsPage() {
                         ) : null}
                       </div>
                     )}
-                    {b.status === 'CANCELLED_BY_CLIENT' && b.refundAmount !== null && b.refundAmount > 0 && (
+                    {/* The firm says it refunded — the client confirms or disputes,
+                        so the record does not rest on the firm's word alone. */}
+                    {b.refundStatus === 'PROCESSED' && (
+                      <div className="mb-3 border border-green-200 bg-green-50 p-3 text-left">
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-green-800">
+                          Refund sent
+                        </p>
+                        <p className="mt-0.5 text-sm font-bold text-green-900">
+                          Rs. {b.refundAmount?.toLocaleString()}
+                        </p>
+                        <dl className="mt-1.5 space-y-0.5 text-[10px] text-green-800">
+                          {b.refundMethod && <div>Method: {b.refundMethod}</div>}
+                          {b.refundReference && <div>Reference: {b.refundReference}</div>}
+                          {b.refundSentOn && <div>Sent on: {formatDateOnlyString(b.refundSentOn)}</div>}
+                        </dl>
+                        {b.refundProofUrl && (
+                          <a href={b.refundProofUrl} target="_blank" rel="noopener noreferrer" className="mt-1 inline-block text-[10px] underline">
+                            View proof
+                          </a>
+                        )}
+                        <p className="mt-2 text-[10px] text-green-800">
+                          Check your account, then confirm below.
+                        </p>
+                        <div className="mt-2 flex gap-1.5">
+                          <Button size="sm" onClick={() => respondToRefund(b.id, 'confirm')} className="h-7 rounded-none bg-green-600 px-2.5 text-[10px] font-bold text-white hover:bg-green-700">
+                            I received it
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => respondToRefund(b.id, 'dispute')} className="h-7 rounded-none px-2.5 text-[10px] font-bold text-red-600">
+                            Not received
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                    {b.refundStatus === 'CONFIRMED' && (
+                      <p className="mb-2 border border-green-200 bg-green-50 p-1.5 text-[10px] text-green-800">
+                        Refund of Rs. {b.refundAmount?.toLocaleString()} confirmed received.
+                      </p>
+                    )}
+                    {b.refundStatus === 'DISPUTED' && (
+                      <p className="mb-2 border border-red-200 bg-red-50 p-1.5 text-[10px] text-red-700">
+                        You reported this refund as not received. The firm has been notified.
+                      </p>
+                    )}
+                    {b.status === 'CANCELLED_BY_CLIENT' && b.refundStatus === 'PENDING' && b.refundAmount !== null && b.refundAmount > 0 && (
                       <div className="mt-2 text-right bg-red-50 p-1.5 border border-red-100">
                         {b.refundAmount < b.totalAmount && (
                           <p className="text-[10px] text-red-600 font-bold">- Rs. {(b.totalAmount - b.refundAmount).toLocaleString()} (Late Cancel Penalty)</p>

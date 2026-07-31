@@ -22,6 +22,8 @@ the AI chatbot, read in this order:**
 2. `docs/restructure/LEGAL-GUARDRAILS.md` — hard constraints; violating one blocks the merge
 3. `docs/restructure/PROGRESS.md` — **live status: what is done, what is next**
 4. `docs/restructure/ROADMAP.md` — the phase plan
+5. `docs/restructure/QUESTIONS-FOR-COUNSEL.md` — open legal questions
+6. `docs/restructure/PHASE-2-BRIEF.md` — if starting Phase 2
 
 ### The seven hard rules (full detail in LEGAL-GUARDRAILS.md)
 

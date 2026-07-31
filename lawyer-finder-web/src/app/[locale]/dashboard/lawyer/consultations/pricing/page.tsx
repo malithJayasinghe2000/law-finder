@@ -21,8 +21,6 @@ export default function PricingPage() {
   const [accountNumber, setAccountNumber] = useState('');
   const [bankBranch, setBankBranch] = useState('');
 
-  const COMMISSION_RATE = 0.15;
-
   useEffect(() => {
     loadPricing();
   }, []);
@@ -57,9 +55,12 @@ export default function PricingPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          // physicalPrice/onlinePrice are no longer used for quoting — a fee is
+          // set per matter in the quote composer. Sent as 0 until the columns are
+          // dropped in Phase 3. See docs/restructure/LEGAL-GUARDRAILS.md (rule 1).
           pricingType,
-          physicalPrice,
-          onlinePrice,
+          physicalPrice: 0,
+          onlinePrice: 0,
           freeInitialConsultation: freeInitial,
           freeConsultationDuration: freeInitial ? freeDuration : undefined,
           minAdvanceNoticeHours,
@@ -91,10 +92,6 @@ export default function PricingPage() {
     );
   }
 
-  const physicalPlatformFee = Math.round(physicalPrice * COMMISSION_RATE);
-  const physicalClientPays = physicalPrice + physicalPlatformFee;
-  const onlinePlatformFee = Math.round(onlinePrice * COMMISSION_RATE);
-  const onlineClientPays = onlinePrice + onlinePlatformFee;
 
   return (
     <div className="space-y-8 max-w-3xl">
@@ -106,7 +103,7 @@ export default function PricingPage() {
           </div>
           <div>
             <h1 className="text-4xl font-normal tracking-tight text-neutral-900">Consultation Settings</h1>
-            <p className="text-sm text-neutral-500 font-medium">Set your availability preferences and reference fees</p>
+            <p className="text-sm text-neutral-500 font-medium">Booking preferences and the bank details used to pre-fill your quotes</p>
           </div>
         </div>
         <Button
@@ -114,93 +111,9 @@ export default function PricingPage() {
           disabled={saving}
           className="bg-[#0a0a0a] text-white hover:bg-neutral-800 rounded-none h-10 px-6 text-sm font-bold uppercase tracking-wide"
         >
-          <Save className="w-4 h-4 mr-2" /> {saving ? 'Saving...' : 'Save Pricing'}
+          <Save className="w-4 h-4 mr-2" /> {saving ? 'Saving…' : 'Save settings'}
         </Button>
       </div>
-
-      {/* Pricing Type */}
-      <Card className="rounded-none shadow-sm">
-        <CardContent className="p-6">
-          <h3 className="text-sm font-bold text-neutral-900 uppercase tracking-wide mb-4 flex items-center gap-2">
-            <Percent className="w-4 h-4" /> Pricing Model
-          </h3>
-          <div className="flex gap-4">
-            {(['PER_SESSION', 'HOURLY'] as const).map((type) => (
-              <button
-                key={type}
-                onClick={() => setPricingType(type)}
-                className={`flex-1 p-4 border-2 text-left transition-all ${pricingType === type ? 'border-[#0a0a0a] bg-neutral-50' : 'border-neutral-200 hover:border-neutral-300'}`}
-              >
-                <p className="text-sm font-bold text-neutral-900">{type === 'PER_SESSION' ? 'Per Session' : 'Hourly'}</p>
-                <p className="text-xs text-neutral-500 mt-1">{type === 'PER_SESSION' ? 'Fixed price per consultation session' : 'Price calculated per hour'}</p>
-              </button>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Price Settings */}
-      <Card className="rounded-none shadow-sm">
-        <CardContent className="p-6 space-y-6">
-          <h3 className="text-sm font-bold text-neutral-900 uppercase tracking-wide flex items-center gap-2">
-            <DollarSign className="w-4 h-4" /> Consultation Fees
-          </h3>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Physical */}
-            <div className="space-y-3 p-5 border border-neutral-200">
-              <label className="block text-[11px] font-semibold text-neutral-500 uppercase tracking-wide">Physical Consultation (LKR)</label>
-              <input
-                type="number"
-                value={physicalPrice}
-                onChange={(e) => setPhysicalPrice(Math.max(0, parseInt(e.target.value) || 0))}
-                className="w-full border border-neutral-200 px-4 py-3 text-lg font-bold bg-white"
-                min={0}
-              />
-              <div className="space-y-1 pt-2 border-t border-neutral-100">
-                <div className="flex justify-between text-xs text-neutral-500">
-                  <span>Your fee</span>
-                  <span className="font-semibold text-neutral-900">Rs. {physicalPrice.toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between text-xs text-neutral-500">
-                  <span>Platform fee (15%)</span>
-                  <span className="text-amber-600 font-semibold">Rs. {physicalPlatformFee.toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between text-sm font-bold text-neutral-900 pt-1 border-t border-neutral-100">
-                  <span>Total (Internal Ref)</span>
-                  <span>Rs. {physicalClientPays.toLocaleString()}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Online */}
-            <div className="space-y-3 p-5 border border-neutral-200">
-              <label className="block text-[11px] font-semibold text-neutral-500 uppercase tracking-wide">Online Consultation (LKR)</label>
-              <input
-                type="number"
-                value={onlinePrice}
-                onChange={(e) => setOnlinePrice(Math.max(0, parseInt(e.target.value) || 0))}
-                className="w-full border border-neutral-200 px-4 py-3 text-lg font-bold bg-white"
-                min={0}
-              />
-              <div className="space-y-1 pt-2 border-t border-neutral-100">
-                <div className="flex justify-between text-xs text-neutral-500">
-                  <span>Your fee</span>
-                  <span className="font-semibold text-neutral-900">Rs. {onlinePrice.toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between text-xs text-neutral-500">
-                  <span>Platform fee (15%)</span>
-                  <span className="text-amber-600 font-semibold">Rs. {onlinePlatformFee.toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between text-sm font-bold text-neutral-900 pt-1 border-t border-neutral-100">
-                  <span>Total (Internal Ref)</span>
-                  <span>Rs. {onlineClientPays.toLocaleString()}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
 
       {/* Free Consultation */}
       {/* <Card className="rounded-none shadow-sm">

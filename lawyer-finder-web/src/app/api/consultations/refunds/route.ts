@@ -17,7 +17,7 @@ export async function GET(req: Request) {
 
     const where: any = {};
     if (status === 'ALL') {
-      where.refundStatus = { in: ['PENDING', 'PROCESSED', 'DECLINED'] };
+      where.refundStatus = { in: ['PENDING', 'PROCESSED', 'CONFIRMED', 'DISPUTED', 'DECLINED'] };
     } else {
       where.refundStatus = status;
     }
@@ -65,6 +65,11 @@ export async function GET(req: Request) {
         refundStatus: b.refundStatus,
         refundProcessedAt: b.refundProcessedAt?.toISOString() || null,
         refundNotes: b.refundNotes,
+        refundMethod: b.refundMethod,
+        refundReference: b.refundReference,
+        refundProofUrl: b.refundProofUrl,
+        refundSentOn: b.refundSentOn,
+        refundDisputeReason: b.refundDisputeReason,
         status: b.status,
         cancelReason: b.cancelReason,
         cancelledAt: b.cancelledAt?.toISOString() || null,
@@ -120,15 +125,18 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: 'bookingId and action are required' }, { status: 400 });
     }
 
-    if (!['process', 'decline'].includes(action)) {
-      return NextResponse.json({ error: 'Invalid action. Use "process" or "decline"' }, { status: 400 });
+    if (!['process', 'decline', 'confirm', 'dispute'].includes(action)) {
+      return NextResponse.json(
+        { error: 'Invalid action. Use "process", "decline", "confirm" or "dispute".' },
+        { status: 400 }
+      );
     }
 
     const booking = await prisma.booking.findUnique({
       where: { id: bookingId },
       include: {
         client: { select: { email: true, fullName: true } },
-        lawyer: { select: { userId: true } },
+        lawyer: { select: { userId: true, fullName: true, user: { select: { email: true } } } },
       },
     });
 
@@ -138,7 +146,50 @@ export async function PATCH(req: Request) {
 
     const isAdmin = session.role === 'ADMIN';
     const isOwningLawyer = booking.lawyer.userId === session.userId;
+    const isClient = booking.clientId === session.userId;
 
+    // --- Client side: acknowledge or dispute a refund the firm says it sent ---
+    if (action === 'confirm' || action === 'dispute') {
+      if (!isClient) {
+        return NextResponse.json(
+          { error: 'Only the client can confirm or dispute a refund.' },
+          { status: 403 }
+        );
+      }
+
+      if (booking.refundStatus !== 'PROCESSED') {
+        return NextResponse.json(
+          { error: 'There is no refund awaiting your confirmation.' },
+          { status: 400 }
+        );
+      }
+
+      if (action === 'dispute' && (!notes || notes.trim().length < 5)) {
+        return NextResponse.json(
+          { error: 'Tell the firm what happened so they can look into it.' },
+          { status: 400 }
+        );
+      }
+
+      const updatedByClient = await prisma.booking.update({
+        where: { id: bookingId },
+        data:
+          action === 'confirm'
+            ? { refundStatus: 'CONFIRMED', refundConfirmedAt: new Date() }
+            : {
+                refundStatus: 'DISPUTED',
+                refundDisputedAt: new Date(),
+                refundDisputeReason: notes.trim(),
+              },
+      });
+
+      return NextResponse.json({
+        success: true,
+        booking: { id: updatedByClient.id, refundStatus: updatedByClient.refundStatus },
+      });
+    }
+
+    // --- Firm side: record that the refund was made, or decline it ---
     if (!isAdmin && !isOwningLawyer) {
       return NextResponse.json(
         { error: 'Only the lawyer who received the fee, or an admin, can record this refund.' },
@@ -146,29 +197,88 @@ export async function PATCH(req: Request) {
       );
     }
 
-    if (booking.refundStatus !== 'PENDING') {
-      return NextResponse.json({ error: 'This booking does not have a pending refund' }, { status: 400 });
+    if (booking.refundStatus !== 'PENDING' && booking.refundStatus !== 'DISPUTED') {
+      return NextResponse.json({ error: 'This booking has no refund outstanding' }, { status: 400 });
     }
 
     const actor = isOwningLawyer ? 'lawyer' : 'admin';
+
+    if (action === 'decline') {
+      if (!notes || notes.trim().length < 5) {
+        return NextResponse.json(
+          { error: 'Give the client a reason for declining the refund.' },
+          { status: 400 }
+        );
+      }
+
+      const declined = await prisma.booking.update({
+        where: { id: bookingId },
+        data: {
+          refundStatus: 'DECLINED',
+          refundProcessedAt: new Date(),
+          refundNotes: `${notes.trim()} (recorded by ${actor})`,
+        },
+      });
+
+      await EmailService.sendRefundDeclined(
+        booking.client.email,
+        booking.client.fullName || 'Client',
+        booking.bookingNumber,
+        notes.trim()
+      );
+
+      return NextResponse.json({
+        success: true,
+        booking: { id: declined.id, refundStatus: declined.refundStatus },
+      });
+    }
+
+    // action === 'process' — the firm says it has returned the money.
+    // Evidence is required: an unsupported claim is not a record.
+    const { method, reference, proofUrl, sentOn } = body;
+
+    if (typeof method !== 'string' || method.trim().length < 2) {
+      return NextResponse.json(
+        { error: 'Record how the refund was sent (e.g. bank transfer).' },
+        { status: 400 }
+      );
+    }
+
+    if (typeof reference !== 'string' || reference.trim().length < 3) {
+      return NextResponse.json(
+        { error: 'Record the transaction reference from your bank, so the client can match it.' },
+        { status: 400 }
+      );
+    }
+
+    if (typeof sentOn !== 'string' || Number.isNaN(Date.parse(sentOn))) {
+      return NextResponse.json({ error: 'Record the date you sent the refund.' }, { status: 400 });
+    }
+
     const updated = await prisma.booking.update({
       where: { id: bookingId },
       data: {
-        refundStatus: action === 'process' ? 'PROCESSED' : 'DECLINED',
+        refundStatus: 'PROCESSED',
         refundProcessedAt: new Date(),
-        refundNotes:
-          notes ||
-          (action === 'process'
-            ? `Refund confirmed as returned to the client (recorded by ${actor})`
-            : `Refund declined (recorded by ${actor})`),
+        refundMethod: method.trim(),
+        refundReference: reference.trim(),
+        refundProofUrl: typeof proofUrl === 'string' && proofUrl ? proofUrl : null,
+        refundSentOn: sentOn,
+        refundNotes: notes?.trim()
+          ? `${notes.trim()} (recorded by ${actor})`
+          : `Refund returned to the client (recorded by ${actor})`,
+        // A dispute is cleared by a fresh, evidenced record.
+        refundDisputedAt: null,
+        refundDisputeReason: null,
       },
     });
 
-    if (action === 'process') {
-      await EmailService.sendRefundProcessed(booking.client.email, booking.client.fullName || 'Client', booking.bookingNumber, booking.refundAmount || 0);
-    } else {
-      await EmailService.sendRefundDeclined(booking.client.email, booking.client.fullName || 'Client', booking.bookingNumber, notes || 'Refund declined by admin');
-    }
+    await EmailService.sendRefundProcessed(
+      booking.client.email,
+      booking.client.fullName || 'Client',
+      booking.bookingNumber,
+      booking.refundAmount || 0
+    );
 
     return NextResponse.json({
       success: true,

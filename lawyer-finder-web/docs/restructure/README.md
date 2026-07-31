@@ -45,6 +45,8 @@ Revenue moves from *a share of legal fees* to *a flat software licence*, which i
 both legal and a better business.
 
 Full reasoning: [LEGAL-GUARDRAILS.md](./LEGAL-GUARDRAILS.md).
+Questions awaiting a lawyer's answer: [QUESTIONS-FOR-COUNSEL.md](./QUESTIONS-FOR-COUNSEL.md).
+Starting Phase 2 in a fresh session? [PHASE-2-BRIEF.md](./PHASE-2-BRIEF.md).
 
 ## Where we are right now
 
