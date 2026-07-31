@@ -84,50 +84,16 @@ export async function POST(
         message: 'Payment receipt submitted. Your booking will be confirmed once admin verifies the payment.',
       }, { status: 201 });
 
-    } else if (method === 'PAYHERE') {
-      // Generate PayHere payment hash and return checkout data
-      // Client will redirect to PayHere and webhook will handle confirmation
-      const orderId = `BOOK-${booking.bookingNumber}-${Date.now()}`;
-
-      // Create or update pending payment record
-      const payment = await prisma.bookingPayment.upsert({
-        where: { bookingId: id },
-        update: {
-          amount: booking.totalAmount,
-          method: 'PAYHERE',
-          status: 'PENDING',
-          payhereOrderId: orderId,
-        },
-        create: {
-          bookingId: id,
-          amount: booking.totalAmount,
-          method: 'PAYHERE',
-          status: 'PENDING',
-          payhereOrderId: orderId,
-        },
-      });
-
-      // Return PayHere checkout data
-      const merchantId = process.env.PAYHERE_MERCHANT_ID || '';
-      const currency = 'LKR';
-
-      return NextResponse.json({
-        success: true,
-        payment,
-        payhere: {
-          merchantId,
-          orderId,
-          amount: (booking.totalAmount / 100).toFixed(2), // Convert from cents if needed
-          currency,
-          items: `Legal Consultation - ${booking.bookingNumber}`,
-          returnUrl: `${process.env.NEXT_PUBLIC_APP_URL || ''}/en/dashboard/client/consultations?payment=success&bookingId=${id}`,
-          cancelUrl: `${process.env.NEXT_PUBLIC_APP_URL || ''}/en/dashboard/client/consultations?payment=cancelled&bookingId=${id}`,
-          notifyUrl: `${process.env.NEXT_PUBLIC_APP_URL || ''}/api/consultations/bookings/${id}/payment/webhook`,
-        },
-      }, { status: 201 });
-
     } else {
-      return NextResponse.json({ error: 'Invalid payment method' }, { status: 400 });
+      // PayHere was removed here. It settled consultation fees into a platform
+      // merchant account, which is exactly the client-money problem the
+      // restructure exists to fix. See docs/restructure/LEGAL-GUARDRAILS.md
+      // (rule 2). Clients pay lawyers directly using the bank details the lawyer
+      // supplies when quoting.
+      return NextResponse.json(
+        { error: 'Unsupported payment method. Pay the lawyer directly using the bank details on your booking.' },
+        { status: 400 }
+      );
     }
   } catch (error) {
     console.error('Payment error:', error);

@@ -8,6 +8,7 @@ import { Search, MapPin, Languages, ShieldCheck, Briefcase, ChevronLeft, Chevron
 import { SponsoredListing, AdBanner } from '@/components/ads/AdComponents';
 import LawyerCard from '@/components/lawyer/LawyerCard';
 import LawyerFilterForm from './LawyerFilterForm';
+import { LegalDisclaimer } from '@/components/shared/LegalDisclaimer';
 
 export const metadata = { title: 'Lawyer Directory' };
 
@@ -84,7 +85,7 @@ export default async function LawyerDirectory({
         <Separator className="mb-8" />
 
         {/* Results count */}
-        <p className="mb-6 text-sm text-muted-foreground">
+        <p className="mb-3 text-sm text-muted-foreground">
           {totalCount} verified {totalCount === 1 ? 'lawyer' : 'lawyers'} found
           {hasFilters && (
             <span className="text-xs text-neutral-400 ml-2">
@@ -92,6 +93,9 @@ export default async function LawyerDirectory({
             </span>
           )}
         </p>
+
+        {/* Ranking neutrality must be disclosed, not just practised */}
+        <LegalDisclaimer variant="directory" className="mb-6" />
 
         {/* Grid */}
         {lawyers.length === 0 ? (

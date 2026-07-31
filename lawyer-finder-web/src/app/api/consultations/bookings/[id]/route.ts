@@ -40,9 +40,17 @@ export async function GET(
       return NextResponse.json({ error: 'Access denied' }, { status: 403 });
     }
 
+    // Legal professional privilege (Evidence Ordinance s.126): withhold the
+    // client's account of their matter, and the lawyer's notes on it, from
+    // platform staff. See docs/restructure/LEGAL-GUARDRAILS.md (rule 5).
+    const redactMatterDetail = isAdmin && !isClient && !isLawyer;
+
     return NextResponse.json({
       booking: {
         ...booking,
+        subject: redactMatterDetail ? '[Withheld — privileged]' : booking.subject,
+        description: redactMatterDetail ? '[Withheld — privileged]' : booking.description,
+        lawyerNotes: redactMatterDetail ? null : booking.lawyerNotes,
         date: formatSriLankaDateIso(booking.date),
         createdAt: booking.createdAt.toISOString(),
         updatedAt: booking.updatedAt.toISOString(),
@@ -50,6 +58,7 @@ export async function GET(
         cancelledAt: booking.cancelledAt?.toISOString() || null,
       },
       role: isClient ? 'CLIENT' : isLawyer ? 'LAWYER' : 'ADMIN',
+      matterDetailRedacted: redactMatterDetail,
     });
   } catch {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

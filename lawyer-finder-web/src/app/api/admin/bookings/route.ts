@@ -186,7 +186,8 @@ export async function GET(req: Request) {
       const lawyers = await prisma.lawyerProfile.findMany({
         where: {
           isVerified: true,
-          consultationPricing: { isNot: null },
+          // No longer filtered on having consultationPricing — a lawyer does not
+          // need a configured price to receive requests.
         },
         select: {
           id: true,

@@ -124,7 +124,7 @@ export default function AdminConsultationsPage() {
                       <td className="px-6 py-4"><Badge variant="outline" className="text-[10px]">{b.mode}</Badge></td>
                       <td className="px-6 py-4 text-right">
                         <p className="font-bold text-neutral-900">Rs. {b.totalAmount.toLocaleString()}</p>
-                        <p className="text-[10px] text-amber-600">Platform: Rs. {b.platformFee.toLocaleString()}</p>
+                        <p className="text-[10px] text-neutral-400">Paid to lawyer</p>
                       </td>
                       <td className="px-6 py-4">
                         <Badge className={`text-[10px] uppercase tracking-wider rounded-sm ${BOOKING_STATUS_COLORS[b.status]}`}>

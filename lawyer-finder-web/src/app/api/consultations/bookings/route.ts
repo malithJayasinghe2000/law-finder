@@ -61,9 +61,18 @@ export async function GET(req: Request) {
       prisma.booking.count({ where }),
     ]);
 
+    // Legal professional privilege (Evidence Ordinance s.126): the client's own
+    // account of their legal problem is privileged and confidential to the client
+    // and their lawyer. Platform staff have no need to read it, so it is redacted
+    // for ADMIN. See docs/restructure/LEGAL-GUARDRAILS.md (rule 5).
+    const redactMatterDetail = session.role === 'ADMIN';
+
     return NextResponse.json({
       bookings: bookings.map((b) => ({
         ...b,
+        subject: redactMatterDetail ? '[Withheld — privileged]' : b.subject,
+        description: redactMatterDetail ? '[Withheld — privileged]' : b.description,
+        lawyerNotes: redactMatterDetail ? null : b.lawyerNotes,
         date: formatSriLankaDateIso(b.date),
         createdAt: b.createdAt.toISOString(),
         updatedAt: b.updatedAt.toISOString(),

@@ -30,12 +30,12 @@ export async function POST(req: Request) {
     const targetDate = parseDateOnlyToUtc(date);
     const now = new Date();
 
-    // Clean up old expired holds for this lawyer (housekeeping)
+    // Housekeeping: sweep every expired hold, not just this lawyer's.
+    // Expired holds never block a slot (availability filters on expiresAt), but
+    // scoping the delete to one lawyer meant rows for lawyers who stopped
+    // receiving hold requests were never reclaimed.
     await prisma.slotHold.deleteMany({
-      where: {
-        lawyerId,
-        expiresAt: { lt: now },
-      },
+      where: { expiresAt: { lt: now } },
     });
 
     // Check if slot is currently booked

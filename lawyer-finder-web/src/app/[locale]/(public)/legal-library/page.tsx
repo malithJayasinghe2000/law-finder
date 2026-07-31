@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useSearchParams } from 'next/navigation';
+import { LegalDisclaimer } from '@/components/shared/LegalDisclaimer';
 import {
   BookOpen, Search, Scale, Gavel, FileText, Scroll,
   ChevronRight, Calendar, Filter, X, ArrowRight
@@ -122,6 +123,8 @@ export default function LegalLibraryPage() {
             <p className="text-neutral-500 text-sm sm:text-base max-w-xl font-light leading-relaxed">
               Explore Sri Lankan Acts, Ordinances, Case Law, and Gazette Notifications — cataloged and structured by our AI knowledge graph for high-precision semantic search.
             </p>
+
+            <LegalDisclaimer variant="library" className="max-w-xl" />
 
             {/* Embedded Search styled to match home page */}
             <form onSubmit={handleSearch} className="pt-2 w-full max-w-[580px]">

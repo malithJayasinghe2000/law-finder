@@ -8,7 +8,7 @@
 
 | Phase | Scope | Status |
 | --- | --- | --- |
-| 0 | Stop the bleeding (remove commission, escrow, PayHere; fix bugs; disclaimers) | 🟡 In progress |
+| 0 | Stop the bleeding (remove commission, escrow, PayHere; fix bugs; disclaimers) | 🟢 **Done** |
 | 1 | Rebuild booking as engagement request flow | ⚪ Not started |
 | 2 | Law firm entity | ⚪ Not started |
 | 3 | Billing restructure (SaaS licence) | ⚪ Not started |
@@ -21,22 +21,12 @@ Legend: ⚪ not started · 🟡 in progress · 🟢 done · 🔴 blocked
 
 ## Next up
 
-**Phase 0.3** — remove PayHere from the booking payment path.
-Then 0.4 (`SlotHold` expiry sweep — the other 0.4 bugs are already fixed), 0.5
-(gate matter descriptions from `ADMIN`), 0.6 (disclaimers + neutral AI suggestion),
-0.7 (final verification).
+**Phase 1** — rebuild the booking flow as an engagement request.
+See [ROADMAP.md](./ROADMAP.md#phase-1--rebuild-the-booking-flow). Design it for
+firms from the start (solo lawyer = firm of one) so Phase 2 is not a migration.
 
-### Phase 0 sub-status
-
-| # | Task | Status |
-| --- | --- | --- |
-| 0.1 | Remove commission / `platformFee` | 🟢 Done |
-| 0.2 | Remove escrow / withdrawals | 🟢 Done |
-| 0.3 | Remove PayHere from booking | ⚪ Next |
-| 0.4 | Booking bug fixes | 🟡 Partial — phantom refunds + `bookingNumber` race fixed; `SlotHold` sweep outstanding |
-| 0.5 | Gate matter descriptions from `ADMIN` | ⚪ Not started |
-| 0.6 | Disclaimers + neutral AI suggestion | ⚪ Not started |
-| 0.7 | Build + verify | ⚪ Not started |
+Phase 0 is complete — all sub-tasks done, `npm run build` and
+`npx tsc --noEmit` both clean.
 
 ## Decisions taken
 
@@ -135,3 +125,50 @@ did not typecheck before this session), `npm run build` passes.
 **Open item for Phase 1:** `LawyerProfile.baseFeeRange` is still published publicly
 via `GET /api/lawyers` and `ads/serve`. Left in place to avoid breaking the
 directory mid-phase — decide its fate in Phase 1.
+
+### 2026-07-31 — Phase 0.3–0.7 (Phase 0 complete)
+
+**0.3 — PayHere removed.** It settled consultation fees into a *platform* merchant
+account, which is the client-money problem the restructure exists to fix.
+- Deleted `api/consultations/bookings/[id]/payment/webhook/` entirely
+- Removed the `PAYHERE` branch from the payment route
+- `BookingPaymentMethodEnum` is now `['BANK_TRANSFER', 'PAY_AT_OFFICE']`
+
+Two bugs died with it:
+- **Auth bypass.** The webhook set `isSandbox = !process.env.PAYHERE_MERCHANT_SECRET`
+  and **skipped MD5 signature verification entirely** when the secret was unset —
+  anyone could POST to it and mark a booking `PAID`
+- **Mispricing.** `(totalAmount / 100).toFixed(2)` treated LKR as cents; a
+  LKR 15,000 consultation would have charged LKR 150
+
+**Refunds reframed.** The platform cannot refund money it never held. The lawyer
+holds the fee, so the lawyer returns it and the platform only *records* that:
+- `PATCH /api/consultations/refunds` now accepts the owning lawyer as well as admin
+- `GET` opened to `LAWYER`, scoped to that lawyer's own refunds; the summary counts
+  are scoped the same way (they previously reported platform-wide totals to anyone)
+- Admin refunds page carries a notice that marking a refund records it, not makes it
+
+**0.4 — `SlotHold`.** Correcting an earlier finding: expired holds never blocked
+slots (availability filters `expiresAt > now`) and the route already swept them
+per-lawyer. The real issue was unbounded row growth for lawyers who stopped
+receiving hold requests. The sweep is now global.
+
+**0.5 — privilege.** `subject`, `description` and `lawyerNotes` are redacted for
+`ADMIN` in both booking read paths (Evidence Ordinance s.126). Also removed a
+leftover `consultationPricing: { isNot: null }` filter that still excluded lawyers
+without a pricing row.
+
+**0.6 — disclaimers + neutral ranking.**
+- New `components/shared/LegalDisclaimer.tsx` with `ai` / `library` / `directory`
+  variants. Placed on the AI chat, both legal-library pages, and the public directory
+- `suggest-lawyers` rewritten: no rating, no `subscriptionTier` returned at all,
+  alphabetical ordering, optional district filter. Returns neutral criteria only
+  (practice areas, district, languages, years of experience)
+- Chat heading changed from "Recommended Legal Counsel" to "Attorneys practising in
+  this area" — the platform recommends nobody
+- Removed leftover `platformFee` / `retainedPlatformFee` displays across the admin
+  consultations, refunds, and API surfaces
+
+**0.7 — verification.** `npx tsc --noEmit` clean, `npm run build` compiles
+successfully (77 static pages). Guardrail sweep confirms: no commission derived
+anywhere, no PayHere code paths, no way to create a withdrawal request.

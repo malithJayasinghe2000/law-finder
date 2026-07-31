@@ -8,8 +8,8 @@ import { EmailService } from '@/lib/email/EmailService';
 export async function GET(req: Request) {
   try {
     const session = await getSession();
-    if (!session || session.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
+    if (!session || (session.role !== 'ADMIN' && session.role !== 'LAWYER')) {
+      return NextResponse.json({ error: 'Access denied' }, { status: 403 });
     }
 
     const { searchParams } = new URL(req.url);
@@ -20,6 +20,21 @@ export async function GET(req: Request) {
       where.refundStatus = { in: ['PENDING', 'PROCESSED', 'DECLINED'] };
     } else {
       where.refundStatus = status;
+    }
+
+    // A lawyer sees only refunds they themselves owe — they hold the money, so
+    // they are the one who returns it.
+    if (session.role === 'LAWYER') {
+      const lawyer = await prisma.lawyerProfile.findUnique({
+        where: { userId: session.userId },
+        select: { id: true },
+      });
+
+      if (!lawyer) {
+        return NextResponse.json({ error: 'Lawyer profile not found' }, { status: 404 });
+      }
+
+      where.lawyerId = lawyer.id;
     }
 
     const bookings = await prisma.booking.findMany({
@@ -45,10 +60,8 @@ export async function GET(req: Request) {
         mode: b.mode,
         totalAmount: b.totalAmount,
         lawyerFee: b.lawyerFee,
-        platformFee: b.platformFee,
         refundAmount: b.refundAmount || 0,
         retainedLawyerFee: b.retainedLawyerFee || 0,
-        retainedPlatformFee: b.retainedPlatformFee || 0,
         refundStatus: b.refundStatus,
         refundProcessedAt: b.refundProcessedAt?.toISOString() || null,
         refundNotes: b.refundNotes,
@@ -61,11 +74,17 @@ export async function GET(req: Request) {
         paymentAccountHolder: b.payment?.accountHolder || null,
         paymentTransactionRef: b.payment?.transactionRef || null,
       })),
+      // Scoped the same way as the list above, so a lawyer's totals cover only
+      // their own refunds rather than the whole platform's.
       stats: {
-        pendingCount: await prisma.booking.count({ where: { refundStatus: 'PENDING' } }),
-        processedCount: await prisma.booking.count({ where: { refundStatus: 'PROCESSED' } }),
+        pendingCount: await prisma.booking.count({
+          where: { ...where, refundStatus: 'PENDING' },
+        }),
+        processedCount: await prisma.booking.count({
+          where: { ...where, refundStatus: 'PROCESSED' },
+        }),
         totalPendingAmount: (await prisma.booking.aggregate({
-          where: { refundStatus: 'PENDING' },
+          where: { ...where, refundStatus: 'PENDING' },
           _sum: { refundAmount: true },
         }))._sum.refundAmount || 0,
       },
@@ -76,12 +95,22 @@ export async function GET(req: Request) {
   }
 }
 
-// PATCH: Process a refund (mark as PROCESSED or DECLINED)
+/**
+ * PATCH: Record that a refund has been made, or declined.
+ *
+ * The platform does not hold consultation fees, so it cannot issue a refund. The
+ * lawyer received the money and the lawyer returns it directly to the client.
+ * This endpoint only *records* that outcome.
+ *
+ * The lawyer who owes the refund can record it themselves; admins may also record
+ * one on their behalf for support cases.
+ * See docs/restructure/LEGAL-GUARDRAILS.md (rule 2).
+ */
 export async function PATCH(req: Request) {
   try {
     const session = await getSession();
-    if (!session || session.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const body = await req.json();
@@ -97,23 +126,41 @@ export async function PATCH(req: Request) {
 
     const booking = await prisma.booking.findUnique({
       where: { id: bookingId },
-      include: { client: { select: { email: true, fullName: true } } },
+      include: {
+        client: { select: { email: true, fullName: true } },
+        lawyer: { select: { userId: true } },
+      },
     });
 
     if (!booking) {
       return NextResponse.json({ error: 'Booking not found' }, { status: 404 });
     }
 
+    const isAdmin = session.role === 'ADMIN';
+    const isOwningLawyer = booking.lawyer.userId === session.userId;
+
+    if (!isAdmin && !isOwningLawyer) {
+      return NextResponse.json(
+        { error: 'Only the lawyer who received the fee, or an admin, can record this refund.' },
+        { status: 403 }
+      );
+    }
+
     if (booking.refundStatus !== 'PENDING') {
       return NextResponse.json({ error: 'This booking does not have a pending refund' }, { status: 400 });
     }
 
+    const actor = isOwningLawyer ? 'lawyer' : 'admin';
     const updated = await prisma.booking.update({
       where: { id: bookingId },
       data: {
         refundStatus: action === 'process' ? 'PROCESSED' : 'DECLINED',
         refundProcessedAt: new Date(),
-        refundNotes: notes || (action === 'process' ? 'Refund processed by admin' : 'Refund declined by admin'),
+        refundNotes:
+          notes ||
+          (action === 'process'
+            ? `Refund confirmed as returned to the client (recorded by ${actor})`
+            : `Refund declined (recorded by ${actor})`),
       },
     });
 

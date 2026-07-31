@@ -24,10 +24,8 @@ interface RefundItem {
   mode: string;
   totalAmount: number;
   lawyerFee: number;
-  platformFee: number;
   refundAmount: number;
   retainedLawyerFee: number;
-  retainedPlatformFee: number;
   refundStatus: string;
   refundProcessedAt: string | null;
   refundNotes: string | null;
@@ -126,8 +124,21 @@ export default function AdminRefundsPage() {
           <Banknote className="h-5 w-5" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-neutral-900">Refund Management</h1>
-          <p className="text-sm text-neutral-500 font-medium">Review and process refunds for cancelled consultations</p>
+          <h1 className="text-2xl font-bold tracking-tight text-neutral-900">Refund Records</h1>
+          <p className="text-sm text-neutral-500 font-medium">Track refunds owed to clients for cancelled consultations</p>
+        </div>
+      </div>
+
+      {/* The platform holds no funds — it records refunds, it does not make them */}
+      <div role="note" className="flex items-start gap-3 border border-blue-200 bg-blue-50 p-4">
+        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" aria-hidden="true" />
+        <div className="space-y-1 text-sm">
+          <p className="font-semibold text-blue-900">The platform does not issue these refunds</p>
+          <p className="text-blue-800">
+            Clients pay lawyers directly, so the lawyer holds the fee and the lawyer
+            returns it. Marking a refund here <strong>records</strong> that it was
+            returned — it does not move any money.
+          </p>
         </div>
       </div>
 
@@ -220,10 +231,10 @@ export default function AdminRefundsPage() {
                     </Badge>
                   </div>
                   <div className="flex items-center gap-1.5 text-xs text-neutral-400">
-                    {refund.paymentMethod === 'BANK_TRANSFER' ? (
-                      <><Banknote className="w-3 h-3" /> Bank Transfer</>
+                    {refund.paymentMethod === 'PAY_AT_OFFICE' ? (
+                      <><CreditCard className="w-3 h-3" /> Paid at Office</>
                     ) : (
-                      <><CreditCard className="w-3 h-3" /> PayHere</>
+                      <><Banknote className="w-3 h-3" /> Bank Transfer</>
                     )}
                   </div>
                 </div>
@@ -291,13 +302,10 @@ export default function AdminRefundsPage() {
                         <p className="text-[10px] text-neutral-400 uppercase tracking-wider font-bold">Refund Amount</p>
                         <p className="text-2xl font-bold text-red-600">Rs. {refund.refundAmount.toLocaleString()}</p>
                         <div className="text-[10px] text-neutral-400 space-y-0.5 mt-2">
-                          <p>Original Total: Rs. {refund.totalAmount.toLocaleString()}</p>
-                          <p>Original Lawyer Fee: Rs. {refund.lawyerFee.toLocaleString()}</p>
-                          <p>Original Platform Fee: Rs. {refund.platformFee.toLocaleString()}</p>
+                          <p>Original Fee: Rs. {refund.totalAmount.toLocaleString()}</p>
                           {refund.retainedLawyerFee > 0 && (
                             <div className="mt-2 pt-2 border-t border-neutral-100 space-y-0.5 text-amber-600 font-medium">
                               <p>Retained by Lawyer: Rs. {refund.retainedLawyerFee.toLocaleString()}</p>
-                              <p>Retained by Platform: Rs. {refund.retainedPlatformFee.toLocaleString()}</p>
                             </div>
                           )}
                         </div>

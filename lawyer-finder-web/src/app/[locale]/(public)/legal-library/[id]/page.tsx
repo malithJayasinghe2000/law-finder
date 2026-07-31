@@ -7,6 +7,7 @@ import {
   ArrowLeft, Download, FileText, ExternalLink, BookOpen, Compass
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { LegalDisclaimer } from '@/components/shared/LegalDisclaimer';
 
 interface DocumentDetail {
   id: string;
@@ -236,7 +237,9 @@ export default function DocumentDetailPage() {
   return (
     <div className="min-h-screen bg-[#faf9f6] selection:bg-[#bfa37a]/30 pt-12 pb-16">
       <div className="max-w-7xl mx-auto px-6">
-        
+
+        <LegalDisclaimer variant="library" className="mb-6" />
+
         {/* Navigation & Actions Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8 border-b border-neutral-200/50 pb-6">
           <div className="space-y-2">

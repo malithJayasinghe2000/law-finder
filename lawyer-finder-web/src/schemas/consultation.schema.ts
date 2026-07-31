@@ -16,7 +16,9 @@ export const BookingStatusEnum = z.enum([
 
 export const ConsultationPricingTypeEnum = z.enum(['HOURLY', 'PER_SESSION']);
 
-export const BookingPaymentMethodEnum = z.enum(['BANK_TRANSFER', 'PAYHERE']);
+// PAYHERE removed: it settled client fees into a platform merchant account.
+// Clients pay lawyers directly. See docs/restructure/LEGAL-GUARDRAILS.md (rule 2).
+export const BookingPaymentMethodEnum = z.enum(['BANK_TRANSFER', 'PAY_AT_OFFICE']);
 
 // Time format validation (HH:mm)
 const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
