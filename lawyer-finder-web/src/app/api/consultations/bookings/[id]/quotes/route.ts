@@ -3,6 +3,7 @@ import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { IssueQuoteSchema, RespondToQuoteSchema } from '@/schemas/consultation.schema';
 import { canTransition } from '@/lib/consultations/bookingStatus';
+import { renderEngagementLetter, buildLetterReference } from '@/lib/consultations/engagementLetter';
 import { EmailService } from '@/lib/email/EmailService';
 import { formatSriLankaDateIso } from '@/lib/utils';
 
@@ -188,7 +189,15 @@ export async function PATCH(
       where: { id },
       include: {
         client: { select: { email: true, fullName: true } },
-        lawyer: { select: { fullName: true, user: { select: { email: true } } } },
+        lawyer: {
+          select: {
+            fullName: true,
+            baslNumber: true,
+            address: true,
+            contactPhone: true,
+            user: { select: { email: true } },
+          },
+        },
       },
     });
 
@@ -233,16 +242,17 @@ export async function PATCH(
       );
     }
 
-    const [, updatedBooking] = await prisma.$transaction([
-      prisma.quote.update({
+    const { updatedBooking, engagementLetter } = await prisma.$transaction(async (tx) => {
+      await tx.quote.update({
         where: { id: quote.id },
         data: {
           status: accepting ? 'ACCEPTED' : 'DECLINED',
           respondedAt: new Date(),
           declineReason: accepting ? null : validated.data.reason,
         },
-      }),
-      prisma.booking.update({
+      });
+
+      const updated = await tx.booking.update({
         where: { id },
         data: accepting
           ? {
@@ -259,8 +269,77 @@ export async function PATCH(
               cancelledAt: new Date(),
               cancelledBy: session.userId,
             },
-      }),
-    ]);
+      });
+
+      if (!accepting) return { updatedBooking: updated, engagementLetter: null };
+
+      // Accepting the quote is the moment terms are agreed, so the engagement
+      // letter is issued here. Content is snapshotted, not joined at read time —
+      // the letter must always reflect the terms as they were accepted.
+      const issuedAt = new Date();
+      const year = issuedAt.getFullYear();
+      const prefix = `EL-${year}-`;
+
+      const latestLetter = await tx.engagementLetter.findFirst({
+        where: { reference: { startsWith: prefix } },
+        orderBy: { reference: 'desc' },
+        select: { reference: true },
+      });
+      const nextSeq = latestLetter
+        ? (parseInt(latestLetter.reference.slice(prefix.length), 10) || 0) + 1
+        : 1;
+
+      const reference = buildLetterReference(year, nextSeq);
+      const clientName = booking.client.fullName || 'Client';
+
+      const body = renderEngagementLetter({
+        reference,
+        issuedAt,
+        firmName: booking.lawyer.fullName,
+        firmBaslNumber: booking.lawyer.baslNumber,
+        firmAddress: booking.lawyer.address,
+        firmContact: booking.lawyer.contactPhone,
+        clientName,
+        clientEmail: booking.client.email,
+        matterSubject: booking.subject,
+        scopeOfWork: quote.scopeOfWork,
+        exclusions: quote.exclusions,
+        feeBasis: quote.feeBasis,
+        feeAmount: quote.amount,
+        currency: quote.currency,
+        hourlyRate: quote.hourlyRate,
+        estimatedHours: quote.estimatedHours,
+        paymentInstructions: quote.paymentInstructions,
+        consultationDate: formatSriLankaDateIso(booking.date),
+        consultationTime: `${booking.startTime} - ${booking.endTime}`,
+        mode: booking.mode,
+      });
+
+      const letter = await tx.engagementLetter.create({
+        data: {
+          bookingId: id,
+          quoteId: quote.id,
+          reference,
+          firmName: booking.lawyer.fullName,
+          firmBaslNumber: booking.lawyer.baslNumber,
+          firmAddress: booking.lawyer.address,
+          firmContact: booking.lawyer.contactPhone,
+          clientName,
+          clientEmail: booking.client.email,
+          matterSubject: booking.subject,
+          scopeOfWork: quote.scopeOfWork,
+          exclusions: quote.exclusions,
+          feeBasis: quote.feeBasis,
+          feeAmount: quote.amount,
+          currency: quote.currency,
+          paymentTerms: quote.paymentInstructions,
+          body,
+          issuedAt,
+        },
+      });
+
+      return { updatedBooking: updated, engagementLetter: letter };
+    });
 
     if (booking.lawyer.user?.email) {
       await EmailService.sendBookingCreatedLawyer(

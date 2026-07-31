@@ -12,7 +12,10 @@ import {
   ChevronLeft, ChevronRight, Eye, FileText,
 } from 'lucide-react';
 import { BOOKING_STATUS_COLORS, BOOKING_STATUS_LABELS } from '@/schemas/consultation.schema';
+import { ShieldCheck } from 'lucide-react';
 import { formatDateOnlyString } from '@/lib/utils';
+import ConflictCheckDialog from '@/components/consultations/ConflictCheckDialog';
+import QuoteComposerDialog from '@/components/consultations/QuoteComposerDialog';
 
 interface Booking {
   id: string;
@@ -25,7 +28,6 @@ interface Booking {
   meetingLink: string | null;
   officeAddress: string | null;
   lawyerFee: number;
-  platformFee: number;
   totalAmount: number;
   subject: string;
   description: string;
@@ -51,6 +53,8 @@ export default function LawyerBookingsPage() {
   const [verifyAction, setVerifyAction] = useState<'PAID' | 'RESUBMIT' | 'CANCELLED' | null>(null);
 
   // Accept Modal states
+  const [conflictTarget, setConflictTarget] = useState<Booking | null>(null);
+  const [quoteTarget, setQuoteTarget] = useState<Booking | null>(null);
   const [acceptModal, setAcceptModal] = useState<string | null>(null);
   const [acceptFee, setAcceptFee] = useState<number>(5000);
   const [acceptPaymentMethod, setAcceptPaymentMethod] = useState<'BANK_TRANSFER' | 'PAY_AT_OFFICE'>('BANK_TRANSFER');
@@ -72,6 +76,16 @@ export default function LawyerBookingsPage() {
   const [defaultAccountName, setDefaultAccountName] = useState('');
   const [defaultAccountNumber, setDefaultAccountNumber] = useState('');
   const [defaultBankBranch, setDefaultBankBranch] = useState('');
+
+  // Pre-fills the quote composer with the firm's own account details. The client
+  // pays the firm directly — see docs/restructure/LEGAL-GUARDRAILS.md (rule 2).
+  const defaultPaymentInstructions = [
+    defaultBankName && `Bank: ${defaultBankName}`,
+    defaultAccountName && `Account name: ${defaultAccountName}`,
+    defaultAccountNumber && `Account number: ${defaultAccountNumber}`,
+    defaultBankBranch && `Branch: ${defaultBankBranch}`,
+  ].filter(Boolean).join('\n');
+
   const [defaultPhysicalFee, setDefaultPhysicalFee] = useState(5000);
   const [defaultOnlineFee, setDefaultOnlineFee] = useState(3000);
 
@@ -333,12 +347,14 @@ export default function LawyerBookingsPage() {
 
   const statusTabs = [
     { value: '', label: 'All' },
-    { value: 'AWAITING_LAWYER_APPROVAL', label: 'Requests' },
+    { value: 'REQUESTED', label: 'New requests' },
+    { value: 'CONFLICT_CHECK', label: 'To quote' },
+    { value: 'QUOTED', label: 'Awaiting client' },
     { value: 'CONFIRMED', label: 'Upcoming' },
-    { value: 'PENDING_PAYMENT', label: 'Pending Payment' },
+    { value: 'ACCEPTED', label: 'Awaiting payment' },
     { value: 'COMPLETED', label: 'Completed' },
     { value: 'CANCELLED_BY_CLIENT', label: 'Cancelled by Client' },
-    { value: 'CANCELLED_BY_LAWYER', label: 'Cancelled by Me' },
+    { value: 'CANCELLED_BY_FIRM', label: 'Cancelled by me' },
   ];
 
   return (
@@ -432,59 +448,62 @@ export default function LawyerBookingsPage() {
 
                       <div className="text-right shrink-0">
                         <div className="flex gap-1.5 mt-3">
-                          {booking.status === 'AWAITING_LAWYER_APPROVAL' && (
+                          {booking.status === 'REQUESTED' && (
+                            <Button
+                              size="sm"
+                              onClick={() => setConflictTarget(booking)}
+                              disabled={actionLoading}
+                              className="bg-[#0a0a0a] text-white hover:bg-neutral-800 rounded-none h-7 text-[10px] px-2.5 font-bold"
+                            >
+                              <ShieldCheck className="w-3 h-3 mr-1" /> Conflict check
+                            </Button>
+                          )}
+                          {booking.status === 'CONFLICT_CHECK' && (
+                            <Button
+                              size="sm"
+                              onClick={() => setQuoteTarget(booking)}
+                              disabled={actionLoading}
+                              className="bg-[#0a0a0a] text-white hover:bg-neutral-800 rounded-none h-7 text-[10px] px-2.5 font-bold"
+                            >
+                              <FileText className="w-3 h-3 mr-1" /> Quote a fee
+                            </Button>
+                          )}
+                          {booking.status === 'QUOTED' && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setQuoteTarget(booking)}
+                              disabled={actionLoading}
+                              className="rounded-none h-7 text-[10px] px-2.5 font-bold"
+                            >
+                              <FileText className="w-3 h-3 mr-1" /> Re-quote
+                            </Button>
+                          )}
+                          {booking.status === 'ACCEPTED' && (
                             <>
                               <Button
                                 size="sm"
-                                onClick={() => {
-                                  setAcceptModal(booking.id);
-                                  setAcceptPaymentMethod('BANK_TRANSFER');
-                                  setAcceptBankName(defaultBankName);
-                                  setAcceptAccountName(defaultAccountName);
-                                  setAcceptAccountNumber(defaultAccountNumber);
-                                  setAcceptBankBranch(defaultBankBranch);
-                                  setAcceptFee(booking.mode === 'PHYSICAL' ? defaultPhysicalFee : defaultOnlineFee);
-                                }}
+                                onClick={() => handleAction(booking.id, 'confirm_payment_received')}
                                 disabled={actionLoading}
-                                className="bg-[#0a0a0a] text-white hover:bg-neutral-800 rounded-none h-7 text-[10px] px-2.5 font-bold"
+                                className="bg-green-600 text-white hover:bg-green-700 rounded-none h-7 text-[10px] px-2.5 font-bold"
                               >
-                                <CheckCircle className="w-3 h-3 mr-1" /> Accept
+                                <CheckCircle className="w-3 h-3 mr-1" /> Payment received
                               </Button>
                               <Button
                                 size="sm"
                                 variant="outline"
-                                onClick={() => handleAction(booking.id, 'decline')}
+                                onClick={() => {
+                                  setCancelBookingTarget(booking);
+                                  setCancelReason('Cancelled due to non-payment');
+                                }}
                                 disabled={actionLoading}
                                 className="rounded-none h-7 text-[10px] px-2.5 font-bold text-red-600 border-red-300"
                               >
-                                <XCircle className="w-3 h-3 mr-1" /> Decline
+                                <XCircle className="w-3 h-3 mr-1" /> Cancel
                               </Button>
                             </>
                           )}
-                          {booking.status === 'PENDING_PAYMENT' && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => {
-                                setCancelBookingTarget(booking);
-                                setCancelReason('Cancelled due to non-payment');
-                              }}
-                              disabled={actionLoading}
-                              className="rounded-none h-7 text-[10px] px-2.5 font-bold text-red-600 border-red-300"
-                            >
-                              <XCircle className="w-3 h-3 mr-1" /> Cancel
-                            </Button>
-                          )}
-                          {booking.status === 'AWAITING_BANK_TRANSFER_VERIFICATION' && (
-                            <Button
-                              size="sm"
-                              onClick={() => setVerifyModal(booking)}
-                              className="bg-green-600 text-white hover:bg-green-700 rounded-none h-7 text-[10px] px-2.5 font-bold"
-                            >
-                              <CheckCircle className="w-3 h-3 mr-1" /> Verify Payment
-                            </Button>
-                          )}
-                          {booking.status === 'CONFIRMED' && (
+                          {booking.status === 'SCHEDULED' && (
                             <>
                               <Button
                                 size="sm"
@@ -678,7 +697,7 @@ export default function LawyerBookingsPage() {
                 <div><p className="text-neutral-500 text-xs">Date</p><p className="font-semibold">{formatDateOnlyString(selectedBooking.date, 'en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</p></div>
                 <div><p className="text-neutral-500 text-xs">Time</p><p className="font-semibold">{selectedBooking.startTime} – {selectedBooking.endTime} ({selectedBooking.duration} min)</p></div>
                 <div><p className="text-neutral-500 text-xs">Mode</p><p className="font-semibold">{selectedBooking.mode}</p></div>
-                {selectedBooking.status !== 'AWAITING_LAWYER_APPROVAL' && selectedBooking.status !== 'REJECTED_BY_LAWYER' && (
+                {selectedBooking.status !== 'REQUESTED' && selectedBooking.status !== 'DECLINED' && (
                   <div><p className="text-neutral-500 text-xs">Your Fee</p><p className="font-semibold">Rs. {selectedBooking.lawyerFee.toLocaleString()}</p></div>
                 )}
               </div>
@@ -751,149 +770,31 @@ export default function LawyerBookingsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Accept Modal */}
-      <Dialog open={Boolean(acceptModal)} onOpenChange={(open) => { if (!open) setAcceptModal(null); }}>
-        <DialogContent className="max-w-md">
-          <DialogTitle>Accept Request & Quote Fee</DialogTitle>
-          <DialogDescription>
-            Specify your fee and how you would like the client to pay.
-          </DialogDescription>
-          
-          {(() => {
-            const bookingBeingAccepted = bookings.find(b => b.id === acceptModal) || calendarBookings.find(b => b.id === acceptModal);
-            const isOnlineOnly = bookingBeingAccepted?.mode === 'ONLINE';
-
-            return (
-              <div className="space-y-4 mt-4">
-            <div>
-              <label className="text-xs font-semibold text-neutral-700 uppercase tracking-[0.2em]">Your Fee (Rs.)</label>
-              <input
-                type="number"
-                value={acceptFee}
-                onChange={(e) => setAcceptFee(Number(e.target.value))}
-                className="w-full mt-2 rounded-md border border-neutral-200 px-3 py-2 text-sm outline-none focus:border-[#0a0a0a]"
-              />
-            </div>
-            
-            <div>
-              <label className="text-xs font-semibold text-neutral-700 uppercase tracking-[0.2em]">Payment Method</label>
-              <select
-                value={acceptPaymentMethod}
-                onChange={(e) => setAcceptPaymentMethod(e.target.value as any)}
-                className="w-full mt-2 rounded-md border border-neutral-200 px-3 py-2 text-sm outline-none focus:border-[#0a0a0a]"
-              >
-                <option value="BANK_TRANSFER">Bank Transfer (Pre-paid)</option>
-                {!isOnlineOnly && <option value="PAY_AT_OFFICE">Pay at Office</option>}
-              </select>
-            </div>
-
-            {acceptPaymentMethod === 'BANK_TRANSFER' && (
-              <div className="space-y-3">
-                <div className="flex justify-between items-center mb-1">
-                  <label className="text-xs font-semibold text-neutral-700 uppercase tracking-[0.2em]">Bank Details</label>
-                  <span className="text-[10px] text-neutral-500">Provided to client for payment</span>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-[10px] text-neutral-600 font-medium">Bank Name</label>
-                    <input
-                      type="text"
-                      value={acceptBankName}
-                      onChange={(e) => setAcceptBankName(e.target.value)}
-                      placeholder="e.g. Commercial Bank"
-                      className="w-full mt-1 rounded-sm border border-neutral-200 px-2.5 py-1.5 text-xs outline-none focus:border-[#0a0a0a]"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[10px] text-neutral-600 font-medium">Branch</label>
-                    <input
-                      type="text"
-                      value={acceptBankBranch}
-                      onChange={(e) => setAcceptBankBranch(e.target.value)}
-                      placeholder="e.g. Colombo 01"
-                      className="w-full mt-1 rounded-sm border border-neutral-200 px-2.5 py-1.5 text-xs outline-none focus:border-[#0a0a0a]"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[10px] text-neutral-600 font-medium">Account Name</label>
-                    <input
-                      type="text"
-                      value={acceptAccountName}
-                      onChange={(e) => setAcceptAccountName(e.target.value)}
-                      placeholder="e.g. John Doe"
-                      className="w-full mt-1 rounded-sm border border-neutral-200 px-2.5 py-1.5 text-xs outline-none focus:border-[#0a0a0a]"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[10px] text-neutral-600 font-medium">Account Number</label>
-                    <input
-                      type="text"
-                      value={acceptAccountNumber}
-                      onChange={(e) => setAcceptAccountNumber(e.target.value)}
-                      placeholder="e.g. 1234567890"
-                      className="w-full mt-1 rounded-sm border border-neutral-200 px-2.5 py-1.5 text-xs outline-none focus:border-[#0a0a0a]"
-                    />
-                  </div>
-                </div>
-                {(!defaultBankName && (acceptBankName || acceptAccountNumber)) && (
-                  <p className="text-[10px] text-amber-600 mt-1">Tip: You can set a default bank account in Consultations &gt; Consultation Settings to avoid typing this every time.</p>
-                )}
-              </div>
-            )}
-          </div>
-            );
-          })()}
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setAcceptModal(null)}>Cancel</Button>
-            <Button className="bg-[#0a0a0a] text-white hover:bg-neutral-800" onClick={handleAcceptSubmit} disabled={actionLoading}>
-              {actionLoading ? 'Saving...' : 'Accept & Confirm'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Verify Payment Modal */}
-      {verifyModal && verifyModal.payment && (
-        <Dialog open={true} onOpenChange={(open) => { if (!open) setVerifyModal(null); }}>
-          <DialogContent className="max-w-md">
-            <DialogTitle>Verify Client Payment</DialogTitle>
-            <DialogDescription>
-              Please review the payment receipt uploaded by the client.
-            </DialogDescription>
-            
-            <div className="space-y-4 mt-4 bg-neutral-50 p-4 rounded-md border border-neutral-200">
-              <div className="grid grid-cols-2 gap-2 text-sm">
-                <div><span className="text-neutral-500 text-xs">Bank Name</span><p className="font-semibold">{verifyModal.payment.bankName || '-'}</p></div>
-                <div><span className="text-neutral-500 text-xs">Acc Holder</span><p className="font-semibold">{verifyModal.payment.accountHolder || '-'}</p></div>
-                <div><span className="text-neutral-500 text-xs">Ref/Remarks</span><p className="font-semibold">{verifyModal.payment.transactionRef || '-'}</p></div>
-                <div><span className="text-neutral-500 text-xs">Amount Expected</span><p className="font-semibold text-green-700">Rs. {verifyModal.totalAmount.toLocaleString()}</p></div>
-              </div>
-              
-              {verifyModal.payment.receiptImageUrl && (
-                <div className="mt-4">
-                  <p className="text-neutral-500 text-xs mb-2">Receipt Image</p>
-                  <a href={verifyModal.payment.receiptImageUrl} target="_blank" rel="noopener noreferrer">
-                    <img src={verifyModal.payment.receiptImageUrl} alt="Receipt" className="w-full max-h-48 object-contain border border-neutral-300 rounded bg-white cursor-pointer hover:opacity-90" />
-                  </a>
-                </div>
-              )}
-            </div>
-
-            <DialogFooter className="sm:justify-between">
-              <Button variant="outline" onClick={() => setVerifyModal(null)}>Close</Button>
-              <div className="flex gap-2">
-                <Button className="bg-red-600 text-white hover:bg-red-700" onClick={() => handleVerifyPayment('RESUBMIT')} disabled={actionLoading}>
-                  {verifyAction === 'RESUBMIT' ? 'Rejecting...' : 'Reject Receipt'}
-                </Button>
-                <Button className="bg-green-600 text-white hover:bg-green-700" onClick={() => handleVerifyPayment('PAID')} disabled={actionLoading}>
-                  {verifyAction === 'PAID' ? 'Verifying...' : 'Verify & Confirm'}
-                </Button>
-              </div>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+      {/* Conflict check — the firm screens before it can quote */}
+      {conflictTarget && (
+        <ConflictCheckDialog
+          bookingId={conflictTarget.id}
+          bookingNumber={conflictTarget.bookingNumber}
+          clientName={conflictTarget.client?.fullName || 'Client'}
+          open={Boolean(conflictTarget)}
+          onOpenChange={(o) => { if (!o) setConflictTarget(null); }}
+          onCompleted={() => { loadBookings(); loadCalendarBookings(); }}
+        />
       )}
+
+      {/* Quote composer */}
+      {quoteTarget && (
+        <QuoteComposerDialog
+          bookingId={quoteTarget.id}
+          bookingNumber={quoteTarget.bookingNumber}
+          clientName={quoteTarget.client?.fullName || 'Client'}
+          defaultPaymentInstructions={defaultPaymentInstructions}
+          open={Boolean(quoteTarget)}
+          onOpenChange={(o) => { if (!o) setQuoteTarget(null); }}
+          onCompleted={() => { loadBookings(); loadCalendarBookings(); }}
+        />
+      )}
+
     </div>
   );
 }

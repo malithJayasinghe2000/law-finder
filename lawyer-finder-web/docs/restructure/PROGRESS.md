@@ -10,7 +10,7 @@
 | --- | --- | --- |
 | 0 | Stop the bleeding (remove commission, escrow, PayHere; fix bugs; disclaimers) | 🟢 **Done** |
 | 1a | Engagement state machine, conflict check, quotes | 🟢 **Done** |
-| 1b | Engagement letter + intake wizard UI | ⚪ Next |
+| 1b | Engagement letter + triage/quote UI | 🟢 **Done** |
 | 2 | Law firm entity | ⚪ Not started |
 | 3 | Billing restructure (SaaS licence) | ⚪ Not started |
 | 4 | Advertising split | ⚪ Not started |
@@ -22,10 +22,13 @@ Legend: ⚪ not started · 🟡 in progress · 🟢 done · 🔴 blocked
 
 ## Next up
 
-**Phase 1b** — engagement letter generation + the rebuilt intake wizard and firm
-triage console. The 1a server layer is in place; 1b is the UI on top of it.
+**Phase 2** — the `LawFirm` entity. Firms with members and roles
+(`FIRM_OWNER` / `FIRM_ADMIN` / `ATTORNEY` / `PARALEGAL`), firm-level intake
+routing, firm profiles. Every existing `LawyerProfile` migrates to a firm-of-one.
+See [ROADMAP.md](./ROADMAP.md#phase-2--law-firm-entity).
 
-Phase 0 and Phase 1a are complete. `npm run build` and `npx tsc --noEmit` clean.
+Phase 0 and Phase 1 (1a + 1b) are complete. `npm run build` and
+`npx tsc --noEmit` clean; migrations baselined and in sync.
 
 ## Decisions taken
 
@@ -229,3 +232,53 @@ sync with the local database.
 **Note for later:** `prisma/migrations/` is badly out of sync — `0_init` creates 22
 tables and contains no `Booking` at all. The project runs on `db push`. Before
 production there needs to be a real migration baseline.
+
+### 2026-07-31 — Migration baseline + Phase 1b
+
+**Migrations baselined.** The history was unusable: `0_init` created 22 tables and
+had no `Booking`, there was no `migration_lock.toml`, and both migrations showed as
+*unapplied* even though the tables existed — `migrate deploy` would have failed on
+`CREATE TABLE`. Deleted the stale migrations, generated a fresh `0_init` (47 tables,
+31 enums), added the lock file, and marked it applied.
+
+Caught by testing rather than trusting: the first generated file was **invalid SQL**.
+`prisma.config.ts` loads dotenv, which prints a banner to stdout, and that banner
+landed as line 1. Only surfaced by deploying to a scratch database. The stored
+checksum was corrected afterwards. `docs/database-migrations.md` documents the trap.
+
+Verified: deploy to a clean database →
+`migrate diff --from-config-datasource --to-schema` reports "No difference detected".
+Added `db:status` / `db:migrate` / `db:deploy` / `db:reset` / `db:studio` /
+`db:generate` scripts.
+
+**Phase 1b.**
+- New `EngagementLetter` model, created through the new migration workflow
+  (`20260731172750_add_engagement_letter`) — its first real use
+- `src/lib/consultations/engagementLetter.ts` renders the letter as Markdown:
+  parties, scope, fee basis, payment terms, confidentiality/privilege (Evidence
+  Ordinance s.126), PDPA, termination, governing law — and states explicitly that
+  the **firm** provides the legal service while the platform is only software
+- Generated inside the quote-acceptance transaction, with content **snapshotted**
+  rather than joined at read time, so the letter always reflects the terms as
+  accepted
+- `GET [id]/engagement-letter` — readable by client and firm, **not** platform
+  staff. Records `clientViewedAt` on first open, as evidence terms were communicated
+- New components: `ConflictCheckDialog`, `QuoteComposerDialog`, `QuoteReviewDialog`,
+  `EngagementLetterDialog`
+- Lawyer console rewired to the engagement flow (conflict check → quote → confirm
+  payment received); client console gains quote review and letter access
+- Intake wizard now explains what happens next, and states that submitting creates
+  no lawyer-client relationship and no fee
+
+**Removed:** the admin "Payments & Commission" page — it `PATCH`ed a payment
+verification endpoint that no longer exists, and platform staff have no business
+adjudicating a transfer into a firm's own account.
+
+**Also fixed:** stale status strings across the admin, lawyer and client pages that
+compiled fine but would have silently queried statuses that no longer exist.
+
+**Verification:** `npm run build` compiles, `npx tsc --noEmit` clean, guardrail
+sweep finds no commission, no PayHere, no withdrawals, no pre-Phase-1 statuses.
+
+**Still open:** the engagement letter wording is a good-faith draft and needs
+BASL-member counsel review before real clients see it (open question #3).

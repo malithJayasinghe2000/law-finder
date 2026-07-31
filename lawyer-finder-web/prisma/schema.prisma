@@ -1082,10 +1082,11 @@ model Booking {
   status BookingStatus @default(REQUESTED)
 
   // Phase 1 engagement flow
-  conflictCheck   ConflictCheck?
-  quotes          Quote[]
+  conflictCheck    ConflictCheck?
+  quotes           Quote[]
+  engagementLetter EngagementLetter?
   /// Set when the client accepts a quote — the moment terms are agreed
-  termsAcceptedAt DateTime?
+  termsAcceptedAt  DateTime?
 
   // Payment
   paymentMethod       BookingPaymentMethod?
@@ -1188,12 +1189,67 @@ model Quote {
   respondedAt   DateTime?
   declineReason String?
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  engagementLetter EngagementLetter?
 
   @@unique([bookingId, version])
   @@index([bookingId, status])
   @@index([status, validUntil])
+}
+
+/// The engagement letter issued when a client accepts a quote.
+///
+/// This is the artefact that makes the relationship legally clean: it records who
+/// is engaged, on what scope, on what fee basis, and states explicitly that the
+/// FIRM provides the legal service while this platform is only the software the
+/// firm runs on. Valid as an electronic record under the Electronic Transactions
+/// Act No. 19 of 2006.
+///
+/// Content is snapshotted at issue time rather than joined at read time, so the
+/// letter always reflects the terms as they were agreed even if the firm's
+/// profile or the quote changes later.
+///
+/// See docs/restructure/LEGAL-GUARDRAILS.md (rule 7).
+model EngagementLetter {
+  id        String  @id @default(uuid())
+  bookingId String  @unique
+  booking   Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  quoteId String @unique
+  quote   Quote  @relation(fields: [quoteId], references: [id])
+
+  /// Human-readable reference, e.g. "EL-2026-0001"
+  reference String @unique
+
+  // --- Snapshot of the parties at the time of engagement ---
+  firmName       String
+  firmBaslNumber String
+  firmAddress    String?
+  firmContact    String?
+  clientName     String
+  clientEmail    String
+
+  // --- Snapshot of the agreed terms ---
+  matterSubject String
+  scopeOfWork   String
+  exclusions    String?
+  feeBasis      FeeBasis
+  feeAmount     Int
+  currency      String   @default("LKR")
+  paymentTerms  String
+
+  /// Full rendered letter body (Markdown), generated at issue time
+  body String
+
+  issuedAt       DateTime  @default(now())
+  /// When the client viewed it — useful evidence that terms were communicated
+  clientViewedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([reference])
 }
 
 // Temporary hold on a slot during checkout

@@ -8,11 +8,13 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import {
-  CalendarDays, Clock, MapPin, Video, Star, XCircle, ChevronLeft, ChevronRight, AlertTriangle, CreditCard, Building2, Loader2, ImagePlus
+  CalendarDays, Clock, MapPin, Video, Star, XCircle, ChevronLeft, ChevronRight, AlertTriangle, CreditCard, Building2, Loader2, ImagePlus, FileText, ScrollText
 } from 'lucide-react';
 import { BOOKING_STATUS_COLORS, BOOKING_STATUS_LABELS } from '@/schemas/consultation.schema';
 import { formatDateOnlyString } from '@/lib/utils';
 import Link from 'next/link';
+import QuoteReviewDialog from '@/components/consultations/QuoteReviewDialog';
+import EngagementLetterDialog from '@/components/consultations/EngagementLetterDialog';
 
 interface Booking {
   id: string;
@@ -25,7 +27,6 @@ interface Booking {
   meetingLink: string | null;
   officeAddress: string | null;
   lawyerFee: number;
-  platformFee: number;
   totalAmount: number;
   refundAmount: number | null;
   subject: string;
@@ -49,6 +50,8 @@ export default function ClientConsultationsPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [statusFilter, setStatusFilter] = useState('');
   const [cancelModal, setCancelModal] = useState<string | null>(null);
+  const [quoteReview, setQuoteReview] = useState<Booking | null>(null);
+  const [letterBookingId, setLetterBookingId] = useState<string | null>(null);
   const [cancelReason, setCancelReason] = useState('');
 
   const [paymentModal, setPaymentModal] = useState<string | null>(null);
@@ -191,7 +194,7 @@ export default function ClientConsultationsPage() {
       });
       const data = await res.json();
       if (res.ok) {
-        toast.success('Payment details submitted successfully! Awaiting admin verification.');
+        toast.success('Payment recorded. The firm will confirm once it reaches their account.');
         setPaymentModal(null);
         setBankName('');
         setAccountHolder('');
@@ -209,10 +212,11 @@ export default function ClientConsultationsPage() {
 
   const statusTabs = [
     { value: '', label: 'All' },
-    { value: 'AWAITING_LAWYER_APPROVAL', label: 'Pending Request' },
+    { value: 'REQUESTED', label: 'Submitted' },
+    { value: 'QUOTED', label: 'Awaiting your response' },
     { value: 'CONFIRMED', label: 'Upcoming' },
     { value: 'COMPLETED', label: 'Completed' },
-    { value: 'REJECTED_BY_LAWYER', label: 'Declined' },
+    { value: 'DECLINED', label: 'Not accepted' },
     { value: 'CANCELLED_BY_CLIENT', label: 'Cancelled' },
   ];
 
@@ -273,37 +277,43 @@ export default function ClientConsultationsPage() {
                       <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{b.startTime} – {b.endTime}</span>
                     </div>
                     {/* Meeting link for confirmed online bookings */}
-                    {b.status === 'CONFIRMED' && b.mode !== 'PHYSICAL' && b.meetingLink && (
+                    {b.status === 'SCHEDULED' && b.mode !== 'PHYSICAL' && b.meetingLink && (
                       <div className="mt-2 p-2 bg-blue-50 border border-blue-200 inline-flex items-center gap-2">
                         <Video className="w-3.5 h-3.5 text-blue-600" />
                         <a href={b.meetingLink} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 font-semibold underline">Join Meeting</a>
                       </div>
                     )}
-                    {b.status === 'CONFIRMED' && b.mode === 'PHYSICAL' && b.officeAddress && (
+                    {b.status === 'SCHEDULED' && b.mode === 'PHYSICAL' && b.officeAddress && (
                       <div className="mt-2 p-2 bg-green-50 border border-green-200 inline-flex items-center gap-2">
                         <MapPin className="w-3.5 h-3.5 text-green-600" />
                         <span className="text-xs text-green-800">{b.officeAddress}</span>
                       </div>
                     )}
-                    {b.status === 'PENDING_PAYMENT' && b.paymentInstructions && (
+                    {b.status === 'ACCEPTED' && b.paymentInstructions && (
                       <div className="mt-3 p-3 bg-amber-50 border border-amber-200">
-                        <p className="text-[10px] font-bold text-amber-800 uppercase tracking-widest mb-1">Lawyer's Payment Instructions</p>
+                        <p className="text-[10px] font-bold text-amber-800 uppercase tracking-widest mb-1">Pay the firm directly</p>
                         <p className="text-xs text-amber-900 whitespace-pre-wrap">{b.paymentInstructions}</p>
+                        <p className="text-[10px] text-amber-700 mt-1.5">
+                          The platform never handles this payment and takes no share of it.
+                        </p>
                       </div>
                     )}
                   </div>
                   <div className="text-right shrink-0">
-                    {b.status === 'AWAITING_LAWYER_APPROVAL' && (
-                       <p className="text-xs text-neutral-500 italic mb-2">Waiting for lawyer's response...</p>
+                    {b.status === 'REQUESTED' && (
+                      <p className="mb-2 text-xs italic text-neutral-500">Waiting for the firm to review your request…</p>
                     )}
-                    {b.status === 'PENDING_PAYMENT' && (
+                    {b.status === 'CONFLICT_CHECK' && (
+                      <p className="mb-2 text-xs italic text-neutral-500">The firm is checking for conflicts of interest…</p>
+                    )}
+                    {b.status === 'QUOTED' && (
+                      <p className="mb-2 text-xs font-semibold text-amber-700">A fee proposal is waiting for your response.</p>
+                    )}
+                    {b.status === 'ACCEPTED' && (
                       <div className="mb-3 text-right">
-                        <p className="text-xs text-neutral-500 mb-1">Lawyer's Quoted Fee:</p>
+                        <p className="mb-1 text-xs text-neutral-500">Agreed fee, payable to the firm:</p>
                         <p className="text-sm font-bold text-[#0a0a0a]">Rs. {b.totalAmount?.toLocaleString()}</p>
                       </div>
-                    )}
-                    {b.status === 'AWAITING_BANK_TRANSFER_VERIFICATION' && (
-                       <p className="text-[10px] text-neutral-500 italic mb-2 bg-neutral-100 p-1.5 border border-neutral-200">Receipt submitted. Waiting for lawyer verification.</p>
                     )}
                     {b.status === 'CANCELLED_BY_CLIENT' && b.refundAmount !== null && b.refundAmount > 0 && (
                       <div className="mt-2 text-right bg-red-50 p-1.5 border border-red-100">
@@ -314,14 +324,24 @@ export default function ClientConsultationsPage() {
                       </div>
                     )}
                     <div className="flex gap-1.5 mt-3 justify-end flex-wrap">
-                      {['AWAITING_LAWYER_APPROVAL', 'CONFIRMED', 'PENDING_PAYMENT'].includes(b.status) && (
+                      {['REQUESTED', 'CONFLICT_CHECK', 'QUOTED', 'ACCEPTED', 'SCHEDULED'].includes(b.status) && (
                         <Button size="sm" variant="outline" onClick={() => setCancelModal(b.id)} className="rounded-none h-7 text-[10px] px-2.5 font-bold text-red-600 border-red-300">
                           <XCircle className="w-3 h-3 mr-1" /> Cancel
                         </Button>
                       )}
-                      {b.status === 'PENDING_PAYMENT' && (
+                      {b.status === 'QUOTED' && (
+                        <Button size="sm" onClick={() => setQuoteReview(b)} className="bg-[#0a0a0a] text-white hover:bg-neutral-800 rounded-none h-7 text-[10px] px-2.5 font-bold">
+                          <FileText className="w-3 h-3 mr-1" /> Review proposal
+                        </Button>
+                      )}
+                      {['ACCEPTED', 'SCHEDULED', 'IN_PROGRESS', 'COMPLETED'].includes(b.status) && (
+                        <Button size="sm" variant="outline" onClick={() => setLetterBookingId(b.id)} className="rounded-none h-7 text-[10px] px-2.5 font-bold">
+                          <ScrollText className="w-3 h-3 mr-1" /> Engagement letter
+                        </Button>
+                      )}
+                      {b.status === 'ACCEPTED' && (
                         <Button size="sm" onClick={() => handleOpenPaymentModal(b)} className="bg-[#0a0a0a] text-white hover:bg-neutral-800 rounded-none h-7 text-[10px] px-2.5 font-bold">
-                          Upload Receipt
+                          I have paid
                         </Button>
                       )}
 
@@ -332,6 +352,25 @@ export default function ClientConsultationsPage() {
             </Card>
           ))}
         </div>
+      )}
+
+      {quoteReview && (
+        <QuoteReviewDialog
+          bookingId={quoteReview.id}
+          bookingNumber={quoteReview.bookingNumber}
+          firmName={quoteReview.lawyer.fullName}
+          open={Boolean(quoteReview)}
+          onOpenChange={(o) => { if (!o) setQuoteReview(null); }}
+          onResponded={loadBookings}
+        />
+      )}
+
+      {letterBookingId && (
+        <EngagementLetterDialog
+          bookingId={letterBookingId}
+          open={Boolean(letterBookingId)}
+          onOpenChange={(o) => { if (!o) setLetterBookingId(null); }}
+        />
       )}
 
       {/* Pagination */}

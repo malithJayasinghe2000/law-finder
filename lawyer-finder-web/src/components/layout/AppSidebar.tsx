@@ -56,7 +56,6 @@ export function AppSidebar({ locale, role, userId }: { locale: string; role: str
       label: 'Consultations',
       subLinks: [
         { href: `/${locale}/dashboard/admin/consultations`, icon: CalendarDays, label: 'All Bookings' },
-        { href: `/${locale}/dashboard/admin/consultations/payments`, icon: DollarSign, label: 'Payments & Commission' },
         { href: `/${locale}/dashboard/admin/consultations/refunds`, icon: Banknote, label: 'Refunds' },
       ]
     },

@@ -227,7 +227,7 @@ export default function AdminRefundsPage() {
                       {REFUND_STATUS_LABELS[refund.refundStatus] || refund.refundStatus}
                     </Badge>
                     <Badge variant="outline" className="text-[10px] rounded-sm">
-                      {refund.status === 'CANCELLED_BY_CLIENT' ? 'Client Cancelled' : refund.status === 'CANCELLED_BY_LAWYER' ? 'Lawyer Cancelled' : refund.status}
+                      {refund.status === 'CANCELLED_BY_CLIENT' ? 'Client Cancelled' : refund.status === 'CANCELLED_BY_FIRM' ? 'Firm Cancelled' : refund.status}
                     </Badge>
                   </div>
                   <div className="flex items-center gap-1.5 text-xs text-neutral-400">
