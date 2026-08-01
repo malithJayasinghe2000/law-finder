@@ -50,7 +50,6 @@ export async function GET(req: NextRequest) {
           district: true,
           latitude: true,
           longitude: true,
-          baseFeeRange: true,
           gender: true,
           yearsOfExperience: true,
           practiceType: true,
@@ -133,10 +132,6 @@ const updateLawyerProfileSchema = z.object({
     z.array(z.enum(LANGUAGES as unknown as [string, ...string[]])).optional()
   ),
   district: z.enum(DISTRICTS as unknown as [string, ...string[]]).optional().or(z.literal('')),
-  baseFeeRange: z.preprocess(
-    (val) => typeof val === 'string' ? sanitizeString(val) : val,
-    z.string().max(100).optional().nullable()
-  ),
   contactPhone: z.preprocess(
     (val) => typeof val === 'string' ? sanitizeString(val) : val,
     z.string().regex(/^(?:0|(?:\+94))7[0-9]{8}$/, 'Enter a valid Sri Lankan mobile number.').optional().or(z.literal(''))

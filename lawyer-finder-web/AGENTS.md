@@ -18,12 +18,14 @@ payments, advertising, and AI output are all mid-restructure.
 **Before writing any code that touches booking, payments, advertising, ranking, or
 the AI chatbot, read in this order:**
 
+0. `docs/restructure/HOW-IT-WORKS.md` — **plain-language explainer: what a law firm
+   is, what each rule means and why, how a matter flows. Start here if you are new**
 1. `docs/restructure/README.md` — what the project is and why it is changing
 2. `docs/restructure/LEGAL-GUARDRAILS.md` — hard constraints; violating one blocks the merge
 3. `docs/restructure/PROGRESS.md` — **live status: what is done, what is next**
 4. `docs/restructure/ROADMAP.md` — the phase plan
 5. `docs/restructure/QUESTIONS-FOR-COUNSEL.md` — open legal questions
-6. `docs/restructure/PHASE-2-BRIEF.md` — if starting Phase 2
+6. `docs/restructure/PHASE-2-BRIEF.md` — Phase 2 (complete)
 
 ### The seven hard rules (full detail in LEGAL-GUARDRAILS.md)
 
@@ -34,6 +36,13 @@ the AI chatbot, read in this order:**
 5. Protect privilege — platform staff, including `ADMIN`, cannot read matter descriptions
 6. Never present the platform as giving legal advice — disclaimers + citations on all AI
 7. The **firm** is the service provider; we are software
+
+Two instruments added in Phase 2 that raise the stakes: touting is a **criminal**
+offence under the **Intermeddlers with Suitors Ordinance No. 11 of 1894** and it
+reaches the *platform operator*, not only the attorney; and **Supreme Court Rule
+40** limits what may be displayed about an attorney to name, professional
+qualifications, academic qualifications and office hours. Every profile surface is
+bound by that limit — no fee ranges, no ratings, no promotional copy.
 
 ## Engineering conventions
 
@@ -46,5 +55,7 @@ the AI chatbot, read in this order:**
 - shadcn/ui + Tailwind only. Mobile-first, responsive at all breakpoints, WCAG 2.1 AA
 - Tables: server-side pagination, filters, search, status toggles
 - Run `npm run build` after every change set and fix all errors
+- Run `npm run check:privilege` after touching `src/lib/firms/access.ts` — a green
+  build does not prove a paralegal cannot read a client's legal problem
 - **Never break a working flow to make a legal fix** — replace before removing
 - Update `docs/restructure/PROGRESS.md` at the end of every session

@@ -12,30 +12,19 @@ import {
 } from 'lucide-react';
 import LawyerCard from '@/components/lawyer/LawyerCard';
 
-interface Review {
-  id: string;
-  reviewerName: string;
-  rating: number;
-  comment: string;
-  createdAt: string;
-  reviewerImage: string | null;
-}
-
-interface Subscription {
-  id: string;
-  tier: string;
-  planName: string;
-  status: string;
-  billingCycle: string;
-  startDate: string;
-  nextBilling: string;
-}
-
+/**
+ * Public attorney profile.
+ *
+ * Bound by the Rule 40 content limit: name, qualifications, and factual practice
+ * information. No fee indication, no rating, and nothing that signals what the
+ * attorney pays us. If you are adding a field here, check it against
+ * docs/restructure/LEGAL-GUARDRAILS.md first — and remember the server component
+ * that feeds this is where the real leak happens, not the JSX.
+ */
 interface LawyerData {
   id: string;
   fullName: string;
   baslNumber: string;
-  nic: string | null;
   address: string | null;
   contactPhone: string | null;
   profileImageUrl: string | null;
@@ -43,7 +32,6 @@ interface LawyerData {
   practiceAreas: string[];
   languages: string[];
   district: string | null;
-  baseFeeRange: string | null;
   gender: string | null;
   yearsOfExperience: number | null;
   practiceType: string | null;
@@ -51,8 +39,6 @@ interface LawyerData {
   isNotary: boolean;
   isVerified: boolean;
   user: { id: string; createdAt: string } | null;
-  reviews: Review[];
-  subscription?: Subscription | null;
 }
 
 interface OtherLawyer {
@@ -62,14 +48,11 @@ interface OtherLawyer {
   bio: string | null;
   practiceAreas: string[];
   district: string | null;
-  avgRating: number;
-  reviewCount: number;
   languages: string[];
 }
 
 interface Props {
   lawyer: LawyerData;
-  avgRating: number;
   otherLawyers: OtherLawyer[];
   locale: string;
   isLoggedIn: boolean;
@@ -78,7 +61,6 @@ interface Props {
 
 export default function LawyerProfileClient({
   lawyer,
-  avgRating,
   otherLawyers,
   locale,
   isLoggedIn,
@@ -174,16 +156,16 @@ export default function LawyerProfileClient({
                   {/* Soft Hover Overlay */}
                   <div className="absolute inset-0 bg-black/25 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
-                  {/* Verification/Subscription Badges - Always Visible */}
+                  {/* Verification badge only.
+                      The subscription plan name used to be rendered here beside
+                      it. A client could see which attorneys pay us more, which is
+                      exactly the paid prominence rule 3 forbids — and it was in
+                      the page source even before it was a badge. Removed.
+                      See docs/restructure/LEGAL-GUARDRAILS.md (rules 3 and 4). */}
                   <div className="absolute bottom-4 left-4 right-4 z-10 flex flex-wrap items-center gap-2">
                     {lawyer.isVerified && (
                       <div className="flex items-center gap-1.5 text-white text-[9px] font-bold bg-[#bfa37a] w-fit px-3 py-1.5 uppercase tracking-widest rounded-none">
                         <ShieldCheck className="h-3.5 w-3.5" /> BASL Verified
-                      </div>
-                    )}
-                    {lawyer.subscription && (
-                      <div className="flex items-center gap-1.5 text-[#bfa37a] text-[9px] font-bold bg-[#1a1a1a] w-fit px-3 py-1.5 uppercase tracking-widest rounded-none border border-[#efeae0]/30">
-                        <Zap className="h-3.5 w-3.5" /> {lawyer.subscription.planName}
                       </div>
                     )}
                   </div>

@@ -3,7 +3,7 @@
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { Sidebar, SidebarContent, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarGroup, SidebarGroupLabel, SidebarFooter, SidebarMenuSub, SidebarMenuSubItem, SidebarMenuSubButton } from '@/components/ui/sidebar';
-import { LayoutDashboard, Users, FileText, Settings, Star, ShieldCheck, LogOut, Megaphone, Image, ShieldPlus, ChevronDown, History, CreditCard, MessageCircle, Globe, PenSquare, Flag, CalendarDays, DollarSign, Banknote, BookOpen } from 'lucide-react';
+import { LayoutDashboard, Users, FileText, Settings, Star, ShieldCheck, LogOut, Megaphone, Image, ShieldPlus, ChevronDown, History, CreditCard, MessageCircle, Globe, PenSquare, Flag, CalendarDays, DollarSign, Banknote, BookOpen, Building2 } from 'lucide-react';
 import ChatBadge from '@/components/chat/ChatBadge';
 import { toast } from 'sonner';
 import React, { useState } from 'react';
@@ -34,6 +34,7 @@ export function AppSidebar({ locale, role, userId }: { locale: string; role: str
   const adminLinks = [
     { href: `/${locale}/dashboard/admin`, icon: LayoutDashboard, label: 'Dashboard', exact: true },
     { href: `/${locale}/dashboard/admin/verification`, icon: ShieldCheck, label: 'Verification' },
+    { href: `/${locale}/dashboard/admin/firms`, icon: Building2, label: 'Law Firms' },
     { href: `/${locale}/dashboard/admin/invoices`, icon: FileText, label: 'Invoices' },
     // { href: `/${locale}/dashboard/admin/paymentTemplate`, icon: ShieldCheck, label: 'Payment Templates' },
     {
@@ -46,7 +47,6 @@ export function AppSidebar({ locale, role, userId }: { locale: string; role: str
       ]
     },
     { href: `/${locale}/dashboard/admin/users`, icon: Users, label: 'User Management' },
-    { href: `/${locale}/dashboard/admin/reviews`, icon: Star, label: 'Reviews' },
     { href: `/${locale}/dashboard/admin/communities`, icon: Globe, label: 'Communities' },
     { href: `/${locale}/dashboard/admin/content-moderation`, icon: Flag, label: 'Content Moderation' },
     { href: `/${locale}/dashboard/admin/legal-documents`, icon: BookOpen, label: 'Legal Documents' },
@@ -66,6 +66,7 @@ export function AppSidebar({ locale, role, userId }: { locale: string; role: str
 
   const lawyerLinks = [
     { href: `/${locale}/dashboard/lawyer`, icon: LayoutDashboard, label: 'Dashboard' },
+    { href: `/${locale}/dashboard/lawyer/firm`, icon: Building2, label: 'My Firm' },
     {
       href: `/${locale}/dashboard/lawyer/consultations`,
       icon: CalendarDays,

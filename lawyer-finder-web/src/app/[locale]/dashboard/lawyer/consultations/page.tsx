@@ -12,7 +12,8 @@ import {
   ChevronLeft, ChevronRight, Eye, FileText,
 } from 'lucide-react';
 import { BOOKING_STATUS_COLORS, BOOKING_STATUS_LABELS } from '@/schemas/consultation.schema';
-import { ShieldCheck, Banknote } from 'lucide-react';
+import { ShieldCheck, Banknote, UserX, UserCheck } from 'lucide-react';
+import { AssignMatterDialog } from '@/components/firms/AssignMatterDialog';
 import { formatDateOnlyString } from '@/lib/utils';
 import ConflictCheckDialog from '@/components/consultations/ConflictCheckDialog';
 import QuoteComposerDialog from '@/components/consultations/QuoteComposerDialog';
@@ -39,6 +40,17 @@ interface Booking {
   createdAt: string;
   client: { id: string; fullName: string | null; email: string; profileImageUrl: string | null };
   payment: any;
+  /**
+   * What this member of the firm may do with this matter, decided server-side in
+   * src/lib/firms/access.ts. Never re-derive it here — the UI hides what a
+   * member cannot do, but the server is what actually refuses.
+   */
+  access?: {
+    canReadMatterDetail: boolean;
+    canAct: boolean;
+    canAssign: boolean;
+    basis: string;
+  };
 }
 
 export default function LawyerBookingsPage() {
@@ -56,6 +68,7 @@ export default function LawyerBookingsPage() {
   const [conflictTarget, setConflictTarget] = useState<Booking | null>(null);
   const [paymentReview, setPaymentReview] = useState<Booking | null>(null);
   const [quoteTarget, setQuoteTarget] = useState<Booking | null>(null);
+  const [assignTarget, setAssignTarget] = useState<Booking | null>(null);
 
   // Verify Modal state
 
@@ -188,6 +201,15 @@ export default function LawyerBookingsPage() {
    */
   function hasTakenPlace(b: Booking): boolean {
     return new Date(`${b.date}T${b.endTime}:00+05:30`).getTime() <= Date.now();
+  }
+
+  /**
+   * A no-show can only be recorded once the appointment time has arrived and the
+   * client has not. Mirrors the server-side guard on the `no_show` action, which
+   * previously had no button at all — the state was unreachable from the UI.
+   */
+  function hasStarted(b: Booking): boolean {
+    return new Date(`${b.date}T${b.startTime}:00+05:30`).getTime() <= Date.now();
   }
 
   async function handleCancelBooking() {
@@ -447,6 +469,16 @@ export default function LawyerBookingsPage() {
                               <Button
                                 size="sm"
                                 variant="outline"
+                                onClick={() => handleAction(booking.id, 'no_show')}
+                                disabled={actionLoading || !hasStarted(booking)}
+                                title={hasStarted(booking) ? 'Record that the client did not attend' : 'Available once the appointment time has passed'}
+                                className="rounded-none h-7 text-[10px] px-2.5 font-bold border-neutral-300 disabled:opacity-40"
+                              >
+                                <UserX className="w-3 h-3 mr-1" /> No show
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
                                 onClick={() => {
                                   setCancelBookingTarget(booking);
                                   setCancelReason('Unavailable');
@@ -457,6 +489,17 @@ export default function LawyerBookingsPage() {
                                 <XCircle className="w-3 h-3 mr-1" /> Cancel
                               </Button>
                             </>
+                          )}
+                          {booking.access?.canAssign && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setAssignTarget(booking)}
+                              disabled={actionLoading}
+                              className="rounded-none h-7 text-[10px] px-2.5 font-bold border-neutral-300"
+                            >
+                              <UserCheck className="w-3 h-3 mr-1" /> Assign
+                            </Button>
                           )}
                           <Button
                             size="sm"
@@ -700,6 +743,18 @@ export default function LawyerBookingsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Assignment — only a firm principal or practice manager sees this */}
+      {assignTarget && (
+        <AssignMatterDialog
+          bookingId={assignTarget.id}
+          bookingNumber={assignTarget.bookingNumber}
+          clientName={assignTarget.client?.fullName || 'the client'}
+          open={Boolean(assignTarget)}
+          onOpenChange={(o) => { if (!o) setAssignTarget(null); }}
+          onAssigned={() => { loadBookings(); loadCalendarBookings(); }}
+        />
+      )}
 
       {/* Conflict check — the firm screens before it can quote */}
       {conflictTarget && (

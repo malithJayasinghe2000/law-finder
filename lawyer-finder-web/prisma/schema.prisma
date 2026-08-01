@@ -131,7 +131,9 @@ enum BookingStatus {
   ACCEPTED // terms accepted; awaiting payment/scheduling
   SCHEDULED // appointment confirmed
   RESCHEDULE_REQUESTED // firm proposed a new date/time
-  IN_PROGRESS
+  // IN_PROGRESS removed in Phase 2: nothing ever transitioned into it, so it was
+  // a state the product claimed to have and did not. A consultation goes from
+  // SCHEDULED straight to COMPLETED or NO_SHOW.
   COMPLETED
   CANCELLED_BY_CLIENT
   CANCELLED_BY_FIRM
@@ -209,9 +211,13 @@ model User {
   verificationTokens VerificationToken[]
   profile            LawyerProfile?
   application        LawyerApplication?
-  reviews            Review[]                  @relation("ReviewAuthor")
   conversations      ConversationParticipant[]
   messages           Message[]
+
+  /// Firms this user belongs to. A user is normally a member of exactly one
+  /// firm, but the schema does not forbid more (an attorney may be a consultant
+  /// to a second practice).
+  firmMemberships FirmMember[]
 
   // Community Hub relations
   communities        CommunityMember[]
@@ -269,7 +275,10 @@ model LawyerProfile {
   district          String?
   latitude          Float?
   longitude         Float?
-  baseFeeRange      String?
+  // baseFeeRange removed in Phase 2. Publishing an attorney's fee indication in
+  // a public directory is beyond the Rule 40 content limit and reads as
+  // advertising. Fees are quoted per matter, to one client, in a Quote.
+  // See docs/restructure/LEGAL-GUARDRAILS.md.
   gender            String?
   yearsOfExperience Int?
   practiceType      String?
@@ -282,9 +291,17 @@ model LawyerProfile {
   Subscription      Subscription[]
   invoices          Invoice[]      @relation("InvoiceLawyer")
 
+  /// The firm this attorney practises in (Phase 2).
+  ///
+  /// Never null in practice: every attorney belongs to a firm, and a solo
+  /// practitioner is a firm of one created automatically on approval. It is
+  /// modelled as optional only so that profile creation and firm creation do not
+  /// have to happen in the same statement.
+  firmId String?
+  firm   LawFirm? @relation(fields: [firmId], references: [id], onDelete: SetNull)
+
   inquiries   Inquiry[]
   articles    Article[]
-  reviews     Review[]
   paidPromos  PaidPromo[]
   adCampaigns AdCampaign[]
 
@@ -293,6 +310,178 @@ model LawyerProfile {
   availabilityOverrides AvailabilityOverride[]
   consultationPricing   ConsultationPricing?
   bookings              Booking[]
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Law firms (Phase 2)
+//
+// The firm — not the platform, and not this software — is the provider of legal
+// services. Every client-facing artefact must say so. We are the software the
+// firm runs on. See docs/restructure/LEGAL-GUARDRAILS.md (rule 7).
+//
+// A solo practitioner is a firm of one, created automatically. A solo lawyer
+// should never have to think about "firms" at all.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// How the practice is constituted.
+///
+/// Sri Lankan practice is understood to be as a sole practitioner or in
+/// partnership; incorporation of legal practice is not permitted. That
+/// understanding is unconfirmed — counsel question 8(a).
+enum FirmType {
+  SOLE_PRACTITIONER
+  PARTNERSHIP
+}
+
+/// A member's role inside their firm. This is firm-internal authority and has
+/// nothing to do with the platform `Role` enum or with subscription tiers.
+///
+/// PARALEGAL is deliberately the weakest: whether non-attorney staff may read
+/// matter descriptions at all is counsel question 8(b), and until it is answered
+/// they cannot. See src/lib/firms/access.ts — that file, not this comment, is
+/// where the rule is enforced.
+enum FirmRole {
+  FIRM_OWNER // principal / partner; always an admitted attorney
+  FIRM_ADMIN // practice manager; may or may not be an attorney
+  ATTORNEY // admitted attorney practising in the firm
+  PARALEGAL // non-attorney support staff
+}
+
+enum FirmMemberStatus {
+  ACTIVE
+  INVITED
+  SUSPENDED
+  REMOVED // soft delete; membership rows are never hard-deleted
+}
+
+/// Firm-level verification is a different thing from `LawyerProfile.isVerified`.
+///
+/// An attorney is verified against their BASL registration, individually. A firm
+/// is verified as an existing practice at a real address whose named principal
+/// is an admitted attorney. Both matter, and neither implies the other.
+enum FirmVerificationStatus {
+  UNVERIFIED
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+model LawFirm {
+  id   String @id @default(uuid())
+  /// URL-safe identifier for the public firm page
+  slug String @unique
+  name String
+
+  firmType FirmType @default(SOLE_PRACTITIONER)
+
+  /// True when the firm exists only because a solo practitioner needed one.
+  /// The UI hides firm management entirely for these until a second member is
+  /// added, so a solo attorney's experience is unchanged.
+  isSoloPractice Boolean @default(true)
+
+  // --- Registration ---
+  registrationNumber  String?
+  /// The principal's BASL number, snapshotted for display. The authoritative
+  /// value stays on the attorney's own LawyerProfile.
+  principalBaslNumber String?
+  establishedYear     Int?
+
+  // --- Public profile. Bound by the Rule 40 content limit. ---
+  // Permitted: name, qualifications, office hours, contact, and factual practice
+  // information. NOT permitted here, ever: fee ranges or any price indication,
+  // ratings or review counts, "featured"/"top"/"recommended" flags, or any
+  // column whose value depends on what the firm pays us.
+  // See docs/restructure/LEGAL-GUARDRAILS.md — "The Rule 40 content limit".
+  description   String?
+  practiceAreas String[]
+  languages     String[]
+  courts        String[]
+  district      String?
+  contactEmail  String?
+  contactPhone  String?
+  websiteUrl    String?
+  /// Free text, e.g. "Mon–Fri 9.00am–5.00pm". Expressly permitted by Rule 40.
+  officeHours   String?
+  logoUrl       String?
+
+  // --- Client account details ---
+  // Recorded so quotes can be pre-filled with the firm's OWN bank details. The
+  // platform never holds, routes, or verifies a payment into this account; it
+  // only records that the firm said money arrived.
+  // See docs/restructure/LEGAL-GUARDRAILS.md (rule 2).
+  bankName      String?
+  accountName   String?
+  accountNumber String?
+  bankBranch    String?
+
+  // --- Verification ---
+  verificationStatus FirmVerificationStatus @default(UNVERIFIED)
+  verifiedAt         DateTime?
+  /// The ADMIN user who recorded the verification decision
+  verifiedById       String?
+  verificationNotes  String?
+
+  /// Soft delete. Firms are never hard-deleted — matters reference them.
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  members  FirmMember[]
+  offices  FirmOffice[]
+  lawyers  LawyerProfile[]
+  bookings Booking[]
+
+  @@index([verificationStatus])
+  @@index([district])
+  @@index([slug])
+}
+
+/// A firm's offices. A firm may practise from several, and each attorney keeps
+/// their own calendar — availability is never collapsed to the firm.
+model FirmOffice {
+  id     String  @id @default(uuid())
+  firmId String
+  firm   LawFirm @relation(fields: [firmId], references: [id], onDelete: Cascade)
+
+  label        String // "Colombo (head office)"
+  address      String
+  district     String?
+  contactPhone String?
+  isPrimary    Boolean @default(false)
+  isActive     Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([firmId, isActive])
+}
+
+/// Membership of a firm, with the member's firm-internal role.
+model FirmMember {
+  id     String  @id @default(uuid())
+  firmId String
+  firm   LawFirm @relation(fields: [firmId], references: [id], onDelete: Cascade)
+  userId String
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  role   FirmRole
+  status FirmMemberStatus @default(ACTIVE)
+
+  /// Job title as the firm words it. Display only — authority comes from `role`.
+  title String?
+
+  invitedById String?
+  invitedAt   DateTime?
+  joinedAt    DateTime  @default(now())
+  removedAt   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([firmId, userId])
+  @@index([firmId, status])
+  @@index([userId, status])
 }
 
 model SubscriptionPlan {
@@ -422,18 +611,13 @@ model Article {
   createdAt DateTime      @default(now())
 }
 
-model Review {
-  id           String        @id @default(uuid())
-  lawyerId     String
-  lawyer       LawyerProfile @relation(fields: [lawyerId], references: [id], onDelete: Cascade)
-  reviewerId   String?
-  reviewer     User?         @relation("ReviewAuthor", fields: [reviewerId], references: [id], onDelete: SetNull)
-  reviewerName String
-  rating       Int
-  comment      String
-  isApproved   Boolean       @default(false)
-  createdAt    DateTime      @default(now())
-}
+// The `Review` model was removed in Phase 2.
+//
+// Star ratings of attorneys are "unfair attraction" under Supreme Court Rule 39,
+// and any rating signal makes directory ordering non-neutral under guardrail
+// rule 4. The UI had been removed in an earlier commit but the model, the
+// endpoint and the public payloads were all still live.
+// See docs/restructure/LEGAL-GUARDRAILS.md — "The Rule 40 content limit".
 
 enum PromoStatus {
   ACTIVE
@@ -1065,9 +1249,30 @@ model Booking {
   bookingNumber String @unique // "BK-2026-0001"
 
   clientId String
-  client   User          @relation("ClientBookings", fields: [clientId], references: [id])
+  client   User   @relation("ClientBookings", fields: [clientId], references: [id])
+
+  /// The attorney currently responsible for this matter.
+  ///
+  /// Always set. At intake it is the attorney the client chose from the
+  /// directory — the client's choice, logged, never ours (rule 4). A firm owner
+  /// or firm admin may reassign it to another attorney **in the same firm**;
+  /// nothing can move a matter between firms.
   lawyerId String
   lawyer   LawyerProfile @relation(fields: [lawyerId], references: [id])
+
+  /// The firm that received the request and is the provider of legal services.
+  ///
+  /// Derived from the chosen attorney's firm at intake and immutable thereafter.
+  /// `lawyerId` must always belong to this firm — the invariant is enforced in
+  /// src/lib/firms/access.ts and re-checked on every reassignment.
+  firmId String?
+  firm   LawFirm? @relation(fields: [firmId], references: [id])
+
+  /// Set when a firm owner/admin reassigns the responsible attorney. Null on a
+  /// matter that has stayed with the attorney the client originally chose.
+  assignedById   String?
+  assignedAt     DateTime?
+  assignmentNote String?
 
   // Schedule
   date      DateTime @db.Date
@@ -1146,6 +1351,7 @@ model Booking {
 
   @@index([clientId, status])
   @@index([lawyerId, date])
+  @@index([firmId, status])
   @@index([status])
   @@index([bookingNumber])
 }

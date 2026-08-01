@@ -11,7 +11,6 @@ export async function GET() {
 
     const [
       pendingApplications,
-      pendingReviews,
       totalVerified,
       totalInquiries,
       totalArticles,
@@ -25,10 +24,6 @@ export async function GET() {
         where: { status: 'SUBMITTED' },
         orderBy: { submittedAt: 'desc' },
         include: { user: { select: { email: true, createdAt: true } } },
-      }),
-      prisma.review.findMany({
-        where: { isApproved: false },
-        include: { lawyer: { select: { fullName: true } } },
       }),
       prisma.lawyerProfile.count({ where: { isVerified: true } }),
       prisma.inquiry.count(),
@@ -80,13 +75,11 @@ export async function GET() {
 
     return NextResponse.json({
       pendingLawyers: mappedApplications,
-      pendingReviews,
       stats: {
         totalVerified,
         pendingApprovals: pendingApplications.length,
         totalInquiries,
         totalArticles,
-        pendingReviewCount: pendingReviews.length,
         totalUsers,
         totalLawyers,
         totalClients,
@@ -113,18 +106,11 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: 'Invalid request payload.' }, { status: 400 });
     }
 
-    if (action === 'approve-review') {
-      await prisma.review.update({
-        where: { id },
-        data: { isApproved: true },
-      });
-      return NextResponse.json({ success: true, message: 'Review approved.' });
-    }
-
-    if (action === 'reject-review') {
-      await prisma.review.delete({ where: { id } });
-      return NextResponse.json({ success: true, message: 'Review deleted.' });
-    }
+    // The `approve-review` and `reject-review` actions were removed in Phase 2
+    // along with the Review model. Star ratings of attorneys are unfair
+    // attraction under Supreme Court Rule 39, and any rating makes directory
+    // ordering non-neutral under rule 4.
+    // See docs/restructure/LEGAL-GUARDRAILS.md.
 
     return NextResponse.json({ error: 'Invalid action.' }, { status: 400 });
   } catch {

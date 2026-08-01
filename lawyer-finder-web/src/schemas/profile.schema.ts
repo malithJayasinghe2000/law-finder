@@ -53,10 +53,6 @@ export const profileSchema = z.object({
     (val) => typeof val === 'string' ? sanitizeString(val) : val,
     z.string().optional().or(z.literal(''))
   ),
-  baseFeeRange: z.preprocess(
-    (val) => typeof val === 'string' ? sanitizeString(val) : val,
-    z.string().max(100, 'Fee range description must not exceed 100 characters.').optional()
-  ),
 });
 
 export type ProfileFormValues = z.infer<typeof profileSchema>;

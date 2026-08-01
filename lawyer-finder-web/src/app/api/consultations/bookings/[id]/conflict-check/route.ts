@@ -3,6 +3,7 @@ import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { RecordConflictCheckSchema } from '@/schemas/consultation.schema';
 import { canTransition } from '@/lib/consultations/bookingStatus';
+import { getMatterAccess } from '@/lib/firms/access';
 
 /**
  * Conflict-of-interest screening.
@@ -31,15 +32,42 @@ export async function GET(
 
     const booking = await prisma.booking.findUnique({
       where: { id },
-      select: { id: true, lawyer: { select: { userId: true } } },
+      select: {
+        id: true,
+        lawyerId: true,
+        firmId: true,
+        clientId: true,
+        lawyer: { select: { userId: true } },
+      },
     });
 
     if (!booking) {
       return NextResponse.json({ error: 'Request not found' }, { status: 404 });
     }
 
-    // Firm-internal only. Deliberately not readable by the client or by ADMIN.
-    if (booking.lawyer.userId !== session.userId) {
+    // Firm-internal only, and narrower than the rest of the matter.
+    //
+    // A conflict check names OTHER clients — that is the whole point of it — so
+    // it is confidential to those clients as much as to this one. It is readable
+    // by the attorney acting and by the firm's principal (who must be able to
+    // check that screening actually happened), and by nobody else: not the
+    // client, not another attorney at the firm, not platform staff.
+    // See docs/restructure/LEGAL-GUARDRAILS.md (rule 5).
+    const access = await getMatterAccess({
+      actorUserId: session.userId,
+      actorRole: session.role,
+      actorProfileId: session.profileId,
+      matter: {
+        lawyerId: booking.lawyerId,
+        firmId: booking.firmId,
+        clientId: booking.clientId,
+      },
+    });
+
+    const mayReadScreening =
+      access.basis === 'ASSIGNED_ATTORNEY' || access.basis === 'FIRM_PRINCIPAL';
+
+    if (!mayReadScreening) {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 });
     }
 
@@ -74,15 +102,25 @@ export async function POST(
 
     const booking = await prisma.booking.findUnique({
       where: { id },
-      select: { id: true, status: true, lawyer: { select: { userId: true } } },
+      select: {
+        id: true,
+        status: true,
+        lawyerId: true,
+        firmId: true,
+        clientId: true,
+        lawyer: { select: { userId: true } },
+      },
     });
 
     if (!booking) {
       return NextResponse.json({ error: 'Request not found' }, { status: 404 });
     }
 
-    // Only the attorney whose firm received the request may run the check.
-    // Platform staff must never perform or see it.
+    // Only the attorney who will actually do the work may run the check.
+    //
+    // Not the principal, and not a practice manager: screening for conflicts is
+    // a professional duty of the attorney taking the matter, and a record signed
+    // by someone else is worth nothing if it is ever tested.
     if (booking.lawyer.userId !== session.userId) {
       return NextResponse.json(
         { error: 'Only the attorney handling this request can record a conflict check.' },

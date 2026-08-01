@@ -18,7 +18,7 @@ import {
 import ChatWidget from '@/components/home/ChatWidget';
 import HeroChatInput from '@/components/home/HeroChatInput';
 
-import { AdBanner, SponsoredListing } from '@/components/ads/AdComponents';
+import { AdBanner } from '@/components/ads/AdComponents';
 import prisma from '@/lib/db';
 import LawyerCard from '@/components/lawyer/LawyerCard';
 
@@ -28,9 +28,26 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
 
 
 
-  // Fetch top lawyers for cards section
-  const topLawyers = await prisma.lawyerProfile.findMany({
+  // Verified attorneys shown on the home page.
+  //
+  // Not "top" attorneys — there is no such thing here and there must not be. The
+  // ordering is alphabetical so that no attorney can occupy this space for any
+  // reason other than their name, and the select list is the Rule 40 content
+  // limit rather than the whole row (a bare findMany serializes every column,
+  // including fee ranges, into the RSC payload).
+  // See docs/restructure/LEGAL-GUARDRAILS.md (rules 3 and 4).
+  const directoryAttorneys = await prisma.lawyerProfile.findMany({
     where: { isVerified: true },
+    select: {
+      id: true,
+      fullName: true,
+      profileImageUrl: true,
+      bio: true,
+      practiceAreas: true,
+      languages: true,
+      district: true,
+    },
+    orderBy: { fullName: 'asc' },
     take: 8,
   });
 
@@ -198,9 +215,12 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
             {/* Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
               {/* Ad/Sponsored placement */}
-              <SponsoredListing placement="DIRECTORY_TOP" locale={locale} />
+              {/* Sponsored attorney listings removed here in Phase 2 for the
+                  same reason as on /lawyers: an attorney could pay to appear
+                  above other attorneys. Guardrail rule 3.
+                  See docs/restructure/LEGAL-GUARDRAILS.md. */}
 
-              {topLawyers.map((lawyer) => {
+              {directoryAttorneys.map((lawyer) => {
                 return (
                   <LawyerCard
                     key={lawyer.id}

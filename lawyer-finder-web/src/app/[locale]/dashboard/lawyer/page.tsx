@@ -18,10 +18,8 @@ interface ProfileData {
   languages: string[];
   district: string | null;
   bio: string | null;
-  baseFeeRange: string | null;
   inquiries: { id: string; clientName: string; clientEmail: string; message: string; status: string; createdAt: string }[];
   articles: { id: string; title: string; status: string; createdAt: string }[];
-  reviews: { id: string; reviewerName: string; rating: number; comment: string; isApproved: boolean }[];
 }
 
 export default function LawyerDashboard() {
@@ -74,7 +72,6 @@ export default function LawyerDashboard() {
 
   const pendingInquiries = profile.inquiries.filter((i) => i.status === 'PENDING').length;
   const publishedArticles = profile.articles.filter((a) => a.status === 'PUBLISHED').length;
-  const approvedReviews = profile.reviews.filter((r) => r.isApproved).length;
 
   const sub = subscriptionData?.subscription;
 
@@ -204,17 +201,6 @@ export default function LawyerDashboard() {
             </div>
           </CardContent>
         </Card>
-        <Card className="rounded-none shadow-sm">
-          <CardContent className="flex items-center gap-4 p-5">
-            <div className="flex h-11 w-11 items-center justify-center rounded-none bg-[#0a0a0a] text-white">
-              <Star className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{approvedReviews}</p>
-              <p className="text-xs text-muted-foreground font-medium">Approved Reviews</p>
-            </div>
-          </CardContent>
-        </Card>
       </div>
 
       {/* Recent Inquiries */}
@@ -263,10 +249,6 @@ export default function LawyerDashboard() {
             <div>
               <p className="text-muted-foreground mb-1">District</p>
               <p className="font-medium">{profile.district || 'Not set'}</p>
-            </div>
-            <div>
-              <p className="text-muted-foreground mb-1">Fee Range</p>
-              <p className="font-medium">{profile.baseFeeRange || 'Not set'}</p>
             </div>
             <div>
               <p className="text-muted-foreground mb-1">Languages</p>

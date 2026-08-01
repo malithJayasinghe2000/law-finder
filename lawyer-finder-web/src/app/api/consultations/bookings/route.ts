@@ -6,6 +6,8 @@ import { formatSriLankaDateIso, parseDateOnlyToUtc } from '@/lib/utils';
 import { EmailService } from '@/lib/email/EmailService';
 import { SLOT_BLOCKING_STATUSES } from '@/lib/consultations/bookingStatus';
 import { expireStaleQuotes } from '@/lib/consultations/expireQuotes';
+import { getFirmMembership, resolveMatterAccess, redactMatter } from '@/lib/firms/access';
+import { ensureAttorneyHasFirm } from '@/lib/firms/provisioning';
 
 // GET: List bookings (filtered by role)
 export async function GET(req: Request) {
@@ -36,13 +38,30 @@ export async function GET(req: Request) {
 
     const where: any = {};
 
-    // Role-based filtering
+    // Role-based filtering.
+    //
+    // Phase 2: an attorney sees their FIRM's matters, not only their own. That
+    // is what makes a firm queue possible — a principal has to be able to see a
+    // request in order to assign it. What each of them may *read* about those
+    // matters is decided per row below, by src/lib/firms/access.ts.
+    const membership =
+      session.role === 'LAWYER' ? await getFirmMembership(session.userId) : null;
+
     if (session.role === 'CLIENT') {
       where.clientId = session.userId;
-    } else if (session.role === 'LAWYER' && session.profileId) {
-      where.lawyerId = session.profileId;
+    } else if (session.role === 'LAWYER') {
+      if (membership) {
+        where.firmId = membership.firmId;
+      } else if (session.profileId) {
+        // An attorney with no firm yet (pre-Phase-2 profile that has not been
+        // through the backfill). Falls back to their own matters so nothing
+        // disappears from their dashboard.
+        where.lawyerId = session.profileId;
+      } else {
+        where.id = '__no_access__';
+      }
     }
-    // ADMIN sees all
+    // ADMIN sees that matters exist, never what they are about.
 
     if (status) where.status = status;
     if (dateFrom || dateTo) {
@@ -66,24 +85,37 @@ export async function GET(req: Request) {
       prisma.booking.count({ where }),
     ]);
 
-    // Legal professional privilege (Evidence Ordinance s.126): the client's own
-    // account of their legal problem is privileged and confidential to the client
-    // and their lawyer. Platform staff have no need to read it, so it is redacted
-    // for ADMIN. See docs/restructure/LEGAL-GUARDRAILS.md (rule 5).
-    const redactMatterDetail = session.role === 'ADMIN';
-
+    // Legal professional privilege (Evidence Ordinance s.126).
+    //
+    // Who may read the client's own account of their legal problem is decided in
+    // exactly one place — src/lib/firms/access.ts — and applied per row. Platform
+    // staff never may; inside a firm, only the assigned attorney and the
+    // principal do. See docs/restructure/LEGAL-GUARDRAILS.md (rule 5).
     return NextResponse.json({
-      bookings: bookings.map((b) => ({
-        ...b,
-        subject: redactMatterDetail ? '[Withheld — privileged]' : b.subject,
-        description: redactMatterDetail ? '[Withheld — privileged]' : b.description,
-        lawyerNotes: redactMatterDetail ? null : b.lawyerNotes,
+      bookings: bookings.map((b) => {
+        const access = resolveMatterAccess({
+          actorUserId: session.userId,
+          actorRole: session.role,
+          actorProfileId: session.profileId,
+          membership,
+          matter: { lawyerId: b.lawyerId, firmId: b.firmId, clientId: b.clientId },
+        });
+
+        return {
+        ...redactMatter(b, access),
+        access: {
+          canReadMatterDetail: access.canReadMatterDetail,
+          canAct: access.canAct,
+          canAssign: access.canAssign,
+          basis: access.basis,
+        },
         date: formatSriLankaDateIso(b.date),
         createdAt: b.createdAt.toISOString(),
         updatedAt: b.updatedAt.toISOString(),
         paidAt: b.paidAt?.toISOString() || null,
         cancelledAt: b.cancelledAt?.toISOString() || null,
-      })),
+        };
+      }),
       pagination: {
         page,
         limit,
@@ -147,6 +179,13 @@ export async function POST(req: Request) {
     // pays that exact amount directly to the lawyer.
     // See docs/restructure/LEGAL-GUARDRAILS.md (rules 1 and 2).
     const duration = calculateDuration(startTime, endTime);
+
+    // The request is addressed to the FIRM the chosen attorney practises in —
+    // the firm is the provider of legal services, not the individual and
+    // certainly not us. `lawyerId` still records the attorney the client chose,
+    // which is the evidence that the choice was theirs and never ours.
+    // See docs/restructure/LEGAL-GUARDRAILS.md (rules 4 and 7).
+    const firmId = await ensureAttorneyHasFirm(prisma, lawyerId);
 
     // Race-condition-safe booking creation using serializable transaction
     const booking = await prisma.$transaction(async (tx) => {
@@ -222,6 +261,7 @@ export async function POST(req: Request) {
           bookingNumber,
           clientId: session.userId,
           lawyerId,
+          firmId,
           date: targetDate,
           startTime,
           endTime,

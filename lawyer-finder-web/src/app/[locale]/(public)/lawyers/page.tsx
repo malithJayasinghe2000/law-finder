@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import Link from 'next/link';
 import { Search, MapPin, Languages, ShieldCheck, Briefcase, ChevronLeft, ChevronRight } from 'lucide-react';
-import { SponsoredListing, AdBanner } from '@/components/ads/AdComponents';
+import { AdBanner } from '@/components/ads/AdComponents';
 import LawyerCard from '@/components/lawyer/LawyerCard';
 import LawyerFilterForm from './LawyerFilterForm';
 import { LegalDisclaimer } from '@/components/shared/LegalDisclaimer';
@@ -46,7 +46,19 @@ export default async function LawyerDirectory({
   const [lawyers, totalCount] = await Promise.all([
     prisma.lawyerProfile.findMany({
       where,
-      include: { reviews: { where: { isApproved: true } } },
+      // Rule 40 content limit: no fee range, no rating, no subscription signal.
+      // A bare findMany would serialize every column into the RSC payload.
+      // See docs/restructure/LEGAL-GUARDRAILS.md.
+      select: {
+        id: true,
+        fullName: true,
+        profileImageUrl: true,
+        bio: true,
+        practiceAreas: true,
+        languages: true,
+        district: true,
+      },
+      // Alphabetical, and disclosed as such below. Nobody can buy a position.
       orderBy: { fullName: 'asc' },
       skip,
       take: PAGE_SIZE,
@@ -76,7 +88,7 @@ export default async function LawyerDirectory({
         <div className="mb-10 max-w-2xl">
           <h1 className="text-3xl font-light tracking-tight sm:text-4xl">Lawyer Directory</h1>
           <p className="mt-3 text-muted-foreground">
-            Browse verified Sri Lankan legal professionals. Use the filters to find the right match.
+            Browse verified Sri Lankan Attorneys-at-Law. Listings are ordered alphabetically and cannot be paid for. Use the filters to narrow the list, then choose for yourself.
           </p>
         </div>
 
@@ -112,10 +124,16 @@ export default async function LawyerDirectory({
           </Card>
         ) : (
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {/* Sponsored Listings at the top (only on page 1) */}
-            {currentPage === 1 && (
-              <SponsoredListing placement="DIRECTORY_INLINE" locale={locale} imageHeight="h-[280px]" />
-            )}
+            {/* Sponsored listings removed from the directory in Phase 2.
+                Attorneys were buying an AdCampaign slot and appearing as a
+                "★ Sponsored" card ahead of everyone else in this very list.
+                That is selling position and visibility to a lawyer — guardrail
+                rule 3, and the conduct rules it comes from — on the single
+                highest-risk surface in the product.
+                The ad system itself is untouched and is restructured in Phase 4,
+                where the split between lawyer and non-lawyer advertisers is
+                dealt with properly.
+                See docs/restructure/LEGAL-GUARDRAILS.md (rule 3). */}
 
             {lawyers.map((lawyer) => {
 

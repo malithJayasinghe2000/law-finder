@@ -39,7 +39,6 @@ export async function GET(req: Request) {
         courts: Array.isArray(data?.step2?.courts) ? data.step2.courts.join(', ') : (data?.step2?.courts || 'N/A'),
         isNotary: data?.step2?.isNotary || false,
         practiceAreas: Array.isArray(data?.step3?.practiceAreas) ? data.step3.practiceAreas.join(', ') : (data?.step3?.practiceAreas || 'N/A'),
-        baseFeeRange: data?.step3?.baseFeeRange || 'N/A',
         licenseImage: data?.step4?.licenseImage || null,
         identityImage: data?.step4?.identityImage || null,
         email: app.user.email,

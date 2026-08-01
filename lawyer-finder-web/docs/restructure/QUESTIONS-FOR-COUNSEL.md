@@ -245,6 +245,78 @@ right way to approach it?
 
 ---
 
+## Priority 0 — Existential. Ask these first.
+
+> Added 2026-08-01 during Phase 2. Q2 above asks whether our directory is
+> *permissible in its details*. Q16–Q18 ask the prior question: **whether a
+> consumer-facing directory of attorneys may lawfully exist at all**, and whether
+> operating one exposes the platform's directors to criminal liability rather than
+> exposing listed attorneys to disciplinary action.
+>
+> We have designed to the most conservative reading we can while keeping the product
+> working (see the Rule 40 content limit in LEGAL-GUARDRAILS.md), but this is not a
+> question engineering can answer. **If the answer to Q16 or Q17 is unfavourable, the
+> consumer product must be withdrawn, not adjusted.**
+
+### Q16. May a public directory of attorneys lawfully exist?
+
+**What we built.** A public, searchable directory of verified Attorneys-at-Law.
+Listing is free and open to every verified attorney. Ordering is alphabetical.
+Nothing about position, visibility or prominence can be purchased. Filtering is on
+practice area, district and language — criteria supplied by the client, not by us.
+Profiles are limited to the Rule 40 content list plus factual practice information.
+
+**Why we believed this is permissible.** We read Rules 39–49 as prohibiting *paid*
+prominence and self-promotion, not the existence of a neutral list.
+
+**Why we are no longer confident.** Rule 40 specifies what an attorney may display in
+narrow terms — name, professional qualifications, academic qualifications, office
+hours — which reads as an exhaustive permission rather than a floor.
+
+**Confirm:**
+- (a) May a third-party platform publish a directory of attorneys at all?
+- (b) If yes, is Rule 40's list exhaustive as to profile content, or may factual
+  practice information (practice areas, courts, languages, years admitted) also
+  appear?
+- (c) Does it matter that listing is free, universal, and unpurchaseable?
+- (d) Does the attorney's own consent to being listed change the analysis?
+
+### Q17. Does the Intermeddlers with Suitors Ordinance No. 11 of 1894 apply to us?
+
+**Why we are asking.** Our guardrails were written around attorney *discipline* — the
+risk to the practitioners listed. We have since understood that touting under the
+1894 Ordinance is a **criminal offence** and is not confined to attorneys; it can
+reach an intermediary who channels work to practitioners.
+
+**Confirm:**
+- (a) Does the Ordinance apply to a software platform operator that publishes a
+  directory and transmits client enquiries to attorneys?
+- (b) Is the analysis changed by the fact that **no attorney pays us anything for
+  visibility, position, or introductions**, and no fee is charged per enquiry?
+- (c) Does taking any payment at all from an attorney — including a flat SaaS licence
+  for practice-management software — affect the position?
+- (d) What is the exposure of the platform's directors personally?
+
+### Q18. Is client-driven search across attorneys "indirect solicitation"?
+
+**Why we are asking.** India's Bar Council Rule 36 is closely comparable to Rule 39.
+Indian courts have held that any structure channelling clients toward particular
+lawyers — even algorithmically — is indirect solicitation, expressly including
+search-based filtering across lawyers, and the BCI issued cease-and-desist notices to
+consumer lawyer platforms. Sri Lanka did not adopt India's 2008 relaxation permitting
+informational lawyer websites.
+
+**Confirm:**
+- (a) Is Indian authority on BCI Rule 36 of any persuasive value here?
+- (b) Does a client typing their own filter criteria (practice area, district,
+  language) and receiving an alphabetical list constitute solicitation by us?
+- (c) Does our AI assistant naming attorneys practising in a relevant area — on the
+  same neutral criteria, with no ranking — cross the line? (Related to Q6.)
+- (d) Is there a form of the consumer product that is clearly safe — for example,
+  the client contacts a firm they already know by name, with no browse or search?
+
+---
+
 ## Answer log
 
 | # | Question | Answer | Date | Counsel |
@@ -264,3 +336,6 @@ right way to approach it?
 | 13 | Cause lists | | | |
 | 14 | Corporate panels | | | |
 | 15 | BASL relationship | | | |
+| **16** | **May a public attorney directory exist at all** | | | |
+| **17** | **Intermeddlers Ordinance 1894 — operator's criminal exposure** | | | |
+| **18** | **Is client-driven search indirect solicitation** | | | |

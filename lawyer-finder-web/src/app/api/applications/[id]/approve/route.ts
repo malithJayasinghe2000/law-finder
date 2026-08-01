@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { EmailService } from '@/lib/email/EmailService';
+import { createSoloFirmForAttorney } from '@/lib/firms/provisioning';
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -33,7 +34,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       });
 
       // 2. Parse the temporary JSON payload and forge the permanent LawyerProfile record.
-      await tx.lawyerProfile.create({
+      const profile = await tx.lawyerProfile.create({
         data: {
           userId: application.userId,
           fullName: data.step1?.fullName || 'Verified Lawyer',
@@ -57,7 +58,6 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
               ? data.step1.languages.split(',').map((s: string) => s.trim()) 
               : []),
           district: data.step1?.district || null,
-          baseFeeRange: data.step3?.baseFeeRange || null,
           yearsOfExperience: data.step2?.yearsOfExperience ? parseInt(data.step2.yearsOfExperience, 10) : null,
           practiceType: data.step2?.practiceType || null,
           courts: Array.isArray(data.step2?.courts) 
@@ -71,14 +71,37 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         }
       });
 
-      // 3. Command the elevation of the physical User account Role Enum
+      // 3. Give the attorney a firm of one, and make them its owner.
+      //
+      // The firm — not this platform — is the provider of legal services, so an
+      // attorney must never exist on the system without one. Created inside the
+      // same transaction as the profile so the two cannot come apart.
+      // See docs/restructure/LEGAL-GUARDRAILS.md (rule 7).
+      await createSoloFirmForAttorney(tx, {
+        userId: application.userId,
+        profileId: profile.id,
+        fullName: profile.fullName,
+        baslNumber: profile.baslNumber,
+        bio: profile.bio,
+        practiceAreas: profile.practiceAreas,
+        languages: profile.languages,
+        courts: profile.courts,
+        district: profile.district,
+        contactPhone: profile.contactPhone,
+        contactEmail: application.user.email,
+        address: profile.address,
+        profileImageUrl: profile.profileImageUrl,
+        isVerified: profile.isVerified,
+      });
+
+      // 4. Command the elevation of the physical User account Role Enum
       await tx.user.update({
         where: { id: application.userId },
         data: { role: 'LAWYER' }
       });
     });
 
-    // 4. Trigger global notification asynchronously
+    // 5. Trigger global notification asynchronously
     await EmailService.sendApplicationApproved(application.user.email, data.step1?.fullName || 'Lawyer');
 
     return NextResponse.json({ success: true, message: 'Lawyer verified & authorized globally.' }, { status: 200 });

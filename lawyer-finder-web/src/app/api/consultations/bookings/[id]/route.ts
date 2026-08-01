@@ -5,6 +5,7 @@ import { CancelBookingSchema, CompleteBookingSchema, BookingRatingSchema } from 
 import { formatSriLankaDateIso } from '@/lib/utils';
 import { EmailService } from '@/lib/email/EmailService';
 import { canTransition } from '@/lib/consultations/bookingStatus';
+import { getMatterAccess, redactMatter } from '@/lib/firms/access';
 
 /**
  * Engagement request lifecycle.
@@ -48,25 +49,33 @@ export async function GET(
       return NextResponse.json({ error: 'Booking not found' }, { status: 404 });
     }
 
-    const isClient = booking.clientId === session.userId;
-    const isLawyer = booking.lawyer.userId === session.userId;
-    const isAdmin = session.role === 'ADMIN';
+    // Legal professional privilege (Evidence Ordinance s.126).
+    //
+    // Since Phase 2 this is not a simple client/lawyer/admin split: a firm has
+    // members, and only some of them may read what the client wrote. The whole
+    // decision lives in src/lib/firms/access.ts.
+    // See docs/restructure/LEGAL-GUARDRAILS.md (rule 5).
+    const access = await getMatterAccess({
+      actorUserId: session.userId,
+      actorRole: session.role,
+      actorProfileId: session.profileId,
+      matter: {
+        lawyerId: booking.lawyerId,
+        firmId: booking.firmId,
+        clientId: booking.clientId,
+      },
+    });
 
-    if (!isClient && !isLawyer && !isAdmin) {
+    if (!access.canRead) {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 });
     }
 
-    // Legal professional privilege (Evidence Ordinance s.126): withhold the
-    // client's account of their matter, and the lawyer's notes on it, from
-    // platform staff. See docs/restructure/LEGAL-GUARDRAILS.md (rule 5).
-    const redactMatterDetail = isAdmin && !isClient && !isLawyer;
+    const isClient = access.basis === 'CLIENT';
+    const isLawyer = booking.lawyer.userId === session.userId;
 
     return NextResponse.json({
       booking: {
-        ...booking,
-        subject: redactMatterDetail ? '[Withheld — privileged]' : booking.subject,
-        description: redactMatterDetail ? '[Withheld — privileged]' : booking.description,
-        lawyerNotes: redactMatterDetail ? null : booking.lawyerNotes,
+        ...redactMatter(booking, access),
         date: formatSriLankaDateIso(booking.date),
         createdAt: booking.createdAt.toISOString(),
         updatedAt: booking.updatedAt.toISOString(),
@@ -74,8 +83,14 @@ export async function GET(
         cancelledAt: booking.cancelledAt?.toISOString() || null,
         termsAcceptedAt: booking.termsAcceptedAt?.toISOString() || null,
       },
-      role: isClient ? 'CLIENT' : isLawyer ? 'LAWYER' : 'ADMIN',
-      matterDetailRedacted: redactMatterDetail,
+      role: isClient ? 'CLIENT' : isLawyer ? 'LAWYER' : session.role === 'ADMIN' ? 'ADMIN' : 'FIRM',
+      matterDetailRedacted: !access.canReadMatterDetail,
+      access: {
+        canReadMatterDetail: access.canReadMatterDetail,
+        canAct: access.canAct,
+        canAssign: access.canAssign,
+        basis: access.basis,
+      },
     });
   } catch {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
@@ -110,10 +125,35 @@ export async function PATCH(
     }
 
     const isClient = booking.clientId === session.userId;
+    // Only the attorney with responsibility for the matter may act on it. A
+    // principal can reassign it (see [id]/assign) but does not quote or
+    // conflict-check on a colleague's behalf — the attorney who will do the work
+    // is the one who must screen for conflicts and set the fee.
     const isLawyer = booking.lawyer.userId === session.userId;
     const isAdmin = session.role === 'ADMIN';
 
     if (!isClient && !isLawyer && !isAdmin) {
+      const access = await getMatterAccess({
+        actorUserId: session.userId,
+        actorRole: session.role,
+        actorProfileId: session.profileId,
+        matter: {
+          lawyerId: booking.lawyerId,
+          firmId: booking.firmId,
+          clientId: booking.clientId,
+        },
+      });
+
+      if (access.canAssign) {
+        return NextResponse.json(
+          {
+            error:
+              'This matter is assigned to another attorney at your firm. Reassign it to yourself first if you intend to act on it.',
+          },
+          { status: 403 }
+        );
+      }
+
       return NextResponse.json({ error: 'Access denied' }, { status: 403 });
     }
 

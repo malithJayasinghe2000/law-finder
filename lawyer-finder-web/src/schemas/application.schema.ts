@@ -72,11 +72,6 @@ export const applicationStep3Schema = z.object({
   practiceAreas: z.array(z.enum(PRACTICE_AREAS as unknown as [string, ...string[]]))
     .min(1, 'Please select at least one specialization.')
     .max(6, 'You may select up to 6 specializations.'),
-  baseFeeRange: z.string()
-    .max(50, 'Fee description must not exceed 50 characters.')
-    .optional()
-    .or(z.literal(''))
-    .transform((val) => val ? sanitizeString(val) : val),
 });
 
 // ── Step 4: Verification ─────────────────────────────────────────────────────

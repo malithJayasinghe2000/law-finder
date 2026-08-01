@@ -13,7 +13,7 @@ export const ConsultationModeEnum = z.enum(['PHYSICAL', 'ONLINE', 'BOTH']);
 export const BookingStatusEnum = z.enum([
   'REQUESTED', 'CONFLICT_CHECK', 'DECLINED', 'QUOTED', 'QUOTE_EXPIRED',
   'CLIENT_DECLINED', 'ACCEPTED', 'SCHEDULED', 'RESCHEDULE_REQUESTED',
-  'IN_PROGRESS', 'COMPLETED', 'CANCELLED_BY_CLIENT', 'CANCELLED_BY_FIRM',
+  'COMPLETED', 'CANCELLED_BY_CLIENT', 'CANCELLED_BY_FIRM',
   'NO_SHOW', 'DISPUTED',
 ]);
 
@@ -244,7 +244,6 @@ export const BOOKING_STATUS_COLORS: Record<string, string> = {
   ACCEPTED: 'bg-cyan-100 text-cyan-800',
   SCHEDULED: 'bg-blue-100 text-blue-800',
   RESCHEDULE_REQUESTED: 'bg-teal-100 text-teal-800',
-  IN_PROGRESS: 'bg-purple-100 text-purple-800',
   COMPLETED: 'bg-green-100 text-green-800',
   CANCELLED_BY_CLIENT: 'bg-red-100 text-red-800',
   CANCELLED_BY_FIRM: 'bg-red-100 text-red-800',
@@ -266,7 +265,6 @@ export const BOOKING_STATUS_LABELS: Record<string, string> = {
   ACCEPTED: 'Terms accepted',
   SCHEDULED: 'Scheduled',
   RESCHEDULE_REQUESTED: 'New time proposed',
-  IN_PROGRESS: 'In progress',
   COMPLETED: 'Completed',
   CANCELLED_BY_CLIENT: 'Cancelled by client',
   CANCELLED_BY_FIRM: 'Cancelled by firm',

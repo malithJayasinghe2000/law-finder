@@ -19,7 +19,6 @@ interface Ad {
     profileImageUrl: string | null;
     district: string | null;
     practiceAreas: string[];
-    baseFeeRange: string | null;
     bio: string | null;
   };
 }

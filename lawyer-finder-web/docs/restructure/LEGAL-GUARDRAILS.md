@@ -12,7 +12,10 @@ much product value it adds.
 
 | Source | What it governs | Why we care |
 | --- | --- | --- |
-| **Supreme Court Rules 1988** (conduct & etiquette of Attorneys-at-Law) | Fee-sharing, advertising, touting | The real regulator. Discipline runs through the Supreme Court under the **Judicature Act No. 2 of 1978**, not BASL |
+| **Supreme Court Rules 1988** (conduct & etiquette of Attorneys-at-Law), **Rules 39–49** | Fee-sharing, advertising, touting | The real regulator. Discipline runs through the Supreme Court under the **Judicature Act No. 2 of 1978**, not BASL. Touting expressly includes *"engaging the services of a person for a commission to solicit clientele"* |
+| **Supreme Court Rules 1988, Rule 40** | What an attorney may *display* | Permitted display is limited to: name of attorney/firm, professional qualifications, academic qualifications, office hours. This is a short list, and it is the content spec for every profile page we render |
+| **Intermeddlers with Suitors Ordinance No. 11 of 1894** | Touting as a criminal offence | ⚠️ **Reaches the platform operator, not only the attorney.** This is the instrument that turns a design mistake from a client's disciplinary problem into our own criminal exposure |
+| **BASL cautionary note, June 2021** | Legal advice via online/social platforms | BASL's position is that providing legal advice through an online platform constitutes touting. Directly relevant to the AI chatbot (rule 6) |
 | **Bar Association of Sri Lanka (BASL)** | Professional ethics guidance | Influential professional body, not the statutory disciplinary authority. Partnership target, not regulator |
 | Client-account rules for attorneys | Client money segregation | We must never hold funds owed to a lawyer for legal work |
 | **Payments and Settlements Systems Act No. 28 of 2005** | Payment services | Holding/settling customer funds needs CBSL authorisation |
@@ -72,6 +75,87 @@ it runs on. We are never a party to the retainer.
 
 ---
 
+## The directory question — our largest unresolved risk
+
+Added 2026-08-01, Phase 2. **Read this before adding any public-facing surface that
+lists attorneys or firms.**
+
+The seven rules above assume a **neutral, disclosed directory is permissible** — that
+what the advertising rules forbid is *paid* prominence, not listing as such. That
+assumption has never been tested, and there is a serious argument the other way:
+
+- Under the **Intermeddlers with Suitors Ordinance No. 11 of 1894**, touting is a
+  criminal offence and is **not limited to attorneys** — it reaches the intermediary.
+  A platform that channels clients toward practitioners is squarely within the
+  intermediary role the Ordinance describes.
+- India's Bar Council Rule 36 is closely comparable to Rule 39. Indian courts have
+  held that *any structure designed to channel clients toward particular lawyers —
+  even algorithmically — is a form of indirect solicitation*, **expressly including
+  search-based filtering across lawyers**. The BCI issued cease-and-desist notices to
+  consumer lawyer platforms on this basis.
+- Sri Lanka did **not** adopt India's 2008 relaxation permitting informational lawyer
+  websites. On the face of the instruments, **Sri Lanka is stricter than India.**
+
+We are not resolving this by reasoning. It goes to counsel as questions 16–18 in
+[QUESTIONS-FOR-COUNSEL.md](./QUESTIONS-FOR-COUNSEL.md).
+Until it is answered, the directory is built to the most conservative reading that
+still leaves the product working:
+
+### The Rule 40 content limit — binding on every profile surface
+
+Any page, API payload, RSC payload, or ad unit that describes an attorney or a firm
+may carry **only**:
+
+| ✅ Permitted | Basis |
+| --- | --- |
+| Name of the attorney or firm | Rule 40 |
+| Professional qualifications (Attorney-at-Law, BASL number, notary status) | Rule 40 |
+| Academic qualifications | Rule 40 |
+| Office hours | Rule 40 |
+| Contact details and office address | Necessary to contact a practitioner |
+| Practice areas, courts, languages, district | Factual, client-relevant, neutral — needed for the client to make their own choice |
+| Years admitted | Factual and verifiable |
+
+| ⛔ Forbidden | Why |
+| --- | --- |
+| Fee ranges, price indications, "from LKR X" | Not in Rule 40; reads as advertising |
+| Star ratings, review counts, scores, grades, tiers | Rule 3 and 4; unfair attraction under Rule 39 |
+| "Top", "featured", "recommended", "best match", "popular" | Touting |
+| Marketing or promotional free text | Beyond Rule 40's list |
+| Badges other than a neutral factual verification state | Implied platform endorsement |
+| Any ordering derived from subscription, spend, rating, or platform judgement | Rule 3 and 4 |
+
+> **The design test.** Before shipping any directory, profile, or assignment screen:
+> *"Does this screen make the client more likely to choose one particular attorney
+> for a reason that came from us rather than from them?"* If yes — or if you are
+> unsure — it does not ship.
+
+### The red-flag phrases
+
+If any of these appear in a ticket, component name, string file, or design, stop and
+escalate rather than implementing:
+
+```
+recommended lawyer  ·  suggested counsel  ·  best match   ·  top rated
+featured lawyer     ·  promoted firm      ·  boosted      ·  sponsored listing
+referral fee        ·  per lead           ·  commission   ·  finder's fee
+```
+
+### The safer business, for the record
+
+The research in `PROJECT-PLAN.md` at the repository root describes the same market
+approached from the other end: a **B2B system of record** where companies manage law
+firms they have *already* retained. No directory, no consumer users, no introduction
+— and therefore no touting question at all. Provakil (India) and LawVu (New Zealand)
+built real businesses on exactly that shape with no regulatory friction.
+
+That is a different product with a different buyer, not a refactor of this one. But
+if counsel comes back badly on questions 16–18, it is the escape route, and Phase 2's
+firm entity is the bridge to it: once a `LawFirm` exists and matters route through
+it, the consumer directory becomes a removable front end rather than the foundation.
+
+---
+
 ## Revenue model
 
 ### Prohibited
@@ -107,6 +191,10 @@ Track answers here as they come in. Do not build on an unanswered question.
 | 5 | Is a platform-hosted **client-account ledger** (record-keeping only, firm's own bank) acceptable, or does it imply control of client funds? | Phase 3 | Open |
 | 6 | May the AI suggest *categories* of practitioner (e.g. "you need a labour lawyer") without that being a referral? | Phase 5 | Open |
 | 7 | Confirm current **VAT / SSCL** treatment of SaaS revenue and any digital-services levy | Phase 3 | Open |
+| 8 | Does a **public directory of attorneys**, listing every verified practitioner on neutral disclosed criteria with no payment for position, constitute advertising or touting under Rules 39–49? | The whole consumer product | Open — **highest priority.** See [the directory question](#the-directory-question--our-largest-unresolved-risk) |
+| 9 | Does the **Intermeddlers with Suitors Ordinance No. 11 of 1894** create criminal exposure for the *platform operator* on the current design? | The whole consumer product | Open — **highest priority** |
+| 10 | Is **client-driven search and filtering across attorneys** (practice area, district, language) indirect solicitation, as Indian courts have held of the comparable BCI rule? | Directory, AI suggestions | Open — **highest priority** |
+| 11 | Within a firm, may **non-attorney staff** (paralegals, firm administrators) read matter descriptions and conflict-check records? | Phase 2 privilege scope | Open — *our default: no, attorneys and firm owners/admins only* |
 
 ---
 
@@ -118,6 +206,8 @@ Before merging anything that touches booking, payments, advertising, ranking, or
 - [ ] No client money touches a platform-controlled account or balance
 - [ ] Nothing sells position, visibility, or leads to an attorney
 - [ ] Ranking is neutral, disclosed, and independent of what a lawyer pays
+- [ ] Every attorney/firm-describing payload obeys the [Rule 40 content limit](#the-rule-40-content-limit--binding-on-every-profile-surface) — no fees, no ratings, no marketing copy
+- [ ] No red-flag phrase appears in code, strings, or UI
 - [ ] Matter descriptions and lawyer-client messages are unreadable to platform staff
 - [ ] AI surfaces carry the not-legal-advice notice and cite sources
 - [ ] Client-facing artefacts name the **firm** as the service provider

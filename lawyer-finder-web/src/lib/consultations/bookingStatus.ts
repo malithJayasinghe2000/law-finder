@@ -32,7 +32,6 @@ export const SLOT_BLOCKING_STATUSES: BookingStatus[] = [
   'ACCEPTED',
   'SCHEDULED',
   'RESCHEDULE_REQUESTED',
-  'IN_PROGRESS',
   'COMPLETED',
   'NO_SHOW',
   'DISPUTED',
@@ -52,7 +51,6 @@ export const TERMINAL_STATUSES: BookingStatus[] = [
 /** Statuses where the engagement is agreed and the consultation will go ahead. */
 export const CONFIRMED_STATUSES: BookingStatus[] = [
   'SCHEDULED',
-  'IN_PROGRESS',
   'COMPLETED',
 ];
 
@@ -75,9 +73,8 @@ const TRANSITIONS: Record<BookingStatus, BookingStatus[]> = {
   CONFLICT_CHECK: ['QUOTED', 'DECLINED', 'CANCELLED_BY_CLIENT'],
   QUOTED: ['ACCEPTED', 'CLIENT_DECLINED', 'QUOTE_EXPIRED', 'QUOTED', 'CANCELLED_BY_CLIENT', 'CANCELLED_BY_FIRM'],
   ACCEPTED: ['SCHEDULED', 'CANCELLED_BY_CLIENT', 'CANCELLED_BY_FIRM'],
-  SCHEDULED: ['IN_PROGRESS', 'COMPLETED', 'RESCHEDULE_REQUESTED', 'NO_SHOW', 'CANCELLED_BY_CLIENT', 'CANCELLED_BY_FIRM', 'DISPUTED'],
+  SCHEDULED: ['COMPLETED', 'RESCHEDULE_REQUESTED', 'NO_SHOW', 'CANCELLED_BY_CLIENT', 'CANCELLED_BY_FIRM', 'DISPUTED'],
   RESCHEDULE_REQUESTED: ['SCHEDULED', 'CANCELLED_BY_CLIENT', 'CANCELLED_BY_FIRM'],
-  IN_PROGRESS: ['COMPLETED', 'DISPUTED'],
   DISPUTED: ['COMPLETED', 'CANCELLED_BY_FIRM'],
 
   // Terminal
@@ -109,7 +106,6 @@ export const STATUS_LABELS: Record<BookingStatus, string> = {
   ACCEPTED: 'Terms accepted',
   SCHEDULED: 'Scheduled',
   RESCHEDULE_REQUESTED: 'New time proposed',
-  IN_PROGRESS: 'In progress',
   COMPLETED: 'Completed',
   CANCELLED_BY_CLIENT: 'Cancelled by you',
   CANCELLED_BY_FIRM: 'Cancelled by the firm',

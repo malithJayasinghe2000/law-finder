@@ -189,6 +189,23 @@ export async function PATCH(
       where: { id },
       include: {
         client: { select: { email: true, fullName: true } },
+        // The FIRM is the party to the retainer; the attorney acts for it.
+        // See docs/restructure/LEGAL-GUARDRAILS.md (rule 7).
+        firm: {
+          select: {
+            name: true,
+            registrationNumber: true,
+            principalBaslNumber: true,
+            contactPhone: true,
+            contactEmail: true,
+            offices: {
+              where: { isActive: true },
+              orderBy: [{ isPrimary: 'desc' }],
+              take: 1,
+              select: { address: true },
+            },
+          },
+        },
         lawyer: {
           select: {
             fullName: true,
@@ -292,13 +309,33 @@ export async function PATCH(
       const reference = buildLetterReference(year, nextSeq);
       const clientName = booking.client.fullName || 'Client';
 
+      // Which entity the letter names.
+      //
+      // The client engages the FIRM, so the firm is the party. Where the firm
+      // is a solo practice the two names are identical and the letter reads
+      // exactly as it did before Phase 2. Where they differ, the attorney is
+      // named separately as the person acting.
+      //
+      // Letters already issued are untouched: their body was snapshotted at
+      // issue time and is never re-rendered.
+      const firmName = booking.firm?.name || booking.lawyer.fullName;
+      const firmAddress =
+        booking.firm?.offices?.[0]?.address || booking.lawyer.address;
+      const firmContact =
+        booking.firm?.contactPhone || booking.lawyer.contactPhone;
+      const firmBaslNumber =
+        booking.firm?.principalBaslNumber || booking.lawyer.baslNumber;
+
       const body = renderEngagementLetter({
         reference,
         issuedAt,
-        firmName: booking.lawyer.fullName,
-        firmBaslNumber: booking.lawyer.baslNumber,
-        firmAddress: booking.lawyer.address,
-        firmContact: booking.lawyer.contactPhone,
+        firmName,
+        firmBaslNumber,
+        firmAddress,
+        firmContact,
+        firmRegistrationNumber: booking.firm?.registrationNumber,
+        attorneyName: booking.lawyer.fullName,
+        attorneyBaslNumber: booking.lawyer.baslNumber,
         clientName,
         clientEmail: booking.client.email,
         matterSubject: booking.subject,
@@ -320,10 +357,10 @@ export async function PATCH(
           bookingId: id,
           quoteId: quote.id,
           reference,
-          firmName: booking.lawyer.fullName,
-          firmBaslNumber: booking.lawyer.baslNumber,
-          firmAddress: booking.lawyer.address,
-          firmContact: booking.lawyer.contactPhone,
+          firmName,
+          firmBaslNumber,
+          firmAddress,
+          firmContact,
           clientName,
           clientEmail: booking.client.email,
           matterSubject: booking.subject,

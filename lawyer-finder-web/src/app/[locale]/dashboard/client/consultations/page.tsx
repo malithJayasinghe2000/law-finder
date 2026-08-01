@@ -421,7 +421,7 @@ export default function ClientConsultationsPage() {
                           <FileText className="w-3 h-3 mr-1" /> Review proposal
                         </Button>
                       )}
-                      {['ACCEPTED', 'SCHEDULED', 'IN_PROGRESS', 'COMPLETED'].includes(b.status) && (
+                      {['ACCEPTED', 'SCHEDULED', 'COMPLETED'].includes(b.status) && (
                         <Button size="sm" variant="outline" onClick={() => setLetterBookingId(b.id)} className="rounded-none h-7 text-[10px] px-2.5 font-bold">
                           <ScrollText className="w-3 h-3 mr-1" /> Engagement letter
                         </Button>

@@ -23,10 +23,30 @@ export interface EngagementLetterInput {
   reference: string;
   issuedAt: Date;
 
+  /** The FIRM's name. This is the party to the retainer. */
   firmName: string;
+  /**
+   * BASL registration number shown for the firm. For a sole practitioner this
+   * is their own; for a partnership it is the principal's.
+   */
   firmBaslNumber: string;
   firmAddress?: string | null;
   firmContact?: string | null;
+  /** The firm's own registration number, where it has one. */
+  firmRegistrationNumber?: string | null;
+
+  /**
+   * The attorney who will actually do the work, named separately from the firm.
+   *
+   * For a sole practitioner these are the same person and the letter says so
+   * once. For a partnership the client is entitled to know who is acting, while
+   * the retainer itself remains with the firm — that distinction is the whole
+   * point of guardrail rule 7.
+   *
+   * Optional so that letters generated before Phase 2 still render.
+   */
+  attorneyName?: string | null;
+  attorneyBaslNumber?: string | null;
 
   clientName: string;
   clientEmail: string;
@@ -65,7 +85,8 @@ function formatDate(d: Date): string {
 export function renderEngagementLetter(input: EngagementLetterInput): string {
   const {
     reference, issuedAt,
-    firmName, firmBaslNumber, firmAddress, firmContact,
+    firmName, firmBaslNumber, firmAddress, firmContact, firmRegistrationNumber,
+    attorneyName, attorneyBaslNumber,
     clientName, clientEmail,
     matterSubject, scopeOfWork, exclusions,
     feeBasis, feeAmount, currency, hourlyRate, estimatedHours,
@@ -85,6 +106,11 @@ export function renderEngagementLetter(input: EngagementLetterInput): string {
     );
   }
 
+  // A sole practitioner is a firm of one: naming them twice reads as an error to
+  // the client, so the letter only distinguishes firm from attorney when they
+  // are genuinely different.
+  const attorneyIsSeparate = !!attorneyName && attorneyName !== firmName;
+
   return `# Letter of Engagement
 
 **Reference:** ${reference}
@@ -96,8 +122,8 @@ export function renderEngagementLetter(input: EngagementLetterInput): string {
 
 **The Firm**
 ${firmName}
-Attorney-at-Law, BASL Registration No. ${firmBaslNumber}${firmAddress ? `\n${firmAddress}` : ''}${firmContact ? `\n${firmContact}` : ''}
-
+${attorneyIsSeparate ? `Attorneys-at-Law` : `Attorney-at-Law, BASL Registration No. ${firmBaslNumber}`}${firmRegistrationNumber ? `\nFirm Registration No. ${firmRegistrationNumber}` : ''}${firmAddress ? `\n${firmAddress}` : ''}${firmContact ? `\n${firmContact}` : ''}
+${attorneyIsSeparate ? `\n**The Attorney Acting**\n${attorneyName}\nAttorney-at-Law, BASL Registration No. ${attorneyBaslNumber || firmBaslNumber}\n` : ''}
 **The Client**
 ${clientName}
 ${clientEmail}
@@ -107,7 +133,9 @@ ${clientEmail}
 The legal services described in this letter are provided by **${firmName}** and by
 no one else. ${firmName} alone is responsible for the advice given, and your
 attorney-client relationship is with ${firmName}.
-
+${attorneyIsSeparate ? `\n${attorneyName} is the attorney at ${firmName} who will act on this
+matter. ${firmName} may assign a different attorney of equivalent standing, and
+will tell you if it does; your engagement remains with ${firmName} either way.\n` : ''}
 The online platform through which this engagement was arranged is software used by
 the firm for scheduling and administration. It is **not** a law firm, it is **not**
 a party to this engagement, it does not provide legal advice, and it receives no

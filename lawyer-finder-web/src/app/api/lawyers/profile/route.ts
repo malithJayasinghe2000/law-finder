@@ -16,7 +16,6 @@ export async function GET() {
       include: {
         inquiries: { orderBy: { createdAt: 'desc' } },
         articles: { orderBy: { createdAt: 'desc' } },
-        reviews: { orderBy: { rating: 'desc' } },
       },
     });
 

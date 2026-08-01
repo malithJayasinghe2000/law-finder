@@ -11,7 +11,7 @@
 | 0 | Stop the bleeding (remove commission, escrow, PayHere; fix bugs; disclaimers) | 🟢 **Done** |
 | 1a | Engagement state machine, conflict check, quotes | 🟢 **Done** |
 | 1b | Engagement letter + triage/quote UI | 🟢 **Done** |
-| 2 | Law firm entity | ⚪ Not started |
+| 2 | Law firm entity | 🟢 **Done** |
 | 3 | Billing restructure (SaaS licence) | ⚪ Not started |
 | 4 | Advertising split | ⚪ Not started |
 | 5 | AI compliance | ⚪ Not started |
@@ -22,13 +22,21 @@ Legend: ⚪ not started · 🟡 in progress · 🟢 done · 🔴 blocked
 
 ## Next up
 
-**Phase 2** — the `LawFirm` entity. Firms with members and roles
-(`FIRM_OWNER` / `FIRM_ADMIN` / `ATTORNEY` / `PARALEGAL`), firm-level intake
-routing, firm profiles. Every existing `LawyerProfile` migrates to a firm-of-one.
-See [ROADMAP.md](./ROADMAP.md#phase-2--law-firm-entity).
+**Phase 3** — billing restructure. Move subscription pricing onto seats and
+features so revenue cannot correlate with how much legal work flows through the
+platform, and drop `ConsultationPricing.physicalPrice` / `onlinePrice` now that
+nothing reads them.
 
-Phase 0 and Phase 1 (1a + 1b) are complete. `npm run build` and
-`npx tsc --noEmit` clean; migrations baselined and in sync.
+**But first, and more urgent than Phase 3:** put counsel questions **16, 17 and
+18** in front of a Sri Lankan Attorney-at-Law experienced in professional conduct.
+They ask whether a consumer-facing attorney directory may lawfully exist at all,
+and whether the **Intermeddlers with Suitors Ordinance No. 11 of 1894** creates
+*criminal* exposure for the platform operator. Every phase after this one builds
+on an answer we do not have. See
+[the directory question](./LEGAL-GUARDRAILS.md#the-directory-question--our-largest-unresolved-risk).
+
+Phases 0, 1 and 2 are complete. `npm run build`, `npx tsc --noEmit` and
+`npm run check:privilege` all clean; migrations in sync.
 
 ## Decisions taken
 
@@ -37,6 +45,10 @@ Phase 0 and Phase 1 (1a + 1b) are complete. `npm run build` and
 | 2026-07-31 | Reposition from marketplace to firm software ("the law firm part") | A commission-taking marketplace is the one shape this product cannot legally take in Sri Lanka. See [README](./README.md#why-it-is-being-restructured) |
 | 2026-07-31 | Phase 0 before Phase 1 | Phase 0 is mostly deletion and kills live financial bugs (double-payment, PayHere charging 1% of fee) |
 | 2026-07-31 | Design Phase 1 booking for firms from the start; solo lawyer = firm of one | Avoids a painful migration in Phase 2 |
+| 2026-08-01 | `Booking` keeps `lawyerId` (who acts) and gains `firmId` (who was engaged), rather than making `lawyerId` nullable | Preserves the record of the client's own choice of attorney — the evidence for rule 4 — and avoids a nullable-`lawyerId` migration across ~20 files. The invariant that `lawyerId` belongs to `firmId` is enforced in one function |
+| 2026-08-01 | Privilege scope defaults to *assigned attorney + firm principal/practice manager*; other attorneys and paralegals see that a matter exists but not what it says | Counsel question 8(b) is unanswered. Conservative default is cheap to loosen later and expensive to have got wrong. Asserted by `npm run check:privilege` |
+| 2026-08-01 | Engagement letters now name the **firm** as the party and the attorney as acting; solo practices render identically to before | Rule 7. Existing letters are snapshotted so they are untouched |
+| 2026-08-01 | Adopted a **Rule 40 content limit** as the spec for every attorney/firm-describing surface | Rule 40 lists what an attorney may display; treating it as exhaustive is the conservative reading and costs nothing |
 | 2026-07-31 | Phase 0 disables *paths*, not schema. `Review`, `WithdrawRequest`, `ConsultationPricing` stay in the schema until Phase 3 | Do not break working flows to make a legal fix |
 
 ## Session log
@@ -378,3 +390,114 @@ that explicitly says a green build is not sufficient evidence.
 
 **Verification:** `npm run build` compiles, `npx tsc --noEmit` clean, migrations in
 sync.
+
+### 2026-08-01 — Phase 2 (law firm entity)
+
+**A correction to the guardrails came first.** The user supplied research from a
+separate project (`PROJECT-PLAN.md`, `DATA-MODEL.md`, `COMPLIANCE-RULES.md` at the
+repository root) describing a stricter B2B product. Two instruments in it were
+missing from our guardrails entirely and materially change the risk picture:
+
+- **Intermeddlers with Suitors Ordinance No. 11 of 1894** — touting is a *criminal*
+  offence and reaches the **intermediary**, not only the attorney. Our guardrails
+  had been written entirely around attorney discipline, which understates our own
+  exposure
+- **Supreme Court Rule 40** — specifies what an attorney may *display*: name,
+  professional qualifications, academic qualifications, office hours. That reads as
+  an exhaustive permission, not a floor
+
+Both added to LEGAL-GUARDRAILS.md, along with a new binding
+[Rule 40 content limit](./LEGAL-GUARDRAILS.md#the-rule-40-content-limit--binding-on-every-profile-surface)
+for every profile surface, a red-flag phrase list, and counsel questions 16–18 —
+which ask the prior question nobody had asked: *may a consumer attorney directory
+lawfully exist at all?*
+
+**Live guardrail violations found and fixed** (all pre-existing, none introduced
+by Phase 2):
+
+1. **Attorneys were buying top placement in the lawyer directory.** `SponsoredListing`
+   rendered "★ Sponsored" attorney cards above the alphabetical list on `/lawyers`
+   and on the home page, sold through `AdCampaign`. That is selling position and
+   visibility to a lawyer — rule 3, and the surface where the 1894 Ordinance bites
+   hardest. Removed from both. The ad system itself is untouched; Phase 4 still owns
+   the lawyer/non-lawyer advertiser split
+2. **`GET /api/lawyers` published `averageRating`, `reviewCount` and `baseFeeRange`**
+   on the public directory
+3. **The public attorney profile rendered the subscription plan name as a badge** —
+   a client could see which attorneys pay us more — and serialized reviews,
+   `baseFeeRange` and the full subscription object into the RSC payload
+4. **The home page loaded attorneys with a bare `findMany`** (every column into the
+   page source) with no `orderBy`, under the variable name `topLawyers`
+
+**Removed for good:** the `Review` model, `/api/reviews`, the admin reviews page and
+its sidebar entries, and `LawyerProfile.baseFeeRange` with every input that fed it.
+
+**Phase 2 proper**
+
+*Schema* — `LawFirm`, `FirmMember`, `FirmOffice`; `FirmRole`
+(`FIRM_OWNER`/`FIRM_ADMIN`/`ATTORNEY`/`PARALEGAL`), `FirmMemberStatus`,
+`FirmVerificationStatus`, `FirmType`. `LawyerProfile.firmId`, `Booking.firmId` +
+`assignedById`/`assignedAt`/`assignmentNote`.
+
+*Migration* `20260801210442_law_firm_entity` — creates the tables **and backfills**:
+every `LawyerProfile` becomes a firm of one with the attorney as `FIRM_OWNER`, their
+address as the registered office, and every existing `Booking` mapped to that firm.
+A firm of one inherits the verification standing of its only member.
+
+*Privilege* — [`src/lib/firms/access.ts`](../../src/lib/firms/access.ts) is now the
+only place that decides who may read a client's account of their legal problem.
+Applied in the booking list, booking detail, conflict check and engagement letter.
+
+*Routing* — a matter lands with the attorney the client chose and is visible to the
+whole firm; only a principal or practice manager can reassign it, only within the
+same firm, and only after checking the receiving attorney's own diary for a clash.
+
+*Engagement letter* — now names the **firm** as the party to the retainer and the
+attorney as the person acting. A solo practice renders exactly as before, because
+the two names are identical and the template collapses them. Letters already issued
+are snapshotted and untouched.
+
+*New surfaces* — `/api/firms`, `/api/firms/me` (+ `members`, `offices`),
+`/api/admin/firms`, `/api/consultations/bookings/[id]/assign`; a firm console at
+`/dashboard/lawyer/firm`, admin firm verification at `/dashboard/admin/firms`, a
+public firm page at `/firms/[slug]`, and `AssignMatterDialog`.
+
+**Carried-forward issues closed**
+- **`NO_SHOW` had no UI trigger** — button added, guarded until the appointment time
+  has passed, mirroring the server guard
+- **`IN_PROGRESS` was unreachable** — removed from the enum
+  (`20260801211623_drop_in_progress_status`) and swept out of the state machine,
+  Zod schemas, status labels and the client console
+
+**Verification** — and note that a green build was explicitly not treated as evidence:
+- `npm run build` compiles; `npx tsc --noEmit` clean
+- Migration tested **three ways** before being trusted: deployed to an empty scratch
+  database (valid SQL), `migrate diff` reports *No difference detected*, and the
+  backfill was run against a seeded database containing **two attorneys with the same
+  name** (slug collision handled: `nimal-perera-p-1` / `nimal-perera-p-3`), an
+  attorney with an empty address (office correctly skipped), and three bookings
+  (0 mismatched firm mappings). Then applied to dev: 5 profiles → 5 firms, 5 owners,
+  0 unlinked bookings
+- **New: `npm run check:privilege`** — asserts all nine access cases plus redaction.
+  10/10 pass. Written because `build` and `tsc` both pass happily on a version of
+  `access.ts` that lets a paralegal read a client's legal problem
+- Caller grep after every removal: no references to `/api/reviews`,
+  `dashboard/admin/reviews`, `pendingReviews`, `pendingReviewCount`, or
+  `SponsoredListing` remain
+- Status-string sweep: all 14 enum values present in code, no `IN_PROGRESS`, no
+  pre-Phase-1 statuses
+- Guardrail sweep: no commission, no escrow, no PayHere, no paid ranking, no rating
+  in any ordering
+
+**Also added:** [HOW-IT-WORKS.md](./HOW-IT-WORKS.md) — a plain-language explanation
+of what a law firm is, what each of the seven rules actually means and why, how a
+matter flows end to end, why the data model looks the way it does, and a list of
+normal product features that are illegal here. Written for an engineer with no legal
+background.
+
+**Still open**
+- Counsel questions 16–18 (may a directory exist at all) — **blocks everything**
+- Counsel question 8(b) — may non-attorney firm staff read matter detail
+- The engagement letter wording is still an unreviewed good-faith draft (question 3)
+- `ConsultationPricing.physicalPrice` / `onlinePrice` still exist, always 0 — Phase 3
+- The ad system still has attorneys as the only advertisers — Phase 4

@@ -44,6 +44,10 @@ Client -> Platform -> Lawyer       Client -> Law Firm
 Revenue moves from *a share of legal fees* to *a flat software licence*, which is
 both legal and a better business.
 
+**New to this project, or not a lawyer?** Start with
+[HOW-IT-WORKS.md](./HOW-IT-WORKS.md) — what a law firm actually is, what each rule
+means in plain language, and how a matter flows end to end.
+
 Full reasoning: [LEGAL-GUARDRAILS.md](./LEGAL-GUARDRAILS.md).
 Questions awaiting a lawyer's answer: [QUESTIONS-FOR-COUNSEL.md](./QUESTIONS-FOR-COUNSEL.md).
 Starting Phase 2 in a fresh session? [PHASE-2-BRIEF.md](./PHASE-2-BRIEF.md).

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { getMatterAccess } from '@/lib/firms/access';
 
 /**
  * The engagement letter for a request.
@@ -24,17 +25,42 @@ export async function GET(
 
     const booking = await prisma.booking.findUnique({
       where: { id },
-      select: { clientId: true, lawyer: { select: { userId: true } } },
+      select: {
+        clientId: true,
+        lawyerId: true,
+        firmId: true,
+        lawyer: { select: { userId: true } },
+      },
     });
 
     if (!booking) {
       return NextResponse.json({ error: 'Request not found' }, { status: 404 });
     }
 
-    const isClient = booking.clientId === session.userId;
+    // The retainer is between the CLIENT and the FIRM. Both sides of it may read
+    // it — the client, the attorney acting, and the firm's principal — and
+    // platform staff may not, because we are not a party to it.
+    // See docs/restructure/LEGAL-GUARDRAILS.md (rules 5 and 7).
+    const access = await getMatterAccess({
+      actorUserId: session.userId,
+      actorRole: session.role,
+      actorProfileId: session.profileId,
+      matter: {
+        lawyerId: booking.lawyerId,
+        firmId: booking.firmId,
+        clientId: booking.clientId,
+      },
+    });
+
+    const isClient = access.basis === 'CLIENT';
     const isLawyer = booking.lawyer.userId === session.userId;
 
-    if (!isClient && !isLawyer) {
+    const mayReadLetter =
+      isClient ||
+      access.basis === 'ASSIGNED_ATTORNEY' ||
+      access.basis === 'FIRM_PRINCIPAL';
+
+    if (!mayReadLetter) {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 });
     }
 

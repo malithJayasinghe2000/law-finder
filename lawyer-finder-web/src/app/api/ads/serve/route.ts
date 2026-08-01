@@ -38,7 +38,10 @@ export async function GET(req: Request) {
             profileImageUrl: true,
             district: true,
             practiceAreas: true,
-            baseFeeRange: true,
+            // baseFeeRange removed: publishing an attorney's fee indication is
+            // beyond the Rule 40 content limit, and doing it inside an ad unit is
+            // the worst place for it.
+            // See docs/restructure/LEGAL-GUARDRAILS.md (rule 3, Rule 40 limit).
             bio: true,
             user: {
               select: {
