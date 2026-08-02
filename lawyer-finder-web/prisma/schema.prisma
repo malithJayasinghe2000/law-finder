@@ -110,19 +110,57 @@ enum ConsultationMode {
   BOTH
 }
 
+/// Engagement request lifecycle (Phase 1).
+///
+/// A client does not "buy a consultation" — they request an engagement, the firm
+/// screens it for conflicts, quotes a fee, and the client accepts or declines.
+///
+///   REQUESTED -> CONFLICT_CHECK -> QUOTED -> ACCEPTED -> SCHEDULED -> COMPLETED
+///                      |             |           |
+///                  DECLINED   QUOTE_EXPIRED  CANCELLED_*
+///                             CLIENT_DECLINED
+///
+/// See docs/restructure/ROADMAP.md (Phase 1).
 enum BookingStatus {
-  PENDING_PAYMENT
-  AWAITING_BANK_TRANSFER_VERIFICATION
-  AWAITING_LAWYER_APPROVAL
-  RESCHEDULE_REQUESTED
-  REJECTED_BY_LAWYER
-  CONFIRMED
-  IN_PROGRESS
+  REQUESTED // client submitted intake; not yet triaged
+  CONFLICT_CHECK // firm screening for conflicts of interest
+  DECLINED // firm declined (conflict, capacity, scope)
+  QUOTED // fee + terms sent to the client
+  QUOTE_EXPIRED // quote lapsed with no response
+  CLIENT_DECLINED // client rejected the quote
+  ACCEPTED // terms accepted; awaiting payment/scheduling
+  SCHEDULED // appointment confirmed
+  RESCHEDULE_REQUESTED // firm proposed a new date/time
+  // IN_PROGRESS removed in Phase 2: nothing ever transitioned into it, so it was
+  // a state the product claimed to have and did not. A consultation goes from
+  // SCHEDULED straight to COMPLETED or NO_SHOW.
   COMPLETED
   CANCELLED_BY_CLIENT
-  CANCELLED_BY_LAWYER
+  CANCELLED_BY_FIRM
   NO_SHOW
   DISPUTED
+}
+
+/// Outcome of the firm's conflict-of-interest screening.
+enum ConflictCheckOutcome {
+  CLEAR
+  CONFLICT_FOUND
+  NEEDS_REVIEW
+}
+
+/// How a quoted fee is calculated.
+enum FeeBasis {
+  CONSULTATION_FEE // flat fee for the consultation itself
+  FIXED_FEE // fixed fee for a defined scope of work
+  HOURLY
+}
+
+enum QuoteStatus {
+  SENT
+  ACCEPTED
+  DECLINED
+  EXPIRED
+  WITHDRAWN
 }
 
 enum ConsultationPricingType {
@@ -130,36 +168,56 @@ enum ConsultationPricingType {
   PER_SESSION
 }
 
+// PAYHERE removed in Phase 0.3: it settled client fees into a platform merchant
+// account. Clients pay the firm directly.
+// See docs/restructure/LEGAL-GUARDRAILS.md (rule 2).
 enum BookingPaymentMethod {
   BANK_TRANSFER
-  PAYHERE
   PAY_AT_OFFICE
 }
 
+/// Refund lifecycle.
+///
+/// The firm holds the fee, so the firm makes the refund and the platform records
+/// it. A record that rests on the firm's word alone is not enough — the client
+/// confirms receipt, or disputes it.
+///
+///   NONE -> PENDING -> PROCESSED -> CONFIRMED   (client acknowledged receipt)
+///                           |
+///                           +----> DISPUTED     (client says it never arrived)
+///                   -> DECLINED
+///
+/// See docs/restructure/LEGAL-GUARDRAILS.md (rule 2).
 enum RefundStatus {
-  NONE            // No refund needed
-  PENDING         // Refund calculated, awaiting admin action
-  PROCESSED       // Admin has sent the refund
-  DECLINED        // Refund was declined (e.g., policy violation)
+  NONE // No refund owed
+  PENDING // Owed, not yet returned
+  PROCESSED // The firm says it has returned the money
+  CONFIRMED // The client confirms they received it
+  DISPUTED // The client says they did not receive it
+  DECLINED // Refund declined under the cancellation policy
 }
 
 model User {
-  id              String             @id @default(uuid())
-  email           String             @unique
-  passwordHash    String?
-  authProvider    AuthProvider       @default(LOCAL)
-  googleId        String?            @unique
-  isEmailVerified Boolean            @default(false)
-  fullName        String?
-  profileImageUrl String?
-  role            Role               @default(CLIENT)
-  createdAt       DateTime           @default(now())
+  id                 String                    @id @default(uuid())
+  email              String                    @unique
+  passwordHash       String?
+  authProvider       AuthProvider              @default(LOCAL)
+  googleId           String?                   @unique
+  isEmailVerified    Boolean                   @default(false)
+  fullName           String?
+  profileImageUrl    String?
+  role               Role                      @default(CLIENT)
+  createdAt          DateTime                  @default(now())
   verificationTokens VerificationToken[]
-  profile         LawyerProfile?
-  application     LawyerApplication?
-  reviews         Review[]           @relation("ReviewAuthor")
-  conversations   ConversationParticipant[]
-  messages        Message[]
+  profile            LawyerProfile?
+  application        LawyerApplication?
+  conversations      ConversationParticipant[]
+  messages           Message[]
+
+  /// Firms this user belongs to. A user is normally a member of exactly one
+  /// firm, but the schema does not forbid more (an attorney may be a consultant
+  /// to a second practice).
+  firmMemberships FirmMember[]
 
   // Community Hub relations
   communities        CommunityMember[]
@@ -169,10 +227,10 @@ model User {
   comments           Comment[]          @relation("CommentAuthor")
   votes              Vote[]             @relation("UserVotes")
   reports            Report[]           @relation("UserReports")
-  aiConversations AiConversation[]
+  aiConversations    AiConversation[]
 
   // Consultation Booking relations
-  bookings           Booking[]          @relation("ClientBookings")
+  bookings Booking[] @relation("ClientBookings")
 }
 
 model VerificationToken {
@@ -217,7 +275,10 @@ model LawyerProfile {
   district          String?
   latitude          Float?
   longitude         Float?
-  baseFeeRange      String?
+  // baseFeeRange removed in Phase 2. Publishing an attorney's fee indication in
+  // a public directory is beyond the Rule 40 content limit and reads as
+  // advertising. Fees are quoted per matter, to one client, in a Quote.
+  // See docs/restructure/LEGAL-GUARDRAILS.md.
   gender            String?
   yearsOfExperience Int?
   practiceType      String?
@@ -230,18 +291,197 @@ model LawyerProfile {
   Subscription      Subscription[]
   invoices          Invoice[]      @relation("InvoiceLawyer")
 
-  inquiries    Inquiry[]
-  articles     Article[]
-  reviews      Review[]
-  paidPromos   PaidPromo[]
-  adCampaigns  AdCampaign[]
+  /// The firm this attorney practises in (Phase 2).
+  ///
+  /// Never null in practice: every attorney belongs to a firm, and a solo
+  /// practitioner is a firm of one created automatically on approval. It is
+  /// modelled as optional only so that profile creation and firm creation do not
+  /// have to happen in the same statement.
+  firmId String?
+  firm   LawFirm? @relation(fields: [firmId], references: [id], onDelete: SetNull)
+
+  inquiries   Inquiry[]
+  articles    Article[]
+  paidPromos  PaidPromo[]
+  adCampaigns AdCampaign[]
 
   // Consultation & Booking relations
   availability          LawyerAvailability[]
   availabilityOverrides AvailabilityOverride[]
   consultationPricing   ConsultationPricing?
   bookings              Booking[]
-  withdrawRequests      WithdrawRequest[]
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Law firms (Phase 2)
+//
+// The firm — not the platform, and not this software — is the provider of legal
+// services. Every client-facing artefact must say so. We are the software the
+// firm runs on. See docs/restructure/LEGAL-GUARDRAILS.md (rule 7).
+//
+// A solo practitioner is a firm of one, created automatically. A solo lawyer
+// should never have to think about "firms" at all.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// How the practice is constituted.
+///
+/// Sri Lankan practice is understood to be as a sole practitioner or in
+/// partnership; incorporation of legal practice is not permitted. That
+/// understanding is unconfirmed — counsel question 8(a).
+enum FirmType {
+  SOLE_PRACTITIONER
+  PARTNERSHIP
+}
+
+/// A member's role inside their firm. This is firm-internal authority and has
+/// nothing to do with the platform `Role` enum or with subscription tiers.
+///
+/// PARALEGAL is deliberately the weakest: whether non-attorney staff may read
+/// matter descriptions at all is counsel question 8(b), and until it is answered
+/// they cannot. See src/lib/firms/access.ts — that file, not this comment, is
+/// where the rule is enforced.
+enum FirmRole {
+  FIRM_OWNER // principal / partner; always an admitted attorney
+  FIRM_ADMIN // practice manager; may or may not be an attorney
+  ATTORNEY // admitted attorney practising in the firm
+  PARALEGAL // non-attorney support staff
+}
+
+enum FirmMemberStatus {
+  ACTIVE
+  INVITED
+  SUSPENDED
+  REMOVED // soft delete; membership rows are never hard-deleted
+}
+
+/// Firm-level verification is a different thing from `LawyerProfile.isVerified`.
+///
+/// An attorney is verified against their BASL registration, individually. A firm
+/// is verified as an existing practice at a real address whose named principal
+/// is an admitted attorney. Both matter, and neither implies the other.
+enum FirmVerificationStatus {
+  UNVERIFIED
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+model LawFirm {
+  id   String @id @default(uuid())
+  /// URL-safe identifier for the public firm page
+  slug String @unique
+  name String
+
+  firmType FirmType @default(SOLE_PRACTITIONER)
+
+  /// True when the firm exists only because a solo practitioner needed one.
+  /// The UI hides firm management entirely for these until a second member is
+  /// added, so a solo attorney's experience is unchanged.
+  isSoloPractice Boolean @default(true)
+
+  // --- Registration ---
+  registrationNumber  String?
+  /// The principal's BASL number, snapshotted for display. The authoritative
+  /// value stays on the attorney's own LawyerProfile.
+  principalBaslNumber String?
+  establishedYear     Int?
+
+  // --- Public profile. Bound by the Rule 40 content limit. ---
+  // Permitted: name, qualifications, office hours, contact, and factual practice
+  // information. NOT permitted here, ever: fee ranges or any price indication,
+  // ratings or review counts, "featured"/"top"/"recommended" flags, or any
+  // column whose value depends on what the firm pays us.
+  // See docs/restructure/LEGAL-GUARDRAILS.md — "The Rule 40 content limit".
+  description   String?
+  practiceAreas String[]
+  languages     String[]
+  courts        String[]
+  district      String?
+  contactEmail  String?
+  contactPhone  String?
+  websiteUrl    String?
+  /// Free text, e.g. "Mon–Fri 9.00am–5.00pm". Expressly permitted by Rule 40.
+  officeHours   String?
+  logoUrl       String?
+
+  // --- Client account details ---
+  // Recorded so quotes can be pre-filled with the firm's OWN bank details. The
+  // platform never holds, routes, or verifies a payment into this account; it
+  // only records that the firm said money arrived.
+  // See docs/restructure/LEGAL-GUARDRAILS.md (rule 2).
+  bankName      String?
+  accountName   String?
+  accountNumber String?
+  bankBranch    String?
+
+  // --- Verification ---
+  verificationStatus FirmVerificationStatus @default(UNVERIFIED)
+  verifiedAt         DateTime?
+  /// The ADMIN user who recorded the verification decision
+  verifiedById       String?
+  verificationNotes  String?
+
+  /// Soft delete. Firms are never hard-deleted — matters reference them.
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  members  FirmMember[]
+  offices  FirmOffice[]
+  lawyers  LawyerProfile[]
+  bookings Booking[]
+
+  @@index([verificationStatus])
+  @@index([district])
+  @@index([slug])
+}
+
+/// A firm's offices. A firm may practise from several, and each attorney keeps
+/// their own calendar — availability is never collapsed to the firm.
+model FirmOffice {
+  id     String  @id @default(uuid())
+  firmId String
+  firm   LawFirm @relation(fields: [firmId], references: [id], onDelete: Cascade)
+
+  label        String // "Colombo (head office)"
+  address      String
+  district     String?
+  contactPhone String?
+  isPrimary    Boolean @default(false)
+  isActive     Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([firmId, isActive])
+}
+
+/// Membership of a firm, with the member's firm-internal role.
+model FirmMember {
+  id     String  @id @default(uuid())
+  firmId String
+  firm   LawFirm @relation(fields: [firmId], references: [id], onDelete: Cascade)
+  userId String
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  role   FirmRole
+  status FirmMemberStatus @default(ACTIVE)
+
+  /// Job title as the firm words it. Display only — authority comes from `role`.
+  title String?
+
+  invitedById String?
+  invitedAt   DateTime?
+  joinedAt    DateTime  @default(now())
+  removedAt   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([firmId, userId])
+  @@index([firmId, status])
+  @@index([userId, status])
 }
 
 model SubscriptionPlan {
@@ -323,22 +563,22 @@ model Invoice {
   paymentDetails  Json?
   adminNotes      String?
 
-  remarks         InvoiceRemark[] @relation("InvoiceRemarks")
-  subscription Subscription? @relation("SubscriptionInvoice")
+  remarks      InvoiceRemark[] @relation("InvoiceRemarks")
+  subscription Subscription?   @relation("SubscriptionInvoice")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
 model InvoiceRemark {
-  id        String   @id @default(uuid())
+  id        String  @id @default(uuid())
   invoiceId String
-  invoice   Invoice  @relation("InvoiceRemarks", fields: [invoiceId], references: [id], onDelete: Cascade)
-  
-  remark    String
-  isForLawyer Boolean @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  invoice   Invoice @relation("InvoiceRemarks", fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  remark      String
+  isForLawyer Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 model SubscriptionDetails {
@@ -371,18 +611,13 @@ model Article {
   createdAt DateTime      @default(now())
 }
 
-model Review {
-  id           String        @id @default(uuid())
-  lawyerId     String
-  lawyer       LawyerProfile @relation(fields: [lawyerId], references: [id], onDelete: Cascade)
-  reviewerId   String?
-  reviewer     User?         @relation("ReviewAuthor", fields: [reviewerId], references: [id], onDelete: SetNull)
-  reviewerName String
-  rating       Int
-  comment      String
-  isApproved   Boolean       @default(false)
-  createdAt    DateTime      @default(now())
-}
+// The `Review` model was removed in Phase 2.
+//
+// Star ratings of attorneys are "unfair attraction" under Supreme Court Rule 39,
+// and any rating signal makes directory ordering non-neutral under guardrail
+// rule 4. The UI had been removed in an earlier commit but the model, the
+// endpoint and the public payloads were all still live.
+// See docs/restructure/LEGAL-GUARDRAILS.md — "The Rule 40 content limit".
 
 enum PromoStatus {
   ACTIVE
@@ -413,10 +648,10 @@ model PaidPromo {
 // ============= Advertisement Management System =============
 
 enum AdType {
-  BANNER_IMAGE        // Full banner with image (for hero, top areas)
-  PROFILE_CARD        // Lawyer profile card format
-  SIDEBAR_CARD        // Compact card for sidebars
-  STICKY_BAR          // Thin sticky bottom bar
+  BANNER_IMAGE // Full banner with image (for hero, top areas)
+  PROFILE_CARD // Lawyer profile card format
+  SIDEBAR_CARD // Compact card for sidebars
+  STICKY_BAR // Thin sticky bottom bar
 }
 
 enum AdStatus {
@@ -435,83 +670,83 @@ enum AdPauseActor {
 }
 
 enum AdPlacement {
-  HOMEPAGE_BELOW_HERO     // Homepage: below hero, above "Legal Advisory" section
-  CHAT_RIGHT_SIDEBAR      // /en/chat: right sidebar
-  BLOG_TOP_BANNER         // /en/blog: above category cards
-  BLOG_RIGHT_SIDEBAR      // /en/blog: right sidebar sticky
-  BLOG_BOTTOM_STICKY      // /en/blog: bottom fixed bar
-  BLOG_POST_SIDEBAR       // /en/blog/[slug]: right sidebar
-  BLOG_POST_BOTTOM        // /en/blog/[slug]: below article content
-  DIRECTORY_TOP            // /en/lawyers: top of search results
-  DIRECTORY_INLINE         // /en/lawyers: interspersed in results
+  HOMEPAGE_BELOW_HERO // Homepage: below hero, above "Legal Advisory" section
+  CHAT_RIGHT_SIDEBAR // /en/chat: right sidebar
+  BLOG_TOP_BANNER // /en/blog: above category cards
+  BLOG_RIGHT_SIDEBAR // /en/blog: right sidebar sticky
+  BLOG_BOTTOM_STICKY // /en/blog: bottom fixed bar
+  BLOG_POST_SIDEBAR // /en/blog/[slug]: right sidebar
+  BLOG_POST_BOTTOM // /en/blog/[slug]: below article content
+  DIRECTORY_TOP // /en/lawyers: top of search results
+  DIRECTORY_INLINE // /en/lawyers: interspersed in results
 }
 
 // Admin-configurable settings per ad placement
 model AdPlacementConfig {
-  id              String       @id @default(uuid())
+  id String @id @default(uuid())
 
-  placement       AdPlacement  @unique  // One config per placement
-  displayName     String                // Human-readable name
-  description     String?               // Where this placement appears
+  placement   AdPlacement @unique // One config per placement
+  displayName String // Human-readable name
+  description String? // Where this placement appears
 
   // Pricing (in LKR)
-  pricePerDay     Int                   // Price per day
+  pricePerDay Int // Price per day
 
   // Slider configuration
-  isSlider        Boolean      @default(false)
-  sliderInterval  Int          @default(3000)  // ms between slides
-  maxAdsPerSlot   Int          @default(3)     // Max ads shown at once
+  isSlider       Boolean @default(false)
+  sliderInterval Int     @default(3000) // ms between slides
+  maxAdsPerSlot  Int     @default(3) // Max ads shown at once
 
   // Dimensions guidance
-  recommendedWidth   Int?      // px
-  recommendedHeight  Int?      // px
+  recommendedWidth  Int? // px
+  recommendedHeight Int? // px
 
   // Active/Inactive toggle
-  isActive        Boolean      @default(true)
+  isActive Boolean @default(true)
 
   // Ad types allowed for this placement
-  allowedAdTypes  AdType[]
+  allowedAdTypes AdType[]
 
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model AdCampaign {
-  id          String      @id @default(uuid())
+  id String @id @default(uuid())
 
   // Who owns this campaign
-  lawyerId    String
-  lawyer      LawyerProfile @relation(fields: [lawyerId], references: [id], onDelete: Cascade)
+  lawyerId String
+  lawyer   LawyerProfile @relation(fields: [lawyerId], references: [id], onDelete: Cascade)
 
   // Campaign details
-  name        String
-  type        AdType
-  placement   AdPlacement
-  status      AdStatus    @default(DRAFT)
+  name      String
+  type      AdType
+  placement AdPlacement
+  status    AdStatus    @default(DRAFT)
 
   // Creative assets
   title       String?
   description String?
   imageUrl    String?
   targetUrl   String?
-  ctaText     String?     @default("View Profile")
+  ctaText     String? @default("View Profile")
 
   // Targeting
   targetDistricts     String[]
   targetPracticeAreas String[]
 
   // Schedule
-  startDate   DateTime
-  endDate     DateTime
+  startDate DateTime
+  endDate   DateTime
 
   // Budget & Pricing (in LKR)
-  totalBudget   Int?
-  dailyBudget   Int?
-  pricePerDay   Int?
+  totalBudget Int?
+  dailyBudget Int?
+  pricePerDay Int?
 
   // Performance metrics (denormalized for speed)
-  impressions   Int       @default(0)
-  clicks        Int       @default(0)
+  impressions Int @default(0)
+  clicks      Int @default(0)
 
   // Admin
   adminNotes      String?
@@ -519,40 +754,40 @@ model AdCampaign {
   pausedBy        AdPauseActor?
 
   // Billing
-  invoiceId   String?
+  invoiceId String?
 
   // Relations
-  bookings    AdSlotBooking[]
-  analytics   AdAnalytics[]
+  bookings  AdSlotBooking[]
+  analytics AdAnalytics[]
 
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // Track booked dates per placement for availability checking
 model AdSlotBooking {
-  id          String      @id @default(uuid())
-  campaignId  String
-  campaign    AdCampaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
-  placement   AdPlacement
-  date        DateTime    @db.Date
+  id         String      @id @default(uuid())
+  campaignId String
+  campaign   AdCampaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  placement  AdPlacement
+  date       DateTime    @db.Date
 
-  createdAt   DateTime    @default(now())
+  createdAt DateTime @default(now())
 
   @@unique([placement, date, campaignId])
   @@index([placement, date])
 }
 
 model AdAnalytics {
-  id          String      @id @default(uuid())
-  campaignId  String
-  campaign    AdCampaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  id         String     @id @default(uuid())
+  campaignId String
+  campaign   AdCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
 
-  date        DateTime    @db.Date
-  impressions Int         @default(0)
-  clicks      Int         @default(0)
+  date        DateTime @db.Date
+  impressions Int      @default(0)
+  clicks      Int      @default(0)
 
-  createdAt   DateTime    @default(now())
+  createdAt DateTime @default(now())
 
   @@unique([campaignId, date])
 }
@@ -694,10 +929,10 @@ model Community {
   status      CommunityStatus @default(ACTIVE)
 
   createdById String
-  createdBy   User @relation("CommunityCreator", fields: [createdById], references: [id])
+  createdBy   User   @relation("CommunityCreator", fields: [createdById], references: [id])
 
-  members  CommunityMember[]
-  posts    Post[]
+  members CommunityMember[]
+  posts   Post[]
 
   postCount   Int @default(0)
   memberCount Int @default(0)
@@ -736,24 +971,24 @@ model CommunityRequest {
 }
 
 model Post {
-  id          String     @id @default(uuid())
+  id          String    @id @default(uuid())
   communityId String
-  community   Community  @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  community   Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
   authorId    String
-  author      User       @relation("PostAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  author      User      @relation("PostAuthor", fields: [authorId], references: [id], onDelete: Cascade)
 
-  title    String
-  slug     String     @unique
-  content  String
-  excerpt  String?
+  title      String
+  slug       String   @unique
+  content    String
+  excerpt    String?
   coverImage String?
-  images   String[]
-  language String     @default("en")
+  images     String[]
+  language   String   @default("en")
 
-  status   PostStatus @default(PENDING_REVIEW)
-  isPinned Boolean    @default(false)
-  isLocked Boolean    @default(false)
-  isAnonymous Boolean @default(false)
+  status      PostStatus @default(PENDING_REVIEW)
+  isPinned    Boolean    @default(false)
+  isLocked    Boolean    @default(false)
+  isAnonymous Boolean    @default(false)
 
   upvotes      Int @default(0)
   downvotes    Int @default(0)
@@ -761,9 +996,9 @@ model Post {
   commentCount Int @default(0)
   viewCount    Int @default(0)
 
-  votes        Vote[]             @relation("PostVotes")
+  votes        Vote[]            @relation("PostVotes")
   comments     Comment[]
-  reports      Report[]           @relation("PostReports")
+  reports      Report[]          @relation("PostReports")
   translations PostTranslation[]
 
   createdAt DateTime @default(now())
@@ -787,18 +1022,18 @@ model PostTranslation {
 }
 
 model Comment {
-  id       String  @id @default(uuid())
+  id       String    @id @default(uuid())
   postId   String
-  post     Post    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  post     Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
   authorId String
-  author   User    @relation("CommentAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  author   User      @relation("CommentAuthor", fields: [authorId], references: [id], onDelete: Cascade)
   parentId String?
   parent   Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
   replies  Comment[] @relation("CommentReplies")
 
-  content   String
-  language  String  @default("en")
-  isDeleted Boolean @default(false)
+  content     String
+  language    String  @default("en")
+  isDeleted   Boolean @default(false)
   isAnonymous Boolean @default(false)
 
   upvotes   Int @default(0)
@@ -860,6 +1095,7 @@ model Report {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
 // ============= Legal Document Management System =============
 
 enum LegalDocumentCategory {
@@ -879,41 +1115,41 @@ enum LegalDocumentStatus {
 }
 
 model LegalDocument {
-  id              String                  @id @default(uuid())
-  title           String
-  category        LegalDocumentCategory
-  description     String?
+  id          String                @id @default(uuid())
+  title       String
+  category    LegalDocumentCategory
+  description String?
 
   // Sri Lanka specific metadata
-  actNumber       String?
-  year            Int?
-  courtName       String?
-  caseNumber      String?
-  gazetteNumber   String?
+  actNumber     String?
+  year          Int?
+  courtName     String?
+  caseNumber    String?
+  gazetteNumber String?
 
   // File info
-  fileName        String
-  fileSize        Int                     // bytes
-  pageCount       Int?
+  fileName  String
+  fileSize  Int // bytes
+  pageCount Int?
 
   // RAG metadata
-  ragDocumentName    String?                 // Name in ChromaDB
-  chunksCount        Int                     @default(0)
-  graphEntities      Int                     @default(0)
-  graphRelationships Int                     @default(0)
+  ragDocumentName    String? // Name in ChromaDB
+  chunksCount        Int     @default(0)
+  graphEntities      Int     @default(0)
+  graphRelationships Int     @default(0)
 
   // AI-generated document outline (JSON array of section summaries)
-  outline            Json?
+  outline Json?
 
   // Status
-  status          LegalDocumentStatus     @default(PROCESSING)
-  errorMessage    String?
+  status       LegalDocumentStatus @default(PROCESSING)
+  errorMessage String?
 
   // Admin tracking
-  uploadedById    String?
+  uploadedById String?
 
-  createdAt       DateTime                @default(now())
-  updatedAt       DateTime                @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([category])
   @@index([status])
@@ -933,152 +1169,319 @@ model AiConversation {
 }
 
 model AiMessage {
-  id               String         @id @default(uuid())
-  conversationId   String
-  conversation     AiConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  role             String         // 'user' or 'assistant'
-  content          String
-  sources          Json?          // Legal source citations
-  lawyerSuggestions Json?         // Suggested lawyers
-  createdAt        DateTime       @default(now())
+  id                String         @id @default(uuid())
+  conversationId    String
+  conversation      AiConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  role              String // 'user' or 'assistant'
+  content           String
+  sources           Json? // Legal source citations
+  lawyerSuggestions Json? // Suggested lawyers
+  createdAt         DateTime       @default(now())
 }
 
 // ============= Consultation & Booking System =============
 
 // Lawyer's recurring weekly availability (e.g., "Every Monday 9AM-5PM")
 model LawyerAvailability {
-  id              String           @id @default(uuid())
-  lawyerId        String
-  lawyer          LawyerProfile    @relation(fields: [lawyerId], references: [id], onDelete: Cascade)
+  id       String        @id @default(uuid())
+  lawyerId String
+  lawyer   LawyerProfile @relation(fields: [lawyerId], references: [id], onDelete: Cascade)
 
-  dayOfWeek       DayOfWeek
-  startTime       String           // "09:00" (HH:mm 24hr, SLST)
-  endTime         String           // "17:00"
-  slotDuration    Int              @default(60)  // minutes per slot
-  bufferTime      Int              @default(15)  // minutes gap between slots
-  mode            ConsultationMode @default(BOTH)
-  isActive        Boolean          @default(true)
+  dayOfWeek    DayOfWeek
+  startTime    String // "09:00" (HH:mm 24hr, SLST)
+  endTime      String // "17:00"
+  slotDuration Int              @default(60) // minutes per slot
+  bufferTime   Int              @default(15) // minutes gap between slots
+  mode         ConsultationMode @default(BOTH)
+  isActive     Boolean          @default(true)
 
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([lawyerId, dayOfWeek, startTime])
 }
 
 // Date-specific overrides (e.g., "May 10th available 2PM-4PM only" or blocked)
 model AvailabilityOverride {
-  id              String           @id @default(uuid())
-  lawyerId        String
-  lawyer          LawyerProfile    @relation(fields: [lawyerId], references: [id], onDelete: Cascade)
+  id       String        @id @default(uuid())
+  lawyerId String
+  lawyer   LawyerProfile @relation(fields: [lawyerId], references: [id], onDelete: Cascade)
 
-  date            DateTime         @db.Date
-  isBlocked       Boolean          @default(false)
-  startTime       String?          // null if blocked
-  endTime         String?          // null if blocked
-  reason          String?
+  date      DateTime @db.Date
+  isBlocked Boolean  @default(false)
+  startTime String? // null if blocked
+  endTime   String? // null if blocked
+  reason    String?
 
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([lawyerId, date])
 }
 
 // Lawyer's consultation pricing configuration
 model ConsultationPricing {
-  id                        String                  @id @default(uuid())
-  lawyerId                  String                  @unique
-  lawyer                    LawyerProfile           @relation(fields: [lawyerId], references: [id], onDelete: Cascade)
+  id       String        @id @default(uuid())
+  lawyerId String        @unique
+  lawyer   LawyerProfile @relation(fields: [lawyerId], references: [id], onDelete: Cascade)
 
-  pricingType               ConsultationPricingType @default(PER_SESSION)
-  physicalPrice             Int                     // LKR (e.g., 5000)
-  onlinePrice               Int                     // LKR (usually lower)
-  currency                  String                  @default("LKR")
+  pricingType   ConsultationPricingType @default(PER_SESSION)
+  physicalPrice Int // LKR (e.g., 5000)
+  onlinePrice   Int // LKR (usually lower)
+  currency      String                  @default("LKR")
 
-  commissionRate            Float                   @default(0.15) // 15%
+  freeInitialConsultation  Boolean @default(false)
+  freeConsultationDuration Int? // minutes
+  minAdvanceNoticeHours    Int     @default(24) // minimum hours before booking
 
-  freeInitialConsultation   Boolean                 @default(false)
-  freeConsultationDuration  Int?                    // minutes
-  minAdvanceNoticeHours     Int                     @default(24) // minimum hours before booking
+  bankName      String?
+  accountName   String?
+  accountNumber String?
+  bankBranch    String?
 
-  bankName                  String?
-  accountName               String?
-  accountNumber             String?
-  bankBranch                String?
-  
-  createdAt                 DateTime                @default(now())
-  updatedAt                 DateTime                @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // Core booking record
 model Booking {
-  id              String           @id @default(uuid())
-  bookingNumber   String           @unique // "BK-2026-0001"
+  id            String @id @default(uuid())
+  bookingNumber String @unique // "BK-2026-0001"
 
-  clientId        String
-  client          User             @relation("ClientBookings", fields: [clientId], references: [id])
-  lawyerId        String
-  lawyer          LawyerProfile    @relation(fields: [lawyerId], references: [id])
+  clientId String
+  client   User   @relation("ClientBookings", fields: [clientId], references: [id])
+
+  /// The attorney currently responsible for this matter.
+  ///
+  /// Always set. At intake it is the attorney the client chose from the
+  /// directory — the client's choice, logged, never ours (rule 4). A firm owner
+  /// or firm admin may reassign it to another attorney **in the same firm**;
+  /// nothing can move a matter between firms.
+  lawyerId String
+  lawyer   LawyerProfile @relation(fields: [lawyerId], references: [id])
+
+  /// The firm that received the request and is the provider of legal services.
+  ///
+  /// Derived from the chosen attorney's firm at intake and immutable thereafter.
+  /// `lawyerId` must always belong to this firm — the invariant is enforced in
+  /// src/lib/firms/access.ts and re-checked on every reassignment.
+  firmId String?
+  firm   LawFirm? @relation(fields: [firmId], references: [id])
+
+  /// Set when a firm owner/admin reassigns the responsible attorney. Null on a
+  /// matter that has stayed with the attorney the client originally chose.
+  assignedById   String?
+  assignedAt     DateTime?
+  assignmentNote String?
 
   // Schedule
-  date            DateTime         @db.Date
-  startTime       String           // "10:00"
-  endTime         String           // "11:00"
-  duration        Int              // minutes
+  date      DateTime @db.Date
+  startTime String // "10:00"
+  endTime   String // "11:00"
+  duration  Int // minutes
 
   // Mode
-  mode            ConsultationMode
-  meetingLink     String?          // Google Meet URL
-  officeAddress   String?          // For PHYSICAL
+  mode          ConsultationMode
+  meetingLink   String? // Google Meet URL
+  officeAddress String? // For PHYSICAL
 
-  // Pricing (snapshot at booking time)
-  lawyerFee       Int              // What lawyer charges (LKR)
-  platformFee     Int              // Commission amount (LKR)
-  totalAmount     Int              // Client pays this
-  commissionRate  Float            // Rate snapshot
+  // Fee snapshot at the time terms were agreed.
+  // The platform derives nothing from this and receives none of it — the client
+  // pays the firm directly. There is deliberately no commission field.
+  // See docs/restructure/LEGAL-GUARDRAILS.md (rule 1).
+  lawyerFee   Int // The firm's fee (LKR, whole rupees)
+  totalAmount Int // What the client pays — equal to lawyerFee
 
   // Client's issue
-  subject         String
-  description     String
-  practiceArea    String?
+  subject      String
+  description  String
+  practiceArea String?
 
   // Status
-  status          BookingStatus    @default(PENDING_PAYMENT)
+  status BookingStatus @default(REQUESTED)
+
+  // Phase 1 engagement flow
+  conflictCheck    ConflictCheck?
+  quotes           Quote[]
+  engagementLetter EngagementLetter?
+  /// Set when the client accepts a quote — the moment terms are agreed
+  termsAcceptedAt  DateTime?
 
   // Payment
-  paymentMethod   BookingPaymentMethod?
+  paymentMethod       BookingPaymentMethod?
   paymentInstructions String?
-  payment         BookingPayment?
-  paidAt          DateTime?
+  payment             BookingPayment?
+  paidAt              DateTime?
 
   // Post-consultation
-  lawyerNotes     String?
-  clientRating    Int?
-  clientFeedback  String?
+  lawyerNotes    String?
+  clientRating   Int?
+  clientFeedback String?
 
   // Lawyer workflow
-  lawyerRemarks   String?
+  lawyerRemarks          String?
   rescheduleProposedDate DateTime?
   rescheduleProposedTime String?
-  adminRemarks    String?
+  adminRemarks           String?
 
   // Cancellation
-  cancelledAt     DateTime?
-  cancelledBy     String?
-  cancelReason    String?
-  refundAmount    Int?
+  cancelledAt       DateTime?
+  cancelledBy       String?
+  cancelReason      String?
+  refundAmount      Int?
   retainedLawyerFee Int?
-  retainedPlatformFee Int?
-  refundStatus    RefundStatus     @default(NONE)
+  refundStatus      RefundStatus @default(NONE)
   refundProcessedAt DateTime?
-  refundNotes     String?
+  refundNotes       String?
 
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
+  // Evidence that the refund was actually made. A note alone is the firm's
+  // unsupported word; these make the record checkable by the client.
+  refundMethod    String? // e.g. "Bank transfer", "Cash", "Cheque"
+  refundReference String? // transaction reference from the firm's bank
+  refundProofUrl  String? // uploaded receipt or transfer confirmation
+  refundSentOn    String? // the date the firm actually sent it (yyyy-MM-dd)
+
+  // The client's side of the record.
+  refundConfirmedAt   DateTime?
+  refundDisputedAt    DateTime?
+  refundDisputeReason String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([clientId, status])
   @@index([lawyerId, date])
+  @@index([firmId, status])
   @@index([status])
   @@index([bookingNumber])
+}
+
+/// Conflict-of-interest screening, run by the firm before accepting a client.
+///
+/// This is a professional duty, not a nicety: a firm must not act where it holds
+/// a conflicting interest. Recording it here gives the firm an auditable trail.
+///
+/// PRIVILEGED AND FIRM-INTERNAL. `notes` and `screenedParties` must never be
+/// exposed to the client or to platform staff.
+/// See docs/restructure/LEGAL-GUARDRAILS.md (rule 5).
+model ConflictCheck {
+  id        String  @id @default(uuid())
+  bookingId String  @unique
+  booking   Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  outcome         ConflictCheckOutcome
+  /// Names screened against existing/former clients and opposing parties
+  screenedParties String[]
+  /// Firm-internal reasoning. Never leaves the firm.
+  notes           String?
+
+  /// The attorney or firm admin who ran the check. Never platform staff.
+  checkedById String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([outcome])
+}
+
+/// A fee quote issued by the firm to the client.
+///
+/// The amount is the FIRM's fee in full. The platform derives nothing from it and
+/// receives none of it — the client pays the firm directly using
+/// `paymentInstructions`. See docs/restructure/LEGAL-GUARDRAILS.md (rules 1, 2, 7).
+///
+/// Versioned so a firm can re-quote (e.g. after the client asks for a narrower
+/// scope) without destroying the history of what was previously offered.
+model Quote {
+  id        String  @id @default(uuid())
+  bookingId String
+  booking   Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  version Int         @default(1)
+  status  QuoteStatus @default(SENT)
+
+  feeBasis       FeeBasis
+  /// LKR, whole rupees (never cents — see the PayHere bug removed in Phase 0.3)
+  amount         Int
+  currency       String   @default("LKR")
+  hourlyRate     Int?
+  estimatedHours Float?
+
+  /// What the fee covers, and what it does not. Both shown to the client.
+  scopeOfWork String
+  exclusions  String?
+
+  /// The firm's own bank details. The platform records these; it never collects.
+  paymentInstructions String
+
+  validUntil DateTime
+
+  /// The attorney who issued the quote
+  issuedById    String
+  respondedAt   DateTime?
+  declineReason String?
+
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  engagementLetter EngagementLetter?
+
+  @@unique([bookingId, version])
+  @@index([bookingId, status])
+  @@index([status, validUntil])
+}
+
+/// The engagement letter issued when a client accepts a quote.
+///
+/// This is the artefact that makes the relationship legally clean: it records who
+/// is engaged, on what scope, on what fee basis, and states explicitly that the
+/// FIRM provides the legal service while this platform is only the software the
+/// firm runs on. Valid as an electronic record under the Electronic Transactions
+/// Act No. 19 of 2006.
+///
+/// Content is snapshotted at issue time rather than joined at read time, so the
+/// letter always reflects the terms as they were agreed even if the firm's
+/// profile or the quote changes later.
+///
+/// See docs/restructure/LEGAL-GUARDRAILS.md (rule 7).
+model EngagementLetter {
+  id        String  @id @default(uuid())
+  bookingId String  @unique
+  booking   Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  quoteId String @unique
+  quote   Quote  @relation(fields: [quoteId], references: [id])
+
+  /// Human-readable reference, e.g. "EL-2026-0001"
+  reference String @unique
+
+  // --- Snapshot of the parties at the time of engagement ---
+  firmName       String
+  firmBaslNumber String
+  firmAddress    String?
+  firmContact    String?
+  clientName     String
+  clientEmail    String
+
+  // --- Snapshot of the agreed terms ---
+  matterSubject String
+  scopeOfWork   String
+  exclusions    String?
+  feeBasis      FeeBasis
+  feeAmount     Int
+  currency      String   @default("LKR")
+  paymentTerms  String
+
+  /// Full rendered letter body (Markdown), generated at issue time
+  body String
+
+  issuedAt       DateTime  @default(now())
+  /// When the client viewed it — useful evidence that terms were communicated
+  clientViewedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([reference])
 }
 
 // Temporary hold on a slot during checkout
@@ -1098,13 +1501,13 @@ model SlotHold {
 
 // Payment record linked to a booking
 model BookingPayment {
-  id              String               @id @default(uuid())
-  bookingId       String               @unique
-  booking         Booking              @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  id        String  @id @default(uuid())
+  bookingId String  @unique
+  booking   Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
 
-  amount          Int
-  method          BookingPaymentMethod  @default(BANK_TRANSFER)
-  status          PaymentStatus         @default(PENDING)
+  amount Int
+  method BookingPaymentMethod @default(BANK_TRANSFER)
+  status PaymentStatus        @default(PENDING)
 
   // Bank transfer fields
   bankName        String?
@@ -1115,37 +1518,15 @@ model BookingPayment {
   receiptImageUrl String?
   notes           String?
 
-  // PayHere fields
-  payhereOrderId  String?
-  payherePaymentId String?
-  payhereStatus   String?
-
   // Admin verification
-  verifiedBy      String?
-  verifiedAt      DateTime?
-  adminNotes      String?
+  verifiedBy String?
+  verifiedAt DateTime?
+  adminNotes String?
 
-  createdAt       DateTime             @default(now())
-  updatedAt       DateTime             @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
-enum WithdrawStatus {
-  PENDING
-  APPROVED
-  REJECTED
-}
-
-model WithdrawRequest {
-  id                 String         @id @default(uuid())
-  lawyerId           String
-  lawyer             LawyerProfile  @relation(fields: [lawyerId], references: [id], onDelete: Cascade)
-  amount             Int
-  status             WithdrawStatus @default(PENDING)
-  bankName           String
-  accountNumber      String
-  accountHolder      String
-  adminNotes         String?
-  referenceImageUrl  String?
-  createdAt          DateTime       @default(now())
-  updatedAt          DateTime       @updatedAt
-}
+// WithdrawRequest / WithdrawStatus removed in Phase 1a.
+// The platform never holds a lawyer's fees, so there is no balance to withdraw
+// from. See docs/restructure/LEGAL-GUARDRAILS.md (rule 2).

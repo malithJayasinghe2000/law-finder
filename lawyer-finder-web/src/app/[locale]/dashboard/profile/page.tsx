@@ -40,7 +40,6 @@ export default function ProfileSettingsPage() {
   const [practiceAreas, setPracticeAreas] = useState<string[]>([]);
   const [languages, setLanguagesState] = useState<string[]>([]);
   const [district, setDistrict] = useState('');
-  const [baseFeeRange, setBaseFeeRange] = useState('');
   const [contactPhone, setContactPhone] = useState('');
   const [address, setAddress] = useState('');
   const [latitude, setLatitude] = useState('');
@@ -84,7 +83,6 @@ export default function ProfileSettingsPage() {
         setPracticeAreas((lp.practiceAreas || []).filter((a: string) => PRACTICE_AREAS.includes(a as any)));
         setLanguagesState((lp.languages || []).filter((l: string) => LANGUAGES.includes(l as any)));
         setDistrict(DISTRICTS.includes(lp.district as any) ? lp.district : '');
-        setBaseFeeRange(lp.baseFeeRange || '');
         setContactPhone(lp.contactPhone || '');
         setAddress(lp.address || '');
         setLatitude(lp.latitude?.toString() || '');
@@ -169,7 +167,6 @@ export default function ProfileSettingsPage() {
           practiceAreas,
           languages,
           district,
-          baseFeeRange,
           contactPhone,
           address,
           latitude: latitude || undefined,
@@ -461,16 +458,6 @@ export default function ProfileSettingsPage() {
                     <option value="">Select</option>
                     {DISTRICTS.map(d => <option key={d} value={d}>{d}</option>)}
                   </select>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-widest">Fee Range (LKR)</label>
-                  <input
-                    type="text"
-                    value={baseFeeRange}
-                    onChange={(e) => setBaseFeeRange(e.target.value)}
-                    placeholder="e.g. 5000 - 15000"
-                    className="w-full bg-white border border-neutral-200 text-[#0a0a0a] px-4 py-3 outline-none focus:border-[#bfa37a] focus:bg-[#faf8f6]/30 transition-all text-sm rounded-none"
-                  />
                 </div>
                 <div className="sm:col-span-2 space-y-2">
                   <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-widest">Address</label>

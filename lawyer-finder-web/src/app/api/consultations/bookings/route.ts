@@ -4,6 +4,10 @@ import { getSession } from '@/lib/auth';
 import { CreateBookingSchema, BookingFilterSchema } from '@/schemas/consultation.schema';
 import { formatSriLankaDateIso, parseDateOnlyToUtc } from '@/lib/utils';
 import { EmailService } from '@/lib/email/EmailService';
+import { SLOT_BLOCKING_STATUSES } from '@/lib/consultations/bookingStatus';
+import { expireStaleQuotes } from '@/lib/consultations/expireQuotes';
+import { getFirmMembership, resolveMatterAccess, redactMatter } from '@/lib/firms/access';
+import { ensureAttorneyHasFirm } from '@/lib/firms/provisioning';
 
 // GET: List bookings (filtered by role)
 export async function GET(req: Request) {
@@ -26,18 +30,38 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: filters.error.format() }, { status: 400 });
     }
 
+    // Sweep lapsed quotes so a stale QUOTED row cannot keep blocking a slot.
+    await expireStaleQuotes();
+
     const { status, dateFrom, dateTo, page, limit } = filters.data;
     const skip = (page - 1) * limit;
 
     const where: any = {};
 
-    // Role-based filtering
+    // Role-based filtering.
+    //
+    // Phase 2: an attorney sees their FIRM's matters, not only their own. That
+    // is what makes a firm queue possible — a principal has to be able to see a
+    // request in order to assign it. What each of them may *read* about those
+    // matters is decided per row below, by src/lib/firms/access.ts.
+    const membership =
+      session.role === 'LAWYER' ? await getFirmMembership(session.userId) : null;
+
     if (session.role === 'CLIENT') {
       where.clientId = session.userId;
-    } else if (session.role === 'LAWYER' && session.profileId) {
-      where.lawyerId = session.profileId;
+    } else if (session.role === 'LAWYER') {
+      if (membership) {
+        where.firmId = membership.firmId;
+      } else if (session.profileId) {
+        // An attorney with no firm yet (pre-Phase-2 profile that has not been
+        // through the backfill). Falls back to their own matters so nothing
+        // disappears from their dashboard.
+        where.lawyerId = session.profileId;
+      } else {
+        where.id = '__no_access__';
+      }
     }
-    // ADMIN sees all
+    // ADMIN sees that matters exist, never what they are about.
 
     if (status) where.status = status;
     if (dateFrom || dateTo) {
@@ -61,15 +85,37 @@ export async function GET(req: Request) {
       prisma.booking.count({ where }),
     ]);
 
+    // Legal professional privilege (Evidence Ordinance s.126).
+    //
+    // Who may read the client's own account of their legal problem is decided in
+    // exactly one place — src/lib/firms/access.ts — and applied per row. Platform
+    // staff never may; inside a firm, only the assigned attorney and the
+    // principal do. See docs/restructure/LEGAL-GUARDRAILS.md (rule 5).
     return NextResponse.json({
-      bookings: bookings.map((b) => ({
-        ...b,
+      bookings: bookings.map((b) => {
+        const access = resolveMatterAccess({
+          actorUserId: session.userId,
+          actorRole: session.role,
+          actorProfileId: session.profileId,
+          membership,
+          matter: { lawyerId: b.lawyerId, firmId: b.firmId, clientId: b.clientId },
+        });
+
+        return {
+        ...redactMatter(b, access),
+        access: {
+          canReadMatterDetail: access.canReadMatterDetail,
+          canAct: access.canAct,
+          canAssign: access.canAssign,
+          basis: access.basis,
+        },
         date: formatSriLankaDateIso(b.date),
         createdAt: b.createdAt.toISOString(),
         updatedAt: b.updatedAt.toISOString(),
         paidAt: b.paidAt?.toISOString() || null,
         cancelledAt: b.cancelledAt?.toISOString() || null,
-      })),
+        };
+      }),
       pagination: {
         page,
         limit,
@@ -113,26 +159,33 @@ export async function POST(req: Request) {
 
     const lawyer = await prisma.lawyerProfile.findUnique({
       where: { id: lawyerId },
-      include: { consultationPricing: true, user: { select: { email: true } } },
+      include: { user: { select: { email: true } } },
     });
 
-    if (!lawyer || !lawyer.consultationPricing || !lawyer.user) {
-      return NextResponse.json({ error: 'Lawyer or pricing not found' }, { status: 404 });
+    // A consultation request no longer depends on the lawyer having configured a
+    // price. Previously this 404'd when consultationPricing was missing, which
+    // blocked requests entirely in a flow that is not supposed to have prices.
+    if (!lawyer || !lawyer.user) {
+      return NextResponse.json({ error: 'Lawyer not found' }, { status: 404 });
     }
-
-
 
     // Cannot book yourself
     if (lawyer.userId === session.userId) {
       return NextResponse.json({ error: 'Cannot book a consultation with yourself' }, { status: 400 });
     }
 
-    // Calculate pricing
-    const pricing = lawyer.consultationPricing;
-    const lawyerFee = mode === 'PHYSICAL' ? pricing.physicalPrice : pricing.onlinePrice;
-    const platformFee = Math.round(lawyerFee * pricing.commissionRate);
-    const totalAmount = lawyerFee + platformFee;
+    // No fee is set at request time and the platform never derives one.
+    // The lawyer quotes their fee when they accept the request, and the client
+    // pays that exact amount directly to the lawyer.
+    // See docs/restructure/LEGAL-GUARDRAILS.md (rules 1 and 2).
     const duration = calculateDuration(startTime, endTime);
+
+    // The request is addressed to the FIRM the chosen attorney practises in —
+    // the firm is the provider of legal services, not the individual and
+    // certainly not us. `lawyerId` still records the attorney the client chose,
+    // which is the evidence that the choice was theirs and never ours.
+    // See docs/restructure/LEGAL-GUARDRAILS.md (rules 4 and 7).
+    const firmId = await ensureAttorneyHasFirm(prisma, lawyerId);
 
     // Race-condition-safe booking creation using serializable transaction
     const booking = await prisma.$transaction(async (tx) => {
@@ -141,22 +194,17 @@ export async function POST(req: Request) {
         where: {
           lawyerId,
           date: targetDate,
-          status: { notIn: ['CANCELLED_BY_CLIENT', 'CANCELLED_BY_LAWYER'] },
+          status: { in: SLOT_BLOCKING_STATUSES },
           OR: [
             { startTime: { lt: endTime }, endTime: { gt: startTime } },
           ],
         },
       });
 
-      const validConflict = conflicts.find((b) => {
-        if (b.status === 'PENDING_PAYMENT') {
-          const hoursSinceCreation = (now.getTime() - b.createdAt.getTime()) / (1000 * 60 * 60);
-          if (hoursSinceCreation > 24) return false;
-        }
-        return true;
-      });
-
-      if (validConflict) {
+      // SLOT_BLOCKING_STATUSES already excludes released slots, so any hit is a
+      // genuine conflict. The old 24h grace period for unpaid bookings is gone —
+      // an unanswered quote now expires explicitly into QUOTE_EXPIRED.
+      if (conflicts.length > 0) {
         throw new Error('SLOT_TAKEN');
       }
 
@@ -188,10 +236,24 @@ export async function POST(req: Request) {
         },
       });
 
-      // Generate booking number
-      const bookingCount = await tx.booking.count();
+      // Generate booking number, scoped to the current year.
+      // Previously this used count() + 1 across all bookings, which collided
+      // whenever a booking was deleted and restarted numbering incorrectly at
+      // each year boundary. Deriving from the highest existing number for the
+      // year is stable; the Serializable isolation level below prevents races.
       const year = new Date().getFullYear();
-      const bookingNumber = `BK-${year}-${String(bookingCount + 1).padStart(4, '0')}`;
+      const prefix = `BK-${year}-`;
+
+      const latest = await tx.booking.findFirst({
+        where: { bookingNumber: { startsWith: prefix } },
+        orderBy: { bookingNumber: 'desc' },
+        select: { bookingNumber: true },
+      });
+
+      const lastSequence = latest
+        ? parseInt(latest.bookingNumber.slice(prefix.length), 10) || 0
+        : 0;
+      const bookingNumber = `${prefix}${String(lastSequence + 1).padStart(4, '0')}`;
 
       // Create booking
       return tx.booking.create({
@@ -199,20 +261,19 @@ export async function POST(req: Request) {
           bookingNumber,
           clientId: session.userId,
           lawyerId,
+          firmId,
           date: targetDate,
           startTime,
           endTime,
           duration,
           mode: mode as any,
           officeAddress: mode === 'PHYSICAL' ? (lawyer.address || lawyer.district || 'Contact lawyer for address') : null,
-          lawyerFee,
-          platformFee,
-          totalAmount,
-          commissionRate: pricing.commissionRate,
+          lawyerFee: 0,
+          totalAmount: 0,
           subject,
           description,
           practiceArea,
-          status: 'AWAITING_LAWYER_APPROVAL',
+          status: 'REQUESTED',
         },
       });
     }, {

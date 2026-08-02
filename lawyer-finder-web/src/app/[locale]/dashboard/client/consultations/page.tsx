@@ -8,11 +8,13 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import {
-  CalendarDays, Clock, MapPin, Video, Star, XCircle, ChevronLeft, ChevronRight, AlertTriangle, CreditCard, Building2, Loader2, ImagePlus
+  CalendarDays, Clock, MapPin, Video, Star, XCircle, ChevronLeft, ChevronRight, AlertTriangle, CreditCard, Building2, Loader2, ImagePlus, FileText, ScrollText
 } from 'lucide-react';
 import { BOOKING_STATUS_COLORS, BOOKING_STATUS_LABELS } from '@/schemas/consultation.schema';
 import { formatDateOnlyString } from '@/lib/utils';
 import Link from 'next/link';
+import QuoteReviewDialog from '@/components/consultations/QuoteReviewDialog';
+import EngagementLetterDialog from '@/components/consultations/EngagementLetterDialog';
 
 interface Booking {
   id: string;
@@ -25,12 +27,19 @@ interface Booking {
   meetingLink: string | null;
   officeAddress: string | null;
   lawyerFee: number;
-  platformFee: number;
   totalAmount: number;
   refundAmount: number | null;
   subject: string;
   description: string;
   status: string;
+  // Bank details the lawyer supplies when quoting. The client pays the lawyer
+  // directly using these; the platform never receives the funds.
+  paymentInstructions: string | null;
+  refundStatus: string;
+  refundMethod: string | null;
+  refundReference: string | null;
+  refundProofUrl: string | null;
+  refundSentOn: string | null;
   clientRating: number | null;
   createdAt: string;
   lawyer: { id: string; fullName: string; profileImageUrl: string | null; district: string | null; contactPhone: string | null };
@@ -46,6 +55,8 @@ export default function ClientConsultationsPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [statusFilter, setStatusFilter] = useState('');
   const [cancelModal, setCancelModal] = useState<string | null>(null);
+  const [quoteReview, setQuoteReview] = useState<Booking | null>(null);
+  const [letterBookingId, setLetterBookingId] = useState<string | null>(null);
   const [cancelReason, setCancelReason] = useState('');
 
   const [paymentModal, setPaymentModal] = useState<string | null>(null);
@@ -147,6 +158,35 @@ export default function ClientConsultationsPage() {
   }
 
 
+  async function respondToRefund(bookingId: string, action: 'confirm' | 'dispute') {
+    let notes: string | undefined;
+    if (action === 'dispute') {
+      const input = window.prompt('What happened? The firm will see this.');
+      if (!input || input.trim().length < 5) {
+        toast.error('Please describe the problem so the firm can look into it');
+        return;
+      }
+      notes = input.trim();
+    }
+
+    try {
+      const res = await fetch('/api/consultations/refunds', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bookingId, action, notes }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.error || 'Could not send your response');
+        return;
+      }
+      toast.success(action === 'confirm' ? 'Thank you — refund confirmed' : 'The firm has been notified');
+      loadBookings();
+    } catch {
+      toast.error('Could not send your response');
+    }
+  }
+
   const handleOpenPaymentModal = (booking: any) => {
     if (booking.payment) {
       setBankName(booking.payment.bankName || '');
@@ -188,7 +228,7 @@ export default function ClientConsultationsPage() {
       });
       const data = await res.json();
       if (res.ok) {
-        toast.success('Payment details submitted successfully! Awaiting admin verification.');
+        toast.success('Payment recorded. The firm will confirm once it reaches their account.');
         setPaymentModal(null);
         setBankName('');
         setAccountHolder('');
@@ -206,10 +246,11 @@ export default function ClientConsultationsPage() {
 
   const statusTabs = [
     { value: '', label: 'All' },
-    { value: 'AWAITING_LAWYER_APPROVAL', label: 'Pending Request' },
+    { value: 'REQUESTED', label: 'Submitted' },
+    { value: 'QUOTED', label: 'Awaiting your response' },
     { value: 'CONFIRMED', label: 'Upcoming' },
     { value: 'COMPLETED', label: 'Completed' },
-    { value: 'REJECTED_BY_LAWYER', label: 'Declined' },
+    { value: 'DECLINED', label: 'Not accepted' },
     { value: 'CANCELLED_BY_CLIENT', label: 'Cancelled' },
   ];
 
@@ -270,39 +311,98 @@ export default function ClientConsultationsPage() {
                       <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{b.startTime} – {b.endTime}</span>
                     </div>
                     {/* Meeting link for confirmed online bookings */}
-                    {b.status === 'CONFIRMED' && b.mode !== 'PHYSICAL' && b.meetingLink && (
+                    {b.status === 'SCHEDULED' && b.mode !== 'PHYSICAL' && b.meetingLink && (
                       <div className="mt-2 p-2 bg-blue-50 border border-blue-200 inline-flex items-center gap-2">
                         <Video className="w-3.5 h-3.5 text-blue-600" />
                         <a href={b.meetingLink} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 font-semibold underline">Join Meeting</a>
                       </div>
                     )}
-                    {b.status === 'CONFIRMED' && b.mode === 'PHYSICAL' && b.officeAddress && (
+                    {b.status === 'SCHEDULED' && b.mode === 'PHYSICAL' && b.officeAddress && (
                       <div className="mt-2 p-2 bg-green-50 border border-green-200 inline-flex items-center gap-2">
                         <MapPin className="w-3.5 h-3.5 text-green-600" />
                         <span className="text-xs text-green-800">{b.officeAddress}</span>
                       </div>
                     )}
-                    {b.status === 'PENDING_PAYMENT' && b.paymentInstructions && (
+                    {b.status === 'ACCEPTED' && b.paymentInstructions && (
                       <div className="mt-3 p-3 bg-amber-50 border border-amber-200">
-                        <p className="text-[10px] font-bold text-amber-800 uppercase tracking-widest mb-1">Lawyer's Payment Instructions</p>
+                        <p className="text-[10px] font-bold text-amber-800 uppercase tracking-widest mb-1">Pay the firm directly</p>
                         <p className="text-xs text-amber-900 whitespace-pre-wrap">{b.paymentInstructions}</p>
+                        <p className="text-[10px] text-amber-700 mt-1.5">
+                          The platform never handles this payment and takes no share of it.
+                        </p>
                       </div>
                     )}
                   </div>
                   <div className="text-right shrink-0">
-                    {b.status === 'AWAITING_LAWYER_APPROVAL' && (
-                       <p className="text-xs text-neutral-500 italic mb-2">Waiting for lawyer's response...</p>
+                    {b.status === 'REQUESTED' && (
+                      <p className="mb-2 text-xs italic text-neutral-500">Waiting for the firm to review your request…</p>
                     )}
-                    {b.status === 'PENDING_PAYMENT' && (
+                    {b.status === 'CONFLICT_CHECK' && (
+                      <p className="mb-2 text-xs italic text-neutral-500">The firm is checking for conflicts of interest…</p>
+                    )}
+                    {b.status === 'QUOTED' && (
+                      <p className="mb-2 text-xs font-semibold text-amber-700">A fee proposal is waiting for your response.</p>
+                    )}
+                    {b.status === 'ACCEPTED' && (
                       <div className="mb-3 text-right">
-                        <p className="text-xs text-neutral-500 mb-1">Lawyer's Quoted Fee:</p>
+                        <p className="mb-1 text-xs text-neutral-500">Agreed fee, payable to the firm:</p>
                         <p className="text-sm font-bold text-[#0a0a0a]">Rs. {b.totalAmount?.toLocaleString()}</p>
+                        {b.payment?.status === 'RESUBMIT' ? (
+                          <p className="mt-1.5 border border-amber-200 bg-amber-50 p-1.5 text-[10px] text-amber-800">
+                            The firm needs you to correct your payment details
+                            {b.payment?.adminNotes ? `: ${b.payment.adminNotes}` : '.'}
+                          </p>
+                        ) : b.payment ? (
+                          <p className="mt-1.5 text-[10px] italic text-neutral-500">
+                            Payment recorded — waiting for the firm to confirm it arrived.
+                          </p>
+                        ) : null}
                       </div>
                     )}
-                    {b.status === 'AWAITING_BANK_TRANSFER_VERIFICATION' && (
-                       <p className="text-[10px] text-neutral-500 italic mb-2 bg-neutral-100 p-1.5 border border-neutral-200">Receipt submitted. Waiting for lawyer verification.</p>
+                    {/* The firm says it refunded — the client confirms or disputes,
+                        so the record does not rest on the firm's word alone. */}
+                    {b.refundStatus === 'PROCESSED' && (
+                      <div className="mb-3 border border-green-200 bg-green-50 p-3 text-left">
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-green-800">
+                          Refund sent
+                        </p>
+                        <p className="mt-0.5 text-sm font-bold text-green-900">
+                          Rs. {b.refundAmount?.toLocaleString()}
+                        </p>
+                        <dl className="mt-1.5 space-y-0.5 text-[10px] text-green-800">
+                          {b.refundMethod && <div>Method: {b.refundMethod}</div>}
+                          {b.refundReference && <div>Reference: {b.refundReference}</div>}
+                          {b.refundSentOn && <div>Sent on: {formatDateOnlyString(b.refundSentOn)}</div>}
+                        </dl>
+                        {b.refundProofUrl && (
+                          <a href={b.refundProofUrl} target="_blank" rel="noopener noreferrer" className="mt-1 inline-block text-[10px] underline">
+                            View proof
+                          </a>
+                        )}
+                        <p className="mt-2 text-[10px] text-green-800">
+                          Check your account, then confirm below.
+                        </p>
+                        <div className="mt-2 flex gap-1.5">
+                          <Button size="sm" onClick={() => respondToRefund(b.id, 'confirm')} className="h-7 rounded-none bg-green-600 px-2.5 text-[10px] font-bold text-white hover:bg-green-700">
+                            I received it
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => respondToRefund(b.id, 'dispute')} className="h-7 rounded-none px-2.5 text-[10px] font-bold text-red-600">
+                            Not received
+                          </Button>
+                        </div>
+                      </div>
                     )}
-                    {b.status === 'CANCELLED_BY_CLIENT' && b.refundAmount !== null && b.refundAmount > 0 && (
+                    {b.refundStatus === 'CONFIRMED' && (
+                      <p className="mb-2 border border-green-200 bg-green-50 p-1.5 text-[10px] text-green-800">
+                        Refund of Rs. {b.refundAmount?.toLocaleString()} confirmed received.
+                      </p>
+                    )}
+                    {b.refundStatus === 'DISPUTED' && (
+                      <p className="mb-2 border border-red-200 bg-red-50 p-1.5 text-[10px] text-red-700">
+                        You reported this refund as not received. The firm has been notified.
+                      </p>
+                    )}
+                    {b.status === 'CANCELLED_BY_CLIENT' && b.refundStatus === 'PENDING' && b.refundAmount !== null && b.refundAmount > 0 && (
                       <div className="mt-2 text-right bg-red-50 p-1.5 border border-red-100">
                         {b.refundAmount < b.totalAmount && (
                           <p className="text-[10px] text-red-600 font-bold">- Rs. {(b.totalAmount - b.refundAmount).toLocaleString()} (Late Cancel Penalty)</p>
@@ -311,16 +411,53 @@ export default function ClientConsultationsPage() {
                       </div>
                     )}
                     <div className="flex gap-1.5 mt-3 justify-end flex-wrap">
-                      {['AWAITING_LAWYER_APPROVAL', 'CONFIRMED', 'PENDING_PAYMENT'].includes(b.status) && (
+                      {['REQUESTED', 'CONFLICT_CHECK', 'QUOTED', 'ACCEPTED', 'SCHEDULED'].includes(b.status) && (
                         <Button size="sm" variant="outline" onClick={() => setCancelModal(b.id)} className="rounded-none h-7 text-[10px] px-2.5 font-bold text-red-600 border-red-300">
                           <XCircle className="w-3 h-3 mr-1" /> Cancel
                         </Button>
                       )}
-                      {b.status === 'PENDING_PAYMENT' && (
-                        <Button size="sm" onClick={() => handleOpenPaymentModal(b)} className="bg-[#0a0a0a] text-white hover:bg-neutral-800 rounded-none h-7 text-[10px] px-2.5 font-bold">
-                          Upload Receipt
+                      {b.status === 'QUOTED' && (
+                        <Button size="sm" onClick={() => setQuoteReview(b)} className="bg-[#0a0a0a] text-white hover:bg-neutral-800 rounded-none h-7 text-[10px] px-2.5 font-bold">
+                          <FileText className="w-3 h-3 mr-1" /> Review proposal
                         </Button>
                       )}
+                      {['ACCEPTED', 'SCHEDULED', 'COMPLETED'].includes(b.status) && (
+                        <Button size="sm" variant="outline" onClick={() => setLetterBookingId(b.id)} className="rounded-none h-7 text-[10px] px-2.5 font-bold">
+                          <ScrollText className="w-3 h-3 mr-1" /> Engagement letter
+                        </Button>
+                      )}
+                      {b.status === 'ACCEPTED' && (() => {
+                        // Once a payment is recorded the client should not be able
+                        // to submit it again as if nothing happened. They can still
+                        // correct it, and must if the firm sent it back.
+                        const needsCorrection = b.payment?.status === 'RESUBMIT';
+                        const alreadyRecorded = Boolean(b.payment) && !needsCorrection;
+
+                        if (alreadyRecorded) {
+                          return (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleOpenPaymentModal(b)}
+                              className="rounded-none h-7 text-[10px] px-2.5 font-bold"
+                            >
+                              Update payment details
+                            </Button>
+                          );
+                        }
+
+                        return (
+                          <Button
+                            size="sm"
+                            onClick={() => handleOpenPaymentModal(b)}
+                            className={`rounded-none h-7 text-[10px] px-2.5 font-bold text-white ${
+                              needsCorrection ? 'bg-amber-600 hover:bg-amber-700' : 'bg-[#0a0a0a] hover:bg-neutral-800'
+                            }`}
+                          >
+                            {needsCorrection ? 'Correct payment details' : 'I have paid'}
+                          </Button>
+                        );
+                      })()}
 
                     </div>
                   </div>
@@ -329,6 +466,25 @@ export default function ClientConsultationsPage() {
             </Card>
           ))}
         </div>
+      )}
+
+      {quoteReview && (
+        <QuoteReviewDialog
+          bookingId={quoteReview.id}
+          bookingNumber={quoteReview.bookingNumber}
+          firmName={quoteReview.lawyer.fullName}
+          open={Boolean(quoteReview)}
+          onOpenChange={(o) => { if (!o) setQuoteReview(null); }}
+          onResponded={loadBookings}
+        />
+      )}
+
+      {letterBookingId && (
+        <EngagementLetterDialog
+          bookingId={letterBookingId}
+          open={Boolean(letterBookingId)}
+          onOpenChange={(o) => { if (!o) setLetterBookingId(null); }}
+        />
       )}
 
       {/* Pagination */}

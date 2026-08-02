@@ -366,9 +366,38 @@ export default function BookingWizardClient({ lawyerId, lawyerName, lawyerImage,
                   </div>
                 </div>
 
-                <div className="bg-amber-50 border border-amber-200 p-4 text-sm text-amber-800 flex gap-3">
-                   <Info className="w-5 h-5 shrink-0" />
-                   <p>Your consultation request will be sent to the lawyer. Once accepted, the lawyer will discuss fees directly with you.</p>
+                {/* What actually happens next. Setting this expectation up front
+                    is what stops the request feeling like an unanswered void. */}
+                <div className="border border-neutral-200 bg-neutral-50 p-5">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-neutral-500">
+                    What happens next
+                  </p>
+                  <ol className="mt-3 space-y-2.5">
+                    {[
+                      ['1', 'The firm reviews your request', 'Including a conflict-of-interest check, which every firm must run before taking on a client.'],
+                      ['2', 'You receive a fee proposal', 'Setting out the fee, exactly what it covers, and what it does not.'],
+                      ['3', 'You accept or decline', 'Nothing is owed unless you accept. Accepting produces a letter of engagement for your records.'],
+                      ['4', 'You pay the firm directly', 'Into the firm’s own account. This platform never handles your money and takes no share of the fee.'],
+                    ].map(([n, title, body]) => (
+                      <li key={n} className="flex gap-3">
+                        <span className="flex h-5 w-5 shrink-0 items-center justify-center bg-[#0a0a0a] text-[10px] font-bold text-white">
+                          {n}
+                        </span>
+                        <span className="text-sm">
+                          <span className="font-semibold text-neutral-900">{title}</span>
+                          <span className="mt-0.5 block text-xs leading-relaxed text-neutral-500">{body}</span>
+                        </span>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+
+                <div className="flex gap-3 border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+                  <Info className="h-5 w-5 shrink-0" aria-hidden="true" />
+                  <p>
+                    Submitting this request does not create a lawyer-client
+                    relationship, and no fee is payable at this stage.
+                  </p>
                 </div>
               </div>
             )}

@@ -7,10 +7,14 @@ import { checkRateLimit, getClientIp } from '@/lib/security';
 
 export async function POST(req: Request) {
   try {
+    // Hoisted so the failed-attempt log below can reference it. Previously
+    // clientIp was block-scoped to the rate-limit check, so the failure log threw
+    // a ReferenceError and every bad password returned 500 instead of 401.
+    const clientIp = getClientIp(req);
+
     // Rate limiting: max 5 login attempts per 15 minutes per IP
     // Can be disabled via env var (e.g., RATE_LIMIT_ENABLED=false)
     if (process.env.RATE_LIMIT_ENABLED !== 'false') {
-      const clientIp = getClientIp(req);
       const rateCheck = checkRateLimit(`login:${clientIp}`, 5, 15 * 60 * 1000);
       if (!rateCheck.allowed) {
         const retryAfterSec = Math.ceil(rateCheck.retryAfterMs / 1000);

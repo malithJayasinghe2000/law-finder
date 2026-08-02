@@ -104,6 +104,28 @@ export const EmailService = {
     `));
   },
 
+  // Matter reassigned within the firm.
+  //
+  // The client engaged the FIRM, so the firm is entitled to decide which of its
+  // attorneys acts — but the client is entitled to know who that is. Naming the
+  // firm as the provider, with the attorney acting for it, is the wording
+  // required by guardrail rule 7.
+  async sendMatterReassignedClient(
+    email: string,
+    clientName: string,
+    bookingNumber: string,
+    firmName: string,
+    attorneyName: string
+  ) {
+    await sendMailSafe(email, `Your matter ${bookingNumber} — attorney assigned`, template('Attorney Assigned', `
+      <p>Dear ${clientName},</p>
+      <p>${firmName} has assigned <strong>${attorneyName}</strong> to act on your matter
+         <strong>${bookingNumber}</strong>.</p>
+      <p>${firmName} remains the provider of legal services in this matter. Your engagement
+         terms, fee and scope are unchanged.</p>
+    `));
+  },
+
   // 1. New Booking Created - Client
   async sendBookingCreatedClient(email: string, clientName: string, lawyerName: string, date: string, time: string, bookingNumber: string) {
     await sendMailSafe(email, 'Booking Created - Payment Required', template('Booking Placed', `

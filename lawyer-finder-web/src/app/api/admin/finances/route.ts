@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { CONFIRMED_STATUSES } from '@/lib/consultations/bookingStatus';
 
 // GET: Retrieve financial summary and breakdown by lawyer (ADMIN only)
 export async function GET(req: Request) {
@@ -34,33 +35,29 @@ export async function GET(req: Request) {
     // We will use the max of paid ad invoices or campaign budgets as ad income, or rely on paid invoices if they exist.
     const finalAdIncome = Math.max(totalAdInvoiceIncome, totalAdCampaignBudget);
 
-    // 3. Get all bookings that have been paid (i.e. status is AWAITING_LAWYER_APPROVAL, CONFIRMED, COMPLETED, IN_PROGRESS)
+    // 3. Consultation fees.
+    //
+    // These are NOT platform income. The client pays the lawyer directly and the
+    // platform takes no share. They are reported here only so admins can see
+    // consultation activity on the platform — they must never be added into
+    // platform revenue. See docs/restructure/LEGAL-GUARDRAILS.md (rules 1 and 2).
     const paidBookings = await prisma.booking.findMany({
       where: {
         paidAt: { not: null },
-        status: { notIn: ['CANCELLED_BY_CLIENT', 'CANCELLED_BY_LAWYER', 'PENDING_PAYMENT', 'AWAITING_BANK_TRANSFER_VERIFICATION'] },
+        status: { in: CONFIRMED_STATUSES },
       },
       select: {
         id: true,
         lawyerFee: true,
-        platformFee: true,
-        totalAmount: true,
         lawyerId: true,
       },
     });
 
-    const totalBookingPayments = paidBookings.reduce((sum: number, b: any) => sum + b.totalAmount, 0);
-    const totalPlatformFeeBookingIncome = paidBookings.reduce((sum: number, b: any) => sum + b.platformFee, 0);
-    const totalLawyerShareBookingIncome = paidBookings.reduce((sum: number, b: any) => sum + b.lawyerFee, 0);
+    // Fees paid by clients directly to lawyers. Platform share is always zero.
+    const totalConsultationFeesToLawyers = paidBookings.reduce((sum, b) => sum + b.lawyerFee, 0);
 
-    // 4. Fetch all withdrawal requests
-    const withdrawals = await prisma.withdrawRequest.findMany();
-    const totalPaidPayouts = withdrawals
-      .filter((w: any) => w.status === 'APPROVED')
-      .reduce((sum: number, w: any) => sum + w.amount, 0);
-    const totalPendingPayouts = withdrawals
-      .filter((w: any) => w.status === 'PENDING')
-      .reduce((sum: number, w: any) => sum + w.amount, 0);
+    // Withdrawal requests were removed in Phase 1a — the platform never holds a
+    // lawyer's fees, so there is no balance to pay out.
 
     // 5. Calculate breakdown per lawyer
     const lawyers = await prisma.lawyerProfile.findMany({
@@ -89,50 +86,38 @@ export async function GET(req: Request) {
 
       const finalLawyerAdIncome = Math.max(lawyerAds, lawyerCampaigns);
 
-      // Bookings for this lawyer
-      const lawyerBookings = paidBookings.filter((b: any) => b.lawyerId === lawyer.id);
-      const bookingTotalAmount = lawyerBookings.reduce((sum: number, b: any) => sum + b.totalAmount, 0);
-      const bookingPlatformFee = lawyerBookings.reduce((sum: number, b: any) => sum + b.platformFee, 0);
-      const bookingLawyerShare = lawyerBookings.reduce((sum: number, b: any) => sum + b.lawyerFee, 0); // earnings
-
-      // Withdrawals for this lawyer
-      const lawyerWithdrawals = withdrawals.filter((w: any) => w.lawyerId === lawyer.id);
-      const paidAmount = lawyerWithdrawals
-        .filter((w: any) => w.status === 'APPROVED')
-        .reduce((sum: number, w: any) => sum + w.amount, 0);
-      const pendingAmount = lawyerWithdrawals
-        .filter((w: any) => w.status === 'PENDING')
-        .reduce((sum: number, w: any) => sum + w.amount, 0);
-
-      const remainingBalance = bookingLawyerShare - paidAmount - pendingAmount;
+      // Consultation fees this lawyer collected directly from clients.
+      // Informational only — never platform income, and never a platform liability.
+      const lawyerBookings = paidBookings.filter((b) => b.lawyerId === lawyer.id);
+      const consultationFeesCollected = lawyerBookings.reduce((sum, b) => sum + b.lawyerFee, 0);
 
       return {
         lawyerId: lawyer.id,
         fullName: lawyer.fullName,
         baslNumber: lawyer.baslNumber,
         email: lawyer.user?.email || '',
+        // What this lawyer paid the platform (this IS our revenue)
         subscriptionsPaid: lawyerSubscriptions,
         adsPaid: finalLawyerAdIncome,
-        bookingTotalVolume: bookingTotalAmount,
-        bookingPlatformFee,
-        bookingLawyerShare,
-        paidAmount,
-        pendingAmount,
-        remainingBalance,
+        // What this lawyer collected from clients (NOT our revenue)
+        consultationFeesCollected,
+        consultationCount: lawyerBookings.length,
       };
     });
 
     return NextResponse.json({
       success: true,
       summary: {
+        // Platform revenue. Software licences and advertising only — never a
+        // share of any legal fee.
         totalSubscriptionIncome,
         totalAdIncome: finalAdIncome,
-        totalBookingPayments,
-        totalPlatformFeeBookingIncome,
-        totalLawyerShareBookingIncome,
-        totalPaidPayouts,
-        totalPendingPayouts,
-        adminTotalIncome: totalSubscriptionIncome + finalAdIncome + totalPlatformFeeBookingIncome, // total platform revenue
+        platformTotalIncome: totalSubscriptionIncome + finalAdIncome,
+
+        // Consultation activity. Client-to-lawyer money that never touches the
+        // platform. Reported for visibility; must not be summed into revenue.
+        totalConsultationFeesToLawyers,
+        consultationCount: paidBookings.length,
       },
       lawyerBreakdowns,
     });

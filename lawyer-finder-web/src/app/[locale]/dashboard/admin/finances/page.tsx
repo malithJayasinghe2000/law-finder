@@ -12,12 +12,9 @@ export default function AdminFinancesPage() {
   const [summary, setSummary] = useState({
     totalSubscriptionIncome: 0,
     totalAdIncome: 0,
-    totalBookingPayments: 0,
-    totalPlatformFeeBookingIncome: 0,
-    totalLawyerShareBookingIncome: 0,
-    totalPaidPayouts: 0,
-    totalPendingPayouts: 0,
-    adminTotalIncome: 0,
+    platformTotalIncome: 0,
+    totalConsultationFeesToLawyers: 0,
+    consultationCount: 0,
   });
   const [lawyerBreakdowns, setLawyerBreakdowns] = useState<any[]>([]);
 
@@ -52,17 +49,17 @@ export default function AdminFinancesPage() {
         </div>
         <div>
           <h1 className="text-4xl font-normal tracking-tight text-neutral-900">Financial Reports</h1>
-          <p className="text-sm text-neutral-500 font-medium">Overview of system earnings, lawyer subscription fees, ad income, and payouts</p>
+          <p className="text-sm text-neutral-500 font-medium">Platform revenue from subscriptions and advertising. Consultation fees are paid client-to-lawyer and are not platform income.</p>
         </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      {/* Platform revenue */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="rounded-none border-neutral-200 shadow-sm bg-[#0a0a0a] text-white">
           <CardContent className="p-6">
             <p className="text-xs font-bold uppercase tracking-widest text-neutral-400 mb-2">Total Platform Revenue</p>
-            <p className="text-3xl font-bold">LKR {summary.adminTotalIncome.toLocaleString()}</p>
-            <span className="text-[10px] text-neutral-400 block mt-1">Subscriptions + Ads + Platform Booking Fees</span>
+            <p className="text-3xl font-bold">LKR {summary.platformTotalIncome.toLocaleString()}</p>
+            <span className="text-[10px] text-neutral-400 block mt-1">Subscriptions + Advertising</span>
           </CardContent>
         </Card>
         <Card className="rounded-none border-neutral-200 shadow-sm">
@@ -77,43 +74,40 @@ export default function AdminFinancesPage() {
             <p className="text-3xl font-bold text-neutral-900">LKR {summary.totalAdIncome.toLocaleString()}</p>
           </CardContent>
         </Card>
-        <Card className="rounded-none border-neutral-200 shadow-sm">
-          <CardContent className="p-6">
-            <p className="text-xs font-bold uppercase tracking-widest text-neutral-500 mb-2">Booking Commission Fees</p>
-            <p className="text-3xl font-bold text-green-600">LKR {summary.totalPlatformFeeBookingIncome.toLocaleString()}</p>
-            <span className="text-[10px] text-neutral-400 block mt-1">Total bookings volume: LKR {summary.totalBookingPayments.toLocaleString()}</span>
-          </CardContent>
-        </Card>
       </div>
 
-      {/* Payout Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="rounded-none border-neutral-200 shadow-sm">
-          <CardContent className="p-6">
-            <p className="text-xs font-bold uppercase tracking-widest text-neutral-500 mb-2">Total Lawyer Share (Earnings)</p>
-            <p className="text-2xl font-bold text-neutral-800">LKR {summary.totalLawyerShareBookingIncome.toLocaleString()}</p>
-          </CardContent>
-        </Card>
-        <Card className="rounded-none border-neutral-200 shadow-sm">
-          <CardContent className="p-6">
-            <p className="text-xs font-bold uppercase tracking-widest text-neutral-500 mb-2">Payouts Paid to Lawyers</p>
-            <p className="text-2xl font-bold text-blue-600">LKR {summary.totalPaidPayouts.toLocaleString()}</p>
-          </CardContent>
-        </Card>
-        <Card className="rounded-none border-neutral-200 shadow-sm">
-          <CardContent className="p-6">
-            <p className="text-xs font-bold uppercase tracking-widest text-neutral-500 mb-2">Pending Payout Requests</p>
-            <p className="text-2xl font-bold text-amber-600">LKR {summary.totalPendingPayouts.toLocaleString()}</p>
-          </CardContent>
-        </Card>
-      </div>
+      {/* Consultation activity — explicitly NOT platform revenue */}
+      <Card className="rounded-none border-blue-200 bg-blue-50 shadow-sm">
+        <CardContent className="p-6">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="max-w-xl">
+              <p className="text-xs font-bold uppercase tracking-widest text-blue-900 mb-1">
+                Consultation Activity — not platform revenue
+              </p>
+              <p className="text-xs text-blue-800">
+                Clients pay lawyers directly and the platform takes no share of any
+                legal fee. These figures are shown for visibility only and are
+                deliberately excluded from platform revenue above.
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-2xl font-bold text-blue-900">
+                LKR {summary.totalConsultationFeesToLawyers.toLocaleString()}
+              </p>
+              <p className="text-[10px] text-blue-700 mt-0.5">
+                across {summary.consultationCount.toLocaleString()} consultations
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Lawyer Breakdown Table */}
       <Card className="rounded-none border-neutral-200 shadow-sm">
         <CardHeader className="border-b border-neutral-100 p-6 flex flex-row items-center justify-between">
           <div>
-            <CardTitle className="text-lg font-bold uppercase tracking-wider">Lawyer Ledger & Balances</CardTitle>
-            <CardDescription className="text-xs">Financial details, billing inputs, and pending payables per lawyer</CardDescription>
+            <CardTitle className="text-lg font-bold uppercase tracking-wider">Per-Lawyer Breakdown</CardTitle>
+            <CardDescription className="text-xs">What each lawyer paid the platform, and their consultation activity</CardDescription>
           </div>
         </CardHeader>
         <CardContent className="p-0">
@@ -131,12 +125,8 @@ export default function AdminFinancesPage() {
                     <TableHead className="text-xs font-bold uppercase tracking-wider py-4 pl-6 text-[#0a0a0a]">Lawyer</TableHead>
                     <TableHead className="text-xs font-bold uppercase tracking-wider text-right text-[#0a0a0a]">Subscriptions</TableHead>
                     <TableHead className="text-xs font-bold uppercase tracking-wider text-right text-[#0a0a0a]">Ads</TableHead>
-                    <TableHead className="text-xs font-bold uppercase tracking-wider text-right text-[#0a0a0a]">Total Bookings</TableHead>
-                    <TableHead className="text-xs font-bold uppercase tracking-wider text-right text-[#0a0a0a]">Platform Fee</TableHead>
-                    <TableHead className="text-xs font-bold uppercase tracking-wider text-right text-[#0a0a0a]">Lawyer Share</TableHead>
-                    <TableHead className="text-xs font-bold uppercase tracking-wider text-right text-[#0a0a0a]">Payout Paid</TableHead>
-                    <TableHead className="text-xs font-bold uppercase tracking-wider text-right text-[#0a0a0a]">Payout Pending</TableHead>
-                    <TableHead className="text-xs font-bold uppercase tracking-wider text-right pr-6 text-green-600">Remaining Balance</TableHead>
+                    <TableHead className="text-xs font-bold uppercase tracking-wider text-right text-[#0a0a0a]">Consultations</TableHead>
+                    <TableHead className="text-xs font-bold uppercase tracking-wider text-right pr-6 text-[#0a0a0a]">Fees Collected Directly</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -148,12 +138,8 @@ export default function AdminFinancesPage() {
                       </TableCell>
                       <TableCell className="text-right">LKR {lb.subscriptionsPaid.toLocaleString()}</TableCell>
                       <TableCell className="text-right">LKR {lb.adsPaid.toLocaleString()}</TableCell>
-                      <TableCell className="text-right">LKR {lb.bookingTotalVolume.toLocaleString()}</TableCell>
-                      <TableCell className="text-right text-red-600">LKR {lb.bookingPlatformFee.toLocaleString()}</TableCell>
-                      <TableCell className="text-right text-green-600 font-semibold">LKR {lb.bookingLawyerShare.toLocaleString()}</TableCell>
-                      <TableCell className="text-right text-blue-600">LKR {lb.paidAmount.toLocaleString()}</TableCell>
-                      <TableCell className="text-right text-amber-600">LKR {lb.pendingAmount.toLocaleString()}</TableCell>
-                      <TableCell className="text-right pr-6 font-bold text-green-600">LKR {lb.remainingBalance.toLocaleString()}</TableCell>
+                      <TableCell className="text-right">{lb.consultationCount.toLocaleString()}</TableCell>
+                      <TableCell className="text-right pr-6 text-neutral-600">LKR {lb.consultationFeesCollected.toLocaleString()}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

@@ -1,6 +1,16 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 
+/**
+ * Public attorney directory.
+ *
+ * Every field returned here is bound by the Rule 40 content limit: name,
+ * qualifications, and factual practice information only. No fee indication, no
+ * rating, no review count, no subscription signal, and no ordering derived from
+ * anything an attorney pays us. Ordering is alphabetical and disclosed.
+ *
+ * See docs/restructure/LEGAL-GUARDRAILS.md — "The Rule 40 content limit".
+ */
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
@@ -29,33 +39,26 @@ export async function GET(req: Request) {
 
     const lawyers = await prisma.lawyerProfile.findMany({
       where,
-      include: {
-        reviews: { where: { isApproved: true } },
+      select: {
+        id: true,
+        fullName: true,
+        profileImageUrl: true,
+        // The attorney's own professional description. Retained because removing
+        // it would gut the directory card, but it is the one field here that is
+        // arguably beyond Rule 40's list — counsel question 16(b).
+        bio: true,
+        practiceAreas: true,
+        languages: true,
+        district: true,
+        courts: true,
+        yearsOfExperience: true,
+        isNotary: true,
+        isVerified: true,
       },
       orderBy: { fullName: 'asc' },
     });
 
-    const result = lawyers.map((lawyer) => {
-      const avgRating =
-        lawyer.reviews.length > 0
-          ? lawyer.reviews.reduce((sum, r) => sum + r.rating, 0) / lawyer.reviews.length
-          : 0;
-      return {
-        id: lawyer.id,
-        fullName: lawyer.fullName,
-        profileImageUrl: lawyer.profileImageUrl,
-        bio: lawyer.bio,
-        practiceAreas: lawyer.practiceAreas,
-        languages: lawyer.languages,
-        district: lawyer.district,
-        baseFeeRange: lawyer.baseFeeRange,
-        isVerified: lawyer.isVerified,
-        reviewCount: lawyer.reviews.length,
-        averageRating: Math.round(avgRating * 10) / 10,
-      };
-    });
-
-    return NextResponse.json(result, { status: 200 });
+    return NextResponse.json(lawyers, { status: 200 });
   } catch (error) {
     console.error('[LAWYERS_GET_ERROR]', error);
     return NextResponse.json({ error: 'Failed to fetch lawyers.' }, { status: 500 });

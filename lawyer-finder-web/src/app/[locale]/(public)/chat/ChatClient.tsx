@@ -9,6 +9,7 @@ import {
 import Link from 'next/link';
 import ReactMarkdown from 'react-markdown';
 import { SidebarAd } from '@/components/ads/AdComponents';
+import { LegalDisclaimer } from '@/components/shared/LegalDisclaimer';
 
 // ─── Types ─────────────────────────────────────────────────────────────
 interface Source {
@@ -35,9 +36,8 @@ interface LawyerSuggestion {
   profileImageUrl: string | null;
   practiceAreas: string[];
   district: string | null;
-  averageRating: number;
-  reviewCount: number;
-  subscriptionTier: string | null;
+  languages: string[];
+  yearsOfExperience: number | null;
 }
 
 interface Message {
@@ -713,10 +713,13 @@ export default function ChatClient({
                     {message.lawyerSuggestions && message.lawyerSuggestions.length > 0 && (
                       <div className="mt-3 border border-[#efeae0] bg-white shadow-sm text-left">
                         <div className="px-4 py-3 bg-[#fdfcfb] border-b border-[#efeae0]">
+                          {/* Not "recommended" — the platform does not recommend or
+                              endorse any attorney. See LEGAL-GUARDRAILS rule 4. */}
                           <h4 className="text-[10px] font-bold uppercase tracking-widest text-[#bfa37a]">
-                            Recommended Legal Counsel
+                            Attorneys practising in this area
                           </h4>
                         </div>
+                        <LegalDisclaimer variant="directory" className="border-0 border-b border-[#efeae0] bg-transparent" />
                         <div className="divide-y divide-neutral-100">
                           {message.lawyerSuggestions.map((lawyer) => (
                             <div key={lawyer.id} className="flex items-center gap-4 px-4 py-4 hover:bg-[#faf8f6]/50 transition-colors">
@@ -730,14 +733,13 @@ export default function ChatClient({
                               <div className="flex-1 min-w-0">
                                 <p className="text-sm font-serif font-bold text-neutral-900 truncate">{lawyer.fullName}</p>
                                 <div className="flex items-center gap-3 mt-1">
-                                  {lawyer.averageRating > 0 && (
-                                    <span className="flex items-center gap-0.5 text-[10px] text-amber-500 font-bold bg-amber-50 px-1.5 py-0.5">
-                                      <Star className="h-2.5 w-2.5 fill-amber-400 text-amber-400" />
-                                      {lawyer.averageRating.toFixed(1)}
-                                    </span>
-                                  )}
                                   {lawyer.district && (
                                     <span className="text-[9px] text-neutral-400 uppercase tracking-widest font-bold">{lawyer.district}</span>
+                                  )}
+                                  {typeof lawyer.yearsOfExperience === 'number' && lawyer.yearsOfExperience > 0 && (
+                                    <span className="text-[9px] text-neutral-400 uppercase tracking-widest font-bold">
+                                      {lawyer.yearsOfExperience} yrs
+                                    </span>
                                   )}
                                 </div>
                                 <div className="flex flex-wrap gap-1.5 mt-2">
@@ -816,6 +818,7 @@ export default function ChatClient({
         {/* Input Area */}
         <div className="shrink-0 bg-[#faf8f6]/95 backdrop-blur-sm border-t border-[#efeae0] pt-8 pb-4 px-5 sticky bottom-0 z-10">
           <div className="mx-auto max-w-3xl">
+            <LegalDisclaimer variant="ai" className="mb-3 rounded-xl" />
             <form
               onSubmit={(e) => { e.preventDefault(); handleSend(input); }}
               className="bg-white border border-[#efeae0] p-4 shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-2xl flex flex-col gap-3 transition-all focus-within:border-[#bfa37a]/60"

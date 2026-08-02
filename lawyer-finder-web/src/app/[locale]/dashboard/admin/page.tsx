@@ -17,14 +17,12 @@ interface AdminData {
     pendingApprovals: number;
     totalInquiries: number;
     totalArticles: number;
-    pendingReviewCount: number;
     totalUsers: number;
     totalLawyers: number;
     totalClients: number;
   };
   monthlyData: { month: string; lawyers: number; clients: number }[];
   pendingLawyers: any[];
-  pendingReviews: any[];
 }
 
 export default function AdminDashboard() {
@@ -65,7 +63,6 @@ export default function AdminDashboard() {
     { label: 'Total Clients', value: data.stats.totalClients, icon: Scale, trend: '+8%', up: true },
     { label: 'Total Inquiries', value: data.stats.totalInquiries, icon: Inbox, trend: '+3%', up: true },
     { label: 'Published Articles', value: data.stats.totalArticles, icon: FileText, trend: 'Active', up: true },
-    { label: 'Pending Reviews', value: data.stats.pendingReviewCount, icon: Star, trend: data.stats.pendingReviewCount > 0 ? 'Needs review' : 'Clear', up: false },
     { label: 'Platform Health', value: '99%', icon: TrendingUp, trend: 'Stable', up: true },
   ];
 
@@ -188,33 +185,6 @@ export default function AdminDashboard() {
               {data.pendingLawyers.length > 3 && (
                 <p className="text-xs text-neutral-500 text-center pt-1">+{data.pendingLawyers.length - 3} more</p>
               )}
-            </div>
-          )}
-        </div>
-
-        {/* Pending Reviews Summary */}
-        <div className="bg-white border border-neutral-200 p-6">
-          <h3 className="text-sm font-bold text-neutral-900 uppercase tracking-wide mb-4 flex items-center gap-2">
-            <Star className="w-4 h-4" />
-            Pending Reviews
-          </h3>
-          {data.pendingReviews.length === 0 ? (
-            <p className="text-xs text-neutral-500 py-4 text-center">No pending reviews</p>
-          ) : (
-            <div className="space-y-2">
-              {data.pendingReviews.slice(0, 3).map((review: any) => (
-                <div key={review.id} className="flex items-center justify-between border border-neutral-100 p-3">
-                  <div>
-                    <p className="text-sm font-semibold text-neutral-900">{review.reviewerName}</p>
-                    <p className="text-[11px] text-neutral-500">For: {review.lawyer.fullName}</p>
-                  </div>
-                  <div className="flex items-center gap-0.5">
-                    {Array.from({ length: 5 }).map((_, i) => (
-                      <Star key={i} className={`h-3 w-3 ${i < review.rating ? 'fill-amber-400 text-amber-400' : 'text-neutral-200'}`} />
-                    ))}
-                  </div>
-                </div>
-              ))}
             </div>
           )}
         </div>

@@ -24,7 +24,6 @@ interface Application {
   courts: string;
   isNotary: boolean;
   practiceAreas: string;
-  baseFeeRange: string;
   licenseImage: string | null;
   identityImage: string | null;
   email: string;
@@ -246,10 +245,6 @@ export default function VerificationPage() {
                       <div>
                         <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider">Practice Areas</span>
                         <p className="text-sm font-semibold text-neutral-900 mt-0.5">{app.practiceAreas}</p>
-                      </div>
-                      <div>
-                        <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider">Fee Range</span>
-                        <p className="text-sm font-semibold text-neutral-900 mt-0.5">{app.baseFeeRange}</p>
                       </div>
                     </div>
                   </div>

@@ -18,11 +18,6 @@ interface Lawyer {
   fullName: string;
   district: string | null;
   contactPhone: string | null;
-  consultationPricing: {
-    physicalPrice: number;
-    onlinePrice: number;
-    commissionRate: number;
-  } | null;
 }
 
 interface Slot {
@@ -64,7 +59,7 @@ export default function AdminCreateBookingPage() {
   const [subject, setSubject] = useState('');
   const [description, setDescription] = useState('');
   const [practiceArea, setPracticeArea] = useState('');
-  const [bookingStatus, setBookingStatus] = useState<'CONFIRMED' | 'PENDING_PAYMENT'>('CONFIRMED');
+  const [bookingStatus, setBookingStatus] = useState<'SCHEDULED' | 'ACCEPTED'>('SCHEDULED');
   const [adminNotes, setAdminNotes] = useState('');
 
   // Submit
@@ -268,8 +263,7 @@ export default function AdminCreateBookingPage() {
                         )}
                       </div>
                       <div className="text-right">
-                        <p className="text-xs text-neutral-500">Physical: <span className="font-bold text-neutral-900">Rs. {lawyer.consultationPricing?.physicalPrice?.toLocaleString()}</span></p>
-                        <p className="text-xs text-neutral-500">Online: <span className="font-bold text-neutral-900">Rs. {lawyer.consultationPricing?.onlinePrice?.toLocaleString()}</span></p>
+                        <p className="text-xs text-neutral-500">{lawyer.district || 'District not set'}</p>
                       </div>
                     </div>
                   </button>
@@ -459,18 +453,18 @@ export default function AdminCreateBookingPage() {
               <label className="text-xs font-bold text-neutral-500 uppercase tracking-widest">Booking Status</label>
               <div className="flex gap-3">
                 <button
-                  onClick={() => setBookingStatus('CONFIRMED')}
+                  onClick={() => setBookingStatus('SCHEDULED')}
                   className={`flex-1 p-4 border-2 text-left transition-all ${
-                    bookingStatus === 'CONFIRMED' ? 'border-green-600 bg-green-50' : 'border-neutral-200'
+                    bookingStatus === 'SCHEDULED' ? 'border-green-600 bg-green-50' : 'border-neutral-200'
                   }`}
                 >
                   <p className="text-sm font-bold text-neutral-900">Confirmed</p>
                   <p className="text-[10px] text-neutral-500 mt-0.5">Booking is immediately confirmed. Use when lawyer approved over phone.</p>
                 </button>
                 <button
-                  onClick={() => setBookingStatus('PENDING_PAYMENT')}
+                  onClick={() => setBookingStatus('ACCEPTED')}
                   className={`flex-1 p-4 border-2 text-left transition-all ${
-                    bookingStatus === 'PENDING_PAYMENT' ? 'border-amber-600 bg-amber-50' : 'border-neutral-200'
+                    bookingStatus === 'ACCEPTED' ? 'border-amber-600 bg-amber-50' : 'border-neutral-200'
                   }`}
                 >
                   <p className="text-sm font-bold text-neutral-900">Pending Payment</p>
@@ -524,8 +518,8 @@ export default function AdminCreateBookingPage() {
                 </div>
                 <div>
                   <p className="text-[10px] font-bold text-neutral-500 uppercase">Status</p>
-                  <Badge className={bookingStatus === 'CONFIRMED' ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'}>
-                    {bookingStatus === 'CONFIRMED' ? 'Confirmed' : 'Pending Payment'}
+                  <Badge className={bookingStatus === 'SCHEDULED' ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'}>
+                    {bookingStatus === 'SCHEDULED' ? 'Confirmed' : 'Pending Payment'}
                   </Badge>
                 </div>
                 <div>
@@ -533,13 +527,11 @@ export default function AdminCreateBookingPage() {
                   <p className="font-semibold text-neutral-900">{subject}</p>
                 </div>
                 <div>
-                  <p className="text-[10px] font-bold text-neutral-500 uppercase">Total Amount</p>
-                  <p className="font-semibold text-neutral-900">
-                    Rs. {(() => {
-                      const fee = mode === 'PHYSICAL' ? selectedLawyer.consultationPricing!.physicalPrice : selectedLawyer.consultationPricing!.onlinePrice;
-                      const pfee = Math.round(fee * selectedLawyer.consultationPricing!.commissionRate);
-                      return (fee + pfee).toLocaleString();
-                    })()}
+                  <p className="text-[10px] font-bold text-neutral-500 uppercase">Fee</p>
+                  <p className="font-semibold text-neutral-900">Quoted by the lawyer</p>
+                  <p className="text-[11px] text-neutral-500 mt-0.5">
+                    The lawyer sets their fee when they accept this request, and the
+                    client pays them directly.
                   </p>
                 </div>
               </div>

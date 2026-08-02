@@ -1,7 +1,23 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 
-// POST /api/ai-chat/suggest-lawyers — find subscribed lawyers matching practice areas
+/**
+ * POST /api/ai-chat/suggest-lawyers
+ *
+ * Returns verified attorneys whose practice areas match the user's question.
+ *
+ * Neutrality rules — see docs/restructure/LEGAL-GUARDRAILS.md (rules 3 and 4):
+ *  - Results are NOT ordered or filtered by subscription tier, spend, or rating.
+ *    The platform must never steer a client toward a lawyer based on what that
+ *    lawyer pays us.
+ *  - Subscription tier is not returned at all, so no client-side code can
+ *    reintroduce it as a ranking signal.
+ *  - Matching is on practice area and, where given, district — criteria relevant
+ *    to the client rather than to us.
+ *  - Ordering is alphabetical: neutral, stable, and easy to disclose.
+ *
+ * This is a directory filter, not a referral. The client chooses.
+ */
 export async function POST(req: Request) {
   try {
     const body = await req.json();
@@ -11,50 +27,28 @@ export async function POST(req: Request) {
       return NextResponse.json([]);
     }
 
-    // Find verified lawyers matching any of the detected practice areas
     const lawyers = await prisma.lawyerProfile.findMany({
       where: {
         isVerified: true,
-        // Match any of the detected practice areas
         OR: practiceAreas.map((area: string) => ({
-          practiceAreas: {
-            has: area,
-          },
+          practiceAreas: { has: area },
         })),
+        ...(typeof district === 'string' && district ? { district } : {}),
       },
-      include: {
-        reviews: {
-          where: { isApproved: true },
-          select: { rating: true },
-        },
-        Subscription: {
-          where: { status: 'ACTIVE' },
-          include: { plan: true },
-          take: 1,
-        },
+      select: {
+        id: true,
+        fullName: true,
+        profileImageUrl: true,
+        practiceAreas: true,
+        district: true,
+        languages: true,
+        yearsOfExperience: true,
       },
+      orderBy: { fullName: 'asc' },
       take: 5,
     });
 
-    const result = lawyers.map((lawyer) => {
-      const avgRating =
-        lawyer.reviews.length > 0
-          ? lawyer.reviews.reduce((sum, r) => sum + r.rating, 0) / lawyer.reviews.length
-          : 0;
-
-      return {
-        id: lawyer.id,
-        fullName: lawyer.fullName,
-        profileImageUrl: lawyer.profileImageUrl,
-        practiceAreas: lawyer.practiceAreas,
-        district: lawyer.district,
-        averageRating: Math.round(avgRating * 10) / 10,
-        reviewCount: lawyer.reviews.length,
-        subscriptionTier: lawyer.Subscription[0]?.plan?.name || null,
-      };
-    });
-
-    return NextResponse.json(result);
+    return NextResponse.json(lawyers);
   } catch (error) {
     console.error('[SUGGEST_LAWYERS_ERROR]', error);
     return NextResponse.json([], { status: 200 });

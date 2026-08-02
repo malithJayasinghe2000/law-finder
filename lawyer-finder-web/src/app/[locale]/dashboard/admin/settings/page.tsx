@@ -33,7 +33,6 @@ export default function DashboardProfileSettings() {
   const [practiceAreas, setPracticeAreas] = useState<string[]>([]);
   const [languages, setLanguagesState] = useState<string[]>([]);
   const [district, setDistrict] = useState('');
-  const [baseFeeRange, setBaseFeeRange] = useState('');
   const [contactPhone, setContactPhone] = useState('');
   const [address, setAddress] = useState('');
   const [gender, setGender] = useState('');
@@ -65,7 +64,6 @@ export default function DashboardProfileSettings() {
         setPracticeAreas(lp.practiceAreas || []);
         setLanguagesState(lp.languages || []);
         setDistrict(lp.district || '');
-        setBaseFeeRange(lp.baseFeeRange || '');
         setContactPhone(lp.contactPhone || '');
         setAddress(lp.address || '');
         setGender(lp.gender || '');
@@ -111,7 +109,7 @@ export default function DashboardProfileSettings() {
       if (isLawyer) {
         payload.lawyerProfile = {
           fullName: lFullName, bio, practiceAreas, languages, district,
-          baseFeeRange, contactPhone, address, gender,
+          contactPhone, address, gender,
           yearsOfExperience: yearsOfExperience ? parseInt(yearsOfExperience) : null,
           practiceType, courts, isNotary, nic,
           profileImageUrl: lawyerProfileImageUrl || null,
@@ -268,11 +266,6 @@ export default function DashboardProfileSettings() {
                   <option value="">Select</option>
                   {DISTRICTS.map(d => <option key={d} value={d}>{d}</option>)}
                 </select>
-              </div>
-              <div className="space-y-1">
-                <label className="text-[11px] font-bold text-neutral-600 uppercase tracking-widest">Fee Range</label>
-                <input type="text" value={baseFeeRange} onChange={(e) => setBaseFeeRange(e.target.value)} placeholder="5000 - 15000"
-                  className="w-full bg-neutral-50 border border-neutral-200 text-neutral-900 px-4 py-3 outline-none focus:border-neutral-900 text-sm" />
               </div>
               <div className="space-y-1">
                 <label className="text-[11px] font-bold text-neutral-600 uppercase tracking-widest">NIC</label>

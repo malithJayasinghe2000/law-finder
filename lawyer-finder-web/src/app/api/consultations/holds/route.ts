@@ -3,6 +3,7 @@ import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { z } from 'zod';
 import { parseDateOnlyToUtc } from '@/lib/utils';
+import { SLOT_BLOCKING_STATUSES } from '@/lib/consultations/bookingStatus';
 
 const CreateHoldSchema = z.object({
   lawyerId: z.string().uuid(),
@@ -30,12 +31,12 @@ export async function POST(req: Request) {
     const targetDate = parseDateOnlyToUtc(date);
     const now = new Date();
 
-    // Clean up old expired holds for this lawyer (housekeeping)
+    // Housekeeping: sweep every expired hold, not just this lawyer's.
+    // Expired holds never block a slot (availability filters on expiresAt), but
+    // scoping the delete to one lawyer meant rows for lawyers who stopped
+    // receiving hold requests were never reclaimed.
     await prisma.slotHold.deleteMany({
-      where: {
-        lawyerId,
-        expiresAt: { lt: now },
-      },
+      where: { expiresAt: { lt: now } },
     });
 
     // Check if slot is currently booked
@@ -43,7 +44,7 @@ export async function POST(req: Request) {
       where: {
         lawyerId,
         date: targetDate,
-        status: { notIn: ['CANCELLED_BY_CLIENT', 'CANCELLED_BY_LAWYER'] },
+        status: { in: SLOT_BLOCKING_STATUSES },
         OR: [
           { startTime: { lt: endTime }, endTime: { gt: startTime } },
         ],

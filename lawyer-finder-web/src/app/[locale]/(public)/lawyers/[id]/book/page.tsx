@@ -13,12 +13,13 @@ export default async function BookingPage(props: {
     redirect(`/${locale}/login?redirect=/${locale}/lawyers/${id}/book`);
   }
 
-  // Fetch lawyer and pricing
   const lawyer = await prisma.lawyerProfile.findUnique({
     where: { id },
     include: {
       user: { select: { fullName: true } },
-      consultationPricing: true,
+      // consultationPricing is deliberately NOT loaded — it would be serialized
+      // into the RSC payload and readable in page source. Fees are quoted per
+      // matter. See docs/restructure/LEGAL-GUARDRAILS.md (rule 1).
     },
   });
 

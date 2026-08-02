@@ -4,6 +4,23 @@ import { getSession } from '@/lib/auth';
 import { CancelBookingSchema, CompleteBookingSchema, BookingRatingSchema } from '@/schemas/consultation.schema';
 import { formatSriLankaDateIso } from '@/lib/utils';
 import { EmailService } from '@/lib/email/EmailService';
+import { canTransition } from '@/lib/consultations/bookingStatus';
+import { getMatterAccess, redactMatter } from '@/lib/firms/access';
+
+/**
+ * Engagement request lifecycle.
+ *
+ * Phase 1a consolidated the two competing state machines that used to live here:
+ * `accept`/`decline` and `approve`/`reject` were separate paths out of the same
+ * state doing different things. Triage now happens through dedicated routes:
+ *
+ *   POST  [id]/conflict-check   firm screens for conflicts
+ *   POST  [id]/quotes           firm issues a fee quote
+ *   PATCH [id]/quotes           client accepts or declines it
+ *
+ * What remains here is the lifecycle after terms are agreed.
+ * See docs/restructure/ROADMAP.md (Phase 1).
+ */
 
 // GET: Get single booking details
 export async function GET(
@@ -24,6 +41,7 @@ export async function GET(
         client: { select: { id: true, fullName: true, email: true, profileImageUrl: true } },
         lawyer: { select: { id: true, fullName: true, profileImageUrl: true, district: true, address: true, contactPhone: true, userId: true } },
         payment: true,
+        quotes: { orderBy: { version: 'desc' } },
       },
     });
 
@@ -31,32 +49,55 @@ export async function GET(
       return NextResponse.json({ error: 'Booking not found' }, { status: 404 });
     }
 
-    // Verify access
-    const isClient = booking.clientId === session.userId;
-    const isLawyer = booking.lawyer.userId === session.userId;
-    const isAdmin = session.role === 'ADMIN';
+    // Legal professional privilege (Evidence Ordinance s.126).
+    //
+    // Since Phase 2 this is not a simple client/lawyer/admin split: a firm has
+    // members, and only some of them may read what the client wrote. The whole
+    // decision lives in src/lib/firms/access.ts.
+    // See docs/restructure/LEGAL-GUARDRAILS.md (rule 5).
+    const access = await getMatterAccess({
+      actorUserId: session.userId,
+      actorRole: session.role,
+      actorProfileId: session.profileId,
+      matter: {
+        lawyerId: booking.lawyerId,
+        firmId: booking.firmId,
+        clientId: booking.clientId,
+      },
+    });
 
-    if (!isClient && !isLawyer && !isAdmin) {
+    if (!access.canRead) {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 });
     }
 
+    const isClient = access.basis === 'CLIENT';
+    const isLawyer = booking.lawyer.userId === session.userId;
+
     return NextResponse.json({
       booking: {
-        ...booking,
+        ...redactMatter(booking, access),
         date: formatSriLankaDateIso(booking.date),
         createdAt: booking.createdAt.toISOString(),
         updatedAt: booking.updatedAt.toISOString(),
         paidAt: booking.paidAt?.toISOString() || null,
         cancelledAt: booking.cancelledAt?.toISOString() || null,
+        termsAcceptedAt: booking.termsAcceptedAt?.toISOString() || null,
       },
-      role: isClient ? 'CLIENT' : isLawyer ? 'LAWYER' : 'ADMIN',
+      role: isClient ? 'CLIENT' : isLawyer ? 'LAWYER' : session.role === 'ADMIN' ? 'ADMIN' : 'FIRM',
+      matterDetailRedacted: !access.canReadMatterDetail,
+      access: {
+        canReadMatterDetail: access.canReadMatterDetail,
+        canAct: access.canAct,
+        canAssign: access.canAssign,
+        basis: access.basis,
+      },
     });
   } catch {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
 
-// PATCH: Update booking status (cancel, complete, rate)
+// PATCH: Advance the engagement lifecycle
 export async function PATCH(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -74,8 +115,8 @@ export async function PATCH(
     const booking = await prisma.booking.findUnique({
       where: { id },
       include: {
-        lawyer: { select: { userId: true, fullName: true, user: { select: { email: true } } } },
-        client: { select: { email: true, fullName: true } }
+        lawyer: { select: { userId: true, fullName: true, onlineMeetingLink: true, user: { select: { email: true } } } },
+        client: { select: { email: true, fullName: true } },
       },
     });
 
@@ -84,50 +125,108 @@ export async function PATCH(
     }
 
     const isClient = booking.clientId === session.userId;
+    // Only the attorney with responsibility for the matter may act on it. A
+    // principal can reassign it (see [id]/assign) but does not quote or
+    // conflict-check on a colleague's behalf — the attorney who will do the work
+    // is the one who must screen for conflicts and set the fee.
     const isLawyer = booking.lawyer.userId === session.userId;
     const isAdmin = session.role === 'ADMIN';
 
+    if (!isClient && !isLawyer && !isAdmin) {
+      const access = await getMatterAccess({
+        actorUserId: session.userId,
+        actorRole: session.role,
+        actorProfileId: session.profileId,
+        matter: {
+          lawyerId: booking.lawyerId,
+          firmId: booking.firmId,
+          clientId: booking.clientId,
+        },
+      });
+
+      if (access.canAssign) {
+        return NextResponse.json(
+          {
+            error:
+              'This matter is assigned to another attorney at your firm. Reassign it to yourself first if you intend to act on it.',
+          },
+          { status: 403 }
+        );
+      }
+
+      return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+    }
+
+    /** Reject any transition the state machine does not permit. */
+    const guard = (to: Parameters<typeof canTransition>[1]) => {
+      if (!canTransition(booking.status, to)) {
+        return NextResponse.json(
+          { error: `Cannot move a request from "${booking.status}" to "${to}".` },
+          { status: 400 }
+        );
+      }
+      return null;
+    };
+
     switch (action) {
-      case 'accept': {
+      /**
+       * The firm confirms the client's payment arrived in the firm's own account.
+       * The platform records this; it never receives or verifies the money.
+       * See docs/restructure/LEGAL-GUARDRAILS.md (rule 2).
+       */
+      case 'confirm_payment_received': {
         if (!isLawyer && !isAdmin) {
-          return NextResponse.json({ error: 'Only the lawyer can accept the request' }, { status: 403 });
+          return NextResponse.json({ error: 'Only the firm can confirm payment' }, { status: 403 });
         }
 
-        if (booking.status !== 'AWAITING_LAWYER_APPROVAL') {
-          return NextResponse.json({ error: 'Only pending requests can be accepted' }, { status: 400 });
+        const blocked = guard('SCHEDULED');
+        if (blocked) return blocked;
+
+        // Where the client owes a transfer, they must have recorded it first —
+        // otherwise the firm would be confirming a payment with nothing to check
+        // against. PAY_AT_OFFICE has nothing to record in advance.
+        if (booking.paymentMethod !== 'PAY_AT_OFFICE') {
+          const payment = await prisma.bookingPayment.findUnique({
+            where: { bookingId: id },
+            select: { id: true },
+          });
+
+          if (!payment) {
+            return NextResponse.json(
+              { error: 'The client has not recorded a payment yet. There is nothing to confirm.' },
+              { status: 400 }
+            );
+          }
+
+          await prisma.bookingPayment.update({
+            where: { bookingId: id },
+            data: {
+              status: 'PAID',
+              verifiedBy: session.userId,
+              verifiedAt: new Date(),
+              adminNotes: typeof body.notes === 'string' ? body.notes : undefined,
+            },
+          });
         }
 
-        const { fee, paymentMethod, paymentInstructions } = body;
-        
-        if (typeof fee !== 'number' || fee < 0) {
-          return NextResponse.json({ error: 'Valid fee is required' }, { status: 400 });
-        }
-
-        if (!['BANK_TRANSFER', 'PAY_AT_OFFICE'].includes(paymentMethod)) {
-          return NextResponse.json({ error: 'Valid payment method is required' }, { status: 400 });
-        }
-
-        if (paymentMethod === 'BANK_TRANSFER' && !paymentInstructions) {
-          return NextResponse.json({ error: 'Payment instructions (bank details) are required for bank transfer' }, { status: 400 });
-        }
-
-        // Platform fee is calculated for internal tracking (e.g. to invoice the lawyer later)
-        // but the client only pays the exact fee quoted by the lawyer.
-        const platformFee = Math.round(fee * booking.commissionRate);
-        const totalAmount = fee;
-        const newStatus = paymentMethod === 'PAY_AT_OFFICE' ? 'CONFIRMED' : 'PENDING_PAYMENT';
+        const meetingLink =
+          booking.meetingLink ||
+          (booking.mode !== 'PHYSICAL' ? booking.lawyer.onlineMeetingLink : null);
 
         const updated = await prisma.booking.update({
           where: { id },
-          data: {
-            status: newStatus,
-            lawyerFee: fee,
-            platformFee,
-            totalAmount,
-            paymentMethod: paymentMethod as any,
-            paymentInstructions: paymentMethod === 'BANK_TRANSFER' ? paymentInstructions : null,
-          },
+          data: { status: 'SCHEDULED', paidAt: new Date(), meetingLink },
         });
+
+        await EmailService.sendBookingConfirmationClient(
+          booking.client.email,
+          booking.client.fullName || 'Client',
+          booking.lawyer.fullName,
+          formatSriLankaDateIso(booking.date),
+          booking.startTime,
+          meetingLink || undefined,
+          booking.mode === 'PHYSICAL' ? booking.officeAddress || undefined : undefined
+        );
 
         return NextResponse.json({
           success: true,
@@ -135,98 +234,107 @@ export async function PATCH(
         });
       }
 
-      case 'decline': {
+      /**
+       * The firm reviewed the payment the client recorded and it does not match —
+       * wrong amount, unreadable receipt, never arrived. The request stays in
+       * ACCEPTED so the client can correct and resubmit.
+       */
+      case 'reject_payment': {
         if (!isLawyer && !isAdmin) {
-          return NextResponse.json({ error: 'Only the lawyer can decline the request' }, { status: 403 });
+          return NextResponse.json({ error: 'Only the firm can reject a payment' }, { status: 403 });
         }
 
-        if (booking.status !== 'AWAITING_LAWYER_APPROVAL') {
-          return NextResponse.json({ error: 'Only pending requests can be declined' }, { status: 400 });
+        if (booking.status !== 'ACCEPTED') {
+          return NextResponse.json(
+            { error: 'Only a payment on an accepted engagement can be rejected.' },
+            { status: 400 }
+          );
         }
 
-        const declineReason = body.reason || 'Lawyer is unavailable';
+        const reason = typeof body.reason === 'string' ? body.reason.trim() : '';
+        if (reason.length < 5) {
+          return NextResponse.json(
+            { error: 'Tell the client what was wrong so they can correct it.' },
+            { status: 400 }
+          );
+        }
 
-        const updated = await prisma.booking.update({
-          where: { id },
-          data: {
-            status: 'REJECTED_BY_LAWYER',
-            cancelReason: declineReason,
-            cancelledAt: new Date(),
-            cancelledBy: session.userId,
-          },
+        await prisma.bookingPayment.update({
+          where: { bookingId: id },
+          data: { status: 'RESUBMIT', adminNotes: reason, verifiedBy: session.userId, verifiedAt: new Date() },
         });
 
-        return NextResponse.json({
-          success: true,
-          booking: { ...updated, date: formatSriLankaDateIso(updated.date) },
-        });
+        await EmailService.sendPaymentResubmitClient(
+          booking.client.email,
+          booking.client.fullName || 'Client',
+          booking.bookingNumber,
+          reason
+        );
+
+        return NextResponse.json({ success: true });
       }
 
       case 'cancel': {
-        if (!isClient && !isLawyer && !isAdmin) {
-          return NextResponse.json({ error: 'Access denied' }, { status: 403 });
-        }
-
-        if (!['PENDING_PAYMENT', 'CONFIRMED'].includes(booking.status)) {
-          return NextResponse.json({ error: 'This booking cannot be cancelled' }, { status: 400 });
-        }
+        const to = isClient ? 'CANCELLED_BY_CLIENT' : 'CANCELLED_BY_FIRM';
+        const blocked = guard(to);
+        if (blocked) return blocked;
 
         const validated = CancelBookingSchema.safeParse(body);
         if (!validated.success) {
           return NextResponse.json({ error: validated.error.format() }, { status: 400 });
         }
 
-        // Calculate refund and retained fees based on cancellation policy
+        // Refund the client is owed under the cancellation policy. The firm holds
+        // the money, so the firm returns it — the platform only records the
+        // amount. See docs/restructure/LEGAL-GUARDRAILS.md (rule 2).
         let refundAmount = 0;
         let retainedLawyerFee = 0;
-        let retainedPlatformFee = 0;
 
-        if (booking.status === 'CONFIRMED') {
-          const bookingDateTime = new Date(`${formatSriLankaDateIso(booking.date)}T${booking.startTime}:00+05:30`);
-          const hoursUntilBooking = (bookingDateTime.getTime() - Date.now()) / (1000 * 60 * 60);
+        if (booking.paidAt) {
+          const bookingDateTime = new Date(
+            `${formatSriLankaDateIso(booking.date)}T${booking.startTime}:00+05:30`
+          );
+          const hoursUntil = (bookingDateTime.getTime() - Date.now()) / (1000 * 60 * 60);
 
-          if (isLawyer || isAdmin) {
-            // Lawyer cancellation = full refund
-            refundAmount = booking.totalAmount;
-          } else if (hoursUntilBooking >= 24) {
-            // Client cancels 24+ hrs before = full refund
+          if (isLawyer || isAdmin || hoursUntil >= 24) {
+            // Firm cancels, or client cancels with 24h+ notice: full refund
             refundAmount = booking.totalAmount;
           } else {
-            // Client cancels <24 hrs = 50% refund, 50% retained split evenly between lawyer & platform
+            // Client cancels inside 24h: firm retains half
             refundAmount = Math.round(booking.totalAmount * 0.5);
-            retainedLawyerFee = Math.round(booking.lawyerFee * 0.5);
-            retainedPlatformFee = Math.round(booking.platformFee * 0.5);
+            retainedLawyerFee = booking.totalAmount - refundAmount;
           }
         }
-
-        const cancelStatus = isLawyer ? 'CANCELLED_BY_LAWYER' : 'CANCELLED_BY_CLIENT';
 
         const updated = await prisma.booking.update({
           where: { id },
           data: {
-            status: cancelStatus as any,
+            status: to,
             cancelledAt: new Date(),
             cancelledBy: session.userId,
             cancelReason: validated.data.reason,
             refundAmount,
             retainedLawyerFee,
-            retainedPlatformFee,
             refundStatus: refundAmount > 0 ? 'PENDING' : 'NONE',
           },
         });
 
-        if (isClient) {
-          await EmailService.sendBookingCancelledClient(booking.client.email, booking.client.fullName || 'Client', booking.bookingNumber, validated.data.reason, refundAmount);
-          if (booking.lawyer.user?.email) {
-            await EmailService.sendBookingCancelledLawyer(booking.lawyer.user.email, booking.lawyer.fullName, booking.bookingNumber, booking.client.fullName || 'Client');
-          }
-        } else if (isLawyer) {
-          await EmailService.sendBookingCancelledClient(booking.client.email, booking.client.fullName || 'Client', booking.bookingNumber, `Cancelled by lawyer: ${validated.data.reason}`, refundAmount);
-        } else if (isAdmin) {
-          await EmailService.sendBookingCancelledClient(booking.client.email, booking.client.fullName || 'Client', booking.bookingNumber, `Cancelled by admin: ${validated.data.reason}`, refundAmount);
-          if (booking.lawyer.user?.email) {
-            await EmailService.sendBookingCancelledLawyer(booking.lawyer.user.email, booking.lawyer.fullName, booking.bookingNumber, booking.client.fullName || 'Client');
-          }
+        const reasonPrefix = isClient ? '' : isLawyer ? 'Cancelled by the firm: ' : 'Cancelled by admin: ';
+        await EmailService.sendBookingCancelledClient(
+          booking.client.email,
+          booking.client.fullName || 'Client',
+          booking.bookingNumber,
+          `${reasonPrefix}${validated.data.reason}`,
+          refundAmount
+        );
+
+        if (!isLawyer && booking.lawyer.user?.email) {
+          await EmailService.sendBookingCancelledLawyer(
+            booking.lawyer.user.email,
+            booking.lawyer.fullName,
+            booking.bookingNumber,
+            booking.client.fullName || 'Client'
+          );
         }
 
         return NextResponse.json({
@@ -238,11 +346,26 @@ export async function PATCH(
 
       case 'complete': {
         if (!isLawyer && !isAdmin) {
-          return NextResponse.json({ error: 'Only the lawyer can mark as complete' }, { status: 403 });
+          return NextResponse.json({ error: 'Only the firm can mark a consultation complete' }, { status: 403 });
         }
 
-        if (booking.status !== 'CONFIRMED') {
-          return NextResponse.json({ error: 'Only confirmed bookings can be completed' }, { status: 400 });
+        const blocked = guard('COMPLETED');
+        if (blocked) return blocked;
+
+        // A consultation cannot be completed before it has happened. Without this
+        // a firm could mark a future booking complete, which would misstate the
+        // record and let the client be asked to rate a meeting that never occurred.
+        const endsAt = new Date(
+          `${formatSriLankaDateIso(booking.date)}T${booking.endTime}:00+05:30`
+        );
+
+        if (endsAt.getTime() > Date.now()) {
+          return NextResponse.json(
+            {
+              error: `This consultation is scheduled for ${formatSriLankaDateIso(booking.date)} at ${booking.startTime}. It can be marked complete once it has taken place.`,
+            },
+            { status: 400 }
+          );
         }
 
         const validated = CompleteBookingSchema.safeParse(body);
@@ -252,10 +375,7 @@ export async function PATCH(
 
         const updated = await prisma.booking.update({
           where: { id },
-          data: {
-            status: 'COMPLETED',
-            lawyerNotes: validated.data.lawyerNotes,
-          },
+          data: { status: 'COMPLETED', lawyerNotes: validated.data.lawyerNotes },
         });
 
         await EmailService.sendConsultationCompleted(
@@ -270,13 +390,45 @@ export async function PATCH(
         });
       }
 
+      case 'no_show': {
+        if (!isLawyer && !isAdmin) {
+          return NextResponse.json({ error: 'Only the firm can record a no-show' }, { status: 403 });
+        }
+
+        const blocked = guard('NO_SHOW');
+        if (blocked) return blocked;
+
+        // Same reasoning as 'complete' — a client cannot have missed a
+        // consultation that has not started yet.
+        const startsAt = new Date(
+          `${formatSriLankaDateIso(booking.date)}T${booking.startTime}:00+05:30`
+        );
+
+        if (startsAt.getTime() > Date.now()) {
+          return NextResponse.json(
+            { error: 'This consultation has not started yet.' },
+            { status: 400 }
+          );
+        }
+
+        const updated = await prisma.booking.update({
+          where: { id },
+          data: { status: 'NO_SHOW', lawyerRemarks: body.remarks || 'Client did not attend' },
+        });
+
+        return NextResponse.json({
+          success: true,
+          booking: { ...updated, date: formatSriLankaDateIso(updated.date) },
+        });
+      }
+
       case 'rate': {
         if (!isClient) {
           return NextResponse.json({ error: 'Only the client can rate' }, { status: 403 });
         }
 
         if (booking.status !== 'COMPLETED') {
-          return NextResponse.json({ error: 'Can only rate completed bookings' }, { status: 400 });
+          return NextResponse.json({ error: 'Can only rate completed consultations' }, { status: 400 });
         }
 
         const validated = BookingRatingSchema.safeParse(body);
@@ -298,67 +450,19 @@ export async function PATCH(
         });
       }
 
-      case 'approve': {
-        if (!isLawyer && !isAdmin) {
-          return NextResponse.json({ error: 'Only the lawyer or admin can approve the booking' }, { status: 403 });
-        }
-        if (booking.status !== 'AWAITING_LAWYER_APPROVAL') {
-          return NextResponse.json({ error: 'This booking is not awaiting approval' }, { status: 400 });
-        }
-        const remarks = body.remarks || '';
-        const updated = await prisma.booking.update({
-          where: { id },
-          data: {
-            status: 'CONFIRMED',
-            lawyerRemarks: remarks,
-          },
-        });
-        await EmailService.sendBookingApprovedClient(
-          booking.client.email,
-          booking.client.fullName || 'Client',
-          booking.bookingNumber,
-          booking.lawyer.fullName,
-          formatSriLankaDateIso(booking.date),
-          `${booking.startTime} - ${booking.endTime}`
-        );
-        return NextResponse.json({ success: true, booking: { ...updated, date: formatSriLankaDateIso(updated.date) } });
-      }
-
-      case 'reject': {
-        if (!isLawyer && !isAdmin) {
-          return NextResponse.json({ error: 'Only the lawyer or admin can reject the booking' }, { status: 403 });
-        }
-        if (booking.status !== 'AWAITING_LAWYER_APPROVAL') {
-          return NextResponse.json({ error: 'This booking is not awaiting approval' }, { status: 400 });
-        }
-        const remarks = body.remarks || 'Rejected by lawyer';
-        const updated = await prisma.booking.update({
-          where: { id },
-          data: {
-            status: 'REJECTED_BY_LAWYER',
-            lawyerRemarks: remarks,
-            refundAmount: booking.totalAmount,
-            refundStatus: 'PENDING',
-          },
-        });
-        await EmailService.sendBookingRejectedClient(
-          booking.client.email,
-          booking.client.fullName || 'Client',
-          booking.bookingNumber,
-          booking.lawyer.fullName,
-          remarks
-        );
-        return NextResponse.json({ success: true, booking: { ...updated, date: formatSriLankaDateIso(updated.date) } });
-      }
-
       case 'reschedule': {
         if (!isLawyer && !isAdmin) {
-          return NextResponse.json({ error: 'Only the lawyer or admin can reschedule' }, { status: 403 });
+          return NextResponse.json({ error: 'Only the firm can propose a new time' }, { status: 403 });
         }
+
+        const blocked = guard('RESCHEDULE_REQUESTED');
+        if (blocked) return blocked;
+
         const { newDate, newTime, remarks } = body;
         if (!newDate || !newTime) {
           return NextResponse.json({ error: 'Proposed date and time are required' }, { status: 400 });
         }
+
         const updated = await prisma.booking.update({
           where: { id },
           data: {
@@ -368,6 +472,7 @@ export async function PATCH(
             lawyerRemarks: remarks || '',
           },
         });
+
         await EmailService.sendBookingRescheduledClient(
           booking.client.email,
           booking.client.fullName || 'Client',
@@ -377,16 +482,25 @@ export async function PATCH(
           newTime,
           remarks || ''
         );
-        return NextResponse.json({ success: true, booking: { ...updated, date: formatSriLankaDateIso(updated.date) } });
+
+        return NextResponse.json({
+          success: true,
+          booking: { ...updated, date: formatSriLankaDateIso(updated.date) },
+        });
       }
 
       case 'accept_reschedule': {
         if (!isClient) {
-          return NextResponse.json({ error: 'Only the client can accept the reschedule' }, { status: 403 });
+          return NextResponse.json({ error: 'Only the client can accept a new time' }, { status: 403 });
         }
-        if (booking.status !== 'RESCHEDULE_REQUESTED' || !booking.rescheduleProposedDate || !booking.rescheduleProposedTime) {
-          return NextResponse.json({ error: 'No reschedule requested' }, { status: 400 });
+
+        const blocked = guard('SCHEDULED');
+        if (blocked) return blocked;
+
+        if (!booking.rescheduleProposedDate || !booking.rescheduleProposedTime) {
+          return NextResponse.json({ error: 'No reschedule was proposed' }, { status: 400 });
         }
+
         const newStartTime = booking.rescheduleProposedTime;
         const [sh, sm] = newStartTime.split(':').map(Number);
         const totalMinutes = sh * 60 + sm + booking.duration;
@@ -397,7 +511,7 @@ export async function PATCH(
         const updated = await prisma.booking.update({
           where: { id },
           data: {
-            status: 'CONFIRMED',
+            status: 'SCHEDULED',
             date: booking.rescheduleProposedDate,
             startTime: newStartTime,
             endTime: newEndTime,
@@ -405,6 +519,7 @@ export async function PATCH(
             rescheduleProposedTime: null,
           },
         });
+
         await EmailService.sendBookingApprovedClient(
           booking.client.email,
           booking.client.fullName || 'Client',
@@ -413,43 +528,57 @@ export async function PATCH(
           formatSriLankaDateIso(updated.date),
           `${newStartTime} - ${newEndTime}`
         );
-        return NextResponse.json({ success: true, booking: { ...updated, date: formatSriLankaDateIso(updated.date) } });
+
+        return NextResponse.json({
+          success: true,
+          booking: { ...updated, date: formatSriLankaDateIso(updated.date) },
+        });
       }
 
       case 'decline_reschedule': {
         if (!isClient) {
-          return NextResponse.json({ error: 'Only the client can decline the reschedule' }, { status: 403 });
+          return NextResponse.json({ error: 'Only the client can decline a new time' }, { status: 403 });
         }
-        if (booking.status !== 'RESCHEDULE_REQUESTED') {
-          return NextResponse.json({ error: 'No reschedule requested' }, { status: 400 });
-        }
+
+        const blocked = guard('CANCELLED_BY_CLIENT');
+        if (blocked) return blocked;
+
+        // Only refund what was actually paid.
+        const refundDue = booking.paidAt ? booking.totalAmount : 0;
+
         const updated = await prisma.booking.update({
           where: { id },
           data: {
             status: 'CANCELLED_BY_CLIENT',
-            cancelReason: 'Client declined reschedule proposed by lawyer',
+            cancelReason: 'Client declined the new time proposed by the firm',
             cancelledAt: new Date(),
             cancelledBy: session.userId,
-            refundAmount: booking.totalAmount,
-            refundStatus: 'PENDING',
+            refundAmount: refundDue,
+            refundStatus: refundDue > 0 ? 'PENDING' : 'NONE',
             rescheduleProposedDate: null,
             rescheduleProposedTime: null,
           },
         });
+
         await EmailService.sendBookingCancelledClient(
           booking.client.email,
           booking.client.fullName || 'Client',
           booking.bookingNumber,
-          'Reschedule request declined by client',
-          booking.totalAmount
+          'Reschedule declined by client',
+          refundDue
         );
-        return NextResponse.json({ success: true, booking: { ...updated, date: formatSriLankaDateIso(updated.date) } });
+
+        return NextResponse.json({
+          success: true,
+          booking: { ...updated, date: formatSriLankaDateIso(updated.date) },
+        });
       }
 
       default:
         return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
     }
-  } catch {
+  } catch (error) {
+    console.error('Booking lifecycle error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

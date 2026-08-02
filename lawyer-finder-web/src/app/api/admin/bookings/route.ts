@@ -3,6 +3,7 @@ import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { formatSriLankaDateIso, parseDateOnlyToUtc } from '@/lib/utils';
 import { z } from 'zod';
+import { SLOT_BLOCKING_STATUSES } from '@/lib/consultations/bookingStatus';
 
 const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
@@ -16,7 +17,7 @@ const AdminCreateBookingSchema = z.object({
   subject: z.string().min(3).max(200),
   description: z.string().min(10).max(2000),
   practiceArea: z.string().optional(),
-  status: z.enum(['CONFIRMED', 'PENDING_PAYMENT']).default('CONFIRMED'),
+  status: z.enum(['SCHEDULED', 'ACCEPTED']).default('SCHEDULED'),
   adminNotes: z.string().max(500).optional(),
 });
 
@@ -54,21 +55,18 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'The specified user is not a client' }, { status: 400 });
     }
 
-    // Fetch lawyer with pricing
     const lawyer = await prisma.lawyerProfile.findUnique({
       where: { id: lawyerId },
-      include: { consultationPricing: true },
     });
 
-    if (!lawyer || !lawyer.consultationPricing) {
-      return NextResponse.json({ error: 'Lawyer or pricing not found' }, { status: 404 });
+    if (!lawyer) {
+      return NextResponse.json({ error: 'Lawyer not found' }, { status: 404 });
     }
 
-    const pricing = lawyer.consultationPricing;
+    // No fee is set here and the platform derives nothing from one. The lawyer
+    // quotes their fee when they accept the request.
+    // See docs/restructure/LEGAL-GUARDRAILS.md (rule 1).
     const targetDate = parseDateOnlyToUtc(date);
-    const lawyerFee = mode === 'PHYSICAL' ? pricing.physicalPrice : pricing.onlinePrice;
-    const platformFee = Math.round(lawyerFee * pricing.commissionRate);
-    const totalAmount = lawyerFee + platformFee;
     const duration = calculateDuration(startTime, endTime);
 
     // Create booking in a transaction (check for conflicts)
@@ -78,23 +76,14 @@ export async function POST(req: Request) {
         where: {
           lawyerId,
           date: targetDate,
-          status: { notIn: ['CANCELLED_BY_CLIENT', 'CANCELLED_BY_LAWYER'] },
+          status: { in: SLOT_BLOCKING_STATUSES },
           OR: [
             { startTime: { lt: endTime }, endTime: { gt: startTime } },
           ],
         },
       });
 
-      const now = new Date();
-      const validConflict = conflicts.find((b) => {
-        if (b.status === 'PENDING_PAYMENT') {
-          const hoursSinceCreation = (now.getTime() - b.createdAt.getTime()) / (1000 * 60 * 60);
-          if (hoursSinceCreation > 24) return false;
-        }
-        return true;
-      });
-
-      if (validConflict) {
+      if (conflicts.length > 0) {
         throw new Error('SLOT_TAKEN');
       }
 
@@ -108,10 +97,21 @@ export async function POST(req: Request) {
         },
       });
 
-      // Generate booking number
-      const bookingCount = await tx.booking.count();
+      // Generate booking number, scoped to the current year (see the matching
+      // logic in api/consultations/bookings/route.ts).
       const year = new Date().getFullYear();
-      const bookingNumber = `BK-${year}-${String(bookingCount + 1).padStart(4, '0')}`;
+      const prefix = `BK-${year}-`;
+
+      const latest = await tx.booking.findFirst({
+        where: { bookingNumber: { startsWith: prefix } },
+        orderBy: { bookingNumber: 'desc' },
+        select: { bookingNumber: true },
+      });
+
+      const lastSequence = latest
+        ? parseInt(latest.bookingNumber.slice(prefix.length), 10) || 0
+        : 0;
+      const bookingNumber = `${prefix}${String(lastSequence + 1).padStart(4, '0')}`;
 
       // Create booking with admin-specified status
       return tx.booking.create({
@@ -126,17 +126,15 @@ export async function POST(req: Request) {
           mode: mode as any,
           officeAddress: mode === 'PHYSICAL' ? (lawyer.address || lawyer.district || 'Contact lawyer for address') : null,
           meetingLink: mode === 'ONLINE' ? (lawyer.onlineMeetingLink || null) : null,
-          lawyerFee,
-          platformFee,
-          totalAmount,
-          commissionRate: pricing.commissionRate,
+          lawyerFee: 0,
+          totalAmount: 0,
           subject,
           description: adminNotes 
             ? `[Admin Notes: ${adminNotes}]\n\n${description}`
             : `[Admin Notes: Booking created by admin (call-to-book)]\n\n${description}`,
           practiceArea,
           status: status as any,
-          paidAt: status === 'CONFIRMED' ? new Date() : null,
+          paidAt: status === 'SCHEDULED' ? new Date() : null,
         },
       });
     }, {
@@ -178,20 +176,15 @@ export async function GET(req: Request) {
       const lawyers = await prisma.lawyerProfile.findMany({
         where: {
           isVerified: true,
-          consultationPricing: { isNot: null },
+          // No longer filtered on having consultationPricing — a lawyer does not
+          // need a configured price to receive requests.
         },
         select: {
           id: true,
           fullName: true,
           district: true,
           contactPhone: true,
-          consultationPricing: {
-            select: {
-              physicalPrice: true,
-              onlinePrice: true,
-              commissionRate: true,
-            },
-          },
+          // Fee data is not returned. Admin staff do not set or see lawyers' fees.
         },
         orderBy: { fullName: 'asc' },
       });
