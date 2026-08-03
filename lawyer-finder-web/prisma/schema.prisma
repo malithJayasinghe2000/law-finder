@@ -1262,14 +1262,25 @@ model AiConversation {
 }
 
 model AiMessage {
-  id                String         @id @default(uuid())
-  conversationId    String
-  conversation      AiConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  role              String // 'user' or 'assistant'
-  content           String
-  sources           Json? // Legal source citations
-  lawyerSuggestions Json? // Suggested lawyers
-  createdAt         DateTime       @default(now())
+  id             String         @id @default(uuid())
+  conversationId String
+  conversation   AiConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  role           String // 'user' or 'assistant'
+  content        String
+
+  // Citations that survived src/lib/ai/policy.ts — each one names a document
+  // that was actually retrieved. Never client-supplied.
+  citations Json?
+
+  // Set when the assistant declined to answer, or when a generated answer was
+  // withheld. Values are RefusalCategory in src/lib/ai/policy.ts. Kept because a
+  // rising count in one category is a signal about the model or the corpus, and
+  // because "we refused" is the fact we would need to evidence.
+  refusalCategory String?
+
+  createdAt DateTime @default(now())
+
+  @@index([conversationId, createdAt])
 }
 
 // ============= Consultation & Booking System =============

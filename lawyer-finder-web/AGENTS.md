@@ -25,7 +25,7 @@ the AI chatbot, read in this order:**
 3. `docs/restructure/PROGRESS.md` — **live status: what is done, what is next**
 4. `docs/restructure/ROADMAP.md` — the phase plan
 5. `docs/restructure/QUESTIONS-FOR-COUNSEL.md` — open legal questions
-6. `docs/restructure/PHASE-5-BRIEF.md` — if starting Phase 5 (next up)
+6. `docs/restructure/PHASE-5-BRIEF.md` — Phase 5 (AI compliance), now complete
 
 ### The seven hard rules (full detail in LEGAL-GUARDRAILS.md)
 
@@ -57,5 +57,9 @@ bound by that limit — no fee ranges, no ratings, no promotional copy.
 - Run `npm run build` after every change set and fix all errors
 - Run `npm run check:privilege` after touching `src/lib/firms/access.ts` — a green
   build does not prove a paralegal cannot read a client's legal problem
+- Run `npm run check:ai` after touching `src/lib/ai/policy.ts` — a green build does
+  not prove the assistant refuses to advise on someone's own case. **Every AI answer
+  is generated server-side through `/api/ai/ask` and passes that policy file. The
+  browser must never call a model service directly**
 - **Never break a working flow to make a legal fix** — replace before removing
 - Update `docs/restructure/PROGRESS.md` at the end of every session

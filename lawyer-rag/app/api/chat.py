@@ -6,6 +6,7 @@ POST /api/chat → Retrieves relevant legal context → Generates response
 """
 
 import logging
+import time
 import traceback
 from flask import Blueprint, request, jsonify
 
@@ -34,9 +35,15 @@ def chat():
     Response:
     {
         "answer": "According to Section 14...",
-        "sources": [...],
+        "sources": [...],          # retrieval metadata, not model-generated
+        "intent": "legal_query",   # advisory; the caller decides what to require
         "chunks_retrieved": 6
     }
+
+    Note: this endpoint is called only by the Next.js application, server side,
+    which applies src/lib/ai/policy.ts to whatever comes back before any user
+    sees it. It was previously called straight from the browser. Do not expose
+    it publicly again.
     """
     try:
         data = request.get_json()
@@ -50,7 +57,11 @@ def chat():
 
         conversation_history = data.get("conversation_history", [])
 
-        logger.info(f"Chat request: '{message[:80]}...'")
+        # The question itself is deliberately not logged. It is an account of
+        # someone's legal problem; see app/utils/chat_logger.py.
+        logger.info(f"Chat request received ({len(message)} chars)")
+
+        started = time.monotonic()
 
         # Execute RAG pipeline
         result = query_rag(
@@ -58,11 +69,14 @@ def chat():
             chat_history=conversation_history,
         )
 
-        # Log the chat interaction for future review and improvements
+        duration_ms = int((time.monotonic() - started) * 1000)
+
+        # Metrics only — no message content.
         chat_logger.log_interaction(
             user_message=message,
             response=result,
-            conversation_history=conversation_history
+            conversation_history=conversation_history,
+            duration_ms=duration_ms,
         )
 
         return jsonify(result), 200

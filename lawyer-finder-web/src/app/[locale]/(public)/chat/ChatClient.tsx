@@ -2,8 +2,8 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { 
-  Send, User, Bot, Loader2, Paperclip, Plus, Trash2, Edit3, Check, X, 
-  MessageSquare, BookOpen, Globe, Star, ArrowRight, PanelLeftClose, PanelLeft, 
+  Send, Bot, Loader2, Paperclip, Plus, Trash2, Edit3, Check, X,
+  MessageSquare, BookOpen, Star, PanelLeftClose, PanelLeft,
   LogIn, Search, Sparkles, Sliders, Share2, Filter, ChevronDown, Mic, Scale 
 } from 'lucide-react';
 import Link from 'next/link';
@@ -12,41 +12,32 @@ import { SidebarAd } from '@/components/ads/AdComponents';
 import { LegalDisclaimer } from '@/components/shared/LegalDisclaimer';
 
 // ─── Types ─────────────────────────────────────────────────────────────
-interface Source {
-  document_name: string;
-  document_type: string;
-  section: string;
-  part: string;
-  chapter: string;
+/**
+ * A citation that survived `src/lib/ai/policy.ts` on the server.
+ *
+ * `libraryDocumentId` is the difference between a reference a person can open
+ * and one they have to take on trust. Where it is null the citation still names
+ * a document that was genuinely retrieved, so it is shown — but it is not given
+ * a link that goes nowhere. A citation to a document the reader cannot reach
+ * manufactures authority, which is worse than citing nothing.
+ */
+interface Citation {
+  documentName: string;
+  documentType: string;
+  section: string | null;
+  part: string | null;
   status: string;
-  last_updated_year: number | string;
-  relevance_score: number;
-  chunk_preview: string;
-}
-
-interface WebSource {
-  title: string;
-  url: string;
-  snippet: string;
-}
-
-interface LawyerSuggestion {
-  id: string;
-  fullName: string;
-  profileImageUrl: string | null;
-  practiceAreas: string[];
-  district: string | null;
-  languages: string[];
-  yearsOfExperience: number | null;
+  lastUpdatedYear: number | string;
+  libraryDocumentId: string | null;
 }
 
 interface Message {
   id: string;
   role: 'user' | 'assistant';
   content: string;
-  sources?: Source[];
-  webSources?: WebSource[];
-  lawyerSuggestions?: LawyerSuggestion[];
+  citations?: Citation[];
+  /** Set when the assistant declined, or when an answer was withheld. */
+  refused?: boolean;
 }
 
 interface ConversationSummary {
@@ -56,8 +47,35 @@ interface ConversationSummary {
   updatedAt: string;
 }
 
-const RAG_API_URL = process.env.NEXT_PUBLIC_RAG_API_URL || 'http://localhost:5001';
+/**
+ * There is no RAG URL here any more, and that is the point of Phase 5.
+ *
+ * This component used to call the model service directly on a `NEXT_PUBLIC_`
+ * address, which meant every answer was generated somewhere our application
+ * never saw — so no refusal rule, no citation rule and no confidentiality
+ * boundary could actually be enforced. Everything now goes to `/api/ai/ask`,
+ * which is the only route on the platform that produces an AI answer.
+ */
 const GUEST_QUERY_LIMIT = 5;
+
+/**
+ * What the assistant says before it is asked anything.
+ *
+ * It used to open with "I am **LawyerAI**, your personal legal assistant".
+ * A platform that is not a law firm cannot introduce itself as anyone's lawyer
+ * — that is holding ourselves out as providing legal services (guardrail rules 6
+ * and 7), and it is the first thing every user reads.
+ *
+ * Stating the limit up front also does more work than the notice below it: a
+ * person who has been told plainly that this thing cannot advise them is far
+ * less likely to act on it as though it had.
+ */
+const GREETING =
+  'Hello. I answer questions **about Sri Lankan law**, using legislation I can cite and you can check — ' +
+  'currently the **Civil Procedure Code**, the **Companies Act**, the **Motor Traffic Act** and the ' +
+  '**Computer Crimes Act**.\n\n' +
+  'I am not a lawyer, and I cannot advise you on your own situation or tell you what to do about it. ' +
+  'Ask me what the law says, and I will show you where it says it.';
 
 // ─── Component ─────────────────────────────────────────────────────────
 export default function ChatClient({
@@ -75,7 +93,6 @@ export default function ChatClient({
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [expandedSources, setExpandedSources] = useState<Set<string>>(new Set());
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   const [activeConversationId, setActiveConversationId] = useState<string | null>(initialConversationId || null);
@@ -110,13 +127,11 @@ export default function ChatClient({
     window.scrollTo(0, 0);
   }, []);
 
-  // ─── Load guest query count from localStorage ──────────────────────
-  useEffect(() => {
-    if (!isAuthenticated) {
-      const stored = localStorage.getItem('guestQueryCount');
-      if (stored) setGuestQueryCount(parseInt(stored, 10));
-    }
-  }, [isAuthenticated]);
+  // The guest allowance is no longer read from or written to localStorage. It
+  // is counted on the server, per IP, in /api/ai/ask — the stored copy was
+  // resettable from the browser console, and keeping it here would now also
+  // disagree with the server. `guestQueryCount` is a display hint for this
+  // session only; the 429 response is the authority.
 
   // ─── Load starred conversation IDs from localStorage ───────────────
   useEffect(() => {
@@ -163,8 +178,8 @@ export default function ChatClient({
           id: m.id,
           role: m.role,
           content: m.content,
-          sources: m.sources || undefined,
-          lawyerSuggestions: m.lawyerSuggestions || undefined,
+          citations: m.citations || undefined,
+          refused: Boolean(m.refusalCategory),
         }));
         setMessages(loadedMessages);
         setActiveConversationId(id);
@@ -179,11 +194,7 @@ export default function ChatClient({
     if (initialConversationId) {
       loadConversation(initialConversationId);
     } else if (!initialQuery) {
-      setMessages([{
-        id: '1',
-        role: 'assistant',
-        content: 'Hello! I am **LawyerAI**, your personal legal assistant powered by Sri Lankan legislation and web search.\n\nI can help you understand legal provisions from the **Civil Procedure Code**, **Companies Act**, **Motor Traffic Act**, and more.\n\nHow can I help you today?',
-      }]);
+      setMessages([{ id: '1', role: 'assistant', content: GREETING }]);
     }
   }, [initialConversationId, loadConversation, initialQuery]);
 
@@ -201,24 +212,10 @@ export default function ChatClient({
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isLoading]);
 
-  // ─── Toggle sources ────────────────────────────────────────────────
-  const toggleSources = (messageId: string) => {
-    setExpandedSources(prev => {
-      const next = new Set(prev);
-      next.has(messageId) ? next.delete(messageId) : next.add(messageId);
-      return next;
-    });
-  };
-
   // ─── Create new conversation ───────────────────────────────────────
   const handleNewChat = () => {
-    setMessages([{
-      id: '1',
-      role: 'assistant',
-      content: 'Hello! I am **LawyerAI**, your personal legal assistant powered by Sri Lankan legislation and web search.\n\nHow can I help you today?',
-    }]);
+    setMessages([{ id: '1', role: 'assistant', content: GREETING }]);
     setActiveConversationId(null);
-    setExpandedSources(new Set());
     window.history.replaceState(null, '', `/${locale}/chat`);
   };
 
@@ -249,36 +246,23 @@ export default function ChatClient({
     }
   };
 
-  // ─── Fetch lawyer suggestions ──────────────────────────────────────
-  const fetchLawyerSuggestions = async (practiceAreas: string[]): Promise<LawyerSuggestion[]> => {
-    if (!practiceAreas || practiceAreas.length === 0) return [];
-    try {
-      const res = await fetch('/api/ai-chat/suggest-lawyers', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ practiceAreas }),
-      });
-      if (res.ok) return await res.json();
-    } catch (err) {
-      console.error('Failed to fetch lawyer suggestions:', err);
-    }
-    return [];
-  };
-
   // ─── Send message ──────────────────────────────────────────────────
+  /**
+   * One request, to one route, which does everything.
+   *
+   * `/api/ai/ask` classifies the question, generates, checks the answer against
+   * the AI policy, and stores the exchange — server side, in that order. This
+   * function deliberately holds no part of that: the client cannot decide what
+   * was cited, cannot supply the assistant's text, and cannot see where the
+   * model lives.
+   *
+   * It also no longer creates the conversation or saves the messages itself.
+   * Those were separate calls the browser made *after* it had received an
+   * answer, which made the stored transcript a claim the client made about
+   * itself.
+   */
   const handleSend = async (text: string) => {
     if (!text.trim() || isLoading) return;
-
-    // Guest limit check
-    if (!isAuthenticated) {
-      const currentCount = guestQueryCount + 1;
-      if (currentCount > GUEST_QUERY_LIMIT) {
-        setShowLoginPrompt(true);
-        return;
-      }
-      setGuestQueryCount(currentCount);
-      localStorage.setItem('guestQueryCount', currentCount.toString());
-    }
 
     const userMsg: Message = { id: Date.now().toString(), role: 'user', content: text };
     setMessages(prev => [...prev, userMsg]);
@@ -286,83 +270,71 @@ export default function ChatClient({
     setIsLoading(true);
 
     try {
-      // Build conversation history
-      const conversationHistory = messages.slice(-10).map(m => ({
-        role: m.role,
-        content: m.content,
-      }));
-
-      // Call RAG API
-      const response = await fetch(`${RAG_API_URL}/api/chat`, {
+      const response = await fetch('/api/ai/ask', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           message: text,
-          conversation_history: conversationHistory,
+          conversationId: activeConversationId,
         }),
       });
 
-      if (!response.ok) throw new Error(`API error: ${response.status}`);
-
       const data = await response.json();
 
-      // Fetch lawyer suggestions based on detected practice areas
-      let lawyerSuggestions: LawyerSuggestion[] = [];
-      if (data.detected_practice_areas && data.detected_practice_areas.length > 0) {
-        lawyerSuggestions = await fetchLawyerSuggestions(data.detected_practice_areas);
+      // The guest allowance is counted on the server now. It used to live in
+      // localStorage, where a user could reset it from the browser console.
+      if (response.status === 429) {
+        setMessages(prev => prev.slice(0, -1));
+        setInput(text);
+        if (data.requiresLogin) {
+          setShowLoginPrompt(true);
+        } else {
+          setMessages(prev => [...prev, {
+            id: (Date.now() + 1).toString(),
+            role: 'assistant',
+            content: data.error,
+            refused: true,
+          }]);
+        }
+        return;
       }
 
-      const assistantMsg: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: data.answer,
-        sources: data.sources || [],
-        webSources: data.web_sources || [],
-        lawyerSuggestions,
-      };
-
-      setMessages(prev => [...prev, assistantMsg]);
-
-      // Save to DB if authenticated
-      if (isAuthenticated) {
-        let convId = activeConversationId;
-
-        // Create conversation if none exists
-        if (!convId) {
-          const createRes = await fetch('/api/ai-chat/conversations', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ title: text.slice(0, 80) }),
-          });
-          if (createRes.ok) {
-            const conv = await createRes.json();
-            convId = conv.id;
-            setActiveConversationId(convId);
-            window.history.replaceState(null, '', `/${locale}/chat?id=${convId}`);
-          }
-        }
-
-        // Save messages
-        if (convId) {
-          await fetch(`/api/ai-chat/conversations/${convId}/messages`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              userMessage: text,
-              assistantMessage: data.answer,
-              sources: data.sources || [],
-              lawyerSuggestions,
-            }),
-          });
-          loadConversations();
-        }
+      if (!response.ok) {
+        setMessages(prev => [...prev, {
+          id: (Date.now() + 1).toString(),
+          role: 'assistant',
+          content: data.error || 'Something went wrong answering that. Please try again.',
+          refused: true,
+        }]);
+        return;
       }
-    } catch (error) {
-      console.error('RAG API Error:', error);
+
       setMessages(prev => [...prev, {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: 'I apologize, but I\'m having trouble connecting to the legal database right now. Please try again in a moment, or consult a qualified lawyer for immediate assistance.',
+        content: data.answer,
+        citations: data.citations || [],
+        refused: Boolean(data.refused),
+      }]);
+
+      if (!isAuthenticated) {
+        setGuestQueryCount(prev => prev + 1);
+      }
+
+      if (data.conversationId && data.conversationId !== activeConversationId) {
+        setActiveConversationId(data.conversationId);
+        window.history.replaceState(null, '', `/${locale}/chat?id=${data.conversationId}`);
+      }
+      if (isAuthenticated) loadConversations();
+    } catch (error) {
+      console.error('AI request failed:', error);
+      setMessages(prev => [...prev, {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content:
+          'I could not reach the legal database just now. Please try again in a moment. ' +
+          'If you need help with your own situation, consult an attorney-at-law.',
+        refused: true,
       }]);
     } finally {
       setIsLoading(false);
@@ -602,12 +574,23 @@ export default function ChatClient({
         {/* Messages area */}
         <div className="flex-1 p-6 pb-36 scroll-smooth">
           <div className="mx-auto max-w-3xl space-y-8">
+            {/* The empty state used to read "Consultation Portal / Hi, I'm Your
+                Personal Lawyer / ...to begin a case review" — the platform
+                introducing itself as the user's lawyer and offering to review
+                their case, in the largest type on the page. A platform that is
+                not a law firm cannot say that (guardrail rules 6 and 7), and no
+                notice further down the page undoes a headline. */}
             {messages.length <= 1 && !initialQuery && (
               <div className="text-center py-16 space-y-3">
-                <span className="text-[10px] text-[#bfa37a] uppercase tracking-[0.25em] font-bold">Consultation Portal</span>
-                <h1 className="text-3xl sm:text-4xl font-serif text-neutral-900 leading-tight">Hi, I&apos;m Your Personal Lawyer</h1>
+                <span className="text-[10px] text-[#bfa37a] uppercase tracking-[0.25em] font-bold">
+                  Legal Research Assistant
+                </span>
+                <h1 className="text-3xl sm:text-4xl font-serif text-neutral-900 leading-tight">
+                  Ask about Sri Lankan law
+                </h1>
                 <p className="text-neutral-500 text-sm max-w-md mx-auto font-light leading-relaxed">
-                  Ask me any question regarding Sri Lankan law, contracts, or procedures to begin a case review.
+                  Questions about legislation and procedure, answered from documents you can open and check.
+                  This is information, not legal advice — it cannot advise you on your own case.
                 </p>
               </div>
             )}
@@ -642,125 +625,90 @@ export default function ChatClient({
                       </div>
                     </div>
 
-                    {/* Source Citations */}
-                    {message.sources && message.sources.length > 0 && (
+                    {/* Citations.
+                        Shown expanded by default rather than behind a toggle: an
+                        answer's authority is part of the answer, and a source
+                        nobody opens is a source nobody checked. */}
+                    {message.citations && message.citations.length > 0 && (
                       <div className="flex flex-col gap-1.5">
-                        <button
-                          onClick={() => toggleSources(message.id)}
-                          className="flex items-center gap-2 text-[10px] font-bold text-neutral-500 hover:text-[#bfa37a] uppercase tracking-widest transition-colors self-start"
-                        >
+                        <span className="flex items-center gap-2 text-[10px] font-bold text-neutral-500 uppercase tracking-widest self-start">
                           <BookOpen className="w-3.5 h-3.5" />
-                          {expandedSources.has(message.id) ? 'Hide' : 'View'} {message.sources.length} Legal Sources
-                        </button>
+                          Based on {message.citations.length}{' '}
+                          {message.citations.length === 1 ? 'source' : 'sources'}
+                        </span>
 
-                        {expandedSources.has(message.id) && (
-                          <div className="flex flex-col gap-2 mt-1">
-                            {message.sources.map((src, idx) => (
-                              <div key={idx} className="flex flex-col gap-1 bg-[#fdfbf7] border border-[#efeae0] p-4 shadow-sm text-left">
+                        <div className="flex flex-col gap-2 mt-1">
+                          {message.citations.map((cite, idx) => {
+                            const body = (
+                              <>
                                 <div className="flex items-center justify-between gap-3">
-                                  <span className="font-serif font-bold text-neutral-900 text-xs">{src.document_name}</span>
-                                  <span className={`text-[9px] px-2 py-0.5 font-bold uppercase tracking-widest border ${
-                                    src.status === 'Active' 
-                                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
-                                      : 'bg-red-50 text-red-700 border-red-200'
-                                  }`}>{src.status}</span>
+                                  <span className="font-serif font-bold text-neutral-900 text-xs">
+                                    {cite.documentName}
+                                  </span>
+                                  <span
+                                    className={`text-[9px] px-2 py-0.5 font-bold uppercase tracking-widest border ${
+                                      cite.status === 'Active'
+                                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                        : 'bg-neutral-50 text-neutral-600 border-neutral-200'
+                                    }`}
+                                  >
+                                    {cite.status}
+                                  </span>
                                 </div>
                                 <div className="flex flex-wrap gap-2 text-[9px] text-neutral-400 uppercase tracking-wider font-semibold mt-1">
-                                  <span>{src.section}</span>
-                                  {src.part !== 'N/A' && src.part !== 'Unknown' && <span>• {src.part}</span>}
-                                  <span>• {src.document_type}</span>
-                                  <span className="text-[#bfa37a]">• Relevance: {(src.relevance_score * 100).toFixed(0)}%</span>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Web Sources */}
-                    {false && (message.webSources?.length ?? 0) > 0 && (
-                      <div className="flex flex-col gap-1.5">
-                        <button
-                          onClick={() => toggleSources(`web-${message.id}`)}
-                          className="flex items-center gap-2 text-[10px] font-bold text-neutral-500 hover:text-[#bfa37a] uppercase tracking-widest transition-colors self-start"
-                        >
-                          <Globe className="w-3.5 h-3.5" />
-                          {expandedSources.has(`web-${message.id}`) ? 'Hide' : 'View'} {(message.webSources || []).length} Web Sources
-                        </button>
-
-                        {expandedSources.has(`web-${message.id}`) && (
-                          <div className="flex flex-col gap-2 mt-1">
-                            {message.webSources?.map((ws, idx) => (
-                              <a
-                                key={idx}
-                                href={ws.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="flex flex-col gap-1 bg-white border border-[#efeae0] p-4 hover:shadow-md hover:border-[#bfa37a] transition-all duration-300 text-left"
-                              >
-                                <span className="font-serif font-bold text-neutral-900 text-xs">{ws.title}</span>
-                                <span className="text-[#bfa37a] text-[10px] truncate font-light">{ws.url}</span>
-                                <span className="text-neutral-500 text-xs mt-1 font-light line-clamp-2">{ws.snippet}</span>
-                              </a>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Lawyer Suggestions */}
-                    {message.lawyerSuggestions && message.lawyerSuggestions.length > 0 && (
-                      <div className="mt-3 border border-[#efeae0] bg-white shadow-sm text-left">
-                        <div className="px-4 py-3 bg-[#fdfcfb] border-b border-[#efeae0]">
-                          {/* Not "recommended" — the platform does not recommend or
-                              endorse any attorney. See LEGAL-GUARDRAILS rule 4. */}
-                          <h4 className="text-[10px] font-bold uppercase tracking-widest text-[#bfa37a]">
-                            Attorneys practising in this area
-                          </h4>
-                        </div>
-                        <LegalDisclaimer variant="directory" className="border-0 border-b border-[#efeae0] bg-transparent" />
-                        <div className="divide-y divide-neutral-100">
-                          {message.lawyerSuggestions.map((lawyer) => (
-                            <div key={lawyer.id} className="flex items-center gap-4 px-4 py-4 hover:bg-[#faf8f6]/50 transition-colors">
-                              <div className="flex h-11 w-11 shrink-0 items-center justify-center bg-neutral-100 overflow-hidden border border-neutral-200/60">
-                                {lawyer.profileImageUrl ? (
-                                  <img src={lawyer.profileImageUrl} alt={lawyer.fullName} className="h-full w-full object-cover" />
-                                ) : (
-                                  <User className="h-5 w-5 text-neutral-400" />
-                                )}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm font-serif font-bold text-neutral-900 truncate">{lawyer.fullName}</p>
-                                <div className="flex items-center gap-3 mt-1">
-                                  {lawyer.district && (
-                                    <span className="text-[9px] text-neutral-400 uppercase tracking-widest font-bold">{lawyer.district}</span>
-                                  )}
-                                  {typeof lawyer.yearsOfExperience === 'number' && lawyer.yearsOfExperience > 0 && (
-                                    <span className="text-[9px] text-neutral-400 uppercase tracking-widest font-bold">
-                                      {lawyer.yearsOfExperience} yrs
-                                    </span>
+                                  {cite.section && <span>{cite.section}</span>}
+                                  {cite.part && <span>• {cite.part}</span>}
+                                  <span>• {cite.documentType}</span>
+                                  {cite.libraryDocumentId ? (
+                                    <span className="text-[#bfa37a]">• Open in legal library →</span>
+                                  ) : (
+                                    <span className="text-neutral-400">• Not yet in the library</span>
                                   )}
                                 </div>
-                                <div className="flex flex-wrap gap-1.5 mt-2">
-                                  {lawyer.practiceAreas.slice(0, 2).map((area, i) => (
-                                    <span key={i} className="text-[8px] bg-neutral-100 text-neutral-500 px-2 py-0.5 font-bold uppercase tracking-wider">
-                                      {area}
-                                    </span>
-                                  ))}
-                                </div>
-                              </div>
+                              </>
+                            );
+
+                            // Linked only where the document actually exists to
+                            // open. A citation that 404s invents authority.
+                            return cite.libraryDocumentId ? (
                               <Link
-                                href={`/${locale}/lawyers/${lawyer.id}`}
-                                className="shrink-0 flex items-center gap-1.5 px-4 py-2.5 bg-[#bfa37a] text-white text-[9px] font-bold uppercase tracking-widest hover:bg-[#a68d67] transition-colors"
+                                key={idx}
+                                href={`/${locale}/legal-library/${cite.libraryDocumentId}`}
+                                className="flex flex-col gap-1 bg-[#fdfbf7] border border-[#efeae0] p-4 shadow-sm text-left hover:border-[#bfa37a] transition-colors"
                               >
-                                Profile <ArrowRight className="h-3 w-3" />
+                                {body}
                               </Link>
-                            </div>
-                          ))}
+                            ) : (
+                              <div
+                                key={idx}
+                                className="flex flex-col gap-1 bg-[#fdfbf7] border border-[#efeae0] p-4 shadow-sm text-left"
+                              >
+                                {body}
+                              </div>
+                            );
+                          })}
                         </div>
                       </div>
                     )}
+
+                    {/* Web sources are deliberately not rendered, and are no
+                        longer requested. A DuckDuckGo result is not a legal
+                        authority, and showing one beside a statute teaches a
+                        reader that the two carry the same weight. */}
+
+                    {/* Nothing here lists attorneys.
+                        A panel of practitioners used to appear under any answer
+                        where the model had inferred a practice area from what
+                        the user had just described about their legal problem.
+                        That is the platform choosing (guardrail rule 4), on the
+                        back of privileged material (rule 5), on the surface
+                        where the 1894 Ordinance bites hardest. The route that
+                        fed it, /api/ai-chat/suggest-lawyers, is deleted; the
+                        column that stored it is dropped.
+
+                        The replacement is the standing directory link in the
+                        notice below the composer — identical for every user,
+                        unaffected by anything anyone types here. */}
                   </div>
                 </div>
               </div>
@@ -818,7 +766,12 @@ export default function ChatClient({
         {/* Input Area */}
         <div className="shrink-0 bg-[#faf8f6]/95 backdrop-blur-sm border-t border-[#efeae0] pt-8 pb-4 px-5 sticky bottom-0 z-10">
           <div className="mx-auto max-w-3xl">
-            <LegalDisclaimer variant="ai" className="mb-3 rounded-xl" />
+            <LegalDisclaimer
+              variant="ai"
+              className="mb-3 rounded-xl"
+              showDirectoryLink
+              locale={locale}
+            />
             <form
               onSubmit={(e) => { e.preventDefault(); handleSend(input); }}
               className="bg-white border border-[#efeae0] p-4 shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-2xl flex flex-col gap-3 transition-all focus-within:border-[#bfa37a]/60"
@@ -907,7 +860,7 @@ export default function ChatClient({
               </div>
             </form>
             <div className="mt-2 flex flex-col xs:flex-row items-center justify-between gap-2 text-center text-[8px] text-neutral-400 font-bold uppercase tracking-[0.18em]">
-              <span>Powered by Sri Lankan Legal Database & Web Search</span>
+              <span>Answers cite Sri Lankan legislation — information only, not legal advice</span>
               {!isAuthenticated && (
                 <span className="text-[#bfa37a]">
                   {Math.max(0, GUEST_QUERY_LIMIT - guestQueryCount)} queries left •{' '}

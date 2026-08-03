@@ -10,3 +10,8 @@ __pycache__/
 # *.bin
 # *.sqlite3
 # *.pickle
+# Chat logs — never commit these.
+# They are a record of what people asked a legal assistant, which is sensitive
+# personal data under the PDPA. The logger no longer writes message content by
+# default (app/utils/chat_logger.py); this is the second line of defence.
+data/chat_logs/

@@ -8,8 +8,6 @@ Tools:
   1. vector_search            — searches ChromaDB for relevant legislation chunks
   2. graph_lookup             — traverses the knowledge graph for related entities/docs
   3. web_search_tool          — fetches supplementary context from DuckDuckGo
-  4. detect_practice_areas_tool — classifies the legal domain from context
-  5. lawyer_recommend_tool    — generates a structured lawyer recommendation rationale
   6. section_lookup_tool      — direct precise retrieval of a specific Act section
   7. verify_answer_tool       — self-checks that citations actually support the answer
 """
@@ -245,105 +243,17 @@ def web_search_tool(query: str) -> str:
 # ---------------------------------------------------------------------------
 # Tool 4: Detect Practice Areas
 # ---------------------------------------------------------------------------
-@tool
-def detect_practice_areas_tool(text: str) -> str:
-    """
-    Analyze the combined legal context and identify the relevant legal practice areas.
-
-    Use this tool AFTER gathering legal context (from vector_search and optionally
-    graph_lookup or web_search). Pass the accumulated legal context text to identify
-    which practice areas are most relevant.
-
-    This result is used to recommend appropriate lawyers to the user.
-
-    Args:
-        text: The combined text of the user question + retrieved legal context.
-
-    Returns:
-        A JSON string containing a list of detected practice area names.
-        Example: '["Criminal Law", "Family Law"]'
-    """
-    from app.core.rag_chain import detect_practice_areas
-
-    try:
-        areas = detect_practice_areas(text, text)
-        logger.info(f"[detect_practice_areas_tool] Detected: {areas}")
-        return json.dumps(areas)
-    except Exception as e:
-        logger.warning(f"[detect_practice_areas_tool] Failed: {e}")
-        return json.dumps([])
-
-
-# ---------------------------------------------------------------------------
-# Tool 5: Lawyer Recommendation
-# ---------------------------------------------------------------------------
-@tool
-def lawyer_recommend_tool(practice_areas: str, user_situation: str) -> str:
-    """
-    Generate a structured recommendation about what type of lawyer the user needs
-    based on their legal situation and the identified practice areas.
-
-    Use this tool AFTER detect_practice_areas_tool when the user's question suggests
-    they need professional legal help — e.g. they describe a dispute, incident, or
-    legal problem they are personally facing (not just general knowledge queries).
-
-    Do NOT call this tool for purely informational questions like 'what does section X say'.
-    DO call this tool when the user describes a real situation: 'my employer fired me',
-    'I was in a road accident', 'my landlord won't return my deposit'.
-
-    Args:
-        practice_areas: Comma-separated list of detected practice areas
-                        (e.g. 'Labour Law, Family Law').
-        user_situation: A brief 1-2 sentence summary of what the user described.
-
-    Returns:
-        A formatted string explaining what specialist lawyer types are recommended
-        and why, based on the practice areas and situation.
-    """
-    from app.core.rag_chain import PRACTICE_AREA_KEYWORDS
-
-    areas = [a.strip() for a in practice_areas.split(",") if a.strip()]
-    if not areas:
-        return ""
-
-    # Build recommendation rationale for each detected area
-    recommendation_parts = [
-        "━━━ LAWYER RECOMMENDATION CONTEXT ━━━",
-        f"Based on the situation: '{user_situation}'",
-        "\n📋 Recommended Specialist Types:",
-    ]
-
-    area_descriptions = {
-        "Criminal Law": "a Criminal Defense Lawyer — to advise on charges, bail, and court proceedings",
-        "Civil Litigation": "a Civil Litigation Lawyer — to handle court proceedings, plaints, and appeals",
-        "Corporate Law": "a Corporate / Commercial Lawyer — for company law, governance, and compliance",
-        "Family Law": "a Family Law Specialist — for matrimonial, custody, and domestic legal matters",
-        "Property Law": "a Conveyancing / Property Lawyer — for land deeds, titles, and property disputes",
-        "Labour Law": "an Employment / Labour Lawyer — for wrongful termination, wages, and tribunal cases",
-        "Tax Law": "a Tax Lawyer or Chartered Accountant — for revenue disputes and compliance",
-        "Constitutional Law": "a Constitutional Lawyer — for fundamental rights petitions and public law",
-        "Environmental Law": "an Environmental Lawyer — for conservation, pollution, and regulatory matters",
-        "Intellectual Property": "an IP Lawyer — for patents, copyrights, and trademark disputes",
-        "Motor Traffic Law": "a Motor Traffic / Personal Injury Lawyer — for accident claims and traffic offences",
-        "Banking Law": "a Banking & Finance Lawyer — for loan disputes, mortgages, and financial regulation",
-        "Immigration Law": "an Immigration Lawyer — for visa, citizenship, and deportation matters",
-        "Insurance Law": "an Insurance Claims Lawyer — for disputed insurance claims and policy interpretation",
-        "Real Estate": "a Real Estate / Conveyancing Lawyer or Notary — for property transactions",
-        "Notary Services": "a Notary Public — for attestation, affidavits, and powers of attorney",
-    }
-
-    for area in areas:
-        desc = area_descriptions.get(area, f"a {area} Specialist")
-        recommendation_parts.append(f"  • {area}: Consult {desc}")
-
-    recommendation_parts.append(
-        "\n⚠️  Note: Always consult a qualified, registered lawyer for your specific case."
-        " This is general guidance only."
-    )
-
-    result = "\n".join(recommendation_parts)
-    logger.info(f"[lawyer_recommend_tool] Generated recommendation for areas: {areas}")
-    return result
+# Tools 4 and 5 — detect_practice_areas_tool and lawyer_recommend_tool — were
+# deleted in Phase 5.
+#
+# Together they classified what a person had written about their own legal
+# problem and produced a recommendation of what kind of lawyer they needed,
+# which the frontend then rendered as a list of attorneys. The platform must
+# never choose the practitioner (guardrail rule 4), and doing so from privileged
+# material compounds it (rule 5). Touting reaches the platform operator
+# criminally under the Intermeddlers with Suitors Ordinance No. 11 of 1894.
+#
+# There is no replacement tool. The assistant does not suggest practitioners.
 
 
 # ---------------------------------------------------------------------------
@@ -522,12 +432,12 @@ def verify_answer_tool(draft_answer: str, citations_used: str) -> str:
 # ---------------------------------------------------------------------------
 # Exported tool list — order matters for agent tool description context
 # ---------------------------------------------------------------------------
+# web_search_tool is deliberately absent. A DuckDuckGo result is not a legal
+# authority, and an answer grounded in one cannot be cited to legislation — so
+# the application withholds it anyway. Retrieval is the corpus, or nothing.
 AGENT_TOOLS = [
     vector_search,
     graph_lookup,
-    web_search_tool,
-    detect_practice_areas_tool,
-    lawyer_recommend_tool,
     section_lookup_tool,
     verify_answer_tool,
 ]

@@ -65,7 +65,11 @@ export default function HeroChatInput({ locale }: { locale: string }) {
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder={mode === 'chat' ? "Ask the AI assistant anything..." : "Search for lawyers by name, specialty..."}
+          placeholder={
+            mode === 'chat'
+              ? 'Ask what the law says...'
+              : 'Search for lawyers by name, specialty...'
+          }
           className="w-full bg-transparent text-neutral-800 text-sm outline-none px-3 font-light"
         />
 
@@ -78,6 +82,16 @@ export default function HeroChatInput({ locale }: { locale: string }) {
           <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
         </button>
       </form>
+
+      {/* This is where most people type their legal problem for the first time,
+          so the limit belongs here and not only on the page they land on.
+          Placement is the compliance measure — see LegalDisclaimer. */}
+      {mode === 'chat' && (
+        <p className="mt-3 max-w-md text-center text-[11px] leading-relaxed text-neutral-500">
+          Information about Sri Lankan law, with sources — not legal advice, and
+          not a substitute for an attorney-at-law. It cannot advise on your own case.
+        </p>
+      )}
     </div>
   );
 }

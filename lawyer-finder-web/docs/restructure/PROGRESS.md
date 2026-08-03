@@ -15,7 +15,7 @@
 | 2.5 | Firm-first intake + stop pricing on client volume | 🟢 **Done** |
 | 3 | Billing restructure (SaaS licence) | 🟡 Partly done — the unlawful part is out; seats/fee notes remain |
 | 4 | Advertising split | 🟢 **Done** |
-| 5 | AI compliance | ⚪ Not started |
+| 5 | AI compliance | 🟢 **Done** |
 | 6 | PDPA compliance | ⚪ Not started |
 | 7 | Growth features | ⚪ Not started |
 
@@ -23,7 +23,18 @@ Legend: ⚪ not started · 🟡 in progress · 🟢 done · 🔴 blocked
 
 ## Next up
 
-**Phase 5 — AI compliance.** See [PHASE-5-BRIEF.md](./PHASE-5-BRIEF.md).
+**Register the three missing Acts in the legal library.** The vector store holds the
+Civil Procedure Code, Companies Act and Motor Traffic Act, but none of them has a
+`LegalDocument` row — they were loaded by the ingestion script rather than through the
+admin upload screen. So citations to them are correct but **not clickable**: the chat
+shows "Not yet in the library" instead of a link. That is the honest failure mode, and
+it is a data task, not a code one. Upload the three PDFs through
+`/dashboard/admin/legal-documents` and the citations resolve. Do not hand-edit
+`ragDocumentName` to force a match — guessing which Act a row refers to is how you end
+up citing the wrong statute.
+
+**Phase 6 — PDPA.** Now the natural next phase: Phase 5 left it the retention period,
+the purge script and a clean picture of what personal data the AI holds.
 
 **Phase 3, remainder** — move `Subscription` from `LawyerProfile` to `LawFirm` so a
 firm buys seats rather than each attorney buying a licence; build the fee-note
@@ -59,6 +70,12 @@ Phases 0, 1 and 2 are complete. `npm run build`, `npx tsc --noEmit` and
 | 2026-08-02 | A firm-first request carries **no appointment**; the attorney proposes one with the quote | Holding a diary slot before the firm has run a conflict check is a marketplace-booking habit. Nothing is scheduled until the firm has decided it can act and the client has accepted terms |
 | 2026-08-01 | Adopted a **Rule 40 content limit** as the spec for every attorney/firm-describing surface | Rule 40 lists what an attorney may display; treating it as exhaustive is the conservative reading and costs nothing |
 | 2026-07-31 | Phase 0 disables *paths*, not schema. `Review`, `WithdrawRequest`, `ConsultationPricing` stay in the schema until Phase 3 | Do not break working flows to make a legal fix |
+| 2026-08-03 | The AI is generated **server-side only**; the browser never calls a model service | The chat page fetched the RAG service on a `NEXT_PUBLIC_` URL. Every AI rule was decoration while that was true — the page told anyone who looked where the model lived, and it answered without us |
+| 2026-08-03 | An answer that trips the policy is **withheld whole**, never edited | Rewriting a model's legal prose to make it compliant means authoring legal content by hand, which is the thing rule 6 exists to stop |
+| 2026-08-03 | Nothing streams | A streamed answer has been read by the time it can be checked. Streaming and post-generation checking are mutually exclusive, and the check is worth more than the typing effect |
+| 2026-08-03 | The AI surfaces **no practitioner at all** — not by name, not by category | The conservative answer to counsel question 6, taken rather than deferred. If it turns out to be permissible, restoring it is a feature; if not, we never did it |
+| 2026-08-03 | Citations resolve to an openable document or are shown unlinked; never a dead link | A citation the reader cannot open manufactures authority. Being honest that we do not hold the document is better than a link to nowhere |
+| 2026-08-03 | Guest AI questions are **not stored at all** | A guest has no history to return to, so there is no product reason to keep their account of their legal problems. The cheapest way to hold data safely is not to hold it |
 
 ## Session log
 
@@ -696,3 +713,120 @@ question 18.
 - Advertiser billing has no module; invoicing happens outside the platform
 - Phase 3 remainder: firm seats, fee notes, `ConsultationPricing` price columns
 - Phases 5 (AI), 6 (PDPA), 7 (growth)
+
+### 2026-08-03 — Phase 5 (AI compliance)
+
+**The finding that reshaped the phase.** The brief assumed the AI needed disclaimers,
+citations and refusals bolted on. The actual problem was structural: the chat page
+called the RAG service **directly from the browser** on `NEXT_PUBLIC_RAG_API_URL`, then
+posted the answer it had received back to us to be stored. Our application never saw
+the question or the answer.
+
+Two consequences, neither survivable. No rule could be enforced — a refusal check on
+our side would have been decoration, because the page told anyone who looked where the
+model lived and it answered without us. And the stored transcript was whatever the
+client said it was: `assistantMessage` and `sources` arrived as request-body fields, so
+"this answer was properly cited" was a claim the caller made about itself.
+
+So Phase 5 is mostly one change — **every AI answer is now generated server-side, by
+one route, behind one policy file** — and the scope items follow from it.
+
+**What was actually running**
+
+The RAG service was not neutral about lawyers. It had a `lawyer_request` intent and a
+`situation_report` post-processor that, between them, produced:
+
+> "Based on our conversation, I'd recommend consulting **a Property Lawyer** for your
+> situation. I've found some matching lawyers on our platform below who may be able to
+> help you."
+
+> "💡 **Would you like me to recommend a lawyer who specializes in this area?**"
+
+Both fired off the back of the user describing their own legal problem — the platform
+selecting practitioners from privileged material, on the surface where the 1894
+Ordinance bites hardest. Rules 3, 4 and 5 in one sentence. Also found: the chat's empty
+state read *"Hi, I'm Your Personal Lawyer"* over *"begin a case review"*, and the
+conversational prompt instructed the model to tell users it ran "an internal
+verification tool to self-check citations before answering" — **a tool that does not
+exist**.
+
+**Built**
+
+- **`src/lib/ai/policy.ts`** — one policy file, the sibling of `firms/access.ts` and
+  `ads/eligibility.ts`. Classifies the request, evaluates the answer, resolves
+  citations. Refuses `OWN_MATTER_ADVICE`, `OUTCOME_PREDICTION`, `DOCUMENT_DECISION`,
+  `REPRESENTATION_REQUEST` before the model is called; withholds `ADVICE_IN_ANSWER`,
+  `PRACTITIONER_STEERING`, `UNSUPPORTED_CITATION`, `NO_CITABLE_SOURCE` after
+- **`POST /api/ai/ask`** — the only route that produces an AI answer. Refuse → generate
+  → evaluate → persist, in that order. Refusing first means the user's account of their
+  own matter is never transmitted. Guest allowance moved server-side (it was in
+  `localStorage`, resettable from the console)
+- **`npm run check:ai`** — 49 assertions. Written because `build` and `tsc` pass happily
+  on a policy that answers "should I sign this contract"
+- **`npm run ai:purge`** — 180 days from last use, `updatedAt` not `createdAt` so an
+  active conversation is not deleted underneath someone
+
+**Removed** — `/api/ai-chat/suggest-lawyers`; `POST /api/ai-chat/conversations/[id]/messages`
+(the client-writable transcript); `AiMessage.lawyerSuggestions` and `.sources`; the
+`ChatWidget` "Legal Assistant" panel on `/about`, whose input had **no handler at all**
+while it offered to assist with your legal needs; and in `lawyer-rag`,
+`lawyer_recommend_tool`, `detect_practice_areas_tool`, `PRACTICE_AREA_KEYWORDS`,
+`generate_lawyer_response`, the situation-report upsell, and web-search grounding.
+
+**Citations now resolve, or say they do not.** A citation comes from retrieval
+metadata, never the model, so the list cannot be hallucinated — the *prose* can, which
+is why prose Act mentions are checked against what was actually retrieved. Where a
+citation maps to a `LegalDocument` it links to it; where it does not it is shown as
+text marked "Not yet in the library", never as a link to nowhere.
+
+**Confidentiality** — the AI path touches `aiConversation`, `aiMessage` and
+`legalDocument`, and nothing else. `buildModelContext()` takes a question and this
+chat's own history; there is no parameter through which matter data could travel. The
+RAG service also stopped writing every question and answer to a plaintext JSONL file —
+and one such file was **committed to the repository**. It now logs metrics only, and
+`data/chat_logs/` is gitignored.
+
+**Verification — and two real holes that only running it found**
+
+`npm run build`, `npx tsc --noEmit`, `check:privilege` 10/10, `check:ai` 49/49,
+migrations in sync. Migration tested against a scratch database seeded with the data
+that would break it (populated `sources` and `lawyerSuggestions`): message text
+preserved, columns dropped, `migrate diff` reports *No difference detected*. Seed
+replayed end to end on a clean database.
+
+None of that caught what mattered. Driving the real assistant against the real model
+did. Asked *"my employer fired me without notice and refused to pay my final salary"*,
+it replied:
+
+> "I'm sorry to hear that you've been **unfairly dismissed**... In Sri Lanka, unfair
+> dismissal is governed by the **Employment (Amendment) Ordinance No. 14 of 2017**...
+> you may want to consider the following steps: 1. Review your employment contract..."
+
+Two defects, both in code that had just passed 43 assertions:
+
+1. **The unsupported-citation regex could not see past a parenthesis.** Sri Lankan
+   legislation is routinely named "X (Amendment) Ordinance", and the pattern required
+   plain capitalised words — so the most common form of Act name was skipped entirely.
+   The corpus holds no employment legislation at all; that Ordinance was invented, had
+   six unrelated Companies Act citations attached, and was published.
+2. **The advice scan missed the two shapes the model actually uses** — characterising
+   what happened to the user in legal terms ("you have been unfairly dismissed" is a
+   finding, not sympathy), and the numbered plan of action.
+
+Both fixed, both added as permanent cases, and the same request now returns
+`ADVICE_IN_ANSWER` while *"What does the Companies Act say about the duties of a
+director?"* still publishes with six citations. **Having sources is not the same as
+being sourced** — that is the lesson worth carrying forward.
+
+**Still open**
+- Counsel questions 16–18 — **blocks everything**
+- Counsel question 6 answered conservatively rather than resolved
+- Three Acts are in the vector store with no library row, so their citations do not
+  resolve. See *Next up* — it is a data task
+- The refusal patterns are English-only; the platform ships `si` and `ta` locales, and
+  a question asked in Sinhala or Tamil bypasses the pre-generation check entirely. The
+  post-generation checks are also English-only. Recorded as counsel/product question
+  rather than fixed, because it needs translation review, not more regexes
+- Advertiser billing has no module; invoicing happens outside the platform
+- Phase 3 remainder: firm seats, fee notes, `ConsultationPricing` price columns
+- Phases 6 (PDPA), 7 (growth)

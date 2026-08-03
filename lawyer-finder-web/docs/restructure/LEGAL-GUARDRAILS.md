@@ -68,6 +68,11 @@ The RAG chatbot, the legal library, and every AI surface carry a clear, visible
 notice: informational only, not legal advice, no attorney-client relationship formed.
 AI answers cite sources. AI never tells a user what they should do in their own matter.
 
+> **The line:** the assistant may explain the law; it may never advise anyone about
+> their own case. Answering *about the law* is fine; answering *about your case* is not.
+> Enforced in [`src/lib/ai/policy.ts`](../../src/lib/ai/policy.ts) — see
+> [the AI rules](#ai-what-may-be-answered-what-must-be-refused) below.
+
 ### 7. The firm is the service provider; we are software
 Every client-facing artefact — engagement letter, fee note, confirmation — must make
 clear the **firm** provides the legal service and the platform is only the software
@@ -142,6 +147,103 @@ whoever bought it.
   the PDPA at once.
 
 Enforced in [`src/lib/ads/eligibility.ts`](../../src/lib/ads/eligibility.ts).
+
+---
+
+## AI — what may be answered, what must be refused
+
+Added 2026-08-03, Phase 5.
+
+**The assistant explains what the law says. It never advises anyone about their own
+case.** Giving legal advice without being an admitted Attorney-at-Law is unauthorised
+practice, and BASL's cautionary note of June 2021 treats legal advice delivered
+through an online platform as **touting** — which lands in the Intermeddlers with
+Suitors Ordinance No. 11 of 1894, where the offence is criminal and reaches the
+intermediary.
+
+Every other guardrail here is enforced by structure: there is no commission column,
+an `AdCampaign` has nowhere to attach a lawyer, directory ad placements are not
+expressible in the enum. **The AI is the one surface where a violation is produced at
+runtime, per answer, by a generative model.** Schema cannot prevent it, and neither
+can a prompt — an instruction a model ignores fails silently. So the rule runs as
+code, on the server, after generation and before the user sees a character.
+
+### Where it is enforced
+
+| Layer | What it does | Trust |
+| --- | --- | --- |
+| [`src/lib/ai/policy.ts`](../../src/lib/ai/policy.ts) | The rule. Classifies the request, evaluates the answer, resolves citations | **This is the guardrail** |
+| [`/api/ai/ask`](../../src/app/api/ai/ask/route.ts) | The only route that produces an AI answer. Applies the policy | The only path |
+| `lawyer-rag` prompts | Asks the model to behave | Defence in depth only |
+| `npm run check:ai` | Asserts the rules against 49 cases | Run after any policy change |
+
+The browser must never call a model service directly. Until Phase 5 the chat page
+fetched the RAG service on a `NEXT_PUBLIC_` URL, which made every rule below
+unenforceable and every stored transcript a claim the client made about itself.
+
+### Refused before the model is called
+
+So that the user's account of their own problem is never transmitted at all:
+
+| Category | Example |
+| --- | --- |
+| `OWN_MATTER_ADVICE` | "My landlord kept my deposit, what should I do?" · "Do I have a case?" |
+| `OUTCOME_PREDICTION` | "Will I win?" · "What are my chances?" |
+| `DOCUMENT_DECISION` | "Should I sign this?" · "Is this contract fair?" |
+| `REPRESENTATION_REQUEST` | "Recommend a lawyer" · "Which attorney should I hire?" |
+
+### Withheld after the model has answered
+
+The answer is withheld **whole**, never edited — rewriting a model's legal prose to
+make it compliant means authoring legal content by hand, which is the thing rule 6
+exists to stop.
+
+| Category | What trips it |
+| --- | --- |
+| `ADVICE_IN_ANSWER` | "In your case…" · "you have been unfairly dismissed" · a numbered plan of action |
+| `PRACTITIONER_STEERING` | "I'd recommend consulting **a Property Lawyer**" · "lawyers on our platform" |
+| `UNSUPPORTED_CITATION` | Naming an Act in the prose that retrieval never returned |
+| `NO_CITABLE_SOURCE` | A legal answer with nothing behind it |
+
+**Nothing streams.** A streamed answer has been read by the time it can be checked,
+which makes the check theatre.
+
+### Citations
+
+- A citation comes from **retrieval metadata, never the model**, so the model cannot
+  invent an entry in the list. What it *can* invent is a mention in the prose, which
+  is why the prose is checked against what was actually retrieved.
+- A citation that resolves to a `LegalDocument` links to it. One that does not is
+  shown as text and **not given a link that goes nowhere** — a citation the reader
+  cannot open manufactures authority.
+- A chunk index (`Chunk_1`) is not a section reference and is never displayed as one.
+- **Web search results are not legal authority** and are no longer requested. An
+  answer grounded in a search result cannot be cited to legislation, so it would be
+  withheld regardless.
+
+### The AI never surfaces a practitioner
+
+Not by name, not by category, not by inference from what the user described. The
+`suggest-lawyers` route is deleted, the `lawyerSuggestions` column is dropped, and
+the RAG service's practice-area detection and lawyer-recommendation tools are gone.
+
+This is the conservative answer to **counsel question 6**, taken rather than deferred:
+if suggesting a *category* of practitioner turns out to be permissible, restoring it
+is a feature; if it is not, we never did it. The replacement is a standing link to the
+alphabetical directory that is identical for every user and unaffected by anything
+they typed — the user navigating, not the platform channelling.
+
+### Confidentiality
+
+Nothing from a matter — no `Booking.description`, subject, conflict-check note, quote,
+or engagement letter — reaches the model. There is deliberately **no parameter through
+which it could**: `buildModelContext()` takes a question and this chat's own history,
+and nothing else. Matter-scoped AI is a Phase 7 item and needs its own design
+(firm-scoped context, processor agreement, counsel question 4) before a single field
+crosses that line.
+
+Guest questions are never stored. Signed-in conversations are kept for 180 days from
+last use and purged by `npm run ai:purge`.
 
 ---
 
@@ -259,7 +361,7 @@ Track answers here as they come in. Do not build on an unanswered question.
 | 3 | Can a lawyer-facing **e-signature / engagement letter** generated by our software satisfy retainer formalities under ETA 2006? | Phase 1 | Open |
 | 4 | Does a **data-processor agreement** adequately preserve privilege where we host matter data? Any Sri Lanka-specific requirement beyond PDPA? | Phase 6 | Open |
 | 5 | Is a platform-hosted **client-account ledger** (record-keeping only, firm's own bank) acceptable, or does it imply control of client funds? | Phase 3 | Open |
-| 6 | May the AI suggest *categories* of practitioner (e.g. "you need a labour lawyer") without that being a referral? | Phase 5 | Open |
+| 6 | May the AI suggest *categories* of practitioner (e.g. "you need a labour lawyer") without that being a referral? | Phase 5 | Open — **we took the conservative answer: it does not.** The AI surfaces no practitioner by name or category. Answer only affects whether we could relax this |
 | 7 | Confirm current **VAT / SSCL** treatment of SaaS revenue and any digital-services levy | Phase 3 | Open |
 | 8 | Does a **public directory of attorneys**, listing every verified practitioner on neutral disclosed criteria with no payment for position, constitute advertising or touting under Rules 39–49? | The whole consumer product | Open — **highest priority.** See [the directory question](#the-directory-question--our-largest-unresolved-risk) |
 | 9 | Does the **Intermeddlers with Suitors Ordinance No. 11 of 1894** create criminal exposure for the *platform operator* on the current design? | The whole consumer product | Open — **highest priority** |
@@ -281,5 +383,8 @@ Before merging anything that touches booking, payments, advertising, ranking, or
 - [ ] No red-flag phrase appears in code, strings, or UI
 - [ ] Matter descriptions and lawyer-client messages are unreadable to platform staff
 - [ ] AI surfaces carry the not-legal-advice notice and cite sources
+- [ ] Every AI answer passes `src/lib/ai/policy.ts` server-side; no browser calls a model
+- [ ] No AI surface names or suggests a practitioner
+- [ ] `npm run check:ai` passes
 - [ ] Client-facing artefacts name the **firm** as the service provider
 - [ ] `npm run build` passes

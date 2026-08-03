@@ -136,6 +136,46 @@ no attorney-client relationship. It cites its sources.
   it stay strictly general?
 - (e) Who bears liability if the assistant is wrong and a user relies on it?
 
+**Updated 2026-08-03, Phase 5 — what we have now done, pending your answer.**
+
+We did not wait on (c) and (d). Where we were unsure we took the restrictive option,
+because it is cheap to relax and expensive to have got wrong:
+
+- **(c) — we assume the answer is no.** The assistant now suggests **no practitioner
+  at all**: not a named attorney, not a firm, and not a category such as "you need a
+  labour lawyer". It previously did all three, generating "I'd recommend consulting
+  **a Property Lawyer**... I've found some matching lawyers on our platform below"
+  from what the user had described about their own problem. If you tell us category
+  suggestion is permissible, restoring it is a small change. If you tell us it is not,
+  we never did it.
+- **(d) — we assume it must stay strictly general.** The assistant answers about the
+  law and refuses to apply it to the user's facts. Requests for advice on the user's
+  own matter are declined *before* the question reaches any model; answers that stray
+  into advising are withheld after generation rather than edited.
+
+Enforced in code, server-side, and asserted by `npm run check:ai` (49 cases).
+
+**Still to confirm, in addition to (a), (b) and (e):**
+- (f) Our refusal line is: *the assistant may explain the law, but never advise on the
+  user's own case.* Is that the right line, and is it drawn in the right place? A
+  worked example either side of it would be more useful to us than a general
+  statement.
+- (g) When the assistant declines, it says the choice of attorney is the user's and
+  points at the alphabetical directory. Is pointing at the directory *at that moment*
+  — immediately after someone has described a legal problem — itself a channelling
+  act, even though the link is identical for every user and unaffected by anything
+  they said? If so the refusal must not mention the directory at all.
+- (h) **The refusals are English-only.** The platform ships Sinhala and Tamil locales,
+  and a question asked in either language bypasses the pre-generation check entirely;
+  the post-generation checks are English-only too. We would rather fix this with
+  translated rules reviewed by someone who knows the terminology than with more
+  pattern-matching by us. Is an assistant that enforces its limits in only one of
+  three offered languages defensible in the interim, or must the non-English locales
+  be closed until it is fixed?
+- (i) We keep a record of every refusal and its category. Is that record helpful
+  evidence of compliance, or does it create a discoverable log of the moments people
+  asked for advice and were turned away?
+
 ---
 
 ## Priority 2 — Needed before scaling
@@ -325,7 +365,7 @@ informational lawyer websites.
 | 2 | Advertising and touting | | | |
 | 3 | Engagement letter | | | |
 | 4 | Privilege | | | |
-| 5 | AI and unauthorised practice | | | |
+| 5 | AI and unauthorised practice (incl. 5(f)–(i), added Phase 5) | | | |
 | 6 | Payment role | | | |
 | 7 | Conflict checks | | | |
 | 8 | Firm structure | | | |

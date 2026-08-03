@@ -6,7 +6,7 @@ prebuilt `create_react_agent`. The agent:
 
   1. Receives the user's legal question
   2. Reasons about which tools to call and in what order
-  3. Calls tools (vector_search, graph_lookup, web_search, detect_practice_areas)
+  3. Calls tools (vector_search, graph_lookup, section_lookup, verify_answer)
   4. Iterates until it has enough context to produce a high-quality answer
   5. Synthesises a final answer with proper citations
 
@@ -25,8 +25,7 @@ Architecture:
   │       ▼                                             │
   │  [Tool Executor] ── vector_search                   │
   │                  ── graph_lookup                    │
-  │                  ── web_search_tool                 │
-  │                  ── detect_practice_areas_tool      │
+  │                  ── section_lookup_tool              │
   │       │                                             │
   │       ▼                                             │
   │  [LLM synthesises final answer]                     │
@@ -44,8 +43,6 @@ from app.core.agent_tools import AGENT_TOOLS, vector_search, graph_lookup
 from app.core.rag_chain import (
     format_sources,
     convert_chat_history,
-    detect_practice_areas,
-    PRACTICE_AREA_KEYWORDS,
 )
 from app.config import config
 
@@ -65,13 +62,14 @@ AVAILABLE LEGISLATION IN YOUR DATABASE:
 - Act No. 24 of 2025 — Amendment
 
 IMPORTANT: If the question is about a legal area NOT covered by these Acts
-(e.g. Family Law, Property Law, Labour Law, Tax Law, Criminal Law),
-be honest that your database does not include that legislation.
-Still try to help using web_search_tool and your general knowledge,
-but clearly note the limitation. Recommend a specialist lawyer.
+(e.g. Family Law, Property Law, Labour Law, Tax Law, Criminal Law), say plainly
+that you do not hold that legislation and stop. Do not answer it from general
+knowledge: an answer you cannot cite is withheld before the user sees it, and a
+confident guess about the law is the most harmful thing you can produce.
+Never suggest what kind of lawyer they need — that choice is not yours to shape.
 
 ABSOLUTE RULES (NEVER BREAK THESE):
-- NEVER mention your internal tools to the user. Do not say "vector_search", "verify_answer_tool", "detect_practice_areas_tool", etc. Use them silently.
+- NEVER mention your internal tools to the user. Do not say "vector_search", "verify_answer_tool", "section_lookup_tool", etc. Use them silently.
 - NEVER narrate your actions (e.g. "I will call the vector_search function...").
 - NEVER output raw JSON or tool call formats in your text response.
 - NEVER use placeholder text like "[insert section number]" or "[section X]". If you don't know the exact section, say "as prescribed by the relevant regulations" or omit the reference.
@@ -87,13 +85,7 @@ TOOLS (use in this order):
 
 3. **graph_lookup** — Call AFTER vector_search to discover related Acts or amendments.
 
-4. **web_search_tool** — Call ONLY if vector_search returned insufficient results or for recent developments. Also call this if the question is about a legal area NOT in your database.
-
-5. **detect_practice_areas_tool** — Call at the end of any legal question to classify the legal domain.
-
-6. **lawyer_recommend_tool** — Call AFTER detect_practice_areas_tool if the user asks for a lawyer or describes a personal legal situation. Use conversation context to determine the practice areas.
-
-7. **verify_answer_tool** — Call before your final answer if you are citing specific sections.
+5. **verify_answer_tool** — Call before your final answer if you are citing specific sections.
 
 ANSWER FORMAT:
 - Base answers on retrieved legal documents. Cite Act name and Section number.
@@ -106,19 +98,17 @@ ANSWER FORMAT:
 # ---------------------------------------------------------------------------
 # Source extraction helpers (run post-agent to rebuild structured metadata)
 # ---------------------------------------------------------------------------
-def _extract_sources_from_tool_calls(messages: list) -> tuple[list[dict], list[dict], list[dict], list[str]]:
+def _extract_sources_from_tool_calls(messages: list) -> tuple[list[dict], list[dict], list[str]]:
     """
     Walk through the agent's message trace and extract structured metadata
     from tool results for the API response.
 
     Returns:
-        (sources, web_sources, graph_entities, related_documents)
+        (sources, graph_entities, related_documents)
     """
     from app.core.vectorstore import search_documents
-    from app.core.web_search import web_search as _web_search
 
     sources: list[dict] = []
-    web_sources: list[dict] = []
     graph_entities: list[dict] = []
     related_documents: list[str] = []
 
@@ -154,22 +144,6 @@ def _extract_sources_from_tool_calls(messages: list) -> tuple[list[dict], list[d
                 except Exception as e:
                     logger.warning(f"Could not re-extract sources: {e}")
 
-            # Re-run web search to get structured web source metadata
-            elif tool_name == "web_search_tool" and not web_sources:
-                try:
-                    query = tool_args.get("query", "")
-                    results = _web_search(query, max_results=3)
-                    web_sources = [
-                        {
-                            "title": r.get("title", ""),
-                            "url": r.get("href", ""),
-                            "snippet": r.get("body", ""),
-                        }
-                        for r in results
-                    ]
-                except Exception as e:
-                    logger.warning(f"Could not re-extract web sources: {e}")
-
             # Extract graph context from graph_lookup
             elif tool_name == "graph_lookup":
                 try:
@@ -192,7 +166,7 @@ def _extract_sources_from_tool_calls(messages: list) -> tuple[list[dict], list[d
                 except Exception as e:
                     logger.warning(f"Could not extract graph entities: {e}")
 
-    return sources, web_sources, graph_entities[:10], related_documents[:5]
+    return sources, graph_entities[:10], related_documents[:5]
 
 
 # ---------------------------------------------------------------------------
@@ -213,8 +187,8 @@ def run_legal_agent(
         chat_history:  Previous conversation turns as list of {role, content} dicts.
 
     Returns:
-        Dict with keys: answer, sources, web_sources, chunks_retrieved,
-        detected_practice_areas, graph_entities, related_documents.
+        Dict with keys: answer, sources, chunks_retrieved, graph_entities,
+        related_documents.
     """
     from langgraph.prebuilt import create_react_agent
 
@@ -274,23 +248,8 @@ def run_legal_agent(
     if not final_answer:
         final_answer = "I was unable to process your query. Please try rephrasing your question."
 
-    # ── Collect detected practice areas from tool messages ──────────────────
-    detected_practice_areas: list[str] = []
-    for msg in all_messages:
-        if isinstance(msg, ToolMessage) and "detect_practice_areas" in getattr(msg, "name", ""):
-            try:
-                areas = json.loads(msg.content)
-                if isinstance(areas, list):
-                    detected_practice_areas = areas
-            except (json.JSONDecodeError, TypeError):
-                pass
-
-    # Fallback: extract from final answer if tool wasn't called or returned empty
-    if not detected_practice_areas:
-        detected_practice_areas = detect_practice_areas(question, final_answer)
-
     # ── Extract structured source metadata ──────────────────────────────────
-    sources, web_sources, graph_entities, related_documents = _extract_sources_from_tool_calls(
+    sources, graph_entities, related_documents = _extract_sources_from_tool_calls(
         all_messages
     )
 
@@ -307,15 +266,13 @@ def run_legal_agent(
     logger.info(
         f"[LegalAgent] Done — tools called: {tool_calls_made}, "
         f"answer: {len(final_answer)} chars, "
-        f"sources: {len(sources)}, practice_areas: {detected_practice_areas}"
+        f"sources: {len(sources)}"
     )
 
     return {
         "answer": final_answer,
         "sources": sources,
-        "web_sources": web_sources,
         "chunks_retrieved": chunks_retrieved,
-        "detected_practice_areas": detected_practice_areas,
         "graph_entities": graph_entities,
         "related_documents": related_documents,
         # Debug metadata (useful for monitoring, not sent to frontend)
