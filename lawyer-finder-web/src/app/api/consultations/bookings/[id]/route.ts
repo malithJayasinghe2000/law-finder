@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { CancelBookingSchema, CompleteBookingSchema, BookingRatingSchema } from '@/schemas/consultation.schema';
-import { formatSriLankaDateIso } from '@/lib/utils';
+import { formatSriLankaDateIso, formatSriLankaDateIsoOrNull } from '@/lib/utils';
 import { EmailService } from '@/lib/email/EmailService';
 import { canTransition } from '@/lib/consultations/bookingStatus';
 import { getMatterAccess, redactMatter } from '@/lib/firms/access';
@@ -71,12 +71,14 @@ export async function GET(
     }
 
     const isClient = access.basis === 'CLIENT';
-    const isLawyer = booking.lawyer.userId === session.userId;
+    const isLawyer = booking.lawyer?.userId === session.userId;
 
     return NextResponse.json({
       booking: {
         ...redactMatter(booking, access),
-        date: formatSriLankaDateIso(booking.date),
+        // Null until an appointment exists — a firm-first request has none until
+        // the firm assigns an attorney and proposes a time with its quote.
+        date: formatSriLankaDateIsoOrNull(booking.date),
         createdAt: booking.createdAt.toISOString(),
         updatedAt: booking.updatedAt.toISOString(),
         paidAt: booking.paidAt?.toISOString() || null,
@@ -129,7 +131,10 @@ export async function PATCH(
     // principal can reassign it (see [id]/assign) but does not quote or
     // conflict-check on a colleague's behalf — the attorney who will do the work
     // is the one who must screen for conflicts and set the fee.
-    const isLawyer = booking.lawyer.userId === session.userId;
+    //
+    // `booking.lawyer` is null while the matter sits unassigned in the firm's
+    // queue, so nobody is the acting attorney yet.
+    const isLawyer = !!booking.lawyer && booking.lawyer.userId === session.userId;
     const isAdmin = session.role === 'ADMIN';
 
     if (!isClient && !isLawyer && !isAdmin) {
@@ -157,6 +162,32 @@ export async function PATCH(
       return NextResponse.json({ error: 'Access denied' }, { status: 403 });
     }
 
+    // Display values for notifications. A matter can legitimately have no
+    // appointment yet (firm-first intake), so these must never assume one.
+    const attorneyName = booking.lawyer?.fullName ?? 'your attorney';
+    const attorneyEmail = booking.lawyer?.user?.email ?? null;
+    const scheduleDate = booking.date ? formatSriLankaDateIso(booking.date) : 'To be arranged';
+    const scheduleStart = booking.startTime ?? '—';
+
+    /**
+     * Actions that only make sense once an appointment exists.
+     *
+     * Everything after ACCEPTED works on a real date and time. Rather than
+     * scattering null checks through the switch, refuse early and clearly.
+     */
+    const requiresAppointment = () => {
+      if (!booking.date || !booking.startTime || !booking.endTime) {
+        return NextResponse.json(
+          {
+            error:
+              'This matter does not have an appointment yet. The firm proposes a date and time with its fee quote.',
+          },
+          { status: 400 }
+        );
+      }
+      return null;
+    };
+
     /** Reject any transition the state machine does not permit. */
     const guard = (to: Parameters<typeof canTransition>[1]) => {
       if (!canTransition(booking.status, to)) {
@@ -175,6 +206,9 @@ export async function PATCH(
        * See docs/restructure/LEGAL-GUARDRAILS.md (rule 2).
        */
       case 'confirm_payment_received': {
+        // A matter with no appointment cannot reach this action.
+        const noAppointment = requiresAppointment();
+        if (noAppointment) return noAppointment;
         if (!isLawyer && !isAdmin) {
           return NextResponse.json({ error: 'Only the firm can confirm payment' }, { status: 403 });
         }
@@ -211,7 +245,7 @@ export async function PATCH(
 
         const meetingLink =
           booking.meetingLink ||
-          (booking.mode !== 'PHYSICAL' ? booking.lawyer.onlineMeetingLink : null);
+          (booking.mode !== 'PHYSICAL' ? booking.lawyer?.onlineMeetingLink ?? null : null);
 
         const updated = await prisma.booking.update({
           where: { id },
@@ -221,16 +255,16 @@ export async function PATCH(
         await EmailService.sendBookingConfirmationClient(
           booking.client.email,
           booking.client.fullName || 'Client',
-          booking.lawyer.fullName,
-          formatSriLankaDateIso(booking.date),
-          booking.startTime,
+          attorneyName,
+          scheduleDate,
+          scheduleStart,
           meetingLink || undefined,
           booking.mode === 'PHYSICAL' ? booking.officeAddress || undefined : undefined
         );
 
         return NextResponse.json({
           success: true,
-          booking: { ...updated, date: formatSriLankaDateIso(updated.date) },
+          booking: { ...updated, date: formatSriLankaDateIsoOrNull(updated.date) },
         });
       }
 
@@ -292,7 +326,7 @@ export async function PATCH(
 
         if (booking.paidAt) {
           const bookingDateTime = new Date(
-            `${formatSriLankaDateIso(booking.date)}T${booking.startTime}:00+05:30`
+            `${scheduleDate}T${booking.startTime}:00+05:30`
           );
           const hoursUntil = (bookingDateTime.getTime() - Date.now()) / (1000 * 60 * 60);
 
@@ -328,10 +362,10 @@ export async function PATCH(
           refundAmount
         );
 
-        if (!isLawyer && booking.lawyer.user?.email) {
+        if (!isLawyer && attorneyEmail) {
           await EmailService.sendBookingCancelledLawyer(
-            booking.lawyer.user.email,
-            booking.lawyer.fullName,
+            attorneyEmail,
+            attorneyName,
             booking.bookingNumber,
             booking.client.fullName || 'Client'
           );
@@ -339,12 +373,15 @@ export async function PATCH(
 
         return NextResponse.json({
           success: true,
-          booking: { ...updated, date: formatSriLankaDateIso(updated.date) },
+          booking: { ...updated, date: formatSriLankaDateIsoOrNull(updated.date) },
           refundAmount,
         });
       }
 
       case 'complete': {
+        // A matter with no appointment cannot reach this action.
+        const noAppointment = requiresAppointment();
+        if (noAppointment) return noAppointment;
         if (!isLawyer && !isAdmin) {
           return NextResponse.json({ error: 'Only the firm can mark a consultation complete' }, { status: 403 });
         }
@@ -356,13 +393,13 @@ export async function PATCH(
         // a firm could mark a future booking complete, which would misstate the
         // record and let the client be asked to rate a meeting that never occurred.
         const endsAt = new Date(
-          `${formatSriLankaDateIso(booking.date)}T${booking.endTime}:00+05:30`
+          `${scheduleDate}T${booking.endTime}:00+05:30`
         );
 
         if (endsAt.getTime() > Date.now()) {
           return NextResponse.json(
             {
-              error: `This consultation is scheduled for ${formatSriLankaDateIso(booking.date)} at ${booking.startTime}. It can be marked complete once it has taken place.`,
+              error: `This consultation is scheduled for ${scheduleDate} at ${booking.startTime}. It can be marked complete once it has taken place.`,
             },
             { status: 400 }
           );
@@ -381,16 +418,19 @@ export async function PATCH(
         await EmailService.sendConsultationCompleted(
           booking.client.email,
           booking.client.fullName || 'Client',
-          booking.lawyer.fullName
+          attorneyName
         );
 
         return NextResponse.json({
           success: true,
-          booking: { ...updated, date: formatSriLankaDateIso(updated.date) },
+          booking: { ...updated, date: formatSriLankaDateIsoOrNull(updated.date) },
         });
       }
 
       case 'no_show': {
+        // A matter with no appointment cannot reach this action.
+        const noAppointment = requiresAppointment();
+        if (noAppointment) return noAppointment;
         if (!isLawyer && !isAdmin) {
           return NextResponse.json({ error: 'Only the firm can record a no-show' }, { status: 403 });
         }
@@ -401,7 +441,7 @@ export async function PATCH(
         // Same reasoning as 'complete' — a client cannot have missed a
         // consultation that has not started yet.
         const startsAt = new Date(
-          `${formatSriLankaDateIso(booking.date)}T${booking.startTime}:00+05:30`
+          `${scheduleDate}T${booking.startTime}:00+05:30`
         );
 
         if (startsAt.getTime() > Date.now()) {
@@ -418,7 +458,7 @@ export async function PATCH(
 
         return NextResponse.json({
           success: true,
-          booking: { ...updated, date: formatSriLankaDateIso(updated.date) },
+          booking: { ...updated, date: formatSriLankaDateIsoOrNull(updated.date) },
         });
       }
 
@@ -446,11 +486,14 @@ export async function PATCH(
 
         return NextResponse.json({
           success: true,
-          booking: { ...updated, date: formatSriLankaDateIso(updated.date) },
+          booking: { ...updated, date: formatSriLankaDateIsoOrNull(updated.date) },
         });
       }
 
       case 'reschedule': {
+        // A matter with no appointment cannot reach this action.
+        const noAppointment = requiresAppointment();
+        if (noAppointment) return noAppointment;
         if (!isLawyer && !isAdmin) {
           return NextResponse.json({ error: 'Only the firm can propose a new time' }, { status: 403 });
         }
@@ -477,7 +520,7 @@ export async function PATCH(
           booking.client.email,
           booking.client.fullName || 'Client',
           booking.bookingNumber,
-          booking.lawyer.fullName,
+          attorneyName,
           newDate,
           newTime,
           remarks || ''
@@ -485,11 +528,14 @@ export async function PATCH(
 
         return NextResponse.json({
           success: true,
-          booking: { ...updated, date: formatSriLankaDateIso(updated.date) },
+          booking: { ...updated, date: formatSriLankaDateIsoOrNull(updated.date) },
         });
       }
 
       case 'accept_reschedule': {
+        // A matter with no appointment cannot reach this action.
+        const noAppointment = requiresAppointment();
+        if (noAppointment) return noAppointment;
         if (!isClient) {
           return NextResponse.json({ error: 'Only the client can accept a new time' }, { status: 403 });
         }
@@ -503,7 +549,7 @@ export async function PATCH(
 
         const newStartTime = booking.rescheduleProposedTime;
         const [sh, sm] = newStartTime.split(':').map(Number);
-        const totalMinutes = sh * 60 + sm + booking.duration;
+        const totalMinutes = sh * 60 + sm + (booking.duration ?? 60);
         const eh = Math.floor(totalMinutes / 60) % 24;
         const em = totalMinutes % 60;
         const newEndTime = `${String(eh).padStart(2, '0')}:${String(em).padStart(2, '0')}`;
@@ -524,14 +570,14 @@ export async function PATCH(
           booking.client.email,
           booking.client.fullName || 'Client',
           booking.bookingNumber,
-          booking.lawyer.fullName,
-          formatSriLankaDateIso(updated.date),
+          attorneyName,
+          formatSriLankaDateIsoOrNull(updated.date) ?? 'To be arranged',
           `${newStartTime} - ${newEndTime}`
         );
 
         return NextResponse.json({
           success: true,
-          booking: { ...updated, date: formatSriLankaDateIso(updated.date) },
+          booking: { ...updated, date: formatSriLankaDateIsoOrNull(updated.date) },
         });
       }
 
@@ -570,7 +616,7 @@ export async function PATCH(
 
         return NextResponse.json({
           success: true,
-          booking: { ...updated, date: formatSriLankaDateIso(updated.date) },
+          booking: { ...updated, date: formatSriLankaDateIsoOrNull(updated.date) },
         });
       }
 

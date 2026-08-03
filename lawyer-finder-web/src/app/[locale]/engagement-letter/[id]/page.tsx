@@ -32,7 +32,10 @@ export default async function EngagementLetterPrintPage(props: {
   if (!booking) notFound();
 
   const isClient = booking.clientId === session.userId;
-  const isLawyer = booking.lawyer.userId === session.userId;
+  // `lawyer` is null while a matter sits unassigned in the firm's queue — though
+  // no engagement letter can exist at that point, since a letter requires an
+  // accepted quote and a quote requires an assigned attorney.
+  const isLawyer = !!booking.lawyer && booking.lawyer.userId === session.userId;
 
   if (!isClient && !isLawyer) notFound();
 

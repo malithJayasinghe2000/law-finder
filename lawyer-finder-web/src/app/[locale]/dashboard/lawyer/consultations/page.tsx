@@ -22,10 +22,16 @@ import PaymentReviewDialog from '@/components/consultations/PaymentReviewDialog'
 interface Booking {
   id: string;
   bookingNumber: string;
-  date: string;
-  startTime: string;
-  endTime: string;
-  duration: number;
+  /**
+   * Null until an appointment exists. A matter that arrived through firm-first
+   * intake has no slot: the client engaged the firm, and the attorney proposes a
+   * time when quoting.
+   */
+  date: string | null;
+  startTime: string | null;
+  endTime: string | null;
+  duration: number | null;
+  lawyerId: string | null;
   mode: string;
   meetingLink: string | null;
   officeAddress: string | null;
@@ -200,6 +206,7 @@ export default function LawyerBookingsPage() {
    * occurred. Mirrors the server-side guard.
    */
   function hasTakenPlace(b: Booking): boolean {
+    if (!b.date || !b.endTime) return false;
     return new Date(`${b.date}T${b.endTime}:00+05:30`).getTime() <= Date.now();
   }
 
@@ -209,6 +216,7 @@ export default function LawyerBookingsPage() {
    * previously had no button at all — the state was unreachable from the UI.
    */
   function hasStarted(b: Booking): boolean {
+    if (!b.date || !b.startTime) return false;
     return new Date(`${b.date}T${b.startTime}:00+05:30`).getTime() <= Date.now();
   }
 
@@ -288,8 +296,11 @@ export default function LawyerBookingsPage() {
     );
   };
 
+  // Matters with no appointment yet never appear on the calendar — there is no
+  // day to put them on. They live in the list, in the firm's queue.
   const bookingsByDate = calendarBookings.reduce((acc: Record<string, Booking[]>, booking) => {
     const dateStr = booking.date;
+    if (!dateStr) return acc;
     if (!acc[dateStr]) {
       acc[dateStr] = [];
     }
@@ -389,11 +400,20 @@ export default function LawyerBookingsPage() {
                           </span>
                           <span className="flex items-center gap-1">
                             <CalendarDays className="w-3 h-3" />
-                            {formatDateOnlyString(booking.date, 'en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                            {booking.date
+                              ? formatDateOnlyString(booking.date, 'en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+                              : 'No appointment yet'}
+                            {!booking.lawyerId && (
+                              <span className="ml-2 border border-amber-300 bg-amber-50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-widest text-amber-800">
+                                Unassigned
+                              </span>
+                            )}
                           </span>
                           <span className="flex items-center gap-1">
                             <Clock className="w-3 h-3" />
-                            {booking.startTime} – {booking.endTime}
+                            {booking.startTime && booking.endTime
+                              ? `${booking.startTime} – ${booking.endTime}`
+                              : 'Time proposed with the quote'}
                           </span>
                         </div>
                       </div>
@@ -625,14 +645,14 @@ export default function LawyerBookingsPage() {
               <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
                 {bookingsByDate[getFormattedDateString(selectedDate)]?.length > 0 ? (
                   bookingsByDate[getFormattedDateString(selectedDate)]
-                    .sort((a, b) => a.startTime.localeCompare(b.startTime))
+                    .sort((a, b) => (a.startTime || '').localeCompare(b.startTime || ''))
                     .map((booking) => (
                       <div key={booking.id} className="p-3 border border-neutral-100 hover:bg-neutral-50 transition-all flex items-start justify-between gap-2">
                         <div className="min-w-0">
                           <p className="text-xs font-bold text-neutral-900 truncate">{booking.subject}</p>
                           <p className="text-[10px] text-neutral-500 mt-1 flex items-center gap-1">
                             <Clock className="w-3 h-3 text-[#bfa37a]" />
-                            {booking.startTime} - {booking.endTime}
+                            {booking.startTime && booking.endTime ? `${booking.startTime} - ${booking.endTime}` : 'Time TBC'}
                           </p>
                           <p className="text-[10px] text-neutral-400 mt-0.5 truncate">
                             Client: {booking.client?.fullName || booking.client?.email}
@@ -668,8 +688,8 @@ export default function LawyerBookingsPage() {
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div><p className="text-neutral-500 text-xs">Client</p><p className="font-semibold">{selectedBooking.client?.fullName || selectedBooking.client?.email}</p></div>
                 <div><p className="text-neutral-500 text-xs">Status</p><Badge className={`text-[10px] ${BOOKING_STATUS_COLORS[selectedBooking.status]}`}>{BOOKING_STATUS_LABELS[selectedBooking.status]}</Badge></div>
-                <div><p className="text-neutral-500 text-xs">Date</p><p className="font-semibold">{formatDateOnlyString(selectedBooking.date, 'en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</p></div>
-                <div><p className="text-neutral-500 text-xs">Time</p><p className="font-semibold">{selectedBooking.startTime} – {selectedBooking.endTime} ({selectedBooking.duration} min)</p></div>
+                <div><p className="text-neutral-500 text-xs">Date</p><p className="font-semibold">{selectedBooking.date ? formatDateOnlyString(selectedBooking.date, 'en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }) : 'Not yet arranged'}</p></div>
+                <div><p className="text-neutral-500 text-xs">Time</p><p className="font-semibold">{selectedBooking.startTime && selectedBooking.endTime ? `${selectedBooking.startTime} – ${selectedBooking.endTime}${selectedBooking.duration ? ` (${selectedBooking.duration} min)` : ''}` : 'Not yet arranged'}</p></div>
                 <div><p className="text-neutral-500 text-xs">Mode</p><p className="font-semibold">{selectedBooking.mode}</p></div>
                 {selectedBooking.status !== 'REQUESTED' && selectedBooking.status !== 'DECLINED' && (
                   <div><p className="text-neutral-500 text-xs">Your Fee</p><p className="font-semibold">Rs. {selectedBooking.lawyerFee.toLocaleString()}</p></div>
@@ -712,7 +732,7 @@ export default function LawyerBookingsPage() {
               <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-700">
                 <p className="font-semibold">Booking</p>
                 <p>{cancelBookingTarget.bookingNumber} • {cancelBookingTarget.subject}</p>
-                <p>{formatDateOnlyString(cancelBookingTarget.date, 'en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })} • {cancelBookingTarget.startTime} – {cancelBookingTarget.endTime}</p>
+                <p>{cancelBookingTarget.date ? `${formatDateOnlyString(cancelBookingTarget.date, 'en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })} • ${cancelBookingTarget.startTime} – ${cancelBookingTarget.endTime}` : 'No appointment arranged yet'}</p>
                 <p className="text-xs text-neutral-500 mt-1">Client: {cancelBookingTarget.client?.fullName || cancelBookingTarget.client?.email}</p>
               </div>
 
@@ -789,6 +809,7 @@ export default function LawyerBookingsPage() {
           bookingNumber={quoteTarget.bookingNumber}
           clientName={quoteTarget.client?.fullName || 'Client'}
           defaultPaymentInstructions={defaultPaymentInstructions}
+          needsAppointment={!quoteTarget.date || !quoteTarget.startTime || !quoteTarget.endTime}
           open={Boolean(quoteTarget)}
           onOpenChange={(o) => { if (!o) setQuoteTarget(null); }}
           onCompleted={() => { loadBookings(); loadCalendarBookings(); }}

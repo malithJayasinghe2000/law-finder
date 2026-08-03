@@ -121,6 +121,16 @@ export async function POST(
     // Not the principal, and not a practice manager: screening for conflicts is
     // a professional duty of the attorney taking the matter, and a record signed
     // by someone else is worth nothing if it is ever tested.
+    if (!booking.lawyer) {
+      return NextResponse.json(
+        {
+          error:
+            'This matter has not been assigned to an attorney yet. A principal must assign it before the conflict check can be run.',
+        },
+        { status: 400 }
+      );
+    }
+
     if (booking.lawyer.userId !== session.userId) {
       return NextResponse.json(
         { error: 'Only the attorney handling this request can record a conflict check.' },

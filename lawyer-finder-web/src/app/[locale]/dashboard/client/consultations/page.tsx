@@ -19,10 +19,14 @@ import EngagementLetterDialog from '@/components/consultations/EngagementLetterD
 interface Booking {
   id: string;
   bookingNumber: string;
-  date: string;
-  startTime: string;
-  endTime: string;
-  duration: number;
+  /**
+   * Null until an appointment exists. When you engage a FIRM rather than a named
+   * attorney, there is no time yet — the firm proposes one with its fee quote.
+   */
+  date: string | null;
+  startTime: string | null;
+  endTime: string | null;
+  duration: number | null;
   mode: string;
   meetingLink: string | null;
   officeAddress: string | null;
@@ -307,8 +311,14 @@ export default function ClientConsultationsPage() {
                     <h3 className="text-sm font-bold text-neutral-900">{b.subject}</h3>
                     <div className="flex items-center gap-4 mt-2 text-xs text-neutral-500">
                       <span>Lawyer: <strong className="text-neutral-700">{b.lawyer?.fullName}</strong></span>
-                      <span className="flex items-center gap-1"><CalendarDays className="w-3 h-3" />{formatDateOnlyString(b.date, 'en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
-                      <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{b.startTime} – {b.endTime}</span>
+                      {b.date ? (
+                        <>
+                          <span className="flex items-center gap-1"><CalendarDays className="w-3 h-3" />{formatDateOnlyString(b.date, 'en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
+                          <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{b.startTime} – {b.endTime}</span>
+                        </>
+                      ) : (
+                        <span className="flex items-center gap-1"><Clock className="w-3 h-3" />Appointment proposed with the firm&apos;s quote</span>
+                      )}
                     </div>
                     {/* Meeting link for confirmed online bookings */}
                     {b.status === 'SCHEDULED' && b.mode !== 'PHYSICAL' && b.meetingLink && (

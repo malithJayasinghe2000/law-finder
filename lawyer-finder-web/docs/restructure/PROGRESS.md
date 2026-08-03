@@ -12,7 +12,8 @@
 | 1a | Engagement state machine, conflict check, quotes | 🟢 **Done** |
 | 1b | Engagement letter + triage/quote UI | 🟢 **Done** |
 | 2 | Law firm entity | 🟢 **Done** |
-| 3 | Billing restructure (SaaS licence) | ⚪ Not started |
+| 2.5 | Firm-first intake + stop pricing on client volume | 🟢 **Done** |
+| 3 | Billing restructure (SaaS licence) | 🟡 Partly done — the unlawful part is out; seats/fee notes remain |
 | 4 | Advertising split | ⚪ Not started |
 | 5 | AI compliance | ⚪ Not started |
 | 6 | PDPA compliance | ⚪ Not started |
@@ -22,10 +23,14 @@ Legend: ⚪ not started · 🟡 in progress · 🟢 done · 🔴 blocked
 
 ## Next up
 
-**Phase 3** — billing restructure. Move subscription pricing onto seats and
-features so revenue cannot correlate with how much legal work flows through the
-platform, and drop `ConsultationPricing.physicalPrice` / `onlinePrice` now that
-nothing reads them.
+**Phase 3, remainder** — move `Subscription` from `LawyerProfile` to `LawFirm` so a
+firm buys seats rather than each attorney buying a licence; build the fee-note
+module (the firm issues its own invoice under its own TIN/VAT, we generate the
+document and never the transaction); drop `ConsultationPricing.physicalPrice` /
+`onlinePrice`, which are always 0 and read by nothing.
+
+Then **Phase 4** — retire `PaidPromo` and lawyer-owned `AdCampaign`, and introduce
+a non-lawyer `Advertiser` entity.
 
 **But first, and more urgent than Phase 3:** put counsel questions **16, 17 and
 18** in front of a Sri Lankan Attorney-at-Law experienced in professional conduct.
@@ -48,6 +53,9 @@ Phases 0, 1 and 2 are complete. `npm run build`, `npx tsc --noEmit` and
 | 2026-08-01 | `Booking` keeps `lawyerId` (who acts) and gains `firmId` (who was engaged), rather than making `lawyerId` nullable | Preserves the record of the client's own choice of attorney — the evidence for rule 4 — and avoids a nullable-`lawyerId` migration across ~20 files. The invariant that `lawyerId` belongs to `firmId` is enforced in one function |
 | 2026-08-01 | Privilege scope defaults to *assigned attorney + firm principal/practice manager*; other attorneys and paralegals see that a matter exists but not what it says | Counsel question 8(b) is unanswered. Conservative default is cheap to loosen later and expensive to have got wrong. Asserted by `npm run check:privilege` |
 | 2026-08-01 | Engagement letters now name the **firm** as the party and the attorney as acting; solo practices render identically to before | Rule 7. Existing letters are snapshotted so they are untouched |
+| 2026-08-02 | `Booking.lawyerId` and the whole schedule become **nullable**; `firmId` becomes **required** | Firm-first intake needs a matter that exists before anyone is assigned and before any appointment. Faking it (defaulting `lawyerId` to the principal) would have misrepresented the client's choice, which is the one thing rule 4 turns on |
+| 2026-08-02 | New immutable `Booking.clientSelectedAttorneyId` | Records whether the *client* picked the practitioner, and survives reassignment. Also closes a hole from Phase 2, where reassigning a matter silently erased who the client had originally chosen |
+| 2026-08-02 | A firm-first request carries **no appointment**; the attorney proposes one with the quote | Holding a diary slot before the firm has run a conflict check is a marketplace-booking habit. Nothing is scheduled until the firm has decided it can act and the client has accepted terms |
 | 2026-08-01 | Adopted a **Rule 40 content limit** as the spec for every attorney/firm-describing surface | Rule 40 lists what an attorney may display; treating it as exhaustive is the conservative reading and costs nothing |
 | 2026-07-31 | Phase 0 disables *paths*, not schema. `Review`, `WithdrawRequest`, `ConsultationPricing` stay in the schema until Phase 3 | Do not break working flows to make a legal fix |
 
@@ -501,3 +509,107 @@ background.
 - The engagement letter wording is still an unreviewed good-faith draft (question 3)
 - `ConsultationPricing.physicalPrice` / `onlinePrice` still exist, always 0 — Phase 3
 - The ad system still has attorneys as the only advertisers — Phase 4
+
+### 2026-08-02 — Phase 2.5 (firm-first intake + repricing)
+
+Two changes that belong together: the first removes the reason the old pricing
+existed, the second replaces the flow it was priced around.
+
+**1. The pricing page was the biggest remaining violation.**
+
+Subscription tiers metered — and the public pricing page advertised —
+`inquiries_per_month` (10 → 50 → 200 → unlimited),
+`chat_messages_per_month` (50 → 500 → 2,000 → unlimited) and
+`promo_campaigns_per_month` (0 → 2 → 10 → unlimited).
+
+Read plainly: **an attorney paid us more money to receive more clients.** That is
+pay-per-lead in a subscription tier, which guardrail rule 1 names exactly — *"the
+moment pricing correlates with how much legal work flows through the platform, it
+is fee-sharing again under a different name"* — and rule 3 forbids selling leads
+at all. Charging per client *message* is the same defect: charging for the
+connection. Worse than the sponsored listings removed in Phase 2, because this was
+the stated business model on a public page.
+
+All three deleted from `Feature`, `FeatureLimitConfig`, `FeatureUsage`, the seed
+and the pricing page. Tiers now differ on `firm_seats`, `storage_gb`,
+`articles_per_month`, `document_templates` and `ai_research_queries_per_month` —
+how many people use the software and what it can do, never how many clients reach
+the firm through it.
+
+**Found while doing it:** `prisma/seed.ts` still wrote `baseFeeRange`, a column
+deleted in Phase 2 — so `npm run db:reset` had been **broken since that session**
+and nobody noticed because the seed was never run. Fixed, and the seed now
+provisions a firm of one for every attorney it creates, mirroring what approval
+does.
+
+**2. Firm-first intake.**
+
+Phase 2 created firms but the client journey still made a client pick an
+individual attorney and a slot in that attorney's diary. Two problems: it made the
+individual look like the provider of legal services, and it held a diary slot
+before the firm had decided whether it could even act.
+
+There are now two lawful ways in, and both are the **client** choosing:
+
+```
+ATTORNEY-FIRST (unchanged)          FIRM-FIRST (new)
+client picks an attorney            client engages a firm
+  + a slot from their diary           no attorney, no appointment
+        │                                   │
+        ▼                                   ▼
+  conflict check                      firm assigns an attorney
+        │                                   │
+        ▼                                   ▼
+  quote (fee only)                    conflict check
+        │                                   │
+        ▼                                   ▼
+  client accepts                      quote (fee + proposed appointment)
+                                            │
+                                            ▼
+                                      client accepts
+```
+
+*Schema* (`20260802212804_firm_first_intake`) — `Booking.lawyerId`, `date`,
+`startTime`, `endTime`, `duration` all nullable; `firmId` now **required**; new
+immutable `clientSelectedAttorneyId`; `Quote` gains `proposedDate` /
+`proposedStartTime` / `proposedEndTime`.
+
+*New surfaces* — `/firms` (alphabetical, unpurchaseable, Rule 40 bound),
+`/firms/[slug]/engage` (deliberately **not** a booking form: no calendar, no fee,
+and a four-step explanation of what submitting does and does not do), a "Law Firms"
+entry in the site header ahead of the attorney directory.
+
+*Behaviour* — a firm-first matter blocks no calendar until an appointment exists;
+the quote composer collects a proposed time when the matter has none and holds
+that slot while the quote is outstanding; the conflict check and quote both refuse
+on an unassigned matter and say who must assign it; assignment skips the clash
+check when there is nothing to clash with; unassigned matters carry an
+**Unassigned** marker in the firm's list and never appear on the calendar.
+
+**Verification**
+- `npm run build` and `npx tsc --noEmit` clean; `npm run check:privilege` 10/10;
+  migrations in sync
+- Making `lawyerId` nullable surfaced **70 type errors** across 11 files — every
+  place that had silently assumed a matter always has an attorney and a date. All
+  fixed rather than suppressed; that error list *was* the sweep, and is the reason
+  nullable was the right call over faking an assignment
+- Migration tested against a database seeded **before** it, including a booking
+  deliberately created with no firm: the guard repaired it from the attorney's firm
+  instead of failing on `SET NOT NULL`. Historic matters had
+  `clientSelectedAttorneyId` backfilled from `lawyerId`, since attorney-first was
+  the only path that existed
+- `npm run db:reset` exercised end to end on a clean database: seed succeeds, 5
+  attorneys → 5 firms → 5 principals, tiers carry no client-volume metering
+- Both intake paths driven end to end against a real database (14 assertions):
+  firm-first creates unassigned with no appointment, survives assignment, gets its
+  appointment from the quote, reaches QUOTED; attorney-first unchanged;
+  reassignment does not erase the client's original choice; the database itself
+  forbids a matter without a firm and permits one without an attorney
+- Guardrail sweep clean on all seven rules
+
+**Still open**
+- Counsel questions 16–18 — **blocks everything**
+- Subscriptions are still per-attorney, not per-firm seats (Phase 3)
+- Fee-note module not built (Phase 3)
+- `PaidPromo` and lawyer-owned `AdCampaign` still exist (Phase 4)
+- `ConsultationPricing.physicalPrice` / `onlinePrice` still present, always 0

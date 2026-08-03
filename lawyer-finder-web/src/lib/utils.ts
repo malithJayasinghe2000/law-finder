@@ -5,6 +5,17 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
+/**
+ * Same, for a date that may not exist yet.
+ *
+ * Since firm-first intake, a matter can be created with no appointment at all —
+ * the firm proposes a time when it quotes. Call sites that render a schedule
+ * must cope with that rather than crashing on a null.
+ */
+export function formatSriLankaDateIsoOrNull(date: Date | null | undefined): string | null {
+  return date ? formatSriLankaDateIso(date) : null;
+}
+
 export function formatSriLankaDateIso(date: Date) {
   return new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Asia/Colombo',

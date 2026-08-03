@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client'
+import { ensureAttorneyHasFirm } from '../src/lib/firms/provisioning'
 import { Pool } from 'pg'
 import { PrismaPg } from '@prisma/adapter-pg'
 import * as bcrypt from 'bcryptjs'
@@ -49,7 +50,6 @@ async function main() {
           practiceAreas: ['Family Law', 'Property Law', 'Civil Law'],
           languages: ['Sinhala', 'Tamil', 'English'],
           district: 'Colombo',
-          baseFeeRange: 'LKR 5,000 - 15,000',
         },
       },
     },
@@ -87,7 +87,6 @@ async function main() {
           practiceAreas: ['Corporate Law', 'Commercial Law'],
           languages: ['English', 'Sinhala'],
           district: 'Kandy',
-          baseFeeRange: 'LKR 10,000 - 25,000',
         },
       },
     },
@@ -114,7 +113,6 @@ async function main() {
           practiceAreas: ['Criminal Law'],
           languages: ['Sinhala', 'English'],
           district: 'Colombo',
-          baseFeeRange: 'LKR 15,000 - 30,000',
         },
       },
     },
@@ -141,7 +139,6 @@ async function main() {
           practiceAreas: ['Employment Law', 'Civil Litigation'],
           languages: ['Sinhala', 'English', 'Tamil'],
           district: 'Galle',
-          baseFeeRange: 'LKR 8,000 - 20,000',
         },
       },
     },
@@ -168,11 +165,28 @@ async function main() {
           practiceAreas: ['Real Estate', 'Property Law'],
           languages: ['Tamil', 'English'],
           district: 'Colombo',
-          baseFeeRange: 'LKR 5,000 - 15,000',
         },
       },
     },
   })
+
+  // 3.9 Give every seeded attorney a firm of one.
+  //
+  // Since Phase 2 the FIRM is the provider of legal services, so an attorney
+  // must never exist on the system without one. This mirrors what
+  // api/applications/[id]/approve does on real approval, and what the
+  // 20260801210442_law_firm_entity migration did for existing data.
+  // See docs/restructure/LEGAL-GUARDRAILS.md (rule 7).
+  console.log('Provisioning firms for seeded attorneys...')
+
+  const seededProfiles = await prisma.lawyerProfile.findMany({
+    where: { firmId: null },
+    select: { id: true },
+  })
+
+  for (const { id } of seededProfiles) {
+    await ensureAttorneyHasFirm(prisma, id)
+  }
 
   // 4. Seed Subscription Roles
   console.log('Creating subscription tiers...')
@@ -422,12 +436,26 @@ async function main() {
   // 7. Seed Features for usage tracking
   console.log('Creating features...')
   
+  // WHAT MAY BE METERED, AND WHAT MAY NOT
+  //
+  // Price on seats and software capability. Never on how much legal work flows
+  // through the platform.
+  //
+  // Removed in Phase 2.5, and not to be reintroduced under any name:
+  //   inquiries_per_month       — selling a lawyer more clients is pay-per-lead
+  //   chat_messages_per_month   — charging for the connection to a client
+  //   promo_campaigns_per_month — selling an attorney visibility
+  //
+  // Those three made revenue rise with the amount of legal work a firm did,
+  // which is fee-sharing wearing a subscription tier as a disguise, and they
+  // were advertised on the public pricing page.
+  // See docs/restructure/LEGAL-GUARDRAILS.md (rules 1 and 3).
   const featuresData = [
-    { name: 'articles_per_month', slug: 'articles-per-month', unit: 'count', description: 'Number of articles per month' },
-    { name: 'inquiries_per_month', slug: 'inquiries-per-month', unit: 'count', description: 'Number of inquiries per month' },
-    { name: 'chat_messages_per_month', slug: 'chat-messages-per-month', unit: 'count', description: 'Number of chat messages per month' },
-    { name: 'promo_campaigns_per_month', slug: 'promo-campaigns-per-month', unit: 'count', description: 'Number of promo campaigns per month' },
-    { name: 'storage_gb', slug: 'storage-gb', unit: 'GB', description: 'Storage in GB' },
+    { name: 'firm_seats', slug: 'firm-seats', unit: 'count', description: 'People at the firm who can sign in' },
+    { name: 'storage_gb', slug: 'storage-gb', unit: 'GB', description: 'Document storage' },
+    { name: 'articles_per_month', slug: 'articles-per-month', unit: 'count', description: 'Articles the firm may publish per month' },
+    { name: 'document_templates', slug: 'document-templates', unit: 'count', description: 'Document automation templates' },
+    { name: 'ai_research_queries_per_month', slug: 'ai-research-queries-per-month', unit: 'count', description: 'AI legal research queries (software capability, not client volume)' },
   ]
 
   const features = await Promise.all(
@@ -443,18 +471,20 @@ async function main() {
   // 8. Seed Feature Limits for each role
   console.log('Setting feature limits...')
   
+  // Tiers differ on how many people use the software and what it can do —
+  // never on how many clients reach the firm through it.
   const featureLimits = [
-    // BASIC limits
-    { role: basicRole, limits: { articles_per_month: 2, inquiries_per_month: 10, chat_messages_per_month: 50, promo_campaigns_per_month: 0, storage_gb: 1 } },
-    
-    // PROFESSIONAL limits
-    { role: professionalRole, limits: { articles_per_month: 10, inquiries_per_month: 50, chat_messages_per_month: 500, promo_campaigns_per_month: 2, storage_gb: 5 } },
-    
-    // PREMIUM limits
-    { role: premiumRole, limits: { articles_per_month: 50, inquiries_per_month: 200, chat_messages_per_month: 2000, promo_campaigns_per_month: 10, storage_gb: 20 } },
-    
-    // ENTERPRISE limits (-1 = unlimited)
-    { role: enterpriseRole, limits: { articles_per_month: -1, inquiries_per_month: -1, chat_messages_per_month: -1, promo_campaigns_per_month: -1, storage_gb: -1 } },
+    // BASIC — a sole practitioner
+    { role: basicRole, limits: { firm_seats: 1, storage_gb: 5, articles_per_month: 2, document_templates: 5, ai_research_queries_per_month: 50 } },
+
+    // PROFESSIONAL — a small practice
+    { role: professionalRole, limits: { firm_seats: 5, storage_gb: 50, articles_per_month: 10, document_templates: 25, ai_research_queries_per_month: 300 } },
+
+    // PREMIUM — an established firm
+    { role: premiumRole, limits: { firm_seats: 20, storage_gb: 250, articles_per_month: 50, document_templates: 100, ai_research_queries_per_month: 1500 } },
+
+    // ENTERPRISE (-1 = unlimited)
+    { role: enterpriseRole, limits: { firm_seats: -1, storage_gb: -1, articles_per_month: -1, document_templates: -1, ai_research_queries_per_month: -1 } },
   ]
 
   for (const { role, limits } of featureLimits) {

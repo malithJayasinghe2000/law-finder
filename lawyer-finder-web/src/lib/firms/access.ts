@@ -85,8 +85,15 @@ export async function getFirmMembership(
 
 /** The shape of a matter this module needs in order to decide anything. */
 export type MatterOwnership = {
-  /** LawyerProfile id of the attorney currently responsible */
-  lawyerId: string;
+  /**
+   * LawyerProfile id of the attorney currently responsible.
+   *
+   * NULL means the matter is unassigned — it arrived addressed to the firm and
+   * is sitting in its queue. Nobody has `ASSIGNED_ATTORNEY` access to it yet, so
+   * only the principal or practice manager can read it, which is what makes it
+   * triageable at all.
+   */
+  lawyerId: string | null;
   /** The firm that received the request */
   firmId: string | null;
   /** User id of the client */
@@ -168,7 +175,9 @@ export function resolveMatterAccess(params: {
   if (actorRole !== 'LAWYER') return NO_ACCESS;
 
   // The attorney the client chose, or the attorney the firm has since assigned.
-  if (actorProfileId && actorProfileId === matter.lawyerId) {
+  // Guarded on matter.lawyerId being set so that an unassigned matter cannot be
+  // claimed by a lawyer who simply has no profile id.
+  if (actorProfileId && matter.lawyerId && actorProfileId === matter.lawyerId) {
     return {
       canRead: true,
       canReadMatterDetail: true,

@@ -70,7 +70,7 @@ export async function GET() {
       },
       consultations: consultations.map((c) => ({
         ...c,
-        date: c.date.toISOString().split('T')[0],
+        date: c.date ? c.date.toISOString().split('T')[0] : null,
         paidAt: c.paidAt?.toISOString() || null,
       })),
     });

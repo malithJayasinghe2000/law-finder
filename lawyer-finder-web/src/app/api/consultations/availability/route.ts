@@ -286,9 +286,14 @@ async function getAvailableSlots(lawyerId: string, dateStr: string, currentUserI
 
     for (const slot of slots) {
       // Check if slot is already booked or held
+      // A matter with no appointment yet (firm-first intake) blocks nothing —
+      // there is no time on the calendar to block.
       const isBooked = existingBookings.some(
-        (b) => b.startTime === slot.start ||
-               (b.startTime < slot.end && b.endTime > slot.start)
+        (b) =>
+          !!b.startTime &&
+          !!b.endTime &&
+          (b.startTime === slot.start ||
+            (b.startTime < slot.end && b.endTime > slot.start))
       );
 
       const isHeld = activeHolds.some(

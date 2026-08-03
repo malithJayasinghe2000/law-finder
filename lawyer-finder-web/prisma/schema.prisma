@@ -1253,20 +1253,28 @@ model Booking {
 
   /// The attorney currently responsible for this matter.
   ///
-  /// Always set. At intake it is the attorney the client chose from the
-  /// directory — the client's choice, logged, never ours (rule 4). A firm owner
-  /// or firm admin may reassign it to another attorney **in the same firm**;
-  /// nothing can move a matter between firms.
-  lawyerId String
-  lawyer   LawyerProfile @relation(fields: [lawyerId], references: [id])
+  /// NULL means the request is sitting in the firm's queue, not yet assigned —
+  /// which is what happens when a client engages the FIRM rather than picking an
+  /// individual. A firm owner or firm admin assigns it, and may reassign it
+  /// later, but only ever to an attorney **in the same firm**; nothing can move
+  /// a matter between firms.
+  lawyerId String?
+  lawyer   LawyerProfile? @relation(fields: [lawyerId], references: [id])
+
+  /// The attorney the client themselves chose at intake, if they chose one.
+  ///
+  /// Set once and never changed — including when the firm reassigns the matter.
+  /// This is the evidence that the choice of practitioner was the client's and
+  /// never the platform's, which is the whole of guardrail rule 4. NULL means
+  /// the client engaged the firm and left the choice of attorney to it.
+  clientSelectedAttorneyId String?
 
   /// The firm that received the request and is the provider of legal services.
   ///
-  /// Derived from the chosen attorney's firm at intake and immutable thereafter.
-  /// `lawyerId` must always belong to this firm — the invariant is enforced in
-  /// src/lib/firms/access.ts and re-checked on every reassignment.
-  firmId String?
-  firm   LawFirm? @relation(fields: [firmId], references: [id])
+  /// Required: a matter always belongs to a firm, even when no individual
+  /// attorney has been assigned yet. Immutable after intake.
+  firmId String
+  firm   LawFirm @relation(fields: [firmId], references: [id])
 
   /// Set when a firm owner/admin reassigns the responsible attorney. Null on a
   /// matter that has stayed with the attorney the client originally chose.
@@ -1274,11 +1282,19 @@ model Booking {
   assignedAt     DateTime?
   assignmentNote String?
 
-  // Schedule
-  date      DateTime @db.Date
-  startTime String // "10:00"
-  endTime   String // "11:00"
-  duration  Int // minutes
+  // Schedule.
+  //
+  // NULL until an appointment exists. A client who engages a firm does not pick
+  // a slot at intake — the firm has not yet decided whether it can act, and
+  // holding a diary slot before a conflict check is a marketplace-booking habit,
+  // not how an engagement works. The attorney proposes a time with the quote.
+  //
+  // The attorney-first path still sets these at intake, because there the client
+  // picked a specific practitioner and one of their published slots.
+  date      DateTime? @db.Date
+  startTime String? // "10:00"
+  endTime   String? // "11:00"
+  duration  Int? // minutes
 
   // Mode
   mode          ConsultationMode
@@ -1352,6 +1368,8 @@ model Booking {
   @@index([clientId, status])
   @@index([lawyerId, date])
   @@index([firmId, status])
+  /// The firm's unassigned queue
+  @@index([firmId, lawyerId])
   @@index([status])
   @@index([bookingNumber])
 }
@@ -1415,6 +1433,13 @@ model Quote {
   paymentInstructions String
 
   validUntil DateTime
+
+  /// The appointment the attorney proposes, for a matter that has no slot yet
+  /// (the firm-first path). Applied to the Booking when the client accepts.
+  /// NULL where the client already chose a slot at intake.
+  proposedDate      DateTime? @db.Date
+  proposedStartTime String?
+  proposedEndTime   String?
 
   /// The attorney who issued the quote
   issuedById    String

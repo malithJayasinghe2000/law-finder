@@ -53,7 +53,7 @@ export async function GET(
     });
 
     const isClient = access.basis === 'CLIENT';
-    const isLawyer = booking.lawyer.userId === session.userId;
+    const isLawyer = !!booking.lawyer && booking.lawyer.userId === session.userId;
 
     const mayReadLetter =
       isClient ||

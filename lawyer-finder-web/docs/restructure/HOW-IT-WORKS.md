@@ -98,6 +98,15 @@ sharing fees again.
 **In the code:** there is no commission field anywhere. It was deleted in Phase 0,
 not disabled.
 
+**The subtle version of this rule, which we got wrong for a while.** Subscription
+tiers used to sell attorneys a quota of *client enquiries* and *client messages* —
+10 a month on the cheap tier, unlimited on the expensive one — and advertised it on
+the public pricing page. Nobody called it commission, and it still was one: revenue
+rising with the amount of legal work is fee-sharing whatever the invoice says. If
+you are ever asked to meter something, ask whether the number counts **software**
+or **clients**. Seats, storage and templates are software. Enquiries, messages,
+matters and introductions are clients.
+
 ### 2. Never hold client money
 
 **The rule:** money owed to a lawyer never touches an account we control.
@@ -227,21 +236,42 @@ party to the engagement, and receives no part of the fee.
 
 ## Part 3 — How a matter actually flows
 
-Here is one client engaging one firm, end to end, with the reasoning at each step.
+There are two ways a matter starts, and the difference is **what the client
+chose**. Both are the client choosing; neither is us choosing.
 
 ```
- 1. Client browses the directory        alphabetical, unpurchaseable ordering
+FIRM-FIRST                              ATTORNEY-FIRST
+client engages a practice               client picks a named attorney
+                                        and one of their published slots
+```
+
+Firm-first is the shape the model points at — the firm is the provider of legal
+services, so engaging the firm is the natural act. Attorney-first exists because a
+client who already knows which practitioner they want should not be forced through
+a firm they do not care about. `clientSelectedAttorneyId` records which happened,
+and never changes afterwards.
+
+Here is a firm-first matter end to end, with the reasoning at each step.
+
+```
+ 1. Client browses the firm directory   alphabetical, unpurchaseable ordering
         │                               (rules 3, 4)
         ▼
- 2. Client chooses an attorney          THEIR choice, recorded on Booking.lawyerId
-        │                               so we can always show it was theirs
+ 2. Client engages a firm               THEIR choice, recorded on Booking.firmId
+        │                               clientSelectedAttorneyId stays NULL —
+        │                               they left the practitioner to the firm
         ▼
  3. Client submits an intake request    status: REQUESTED
-        │                               Booking.firmId = that attorney's firm
-        │                               No fee. No commitment. No relationship yet.
+        │                               lawyerId NULL — it sits in the firm's queue
+        │                               No date. No fee. No relationship yet.
+        │                               Deliberately no slot picker: the firm has
+        │                               not yet decided whether it can act, and
+        │                               holding a diary slot before a conflict
+        │                               check is a marketplace habit.
         ▼
- 4. Firm may reassign internally        only FIRM_OWNER / FIRM_ADMIN
+ 4. Firm assigns an attorney            only FIRM_OWNER / FIRM_ADMIN
         │                               only within the same firm, never across
+        │                               the client is told who is acting
         ▼
  5. Attorney runs a conflict check      status: CONFLICT_CHECK
         │                               privileged, firm-internal
@@ -253,6 +283,9 @@ Here is one client engaging one firm, end to end, with the reasoning at each ste
  6. Attorney issues a quote             status: QUOTED
         │                               the firm's fee in full, the firm's own
         │                               bank details, scope and exclusions, expiry
+        │                               — AND a proposed appointment, because
+        │                               this matter still has no time. The slot
+        │                               is held while the quote is outstanding.
         ▼
  7. Client accepts                      status: ACCEPTED
         │                               engagement letter generated and snapshotted
@@ -270,10 +303,16 @@ Here is one client engaging one firm, end to end, with the reasoning at each ste
 
 ### Things worth noticing about that flow
 
-**No fee exists until step 6.** A client cannot "buy a consultation". They request
-one; the firm decides whether it can act and what it charges. This is why the
+**No fee exists until step 6, and on the firm-first path no appointment does
+either.** A client cannot "buy a consultation". They request one; the firm decides
+whether it can act, what it charges, and when it can see them. This is why the
 model is called `Booking` but the language everywhere says "request" and
 "engagement" — the model name is historical, the behaviour is not.
+
+**An unassigned matter is a real state.** `Booking.lawyerId` is null while a
+request sits in the firm's queue. Only the principal or practice manager can read
+it — that is what makes it triageable — and the conflict check and quote both
+refuse until someone is assigned.
 
 **Steps 5 and 6 cannot be done by a colleague.** Screening for conflicts is a
 professional duty of the attorney taking the matter. A conflict check signed by
@@ -342,6 +381,9 @@ Each of these is a normal, sensible product feature that is illegal here.
 
 | Tempting feature | Why it is prohibited |
 |---|---|
+| Charging a lawyer per enquiry, message, or matter | Pay-per-lead and fee-sharing (rules 1, 3) — even packaged as a subscription tier |
+| Auto-assigning a firm request to an attorney by workload | The platform choosing (rule 4). The *firm* may pick however it likes; we may not pick for it |
+| Letting a client book a slot before the firm accepts | Marketplace booking — it holds a diary slot before any conflict check, and implies a consultation was purchased |
 | "Top rated lawyers" / star ratings | Unfair attraction under Rule 39. Also makes ordering non-neutral (rule 4) |
 | "Recommended for you" / "best match" | Indirect solicitation — the system is choosing (rule 4) |
 | "Featured firm" / promoted placement | Selling visibility to an attorney (rule 3) — and potentially criminal under the 1894 Ordinance |
@@ -391,6 +433,7 @@ in `PROJECT-PLAN.md` at the repository root.
 
 | I want to… | Read / run |
 |---|---|
+| Know whether something may be metered in pricing | Does the number count software, or clients? Clients are never permitted |
 | Understand a rule | [LEGAL-GUARDRAILS.md](./LEGAL-GUARDRAILS.md) |
 | Know what is done and what is next | [PROGRESS.md](./PROGRESS.md) |
 | Change who can read matter data | `src/lib/firms/access.ts`, then `npm run check:privilege` |

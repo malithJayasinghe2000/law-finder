@@ -112,11 +112,29 @@ export type ConsultationPricingInput = z.infer<typeof ConsultationPricingSchema>
 
 // ============= Create Booking =============
 
+/**
+ * Requesting an engagement.
+ *
+ * There are two lawful ways in, and the difference is who the client chose:
+ *
+ *   ATTORNEY-FIRST — the client picked a named attorney from the directory and
+ *   one of that attorney's published slots. `lawyerId` + a full schedule.
+ *
+ *   FIRM-FIRST — the client engaged a FIRM and left the choice of practitioner
+ *   to it. `firmId` only, and no appointment: the firm has not yet decided
+ *   whether it can act, and holding a diary slot before a conflict check is a
+ *   marketplace habit, not how an engagement works. The attorney proposes a time
+ *   when quoting.
+ *
+ * In both cases the CLIENT chooses — an attorney or a firm. The platform never
+ * chooses either. See docs/restructure/LEGAL-GUARDRAILS.md (rules 4 and 7).
+ */
 export const CreateBookingSchema = z.object({
-  lawyerId: z.string().uuid('Invalid lawyer reference'),
-  date: z.string().min(1, 'Date is required'), // ISO date "2026-05-15"
-  startTime: TimeString,
-  endTime: TimeString,
+  lawyerId: z.string().uuid('Invalid lawyer reference').optional(),
+  firmId: z.string().uuid('Invalid firm reference').optional(),
+  date: z.string().min(1, 'Date is required').optional(), // ISO date "2026-05-15"
+  startTime: TimeString.optional(),
+  endTime: TimeString.optional(),
   mode: z.enum(['PHYSICAL', 'ONLINE']),
   subject: z.preprocess(
     (val) => typeof val === 'string' ? sanitizeString(val) : val,
@@ -130,7 +148,26 @@ export const CreateBookingSchema = z.object({
     (val) => typeof val === 'string' ? sanitizeString(val) : val,
     z.string().optional()
   ),
-});
+})
+  .refine((d) => !!d.lawyerId || !!d.firmId, {
+    message: 'Choose an attorney or a firm to send this request to.',
+    path: ['lawyerId'],
+  })
+  // A slot only means something against a named attorney's calendar — a firm
+  // does not have one. Requiring all three together stops a half-specified
+  // appointment reaching the database.
+  .refine(
+    (d) => !d.lawyerId || (!!d.date && !!d.startTime && !!d.endTime),
+    {
+      message: 'Choose a date and time for this attorney.',
+      path: ['date'],
+    }
+  )
+  .refine((d) => !(!d.lawyerId && (d.date || d.startTime || d.endTime)), {
+    message:
+      'A request to a firm cannot carry an appointment — the firm proposes a time once it has accepted the matter.',
+    path: ['date'],
+  });
 
 export type CreateBookingInput = z.infer<typeof CreateBookingSchema>;
 
@@ -347,10 +384,41 @@ export const IssueQuoteSchema = z
       .min(1, 'A quote must have an expiry date')
       .refine((v) => !Number.isNaN(Date.parse(v)), 'Invalid expiry date')
       .refine((v) => Date.parse(v) > Date.now(), 'Expiry date must be in the future'),
+
+    // The appointment the firm proposes.
+    //
+    // Required only where the matter arrived without one — a client who engaged
+    // the firm rather than an individual did not pick a slot, because the firm
+    // had not yet decided it could act. Where the client already chose a slot
+    // from an attorney's calendar, these are omitted and the existing
+    // appointment stands.
+    proposedDate: z
+      .string()
+      .refine((v) => !Number.isNaN(Date.parse(v)), 'Invalid appointment date')
+      .optional(),
+    proposedStartTime: TimeString.optional(),
+    proposedEndTime: TimeString.optional(),
   })
   .refine(
     (d) => d.feeBasis !== 'HOURLY' || typeof d.hourlyRate === 'number',
     { message: 'An hourly quote needs an hourly rate', path: ['hourlyRate'] }
+  )
+  .refine(
+    (d) => {
+      const provided = [d.proposedDate, d.proposedStartTime, d.proposedEndTime].filter(Boolean).length;
+      return provided === 0 || provided === 3;
+    },
+    {
+      message: 'Give a full date, start time and end time for the appointment.',
+      path: ['proposedDate'],
+    }
+  )
+  .refine(
+    (d) =>
+      !d.proposedStartTime ||
+      !d.proposedEndTime ||
+      d.proposedEndTime > d.proposedStartTime,
+    { message: 'The appointment must end after it starts.', path: ['proposedEndTime'] }
   );
 
 export type IssueQuoteInput = z.infer<typeof IssueQuoteSchema>;
