@@ -25,7 +25,7 @@ the AI chatbot, read in this order:**
 3. `docs/restructure/PROGRESS.md` — **live status: what is done, what is next**
 4. `docs/restructure/ROADMAP.md` — the phase plan
 5. `docs/restructure/QUESTIONS-FOR-COUNSEL.md` — open legal questions
-6. `docs/restructure/PHASE-5-BRIEF.md` — Phase 5 (AI compliance), now complete
+6. `docs/restructure/PHASE-6-BRIEF.md` — if starting Phase 6 (next up)
 
 Phases 0–5 are complete. Phase 6 (PDPA) is next.
 
