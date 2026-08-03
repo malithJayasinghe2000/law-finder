@@ -447,6 +447,137 @@ in `PROJECT-PLAN.md` at the repository root.
 
 ---
 
+## Part 7 — How the two enforcement subsystems actually work
+
+Parts 1–6 explain the rules. This part explains the machinery, because two of the
+seven rules cannot be enforced by schema shape alone and needed real systems
+built for them.
+
+### The pattern, in one paragraph
+
+Every hard rule in this codebase is enforced in exactly one of three ways, and
+you should know which before you change anything:
+
+| How | Example | What breaks it |
+|---|---|---|
+| **Structurally** — the schema gives it nowhere to exist | `AdCampaign` has no lawyer relation, so a lawyer cannot buy an advert. `FeeNote` has no commission column | A migration, which is a conversation |
+| **By one policy file** — a single function decides, and routes call it | `firms/access.ts` (who reads a matter), `ads/eligibility.ts` (who advertises), `ai/policy.ts` (what the AI may say), `firms/billing.ts` (what a firm is licensed for) | Re-implementing the rule inline in a route |
+| **By a runnable check** — an assertion, not a promise | `check:privilege`, `check:ai`, `check:billing` | Nothing, if you run them |
+
+The rule of thumb: **prefer structural, fall back to a policy file, and always
+add a check.** A green `npm run build` has never once proved any of these rules
+hold.
+
+### The AI (rule 6) — refuse, generate, evaluate, then publish
+
+The AI is the only surface where a violation is produced *at runtime, per answer,
+by a generative model*. Schema cannot stop it and neither can a prompt, because a
+model that ignores an instruction fails silently.
+
+So generation is a **four-step pipeline in one route**,
+[`/api/ai/ask`](../../src/app/api/ai/ask/route.ts), and the order is the
+compliance measure:
+
+```
+1. classifyRequest(question)      ── refuse BEFORE the model is called
+       │                             "what should I do about my landlord"
+       │                             Their account of their problem is never
+       │                             transmitted at all. That is the
+       ▼                             confidentiality dividend of checking the
+2. askRag(context)                   request and not only the answer.
+       │                          ── generate, server side
+       ▼                             The browser has no model URL any more.
+3. evaluateAnswer({...})          ── withhold AFTER generation
+       │                             advice · practitioner steering ·
+       │                             invented citations · nothing cited
+       ▼
+4. persist + return               ── only now does anyone see a character
+```
+
+Three things about this that are easy to get wrong later:
+
+**Nothing streams, deliberately.** Streaming and step 3 are mutually exclusive —
+a streamed answer has been read by the time it can be checked. The typing effect
+is worth less than the check.
+
+**Answers are withheld whole, never edited.** Rewriting a model's legal prose to
+make it compliant means we are authoring legal content by hand, which is the
+thing rule 6 exists to stop.
+
+**Citations cannot be faked, but prose can.** The citation list comes from
+retrieval metadata, so the model cannot invent an entry in it. What it *can*
+invent is a mention in the sentence — which is why `findUnsupportedProseCitations`
+cross-checks every Act named in the prose against what retrieval actually
+returned. This is not theoretical: live testing caught the model citing an
+"Employment (Amendment) Ordinance No. 14 of 2017" that is not in the corpus, with
+six unrelated Companies Act sources attached. **Having sources is not the same as
+being sourced.**
+
+A citation is shown as a link only where it resolves to a `LegalDocument` the
+reader can open. Where it does not, it is shown as text marked *"Not yet in the
+library"* — never as a link to nowhere, because a citation nobody can open
+manufactures authority.
+
+### The money (rules 1, 2, 7) — two different invoices
+
+The single most common confusion in this codebase, so learn the pair:
+
+| Model | Who bills whom | For what | Do we touch the money? |
+|---|---|---|---|
+| `Invoice` | **us → firm** | the software licence | yes, it is our revenue |
+| `FeeNote` | **firm → its client** | legal work | **never** |
+
+`FeeNote` is a document we render. The firm bills under its own TIN and VAT
+number, into its own bank account, and we are not in the transaction at any
+point. There is no platform-fee column and no commission column on the model —
+not a nullable one, not one defaulting to zero, because *a column that exists is
+a column a future product decision can populate.* The absence is the guardrail.
+
+Two behaviours that look like bugs and are not:
+
+- **"Record as paid" does not verify anything.** The firm asserts the money
+  arrived; there is no admin approval step. We did not see the payment and
+  cannot honestly attest to it — the same reasoning as booking payments since
+  Phase 1.
+- **A cancelled fee note keeps its number.** Sri Lankan tax practice expects an
+  unbroken series, and a gap created by our convenience is a question the firm
+  has to answer to a tax officer.
+
+The rendered note is **snapshotted at issue**, like the engagement letter. A fee
+note is a tax document: if the firm renames itself tomorrow, an issued note must
+still say what it said today.
+
+### Seats — the only thing we are allowed to meter
+
+The licence belongs to the `LawFirm`. A **seat is a person who can sign in** — an
+`ACTIVE` `FirmMember`, attorney or not.
+
+> **The test, every time you are asked to meter something: does the number count
+> software, or clients?**
+>
+> Seats, storage and templates are software. Enquiries, messages, matters,
+> introductions and conversations are clients — and metering a client is
+> fee-sharing under a different name, whichever way the invoice points.
+
+A seat limit refuses a **person**, never a matter. A firm on one seat may run a
+thousand matters; it just does so with one login.
+
+This is the rule that has been broken twice, both times by accident, both times
+by someone building a perfectly ordinary SaaS feature:
+
+- Phase 2.5 — subscription tiers sold `inquiries_per_month` and
+  `chat_messages_per_month`, advertised on the public pricing page
+- Phase 3 — an attorney without a plan saw only their five oldest client
+  conversations, the rest reading *"Locked Conversation — Please upgrade to view
+  this conversation"*
+
+The second is the more instructive. Nobody set out to sell leads; someone
+implemented a freemium limit on a chat list. It withheld a client's own message
+from their own lawyer over an unpaid software bill. **If you find yourself gating
+something that a client did, stop.**
+
+---
+
 ## Quick reference
 
 | I want to… | Read / run |
@@ -458,3 +589,7 @@ in `PROJECT-PLAN.md` at the repository root.
 | Change the database | [database-migrations.md](../database-migrations.md) — migrations only, never `db push` |
 | Add a field to a public profile | Check it against the Rule 40 content limit first |
 | Know what counsel still has to answer | [QUESTIONS-FOR-COUNSEL.md](./QUESTIONS-FOR-COUNSEL.md) |
+| Change what the AI may say | `src/lib/ai/policy.ts`, then `npm run check:ai` |
+| Change what a firm is licensed for | `src/lib/firms/billing.ts`, then `npm run check:billing` |
+| Change a fee note | `src/lib/consultations/feeNote.ts` — and never add a fee of ours to it |
+| Understand how any of that is enforced | [Part 7](#part-7--how-the-two-enforcement-subsystems-actually-work) |
