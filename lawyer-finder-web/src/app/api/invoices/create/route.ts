@@ -1,5 +1,6 @@
 import { NextResponse, NextRequest } from 'next/server';
 import prisma from '@/lib/db';
+import { getFirmMembership, canManageFirm } from '@/lib/firms/access';
 import { getSession } from '@/lib/auth';
 import { CreateInvoiceSchema } from '@/schemas/subscription.schema';
 import { EmailService } from '@/lib/email/EmailService';
@@ -37,17 +38,35 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Lawyer profile not found' }, { status: 404 });
     }
 
-    // Check if lawyer already has active subscription
+    // The licence is the FIRM's, not this attorney's (Phase 3).
+    if (!lawyerProfile.firmId) {
+      return NextResponse.json({ error: 'This attorney is not linked to a firm.' }, { status: 404 });
+    }
+    const firmId = lawyerProfile.firmId;
+
+    // Only a principal may commit the practice to a licence. Any attorney could
+    // previously buy one, because the subscription was theirs; now it binds the
+    // whole firm and every seat in it, so it is a decision for whoever runs the
+    // practice.
+    const membership = await getFirmMembership(session.userId);
+    if (!membership || membership.firmId !== firmId || !canManageFirm(membership)) {
+      return NextResponse.json(
+        { error: 'Only the firm\'s principal or practice manager can change the firm\'s software licence.' },
+        { status: 403 }
+      );
+    }
+
+    // One live licence per firm.
     const existingActiveSubscription = await prisma.subscription.findFirst({
       where: {
-        lawyerId: lawyerProfile.id,
+        firmId,
         status: { in: ['ACTIVE', 'PAST_DUE'] },
       },
     });
 
     if (existingActiveSubscription) {
       return NextResponse.json(
-        { error: 'You already have an active or pending subscription. Please cancel it first or wait for it to expire.' },
+        { error: 'This firm already has an active or pending licence. Cancel it first or wait for it to expire.' },
         { status: 400 }
       );
     }
@@ -81,7 +100,7 @@ export async function POST(req: NextRequest) {
     // Create subscription with PAST_DUE status (will become ACTIVE after payment approval)
     const subscription = await prisma.subscription.create({
       data: {
-        lawyerId: lawyerProfile.id,
+        firmId,
         planId: planId,
         roleId: role.id,
         status: 'PAST_DUE',
@@ -100,6 +119,8 @@ export async function POST(req: NextRequest) {
     // Now create invoice and link it to subscription
     const invoice = await prisma.invoice.create({
       data: {
+        // Billed to the firm; `lawyerId` records who raised it.
+        firmId,
         lawyerId: lawyerProfile.id,
         planId: planId,
         subscriptionId: subscription.id,

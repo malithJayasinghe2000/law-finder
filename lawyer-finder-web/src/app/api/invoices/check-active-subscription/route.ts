@@ -33,10 +33,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Lawyer profile not found' }, { status: 404 });
     }
 
-    // Check if lawyer has active subscription for this plan
+    // The licence is the firm's (Phase 3). Fail closed if there is no firm:
+    // `firmId: undefined` would drop the filter and match another firm's row.
+    if (!lawyerProfile.firmId) {
+      return NextResponse.json({ error: 'This attorney is not linked to a firm.' }, { status: 404 });
+    }
+
+    // Does this FIRM already hold this plan?
     const activeSubscription = await prisma.subscription.findFirst({
       where: {
-        lawyerId: lawyerProfile.id,
+        firmId: lawyerProfile.firmId,
         planId: planId,
         status: 'ACTIVE',
       },

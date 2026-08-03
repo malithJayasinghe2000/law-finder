@@ -12,11 +12,12 @@ import {
   ChevronLeft, ChevronRight, Eye, FileText,
 } from 'lucide-react';
 import { BOOKING_STATUS_COLORS, BOOKING_STATUS_LABELS } from '@/schemas/consultation.schema';
-import { ShieldCheck, Banknote, UserX, UserCheck } from 'lucide-react';
+import { ShieldCheck, Banknote, UserX, UserCheck, Receipt } from 'lucide-react';
 import { AssignMatterDialog } from '@/components/firms/AssignMatterDialog';
 import { formatDateOnlyString } from '@/lib/utils';
 import ConflictCheckDialog from '@/components/consultations/ConflictCheckDialog';
 import QuoteComposerDialog from '@/components/consultations/QuoteComposerDialog';
+import FeeNoteDialog from '@/components/consultations/FeeNoteDialog';
 import PaymentReviewDialog from '@/components/consultations/PaymentReviewDialog';
 
 interface Booking {
@@ -75,6 +76,7 @@ export default function LawyerBookingsPage() {
   const [paymentReview, setPaymentReview] = useState<Booking | null>(null);
   const [quoteTarget, setQuoteTarget] = useState<Booking | null>(null);
   const [assignTarget, setAssignTarget] = useState<Booking | null>(null);
+  const [feeNoteBooking, setFeeNoteBooking] = useState<Booking | null>(null);
 
   // Verify Modal state
 
@@ -98,8 +100,6 @@ export default function LawyerBookingsPage() {
     defaultBankBranch && `Branch: ${defaultBankBranch}`,
   ].filter(Boolean).join('\n');
 
-  const [defaultPhysicalFee, setDefaultPhysicalFee] = useState(5000);
-  const [defaultOnlineFee, setDefaultOnlineFee] = useState(3000);
 
   useEffect(() => { loadBookings(); }, [page, statusFilter, selectedDate]);
   useEffect(() => { loadCalendarBookings(); }, [currentMonth]);
@@ -114,8 +114,6 @@ export default function LawyerBookingsPage() {
         setDefaultAccountName(data.pricing.accountName || '');
         setDefaultAccountNumber(data.pricing.accountNumber || '');
         setDefaultBankBranch(data.pricing.bankBranch || '');
-        setDefaultPhysicalFee(data.pricing.physicalPrice || 5000);
-        setDefaultOnlineFee(data.pricing.onlinePrice || 3000);
       }
     } catch (e) {
       console.error('Failed to load pricing', e);
@@ -510,6 +508,18 @@ export default function LawyerBookingsPage() {
                               </Button>
                             </>
                           )}
+                          {['ACCEPTED', 'AWAITING_PAYMENT', 'SCHEDULED', 'COMPLETED'].includes(booking.status) && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setFeeNoteBooking(booking)}
+                              disabled={actionLoading}
+                              title="Bill this client for the work — your firm's own fee note"
+                              className="rounded-none h-7 text-[10px] px-2.5 font-bold border-neutral-300"
+                            >
+                              <Receipt className="w-3 h-3 mr-1" /> Fee note
+                            </Button>
+                          )}
                           {booking.access?.canAssign && (
                             <Button
                               size="sm"
@@ -799,6 +809,17 @@ export default function LawyerBookingsPage() {
           open={Boolean(paymentReview)}
           onOpenChange={(o) => { if (!o) setPaymentReview(null); }}
           onCompleted={() => { loadBookings(); loadCalendarBookings(); }}
+        />
+      )}
+
+      {/* Fee notes — the firm bills its own client. We render the document and
+          are not in the transaction. See LEGAL-GUARDRAILS.md (rules 1, 2, 7). */}
+      {feeNoteBooking && (
+        <FeeNoteDialog
+          bookingId={feeNoteBooking.id}
+          canManage
+          open={Boolean(feeNoteBooking)}
+          onOpenChange={(o) => { if (!o) setFeeNoteBooking(null); }}
         />
       )}
 

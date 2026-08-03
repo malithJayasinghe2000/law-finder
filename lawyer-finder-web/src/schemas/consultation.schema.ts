@@ -89,8 +89,9 @@ export type AvailabilityOverrideInput = z.infer<typeof AvailabilityOverrideSchem
 
 export const ConsultationPricingSchema = z.object({
   pricingType: ConsultationPricingTypeEnum.default('PER_SESSION'),
-  physicalPrice: z.number().int().min(0, 'Price cannot be negative'),
-  onlinePrice: z.number().int().min(0, 'Price cannot be negative'),
+  // physicalPrice / onlinePrice were removed in Phase 3. A fee exists only on a
+  // Quote, issued for one matter after a conflict check — never as a published
+  // price attached to a practitioner. See LEGAL-GUARDRAILS.md (Rule 40 limit).
   freeInitialConsultation: z.boolean().default(false),
   freeConsultationDuration: z.number().int().min(10).max(60).optional(),
   minAdvanceNoticeHours: z.number().int().min(1).default(24),

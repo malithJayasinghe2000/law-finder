@@ -14,8 +14,9 @@ export async function GET(request: NextRequest) {
       include: {
         subscription: {
           include: {
-            lawyer: {
-              select: { fullName: true }
+            // Usage belongs to a firm's licence, not to an individual (Phase 3).
+            firm: {
+              select: { name: true }
             },
             plan: {
               select: { tier: true }
@@ -33,13 +34,13 @@ export async function GET(request: NextRequest) {
 
     const records = usages.map(usage => {
       const limit = usage.subscription.role?.featureLimits.find(
-        fl => fl.featureName === usage.feature.name
+        (fl: { featureName: string; limit: number }) => fl.featureName === usage.feature.name
       )?.limit ?? 0;
       const percentageUsed = limit > 0 ? Math.round((usage.usage / limit) * 100) : 0;
       
       return {
         id: usage.id,
-        lawyerName: usage.subscription.lawyer?.fullName || 'Unknown',
+        firmName: usage.subscription.firm?.name || 'Unknown',
         subscriptionTier: usage.subscription.plan?.tier || 'UNKNOWN',
         featureName: usage.feature.name,
         usageCount: usage.usage,

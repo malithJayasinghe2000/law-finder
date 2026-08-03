@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import prisma from '@/lib/db';
+import { getSubscriptionForProfile } from '@/lib/firms/billing';
 
 // GET: Check current session status with live data from DB
 // This avoids requiring re-login when admin approves subscription or role changes
@@ -45,17 +46,8 @@ export async function GET() {
       if (profile) {
         responseData.profileId = profile.id;
 
-        const subscription = await prisma.subscription.findFirst({
-          where: {
-            lawyerId: profile.id,
-            status: { in: ['ACTIVE', 'PAST_DUE', 'CANCELED'] },
-          },
-          include: {
-            plan: true,
-            role: true,
-          },
-          orderBy: { createdAt: 'desc' },
-        });
+        // The licence belongs to the attorney's firm, not to the attorney.
+        const subscription = await getSubscriptionForProfile(profile.id);
 
         if (subscription) {
           responseData.subscriptionRole = subscription.role.name;

@@ -1,4 +1,5 @@
 import prisma from '@/lib/db';
+import { getSubscriptionForProfile } from '@/lib/firms/billing';
 import { getSession } from '@/lib/auth';
 import Header from './Header';
 
@@ -32,17 +33,12 @@ export default async function HeaderWrapper({ locale }: { locale: string }) {
   } else if (liveRole === 'LAWYER') {
     const profile = await prisma.lawyerProfile.findUnique({
       where: { userId: session.userId },
-      include: {
-        Subscription: {
-          where: { status: { in: ['ACTIVE', 'CANCELED'] } },
-          include: { plan: true },
-          orderBy: { createdAt: 'desc' },
-          take: 1
-        }
-      }
+      select: { id: true },
     });
-    if (profile?.Subscription && profile.Subscription.length > 0) {
-      subscriptionTier = profile.Subscription[0].plan.name;
+    // The plan shown belongs to the attorney's firm (Phase 3).
+    const subscription = await getSubscriptionForProfile(profile?.id);
+    if (subscription) {
+      subscriptionTier = subscription.plan.name;
     }
   }
 

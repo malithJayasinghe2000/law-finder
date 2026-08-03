@@ -340,13 +340,77 @@ it, the consumer directory becomes a removable front end rather than the foundat
 ### Permitted
 | Stream | Model | Why it is clean |
 | --- | --- | --- |
-| **Firm SaaS** (anchor) | Per-seat/month, flat tiers | Software licence, decoupled from legal fees |
+| **Firm SaaS** (anchor) | Per-seat/month, flat tiers | Software licence, decoupled from legal fees. The subscription belongs to the `LawFirm`, and a seat is a person who can sign in — see [seats and fee notes](#seats-and-fee-notes) |
 | **Practice add-ons** | Per-module | Doc automation, e-sign, time recording, court diary |
 | **Corporate panel management** | Enterprise annual | Companies managing outside counsel. Highest ARPU, no ethics issue |
 | **Consumer subscription** | B2C monthly | Legal library, templates, AI research. Selling information, not legal services |
 | **Third-party advertising** | CPM / flat | **Non-lawyer advertisers only.** Implemented in Phase 4 — see [the advertising rules](#advertising--who-may-buy-and-where) |
 | **Data & analytics** | Licence | Anonymised aggregate court/outcome trends |
 | **CPD & events** | Per-seat / sponsorship | Natural BASL partnership surface |
+
+---
+
+## Seats and fee notes
+
+Added 2026-08-03, Phase 3.
+
+### The licence belongs to the firm, and a seat is a person
+
+`Subscription` hangs off `LawFirm`, not `LawyerProfile`. An attorney does not buy
+a licence to get work; the practice buys software and its members' access follows
+from membership of it. Resolution lives in
+[`src/lib/firms/billing.ts`](../../src/lib/firms/billing.ts) — do not query
+`prisma.subscription` by hand in a route.
+
+**A seat is an `ACTIVE` `FirmMember`: a person who can sign in.** Counting only
+attorneys would let a firm add unlimited paralegals free, and they use the
+software just as much.
+
+> **The test, whenever you are asked to meter something new: does the number
+> count software, or clients?** Seats, storage and templates are software.
+> Enquiries, messages, matters, introductions and conversations are clients, and
+> none of them may ever be metered. Revenue that moves with the volume of legal
+> work is fee-sharing whichever way the invoice points.
+
+Phase 2.5 deleted `inquiries_per_month` and `chat_messages_per_month` from the
+tiers for this reason. Phase 3 found the same defect still live in a second
+place: an attorney without a plan saw only their five oldest client conversations
+and the rest read *"Locked Conversation — Please upgrade to view this
+conversation."* That withheld a client's own message from their own lawyer over
+an unpaid software bill. Removed.
+
+A seat limit refuses a **person**, never a matter. A firm on one seat may run a
+thousand matters; it just does so with one login.
+
+### Fee notes — the firm's invoice, our document
+
+`FeeNote` is the firm billing **its own client** for legal work. Do not confuse
+it with `Invoice`, which is us billing a firm for software.
+
+The firm supplies the legal service, so the firm is the taxable person: it bills
+under its own TIN and VAT registration and the client pays the firm's own bank
+account directly. **We render a document; we are not in the transaction.** Both
+halves matter — holding or settling other people's money needs CBSL
+authorisation under the Payments and Settlements Systems Act No. 28 of 2005, and
+taking a cut of a legal fee is fee-sharing under Rules 39–49.
+
+- **There is no platform-fee column and no commission column on `FeeNote`.** Not
+  a nullable one, not one defaulting to zero. If you are asked to add one, that
+  is the restructure being undone.
+- The rendered note is **snapshotted at issue**, like the engagement letter. A
+  fee note is a tax document; if the firm later renames itself, an issued note
+  must still say what it said that day.
+- Numbers are sequential per firm per year (`FN-2026-0001`). A cancelled note
+  **keeps its number** — a gap in the series is a question the firm would have to
+  answer to a tax officer.
+- **"Record as paid" records; it does not verify.** The firm asserts the money
+  arrived. There is no admin approval anywhere in the flow, because we did not
+  see the payment and cannot honestly attest to it.
+- Platform staff cannot read a fee note. It names the client and narrates the
+  work done, which is privileged under Evidence Ordinance s.126 — and what a firm
+  charges its clients is not our business when our revenue is a flat licence fee.
+
+Asserted by `npm run check:billing` (17 cases, against a real database).
 
 ---
 
@@ -386,5 +450,8 @@ Before merging anything that touches booking, payments, advertising, ranking, or
 - [ ] Every AI answer passes `src/lib/ai/policy.ts` server-side; no browser calls a model
 - [ ] No AI surface names or suggests a practitioner
 - [ ] `npm run check:ai` passes
+- [ ] Nothing meters clients, matters, enquiries, messages or conversations
+- [ ] No fee note carries a platform fee, commission, or any share to us
+- [ ] `npm run check:billing` passes
 - [ ] Client-facing artefacts name the **firm** as the service provider
 - [ ] `npm run build` passes

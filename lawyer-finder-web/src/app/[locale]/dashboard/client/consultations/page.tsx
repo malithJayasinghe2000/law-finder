@@ -8,13 +8,14 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import {
-  CalendarDays, Clock, MapPin, Video, Star, XCircle, ChevronLeft, ChevronRight, AlertTriangle, CreditCard, Building2, Loader2, ImagePlus, FileText, ScrollText
+  CalendarDays, Clock, MapPin, Video, Star, XCircle, ChevronLeft, ChevronRight, AlertTriangle, CreditCard, Building2, Loader2, ImagePlus, FileText, ScrollText, Receipt
 } from 'lucide-react';
 import { BOOKING_STATUS_COLORS, BOOKING_STATUS_LABELS } from '@/schemas/consultation.schema';
 import { formatDateOnlyString } from '@/lib/utils';
 import Link from 'next/link';
 import QuoteReviewDialog from '@/components/consultations/QuoteReviewDialog';
 import EngagementLetterDialog from '@/components/consultations/EngagementLetterDialog';
+import FeeNoteDialog from '@/components/consultations/FeeNoteDialog';
 
 interface Booking {
   id: string;
@@ -61,6 +62,7 @@ export default function ClientConsultationsPage() {
   const [cancelModal, setCancelModal] = useState<string | null>(null);
   const [quoteReview, setQuoteReview] = useState<Booking | null>(null);
   const [letterBookingId, setLetterBookingId] = useState<string | null>(null);
+  const [feeNoteBookingId, setFeeNoteBookingId] = useState<string | null>(null);
   const [cancelReason, setCancelReason] = useState('');
 
   const [paymentModal, setPaymentModal] = useState<string | null>(null);
@@ -436,6 +438,11 @@ export default function ClientConsultationsPage() {
                           <ScrollText className="w-3 h-3 mr-1" /> Engagement letter
                         </Button>
                       )}
+                      {['ACCEPTED', 'AWAITING_PAYMENT', 'SCHEDULED', 'COMPLETED'].includes(b.status) && (
+                        <Button size="sm" variant="outline" onClick={() => setFeeNoteBookingId(b.id)} className="rounded-none h-7 text-[10px] px-2.5 font-bold">
+                          <Receipt className="w-3 h-3 mr-1" /> Fee notes
+                        </Button>
+                      )}
                       {b.status === 'ACCEPTED' && (() => {
                         // Once a payment is recorded the client should not be able
                         // to submit it again as if nothing happened. They can still
@@ -494,6 +501,18 @@ export default function ClientConsultationsPage() {
           bookingId={letterBookingId}
           open={Boolean(letterBookingId)}
           onOpenChange={(o) => { if (!o) setLetterBookingId(null); }}
+        />
+      )}
+
+      {/* Fee notes the firm has issued. Read-only for the client: they can open
+          and save them, and pay the firm directly. `canManage` is false, and the
+          API refuses firm-side actions from a client regardless. */}
+      {feeNoteBookingId && (
+        <FeeNoteDialog
+          bookingId={feeNoteBookingId}
+          canManage={false}
+          open={Boolean(feeNoteBookingId)}
+          onOpenChange={(o) => { if (!o) setFeeNoteBookingId(null); }}
         />
       )}
 

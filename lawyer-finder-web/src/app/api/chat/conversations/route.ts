@@ -26,46 +26,23 @@ export async function GET(request: Request) {
       orderBy: { updatedAt: 'desc' },
     });
 
-    let allowedCount = conversations.length;
-    let isLimited = false;
-
-    if (session.role === 'LAWYER') {
-      const profile = await prisma.lawyerProfile.findUnique({
-        where: { userId: session.userId },
-        include: {
-          Subscription: {
-            where: { status: 'ACTIVE' },
-            include: { plan: true }
-          }
-        }
-      });
-      // Basic check: if no active subscription or plan is too low, limit to 5
-      const hasActivePlan = profile?.Subscription && profile.Subscription.length > 0;
-      if (!hasActivePlan) {
-        allowedCount = 5;
-        isLimited = true;
-      }
-    }
-
-    // Determine the allowed conversation IDs based on creation date (oldest ones get priority)
-    const allowedConversationIds = [...conversations]
-      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
-      .slice(0, allowedCount)
-      .map(c => c.id);
-
+    // Client conversations are NOT metered on what the attorney pays us.
+    //
+    // Until Phase 3 an attorney without an active plan saw only their five
+    // oldest conversations; the rest were replaced with "Locked Conversation —
+    // Please upgrade to view this conversation."
+    //
+    // Two things wrong with that. It is the defect Phase 2.5 removed from the
+    // pricing tiers wearing different clothes — revenue rising with how many
+    // clients reach an attorney is fee-sharing whatever it is called, and
+    // charging for the connection is charging for the client (guardrail rule 1).
+    // And it withheld a client's own message from their own lawyer over an
+    // unpaid software bill, which puts us inside a relationship we are not part
+    // of.
+    //
+    // Seats and features may be metered. Clients may not. If you are asked to
+    // gate something here, ask whether the number counts software or clients.
     const formatted = conversations.map((c) => {
-      // If limited and this conversation is NOT one of the oldest allowed ones, blur it
-      if (isLimited && !allowedConversationIds.includes(c.id)) {
-        return {
-          id: c.id, // Keep ID so frontend can render securely but consistently
-          isDummy: true,
-          otherUser: { fullName: 'Locked Conversation', profileImageUrl: null, email: 'hidden' },
-          lastMessage: { content: 'Please upgrade to view this conversation.' },
-          unreadCount: 0,
-          updatedAt: c.updatedAt
-        };
-      }
-
       const otherParticipant = c.participants.find(p => p.userId !== session.userId);
       const meParticipant = c.participants.find(p => p.userId === session.userId);
       
@@ -76,7 +53,6 @@ export async function GET(request: Request) {
 
       return {
         id: c.id,
-        isDummy: false,
         otherUser: otherParticipant?.user,
         lastMessage: c.messages[0],
         unreadCount,
@@ -86,7 +62,9 @@ export async function GET(request: Request) {
 
     return NextResponse.json({
       conversations: formatted,
-      isLimited: isLimited && conversations.length > allowedCount
+      // Retained and always false so existing clients keep parsing the payload.
+      // Nothing sets it any more, by design.
+      isLimited: false,
     });
   } catch (error) {
     console.error('Fetch conversations error:', error);

@@ -6,6 +6,7 @@ import {
   UpdateFirmBankDetailsSchema,
 } from '@/schemas/firm.schema';
 import { getFirmMembership, canManageFirm } from '@/lib/firms/access';
+import { getSeatAllowance } from '@/lib/firms/billing';
 import { allocateFirmSlug } from '@/lib/firms/provisioning';
 
 /**
@@ -69,6 +70,8 @@ export async function GET() {
 
     const canManage = canManageFirm(membership);
 
+    const seats = await getSeatAllowance(firm.id);
+
     return NextResponse.json({
       firm: {
         ...firm,
@@ -79,6 +82,10 @@ export async function GET() {
         accountName: canManage ? firm.accountName : null,
         accountNumber: canManage ? firm.accountNumber : null,
         bankBranch: canManage ? firm.bankBranch : null,
+        taxIdentificationNumber: canManage ? firm.taxIdentificationNumber : null,
+        vatNumber: canManage ? firm.vatNumber : null,
+        isVatRegistered: firm.isVatRegistered,
+        vatRatePercent: canManage ? firm.vatRatePercent : null,
         members: firm.members.map((m) => ({
           ...m,
           joinedAt: m.joinedAt.toISOString(),
@@ -97,6 +104,10 @@ export async function GET() {
         canManageFirm: canManage,
         isSoloPractice: firm.isSoloPractice,
       },
+      // Seats are people who can sign in — never matters, clients or messages.
+      // Surfaced so the firm console can say "4 of 5 seats used" before someone
+      // hits a 402 trying to add a colleague. See src/lib/firms/billing.ts.
+      seats,
     });
   } catch (error) {
     console.error('Firm read error:', error);
@@ -140,6 +151,14 @@ export async function PATCH(req: Request) {
           accountName: validated.data.accountName || null,
           accountNumber: validated.data.accountNumber || null,
           bankBranch: validated.data.bankBranch || null,
+
+          // Printed on the firm's own fee notes.
+          taxIdentificationNumber: validated.data.taxIdentificationNumber || null,
+          vatNumber: validated.data.vatNumber || null,
+          isVatRegistered: validated.data.isVatRegistered ?? false,
+          vatRatePercent: validated.data.isVatRegistered
+            ? validated.data.vatRatePercent ?? null
+            : null,
         },
         select: { id: true },
       });

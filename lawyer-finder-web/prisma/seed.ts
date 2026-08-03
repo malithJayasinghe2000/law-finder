@@ -383,23 +383,25 @@ async function main() {
     }
   });
 
-  // Assign lawyer2 a subscription
-  console.log('Assigning Premium subscription to second lawyer...')
-  
-  // We need to fetch the lawyerProfile ID for lawyer2
+  // Licence the second lawyer's FIRM.
+  //
+  // A subscription belongs to a LawFirm, not to a LawyerProfile (Phase 3): the
+  // practice buys the software and its members' access follows from membership.
+  console.log("Assigning Premium licence to the second lawyer's firm...")
+
   const lawyer2Profile = await prisma.lawyerProfile.findUnique({
     where: { userId: lawyer2.id }
   })
-  
-  if (lawyer2Profile) {
+
+  if (lawyer2Profile?.firmId) {
     const existingSubscription = await prisma.subscription.findFirst({
-      where: { lawyerId: lawyer2Profile.id }
+      where: { firmId: lawyer2Profile.firmId }
     })
     
     if (!existingSubscription) {
       await prisma.subscription.create({
         data: {
-          lawyerId: lawyer2Profile.id,
+          firmId: lawyer2Profile.firmId,
           planId: premiumPlan.id,
           roleId: premiumRole.id,
           status: 'ACTIVE',
@@ -411,16 +413,22 @@ async function main() {
     }
   }
 
-  // Assign subscriptions to the other test lawyers (3, 4, 5) so they appear in RAG recommendations
+  // Licence the remaining test firms.
+  //
+  // The old comment here said these existed "so they appear in RAG
+  // recommendations" — subscription status has never been allowed to affect
+  // whether a practitioner is shown to a client (guardrail rules 3 and 4), and
+  // since Phase 5 the assistant surfaces no practitioners at all. They are
+  // licensed simply so the dev data has firms on a plan.
   const testLawyers = [lawyer3, lawyer4, lawyer5];
   for (const tLawyer of testLawyers) {
     const profile = await prisma.lawyerProfile.findUnique({ where: { userId: tLawyer.id } });
-    if (profile) {
-      const exists = await prisma.subscription.findFirst({ where: { lawyerId: profile.id } });
+    if (profile?.firmId) {
+      const exists = await prisma.subscription.findFirst({ where: { firmId: profile.firmId } });
       if (!exists) {
         await prisma.subscription.create({
           data: {
-            lawyerId: profile.id,
+            firmId: profile.firmId,
             planId: professionalPlan.id,
             roleId: professionalRole.id,
             status: 'ACTIVE',

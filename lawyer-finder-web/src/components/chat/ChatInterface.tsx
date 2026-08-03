@@ -18,7 +18,6 @@ interface UserData {
 
 interface Conversation {
   id: string;
-  isDummy: boolean;
   otherUser: UserData;
   lastMessage: { content: string, createdAt: string } | null;
   unreadCount: number;
@@ -38,7 +37,6 @@ export default function ChatInterface({ userId, locale }: { userId: string; loca
   const [activeConvId, setActiveConvId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
-  const [isLimited, setIsLimited] = useState(false);
   const [searchFilter, setSearchFilter] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const lastConvIdRef = useRef<string | null>(null);
@@ -94,11 +92,10 @@ export default function ChatInterface({ userId, locale }: { userId: string; loca
       const data = await res.json();
       const loadedConversations = data.conversations || [];
       setConversations(loadedConversations);
-      setIsLimited(data.isLimited || false);
       
       if (initialConvId && !activeConvId) {
         const targetConv = loadedConversations.find((c: Conversation) => c.id === initialConvId);
-        if (targetConv && !targetConv.isDummy) {
+        if (targetConv) {
           selectConversation(targetConv);
         }
       }
@@ -133,7 +130,6 @@ export default function ChatInterface({ userId, locale }: { userId: string; loca
   };
 
   const selectConversation = (conv: Conversation) => {
-    if (conv.isDummy) return;
     selectConversationId(conv.id, conv.unreadCount);
   };
 
@@ -215,23 +211,23 @@ export default function ChatInterface({ userId, locale }: { userId: string; loca
                   activeConvId === conv.id
                     ? 'bg-white border-[#efeae0] shadow-sm font-semibold text-neutral-900'
                     : 'bg-transparent border-transparent hover:bg-white/50 text-neutral-500 hover:text-neutral-850'
-                } ${conv.isDummy ? 'opacity-80 select-none relative' : ''}`}
+                }`}
               >
                 <div className="relative">
                   <Avatar className="h-9 w-9 border border-[#efeae0] rounded-full overflow-hidden shrink-0">
-                    {conv.otherUser?.profileImageUrl && !conv.isDummy ? (
+                    {conv.otherUser?.profileImageUrl ? (
                       <img src={conv.otherUser.profileImageUrl} alt="Profile" className="object-cover h-full w-full" />
                     ) : (
                       <img src="/avatar.png" alt="Profile" className="object-cover h-full w-full" />
                     )}
                   </Avatar>
-                  {conv.unreadCount > 0 && !conv.isDummy && (
+                  {conv.unreadCount > 0 && (
                     <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[8px] font-bold text-white ring-2 ring-white">
                       {conv.unreadCount}
                     </span>
                   )}
                 </div>
-                <div className={`flex-1 min-w-0 ${conv.isDummy ? 'blur-[3px]' : ''}`}>
+                <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-2">
                     <p className="text-[12px] font-bold font-serif text-neutral-900 truncate">
                       {conv.otherUser?.fullName || 'User'}
@@ -246,25 +242,10 @@ export default function ChatInterface({ userId, locale }: { userId: string; loca
                     {conv.lastMessage?.content || 'No messages yet'}
                   </p>
                 </div>
-                {conv.isDummy && (
-                  <div className="absolute inset-0 z-10 flex items-center justify-center right-4 left-auto">
-                    <Lock className="w-3.5 h-3.5 text-[#bfa37a]" />
-                  </div>
-                )}
               </div>
             ))
           )}
         </div>
-        {isLimited && (
-          <div className="p-4 bg-amber-50/50 border-t border-amber-100 text-center rounded-bl-2xl">
-            <p className="text-[9px] text-amber-800 font-bold uppercase tracking-wider mb-2">Upgrade to view all conversations</p>
-            <Link href={`/${locale}/pricing`}>
-              <Button size="sm" className="w-full text-[9px] font-bold uppercase tracking-widest rounded-full bg-[#161616] text-white hover:bg-neutral-800 transition-all duration-300">
-                Upgrade Plan
-              </Button>
-            </Link>
-          </div>
-        )}
       </aside>
 
       {/* Main Chat Area */}

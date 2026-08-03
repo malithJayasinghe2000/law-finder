@@ -287,8 +287,9 @@ model LawyerProfile {
   licenseImageUrl   String?
   identityImageUrl  String?
   isVerified        Boolean        @default(false)
-  subscriptionId    String?
-  Subscription      Subscription[]
+  /// `Subscription` moved to `LawFirm` in Phase 3. An attorney does not buy a
+  /// licence; the practice they work in does, and their access follows from
+  /// their membership of it. Resolve through `src/lib/firms/billing.ts`.
   invoices          Invoice[]      @relation("InvoiceLawyer")
 
   /// The firm this attorney practises in (Phase 2).
@@ -412,6 +413,18 @@ model LawFirm {
   accountNumber String?
   bankBranch    String?
 
+  // --- Tax identity ---
+  // The firm's own, printed on the fee notes the firm issues to its own
+  // clients. These are here because the firm is the supplier of the legal
+  // service and therefore the taxable person; we are not in that transaction
+  // at any point. See docs/restructure/LEGAL-GUARDRAILS.md (rules 1, 2 and 7).
+  taxIdentificationNumber String?
+  vatNumber               String?
+  isVatRegistered         Boolean @default(false)
+  /// Percent, e.g. 18 for 18%. Stored on the firm so a fee note can snapshot
+  /// the rate that applied on the day it was issued.
+  vatRatePercent          Int?
+
   // --- Verification ---
   verificationStatus FirmVerificationStatus @default(UNVERIFIED)
   verifiedAt         DateTime?
@@ -425,10 +438,13 @@ model LawFirm {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  members  FirmMember[]
-  offices  FirmOffice[]
-  lawyers  LawyerProfile[]
-  bookings Booking[]
+  members       FirmMember[]
+  offices       FirmOffice[]
+  lawyers       LawyerProfile[]
+  bookings      Booking[]
+  subscriptions Subscription[]
+  invoices      Invoice[]
+  feeNotes      FeeNote[]
 
   @@index([verificationStatus])
   @@index([district])
@@ -497,10 +513,24 @@ model SubscriptionPlan {
   invoices            Invoice[]
 }
 
+/// A firm's licence to use this software.
+///
+/// The subscription belongs to the **firm**, not to an attorney. Before Phase 3
+/// each attorney bought their own licence, which made the platform look like
+/// something individual practitioners subscribe to in order to get work. What
+/// we actually sell is practice-management software, and the practice is the
+/// thing that runs on it.
+///
+/// It is priced on **seats and features** — how many people use the software
+/// and what it can do — and never on how many matters, enquiries or clients
+/// flow through it. Revenue that moves with the volume of legal work is
+/// fee-sharing under a different name, whatever the invoice says. Phase 2.5
+/// deleted enquiry and message quotas from the tiers for exactly this reason.
+/// See docs/restructure/LEGAL-GUARDRAILS.md (rule 1).
 model Subscription {
-  id       String        @id @default(uuid())
-  lawyerId String
-  lawyer   LawyerProfile @relation(fields: [lawyerId], references: [id], onDelete: Cascade)
+  id     String  @id @default(uuid())
+  firmId String
+  firm   LawFirm @relation(fields: [firmId], references: [id], onDelete: Cascade)
 
   planId String
   plan   SubscriptionPlan @relation(fields: [planId], references: [id])
@@ -525,6 +555,8 @@ model Subscription {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([firmId, status])
 }
 
 model SubscriptionCycle {
@@ -541,11 +573,21 @@ model SubscriptionCycle {
   invoices Invoice[]
 }
 
+/// Our invoice to a firm for its software licence.
+///
+/// Do not confuse this with `FeeNote`. This is the platform billing a firm for
+/// software. A `FeeNote` is a firm billing its own client for legal work, which
+/// we only ever render as a document.
 model Invoice {
   id String @id @default(uuid())
 
-  lawyerId String
-  lawyer   LawyerProfile? @relation("InvoiceLawyer", fields: [lawyerId], references: [id], onDelete: Cascade)
+  firmId String
+  firm   LawFirm @relation(fields: [firmId], references: [id], onDelete: Cascade)
+
+  /// The member who raised or paid it. Display and audit only — the firm is the
+  /// party being billed, which is what `firmId` records.
+  lawyerId String?
+  lawyer   LawyerProfile? @relation("InvoiceLawyer", fields: [lawyerId], references: [id], onDelete: SetNull)
 
   subscriptionCycleId String?
   subscriptionCycle   SubscriptionCycle? @relation(fields: [subscriptionCycleId], references: [id], onDelete: SetNull)
@@ -566,6 +608,8 @@ model Invoice {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([firmId, status])
 }
 
 model InvoiceRemark {
@@ -577,6 +621,107 @@ model InvoiceRemark {
   isForLawyer Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+enum FeeNoteStatus {
+  DRAFT
+  ISSUED
+  /// The firm has recorded that its client paid it. Not a payment we processed,
+  /// observed, or verified — a fact the firm asserted.
+  SETTLED
+  CANCELLED
+}
+
+/// A firm's fee note to its own client.
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// This is a **document we render**, not a transaction we run.
+/// ─────────────────────────────────────────────────────────────────────────────
+///
+/// The firm supplies the legal service, so the firm is the taxable person and
+/// the firm bills its client under its own TIN and VAT registration. The client
+/// pays the firm's own bank account directly. We never hold the money, never
+/// route it, never verify it, and take no percentage of it — that would be
+/// unlicensed payment activity under the Payments and Settlements Systems Act
+/// No. 28 of 2005 and fee-sharing under Supreme Court Rules 39-49 at the same
+/// time. See docs/restructure/LEGAL-GUARDRAILS.md (rules 1, 2 and 7).
+///
+/// There is deliberately **no platform-fee column and no commission column** on
+/// this model. Not a nullable one, not one defaulting to zero. A fee note is
+/// arithmetic between a firm and its client that we are not part of.
+///
+/// Like the engagement letter, the rendered document is **snapshotted** rather
+/// than joined at read time. A fee note is a tax document: if the firm later
+/// changes its address, VAT number or name, an already-issued note must still
+/// say what it said on the day it was issued.
+model FeeNote {
+  id String @id @default(uuid())
+
+  /// Sequential per firm and year — "FN-2026-0001". Sri Lankan tax practice
+  /// expects an unbroken series, so numbers are allocated on issue and a
+  /// cancelled note keeps its number rather than freeing it for reuse.
+  noteNumber String @unique
+
+  firmId String
+  firm   LawFirm @relation(fields: [firmId], references: [id], onDelete: Cascade)
+
+  bookingId String
+  booking   Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  /// The quote whose accepted terms this bills. A fee note that does not
+  /// correspond to something the client agreed to is a dispute waiting to
+  /// happen.
+  quoteId String?
+  quote   Quote?  @relation(fields: [quoteId], references: [id], onDelete: SetNull)
+
+  // --- Snapshotted parties, as at issue ---
+  firmName       String
+  firmAddress    String?
+  firmTin        String?
+  firmVatNumber  String?
+  firmBankName   String?
+  firmAccountName String?
+  firmAccountNumber String?
+  firmBankBranch String?
+
+  clientName    String
+  clientAddress String?
+  clientEmail   String?
+
+  /// The attorney who did the work, named because the client is entitled to
+  /// know who acted. The firm remains the party billing.
+  attorneyName String?
+
+  // --- Amounts, all in whole rupees ---
+  /// [{ description, amount }] — narration comes from the accepted quote's
+  /// scope, not from the client's account of their problem.
+  lineItems Json
+  subtotal  Int
+  /// Snapshotted from the firm at issue, because the rate can change.
+  vatRatePercent Int?
+  vatAmount      Int    @default(0)
+  total          Int
+  currency       String @default("LKR")
+
+  status   FeeNoteStatus @default(DRAFT)
+  issuedAt DateTime?
+  dueDate  DateTime?
+
+  /// When the FIRM recorded that its client paid. There is no admin approval
+  /// step and no platform confirmation, by design.
+  settledAt        DateTime?
+  settlementNote   String?
+  cancelledAt      DateTime?
+  cancellationNote String?
+
+  /// The rendered note, frozen at issue. Markdown.
+  content String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([firmId, status])
+  @@index([bookingId])
 }
 
 model SubscriptionDetails {
@@ -1329,10 +1474,17 @@ model ConsultationPricing {
   lawyerId String        @unique
   lawyer   LawyerProfile @relation(fields: [lawyerId], references: [id], onDelete: Cascade)
 
-  pricingType   ConsultationPricingType @default(PER_SESSION)
-  physicalPrice Int // LKR (e.g., 5000)
-  onlinePrice   Int // LKR (usually lower)
-  currency      String                  @default("LKR")
+  pricingType ConsultationPricingType @default(PER_SESSION)
+  currency    String                  @default("LKR")
+
+  // `physicalPrice` and `onlinePrice` were dropped in Phase 3.
+  //
+  // They were the last remnant of the marketplace: a published price a client
+  // could see and "buy" a consultation at. Since Phase 1 a fee has existed only
+  // on a Quote, issued by the attorney after a conflict check, for that matter.
+  // Both columns had been forced to 0 since Phase 0 and were read by nothing —
+  // but a price column on a lawyer's profile is one product decision away from
+  // being a fee range on a public page, which Rule 40 does not permit.
 
   freeInitialConsultation  Boolean @default(false)
   freeConsultationDuration Int? // minutes
@@ -1424,6 +1576,7 @@ model Booking {
   conflictCheck    ConflictCheck?
   quotes           Quote[]
   engagementLetter EngagementLetter?
+  feeNotes         FeeNote[]
   /// Set when the client accepts a quote — the moment terms are agreed
   termsAcceptedAt  DateTime?
 
@@ -1553,6 +1706,7 @@ model Quote {
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
   engagementLetter EngagementLetter?
+  feeNotes         FeeNote[]
 
   @@unique([bookingId, version])
   @@index([bookingId, status])

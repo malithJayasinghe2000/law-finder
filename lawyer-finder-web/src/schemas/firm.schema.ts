@@ -104,6 +104,20 @@ export const UpdateFirmBankDetailsSchema = z.object({
   accountName: optionalText(160),
   accountNumber: optionalText(40),
   bankBranch: optionalText(120),
+
+  // Tax identity, printed on the fee notes the firm issues to its own clients.
+  // The firm supplies the legal service, so the firm is the taxable person; we
+  // are not in that transaction and take no share of the fee.
+  taxIdentificationNumber: optionalText(40),
+  vatNumber: optionalText(40),
+  isVatRegistered: z.boolean().optional().default(false),
+  vatRatePercent: z
+    .number()
+    .int('Enter a whole percentage.')
+    .min(0, 'A VAT rate cannot be negative.')
+    .max(100, 'Enter the rate as a percentage, e.g. 18.')
+    .nullable()
+    .optional(),
 });
 
 export const FirmOfficeSchema = z.object({

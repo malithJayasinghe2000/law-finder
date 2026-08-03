@@ -13,7 +13,7 @@
 | 1b | Engagement letter + triage/quote UI | 🟢 **Done** |
 | 2 | Law firm entity | 🟢 **Done** |
 | 2.5 | Firm-first intake + stop pricing on client volume | 🟢 **Done** |
-| 3 | Billing restructure (SaaS licence) | 🟡 Partly done — the unlawful part is out; seats/fee notes remain |
+| 3 | Billing restructure (SaaS licence) | 🟢 **Done** |
 | 4 | Advertising split | 🟢 **Done** |
 | 5 | AI compliance | 🟢 **Done** |
 | 6 | PDPA compliance | ⚪ Not started |
@@ -33,14 +33,10 @@ it is a data task, not a code one. Upload the three PDFs through
 `ragDocumentName` to force a match — guessing which Act a row refers to is how you end
 up citing the wrong statute.
 
-**Phase 6 — PDPA.** Now the natural next phase: Phase 5 left it the retention period,
-the purge script and a clean picture of what personal data the AI holds.
-
-**Phase 3, remainder** — move `Subscription` from `LawyerProfile` to `LawFirm` so a
-firm buys seats rather than each attorney buying a licence; build the fee-note
-module (the firm issues its own invoice under its own TIN/VAT, we generate the
-document and never the transaction); drop `ConsultationPricing.physicalPrice` /
-`onlinePrice`, which are always 0 and read by nothing.
+**Phase 6 — PDPA.** The natural next phase, and now the only one left before growth
+work. Phase 5 left it the retention period, the purge script and a clean picture of
+what personal data the AI holds; Phase 3 left it a `FeeNote` model holding client
+names and work narrations that will need the same treatment.
 
 
 
@@ -76,6 +72,12 @@ Phases 0, 1 and 2 are complete. `npm run build`, `npx tsc --noEmit` and
 | 2026-08-03 | The AI surfaces **no practitioner at all** — not by name, not by category | The conservative answer to counsel question 6, taken rather than deferred. If it turns out to be permissible, restoring it is a feature; if not, we never did it |
 | 2026-08-03 | Citations resolve to an openable document or are shown unlinked; never a dead link | A citation the reader cannot open manufactures authority. Being honest that we do not hold the document is better than a link to nowhere |
 | 2026-08-03 | Guest AI questions are **not stored at all** | A guest has no history to return to, so there is no product reason to keep their account of their legal problems. The cheapest way to hold data safely is not to hold it |
+| 2026-08-03 | `Subscription` belongs to `LawFirm`, not `LawyerProfile` | An attorney paying a platform monthly looks like an attorney paying for access to clients. What we sell is practice-management software and a practice is what runs on it. Access follows from firm membership |
+| 2026-08-03 | A **seat is a person who can sign in**, counted as an ACTIVE `FirmMember` | Counting only attorneys would let a firm add unlimited paralegals free. Seats are the one thing we may meter, because they count software users and not clients |
+| 2026-08-03 | The migration **stands down** duplicate firm licences rather than deleting them | Where several attorneys at one firm each bought a licence, the extras become CANCELED with their end dates untouched. A CANCELED subscription is still honoured until it expires, so nobody loses access they paid for |
+| 2026-08-03 | `FeeNote` carries **no platform-fee or commission column at all** | Not a nullable one, not one defaulting to zero. A column that exists is a column a future product decision can populate. The absence is the guardrail |
+| 2026-08-03 | A cancelled fee note **keeps its number** | Sri Lankan tax practice expects an unbroken series. A gap is a question the firm would have to answer to a tax officer, created by our convenience |
+| 2026-08-03 | Only a **firm principal** may buy or change the firm's licence | It now binds the whole practice and every seat in it. Any attorney could previously buy one because the subscription was theirs alone |
 
 ## Session log
 
@@ -829,4 +831,95 @@ being sourced** — that is the lesson worth carrying forward.
   rather than fixed, because it needs translation review, not more regexes
 - Advertiser billing has no module; invoicing happens outside the platform
 - Phase 3 remainder: firm seats, fee notes, `ConsultationPricing` price columns
+- Phases 6 (PDPA), 7 (growth)
+
+### 2026-08-03 — Phase 3 remainder (firm seats + fee notes)
+
+The revenue model, made structural. Three changes that all follow from the same
+sentence: **the firm provides the legal service and we provide software.**
+
+**1. The licence belongs to the firm.**
+
+`Subscription` moved from `LawyerProfile` to `LawFirm`. An attorney paying a platform
+every month looks like an attorney paying for access to clients; a practice paying for
+practice-management software is what we actually are. Access now follows from firm
+membership, resolved in the new
+[`src/lib/firms/billing.ts`](../../src/lib/firms/billing.ts) — the only file that
+answers "what is this firm subscribed to".
+
+`Invoice` gained `firmId` (the party billed) and `lawyerId` became nullable (who raised
+it). Only a **principal** may now buy or change a licence, since it binds every seat in
+the practice.
+
+**2. A seat is a person, and nothing else may be metered.**
+
+Seats count `ACTIVE` `FirmMember` rows — everyone the firm has given access to,
+attorney or not. Enforced on adding a member *and* on reactivating a removed one, since
+"remove then re-add" would otherwise be a way around the licence. Surfaced on the firm
+console so nobody meets a 402 by surprise.
+
+**Found while sweeping, and this is the important part.** Phase 2.5 removed
+`inquiries_per_month` and `chat_messages_per_month` from the pricing tiers. The same
+defect was still live somewhere else: `GET /api/chat/conversations` showed an attorney
+without an active plan only their **five oldest client conversations**, replacing the
+rest with *"Locked Conversation — Please upgrade to view this conversation."*
+
+That is rule 1 exactly — revenue rising with how many clients reach an attorney — and
+worse than the pricing page was, because it withheld a **client's own message from
+their own lawyer** over an unpaid software bill, putting us inside a relationship we
+are not part of. Removed from the API, and the blur, lock icon and upsell removed from
+`ChatInterface` too.
+
+**3. Fee notes.**
+
+New `FeeNote` model and module: the firm bills **its own client**, under its own TIN and
+VAT number, into its own bank account. We render the document and are not in the
+transaction. Not to be confused with `Invoice`, which is us billing a firm for software.
+
+- **No platform-fee column and no commission column exist on the model.** The absence
+  is the guardrail; a column that exists is a column a future decision can populate
+- Content is **snapshotted at issue** like the engagement letter — a fee note is a tax
+  document and must still say what it said on the day it was sent
+- Numbers are sequential per firm per year; a cancelled note keeps its number, because
+  a gap in the series is a question the firm has to answer
+- "Record as paid" **records**; there is no admin approval, because we never saw the money
+- Platform staff cannot read one: it names the client and narrates the work
+
+Also: `ConsultationPricing.physicalPrice` / `onlinePrice` dropped — the last published
+"buy a consultation at this price" fields in the schema, forced to 0 since Phase 0 and
+read by nothing.
+
+**Verification**
+
+`npm run build`, `npx tsc --noEmit`, `check:privilege` 10/10, `check:ai` 49/49,
+migrations in sync. New **`npm run check:billing`** — 17 assertions against a real
+database covering the arithmetic, the document wording, snapshot immutability, the
+numbering series, and that seats answer without reference to matters or clients.
+
+The migration was tested against a database seeded with the data that would break it:
+**one firm with two attorneys each holding their own ACTIVE licence.** The more valuable
+survived as ACTIVE, the other was stood down to CANCELED with its end date untouched so
+no access was lost. The orphan guard was tested by deliberately detaching an attorney
+from their firm — it raised and aborted rather than silently dropping a paid licence.
+
+**Two things the type checker could not have caught, both found by sweeping:**
+- `admin/subscriptions/usage` renders `record.lawyerName` while the API now sends
+  `firmName` — it would have rendered blank forever
+- A sidebar badge keyed to a nav item labelled **"Payments & Commission"**, a page
+  deleted back in Phase 1b. The condition had matched nothing since, and it was the last
+  use of the word "commission" in the UI
+
+And one the *seed* caught: `db:reset` on a clean database failed because `prisma/seed.ts`
+still created subscriptions with `lawyerId`. That is the third phase running in which
+seeding a clean database found a real break that the build did not.
+
+**Still open**
+- Counsel questions 16–18 — **blocks everything**
+- Counsel question 6 answered conservatively rather than resolved
+- Counsel question 10 (VAT/SSCL treatment) now matters more: fee notes compute VAT at a
+  rate the firm sets, and neither we nor the firm has had that reviewed
+- Advertiser billing still has no module; invoicing happens outside the platform
+- Three Acts are in the vector store with no library row, so their AI citations do not
+  resolve — a data task, see above
+- The AI refusal patterns are English-only while the platform ships `si` and `ta`
 - Phases 6 (PDPA), 7 (growth)

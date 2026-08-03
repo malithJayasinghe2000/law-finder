@@ -370,7 +370,7 @@ informational lawyer websites.
 | 7 | Conflict checks | | | |
 | 8 | Firm structure | | | |
 | 9 | PDPA | | | |
-| 10 | Tax | | | |
+| 10 | Tax (now load-bearing: fee notes compute VAT — see Phase 3) | | | |
 | 11 | Third-party advertising | | | |
 | 12 | Pro bono module | | | |
 | 13 | Cause lists | | | |

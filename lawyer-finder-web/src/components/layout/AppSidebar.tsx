@@ -199,11 +199,14 @@ export function AppSidebar({ locale, role, userId }: { locale: string; role: str
                                       {counts.pendingAdCampaignsCount}
                                     </span>
                                   )}
-                                  {sub.label === 'Payments & Commission' && role === 'ADMIN' && counts.pendingBankPaymentsCount > 0 && (
-                                    <span className="ml-auto bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full flex items-center justify-center min-w-[16px] h-[16px] shrink-0">
-                                      {counts.pendingBankPaymentsCount}
-                                    </span>
-                                  )}
+                                  {/* A badge keyed to a nav item labelled
+                                      "Payments & Commission" used to sit here.
+                                      That page was deleted in Phase 1b — the
+                                      platform does not adjudicate transfers into
+                                      a firm's own account and takes no
+                                      commission — so the condition had matched
+                                      nothing since. Removed rather than left as
+                                      the last use of the word in the UI. */}
                                 </SidebarMenuSubButton>
                               </SidebarMenuSubItem>
                             );

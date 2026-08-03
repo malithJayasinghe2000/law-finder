@@ -118,6 +118,8 @@ export const FeatureUsageResponseSchema = z.object({
   current: z.number(),
   limit: z.number(), // -1 = unlimited
   percentage: z.number().min(0).max(100),
+  /** Always false. Client conversations are never metered — see the note in
+   *  src/app/api/chat/conversations/route.ts (guardrail rule 1). */
   isLimited: z.boolean(),
 });
 

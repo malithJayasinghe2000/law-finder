@@ -27,6 +27,8 @@ the AI chatbot, read in this order:**
 5. `docs/restructure/QUESTIONS-FOR-COUNSEL.md` — open legal questions
 6. `docs/restructure/PHASE-5-BRIEF.md` — Phase 5 (AI compliance), now complete
 
+Phases 0–5 are complete. Phase 6 (PDPA) is next.
+
 ### The seven hard rules (full detail in LEGAL-GUARDRAILS.md)
 
 1. Never take a share of a legal fee — no commission, in either direction
@@ -61,5 +63,9 @@ bound by that limit — no fee ranges, no ratings, no promotional copy.
   not prove the assistant refuses to advise on someone's own case. **Every AI answer
   is generated server-side through `/api/ai/ask` and passes that policy file. The
   browser must never call a model service directly**
+- Run `npm run check:billing` after touching `src/lib/consultations/feeNote.ts` or
+  `src/lib/firms/billing.ts` — a green build does not prove a fee note is free of a
+  platform fee. **The licence belongs to the `LawFirm`; a seat is a person who can
+  sign in. Never meter clients, matters, enquiries, messages or conversations**
 - **Never break a working flow to make a legal fix** — replace before removing
 - Update `docs/restructure/PROGRESS.md` at the end of every session
