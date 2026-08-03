@@ -300,10 +300,8 @@ model LawyerProfile {
   firmId String?
   firm   LawFirm? @relation(fields: [firmId], references: [id], onDelete: SetNull)
 
-  inquiries   Inquiry[]
-  articles    Article[]
-  paidPromos  PaidPromo[]
-  adCampaigns AdCampaign[]
+  inquiries Inquiry[]
+  articles  Article[]
 
   // Consultation & Booking relations
   availability          LawyerAvailability[]
@@ -619,10 +617,7 @@ model Article {
 // endpoint and the public payloads were all still live.
 // See docs/restructure/LEGAL-GUARDRAILS.md — "The Rule 40 content limit".
 
-enum PromoStatus {
-  ACTIVE
-  INACTIVE
-}
+// PromoStatus removed in Phase 4 along with the PaidPromo model. See below.
 
 enum PaymentStatus {
   PAID
@@ -632,20 +627,98 @@ enum PaymentStatus {
   CANCELLED
 }
 
-model PaidPromo {
-  id            String        @id @default(uuid())
-  lawyerId      String
-  lawyer        LawyerProfile @relation(fields: [lawyerId], references: [id], onDelete: Cascade)
-  fromDate      DateTime
-  toDate        DateTime
-  status        PromoStatus   @default(INACTIVE)
-  paymentStatus PaymentStatus @default(UNPAID)
-  invoiceId     String?
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
-}
+// The `PaidPromo` model was removed in Phase 4.
+//
+// It sold a promotional slot to a LawyerProfile. That is selling visibility to
+// an attorney: prohibited by guardrail rule 3, prohibited as advertising under
+// Supreme Court Rules 39-49, and — because it reaches the intermediary —
+// exposure for this platform's operators under the Intermeddlers with Suitors
+// Ordinance No. 11 of 1894.
+//
+// It is not repurposed or renamed. Advertising is now sold to non-legal
+// advertisers only, through the `Advertiser` model.
+// See docs/restructure/LEGAL-GUARDRAILS.md (rule 3).
 
 // ============= Advertisement Management System =============
+//
+// Advertising is sold to NON-LEGAL advertisers only.
+//
+// An attorney may not advertise or solicit, so selling an attorney visibility
+// makes this platform the mechanism of their breach — and touting reaches the
+// intermediary as a criminal matter under the Intermeddlers with Suitors
+// Ordinance No. 11 of 1894. A bank, an insurer or a university is under no such
+// restriction, so their advertising raises no touting question at all.
+//
+// The rule is enforced structurally: `AdCampaign` belongs to an `Advertiser`,
+// and there is no relation from `AdCampaign` to `LawyerProfile` or `LawFirm`.
+// A lawyer cannot buy an advert because there is nowhere to put them.
+// See docs/restructure/LEGAL-GUARDRAILS.md (rule 3).
+
+/// What sector an advertiser trades in.
+///
+/// There is deliberately no legal-services category, and there never may be.
+/// The categories that are refused outright are listed in
+/// src/lib/ads/eligibility.ts — the schema cannot express "not a law firm", so
+/// the check lives in code and in the admin review step.
+enum AdvertiserCategory {
+  BANKING_FINANCE
+  INSURANCE
+  EDUCATION
+  PUBLISHING_MEDIA
+  TECHNOLOGY
+  HEALTHCARE
+  REAL_ESTATE
+  GOVERNMENT_NGO
+  RETAIL_CONSUMER
+  PROFESSIONAL_SERVICES // accountancy, translation, surveying — never legal
+  OTHER
+}
+
+enum AdvertiserStatus {
+  PENDING_REVIEW // submitted, not yet checked
+  ACTIVE
+  SUSPENDED
+  REJECTED
+}
+
+/// A non-legal organisation that buys advertising space.
+model Advertiser {
+  id   String @id @default(uuid())
+  name String
+
+  /// Registered legal name and company registration, so the review step can
+  /// establish who this actually is before any advert runs.
+  legalName          String?
+  registrationNumber String?
+
+  category AdvertiserCategory
+  status   AdvertiserStatus   @default(PENDING_REVIEW)
+
+  contactName  String?
+  contactEmail String
+  contactPhone String?
+  websiteUrl   String?
+  logoUrl      String?
+
+  /// Recorded by the ADMIN who confirmed this advertiser neither practises law
+  /// nor sells legal services. An advertiser cannot run a campaign without it.
+  /// This is the check that keeps rule 3 intact, so it is a stored fact with a
+  /// name and a date against it, not an implicit consequence of `status`.
+  nonLegalConfirmed     Boolean   @default(false)
+  nonLegalConfirmedAt   DateTime?
+  nonLegalConfirmedById String?
+  reviewNotes           String?
+
+  isActive Boolean @default(true)
+
+  campaigns AdCampaign[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([category])
+}
 
 enum AdType {
   BANNER_IMAGE // Full banner with image (for hero, top areas)
@@ -677,8 +750,18 @@ enum AdPlacement {
   BLOG_BOTTOM_STICKY // /en/blog: bottom fixed bar
   BLOG_POST_SIDEBAR // /en/blog/[slug]: right sidebar
   BLOG_POST_BOTTOM // /en/blog/[slug]: below article content
-  DIRECTORY_TOP // /en/lawyers: top of search results
-  DIRECTORY_INLINE // /en/lawyers: interspersed in results
+  LEGAL_LIBRARY_SIDEBAR // /en/legal-library: right sidebar
+  // DIRECTORY_TOP and DIRECTORY_INLINE were removed in Phase 4.
+  //
+  // They sold position at the top of, and inside, the attorney directory. Even
+  // with a non-legal advertiser that is wrong: an advert inside a results list
+  // teaches a client that position in that list is purchasable, and blurs the
+  // line between a listing and an advertisement.
+  //
+  // Deleted from the enum rather than merely deactivated, so that re-enabling
+  // them requires a migration and a conversation, not a toggle in an admin
+  // screen. Advertising belongs on editorial surfaces only.
+  // See docs/restructure/LEGAL-GUARDRAILS.md (rules 3 and 4).
 }
 
 // Admin-configurable settings per ad placement
@@ -714,9 +797,13 @@ model AdPlacementConfig {
 model AdCampaign {
   id String @id @default(uuid())
 
-  // Who owns this campaign
-  lawyerId String
-  lawyer   LawyerProfile @relation(fields: [lawyerId], references: [id], onDelete: Cascade)
+  // Who owns this campaign.
+  //
+  // An Advertiser, never a LawyerProfile or a LawFirm. There is no relation to
+  // either, on purpose: a lawyer cannot buy an advert because the schema gives
+  // them nowhere to be. See docs/restructure/LEGAL-GUARDRAILS.md (rule 3).
+  advertiserId String
+  advertiser   Advertiser @relation(fields: [advertiserId], references: [id], onDelete: Cascade)
 
   // Campaign details
   name      String
@@ -729,9 +816,15 @@ model AdCampaign {
   description String?
   imageUrl    String?
   targetUrl   String?
-  ctaText     String? @default("View Profile")
+  ctaText     String? @default("Learn more")
 
-  // Targeting
+  // Targeting.
+  //
+  // These describe the PAGE an advert may appear on, never the person reading
+  // it. Nothing here may ever be derived from what a client wrote about their
+  // legal problem — that is privileged material, and using it to sell adverts
+  // would breach rule 5 and the PDPA at once.
+  // See docs/restructure/LEGAL-GUARDRAILS.md (rule 5).
   targetDistricts     String[]
   targetPracticeAreas String[]
 

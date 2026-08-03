@@ -143,12 +143,27 @@ Ordinance No. 11 of 1894**, "touting" — steering clients toward lawyers for
 reward — is a **criminal offence**, and it is not limited to attorneys. It can
 reach the intermediary. That is us.
 
-**What we found in Phase 2:** the platform was doing exactly this. Attorneys could
-buy an ad campaign and appear as a "★ Sponsored" card at the top of the lawyer
-directory, above everyone else. That was removed.
+**What we found, in two goes.** Phase 2 removed attorney adverts from the
+directory. Phase 4 found that only *half* the job had been done — attorney adverts
+were still running on the homepage, the blog, and the AI chat sidebar, where
+someone describes their legal problem and an attorney who paid us appeared beside
+the answer.
 
 **What is still fine:** selling ads to *non-lawyer* advertisers — a bank, an
 insurer, a university. They are not bound by the conduct rules.
+
+**But "not an attorney" is not enough.** A legal consultancy, a claims-management
+company, a document-drafting service or a legal-expenses insurer either practises
+law without a licence or funnels work to those who do — and we would be the
+funnel. Those are refused by category. The full list, and where adverts may
+appear, is in
+[LEGAL-GUARDRAILS.md](./LEGAL-GUARDRAILS.md#advertising--who-may-buy-and-where).
+
+**How it is enforced:** structurally. `AdCampaign` belongs to an `Advertiser` and
+has no relation to `LawyerProfile` or `LawFirm` at all — a lawyer cannot buy an
+advert because the schema gives them nowhere to be. A named `ADMIN` has to
+positively confirm each advertiser is not a legal-services provider before
+anything runs.
 
 ### 4. Never let the platform choose the lawyer
 
@@ -382,6 +397,9 @@ Each of these is a normal, sensible product feature that is illegal here.
 | Tempting feature | Why it is prohibited |
 |---|---|
 | Charging a lawyer per enquiry, message, or matter | Pay-per-lead and fee-sharing (rules 1, 3) — even packaged as a subscription tier |
+| Any advert on the directory, a profile, or the engagement flow | Blurs a paid placement into a listing (rule 3) — true whoever bought it |
+| Selling ad space to a "legal consultancy" or claims manager | They sell legal services without a licence; we would be the channel (rule 3) |
+| Targeting an advert on what a client described in chat | Selling adverts against privileged material (rule 5 + PDPA) |
 | Auto-assigning a firm request to an attorney by workload | The platform choosing (rule 4). The *firm* may pick however it likes; we may not pick for it |
 | Letting a client book a slot before the firm accepts | Marketplace booking — it holds a diary slot before any conflict check, and implies a consultation was purchased |
 | "Top rated lawyers" / star ratings | Unfair attraction under Rule 39. Also makes ordering non-neutral (rule 4) |

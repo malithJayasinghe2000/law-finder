@@ -1,8 +1,34 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
-import Link from 'next/link';
 import { X, ExternalLink } from 'lucide-react';
+import { AD_LABEL, AD_LINK_REL } from '@/lib/ads/eligibility';
+
+/**
+ * Advert units.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Everything rendered here belongs to a non-legal advertiser — a bank, an
+ * insurer, a university. No attorney appears in an advert on this platform.
+ *
+ * Until Phase 4 these components rendered attorneys who had bought promotion,
+ * shaped like profile cards, linking to `/lawyers/{id}`. Two things were wrong
+ * with that: selling an attorney visibility is guardrail rule 3 (and touting,
+ * which reaches us criminally under the Intermeddlers with Suitors Ordinance
+ * 1894), and dressing a paid placement as a profile card made it indistinguishable
+ * from an ordinary listing.
+ *
+ * So three rules hold for every unit below:
+ *   1. It shows an ADVERTISER, never a practitioner.
+ *   2. It is labelled "Advertisement" — not "Sponsored", which reads as
+ *      editorial endorsement — and the label is not subtle.
+ *   3. It links OUTWARD, with rel="sponsored". An advert never navigates a
+ *      person deeper into this platform, because the only place it could send
+ *      them is toward a lawyer.
+ *
+ * See docs/restructure/LEGAL-GUARDRAILS.md (rule 3) and src/lib/ads/eligibility.ts.
+ * ─────────────────────────────────────────────────────────────────────────────
+ */
 
 interface Ad {
   id: string;
@@ -11,15 +37,13 @@ interface Ad {
   title: string | null;
   description: string | null;
   imageUrl: string | null;
+  /** Always an external URL. The API drops any advert without one. */
   targetUrl: string;
   ctaText: string | null;
-  lawyer: {
-    id: string;
-    fullName: string;
-    profileImageUrl: string | null;
-    district: string | null;
-    practiceAreas: string[];
-    bio: string | null;
+  advertiser: {
+    name: string;
+    category: string;
+    logoUrl: string | null;
   };
 }
 
@@ -32,9 +56,6 @@ interface PlacementConfig {
   maxAdsPerSlot: number;
 }
 
-const DEFAULT_LAWYER_IMAGE = 'https://images.unsplash.com/photo-1556157382-97eda2d62296?auto=format&fit=crop&w=800&q=80';
-
-// Track impressions & clicks
 function trackImpression(campaignId: string) {
   fetch('/api/ads/track', {
     method: 'POST',
@@ -51,7 +72,24 @@ function trackClick(campaignId: string) {
   }).catch(() => {});
 }
 
-// ─── Custom Hook to handle Config-driven Slider Rotation ──────────
+/**
+ * The label carried by every unit.
+ *
+ * Deliberately plain. A person should be able to tell in one glance that this
+ * is paid for and is not a recommendation from us.
+ */
+function AdLabel({ className = '' }: { className?: string }) {
+  return (
+    <span
+      className={`text-[8px] font-bold uppercase tracking-widest ${className}`}
+      aria-label={AD_LABEL}
+    >
+      {AD_LABEL}
+    </span>
+  );
+}
+
+// ─── Config-driven slider rotation ───────────────────────────────────────────
 function useAdSlider(placement: string, defaultLimit = 5) {
   const [ads, setAds] = useState<Ad[]>([]);
   const [config, setConfig] = useState<PlacementConfig | null>(null);
@@ -59,85 +97,72 @@ function useAdSlider(placement: string, defaultLimit = 5) {
   const trackedRef = useRef(new Set<string>());
 
   useEffect(() => {
-    // Fetch placement config
-    fetch('/api/ads/config')
-      .then(r => r.json())
-      .then(d => {
-        const matchingConfig = d.configs?.find((c: any) => c.placement === placement);
-        if (matchingConfig) {
-          setConfig(matchingConfig);
-        }
-      })
-      .catch(() => {});
+    let cancelled = false;
 
-    // Fetch active ads for this placement
-    fetch(`/api/ads/serve?placement=${placement}&limit=${defaultLimit}`)
-      .then((r) => r.json())
-      .then((d) => {
-        if (d.ads) {
-          setAds(d.ads);
-          // Track initial impressions
-          d.ads.slice(0, config?.maxAdsPerSlot || 1).forEach((ad: Ad) => {
-            if (!trackedRef.current.has(ad.id)) {
-              trackImpression(ad.id);
-              trackedRef.current.add(ad.id);
-            }
-          });
-        }
-      })
-      .catch(() => {});
-  }, [placement, config?.maxAdsPerSlot]);
+    async function load() {
+      try {
+        const [adsRes, configRes] = await Promise.all([
+          fetch(`/api/ads/serve?placement=${placement}&limit=${defaultLimit}`),
+          fetch(`/api/ads/config?placement=${placement}`),
+        ]);
 
-  // Set up rotation timer if slider is enabled and we have enough ads
-  useEffect(() => {
-    if (!config?.isSlider || ads.length <= (config.maxAdsPerSlot || 1)) return;
+        const adsData = await adsRes.json();
+        const configData = configRes.ok ? await configRes.json() : null;
 
-    const interval = setInterval(() => {
-      setCurrentIndex((prev) => {
-        const next = (prev + 1) % ads.length;
-        // Track impression for newly visible ads
-        const visibleAds = getVisibleAds(next);
-        visibleAds.forEach((ad) => {
-          if (!trackedRef.current.has(ad.id)) {
-            trackImpression(ad.id);
-            trackedRef.current.add(ad.id);
-          }
-        });
-        return next;
-      });
-    }, config.sliderInterval || 3000);
-
-    return () => clearInterval(interval);
-  }, [config, ads]);
-
-  // Helper to slice visible ads wrapping around the array
-  const getVisibleAds = (index: number) => {
-    const size = config?.maxAdsPerSlot || 1;
-    if (ads.length <= size) return ads;
-    const result: Ad[] = [];
-    for (let i = 0; i < size; i++) {
-      result.push(ads[(index + i) % ads.length]);
+        if (cancelled) return;
+        setAds(adsData.ads || []);
+        setConfig(configData?.config || null);
+      } catch {
+        if (!cancelled) setAds([]);
+      }
     }
-    return result;
-  };
 
-  return {
-    visibleAds: getVisibleAds(currentIndex),
-    hasAds: ads.length > 0,
-    config,
-  };
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [placement, defaultLimit]);
+
+  const maxAds = config?.maxAdsPerSlot ?? 1;
+  const isSlider = config?.isSlider ?? false;
+  const interval = config?.sliderInterval ?? 5000;
+
+  useEffect(() => {
+    if (!isSlider || ads.length <= maxAds) return;
+    const t = setInterval(() => {
+      setCurrentIndex((i) => (i + maxAds) % ads.length);
+    }, interval);
+    return () => clearInterval(t);
+  }, [isSlider, ads.length, maxAds, interval]);
+
+  const visibleAds = ads.length ? ads.slice(currentIndex, currentIndex + maxAds) : [];
+  const wrapped =
+    visibleAds.length < maxAds && ads.length > maxAds
+      ? [...visibleAds, ...ads.slice(0, maxAds - visibleAds.length)]
+      : visibleAds;
+
+  useEffect(() => {
+    for (const ad of wrapped) {
+      if (!trackedRef.current.has(ad.id)) {
+        trackedRef.current.add(ad.id);
+        trackImpression(ad.id);
+      }
+    }
+  }, [wrapped]);
+
+  return { visibleAds: wrapped, hasAds: ads.length > 0, config };
 }
 
 /* =========================================================
-   1. AdBanner — Slider banner below homepage hero or blogs
+   1. AdBanner — banner below the homepage hero, or on blogs
    ========================================================= */
 export function AdBanner({
   placement,
-  locale,
   className = '',
 }: {
   placement: string;
-  locale: string;
+  /** Accepted for call-site compatibility; adverts never link internally. */
+  locale?: string;
   className?: string;
 }) {
   const { visibleAds, hasAds } = useAdSlider(placement, 10);
@@ -146,132 +171,74 @@ export function AdBanner({
 
   return (
     <div className={`relative overflow-hidden w-full ${className}`}>
-      <div className={`grid gap-4 ${
-        visibleAds.length === 3 ? 'grid-cols-1 md:grid-cols-3' :
-        visibleAds.length === 2 ? 'grid-cols-1 md:grid-cols-2' :
-        'grid-cols-1'
-      }`}>
-        {visibleAds.map((ad) => {
-          const displayImageUrl = ad.imageUrl || ad.lawyer.profileImageUrl || DEFAULT_LAWYER_IMAGE;
-          const bannerTitle = ad.title || ad.lawyer.fullName;
-          const bannerDescription = ad.description || ad.lawyer.bio || ad.lawyer.district || null;
-
-          return (
-            <Link
-              key={ad.id}
-              href={ad.targetUrl.startsWith('/') ? `/${locale}${ad.targetUrl}` : ad.targetUrl}
-              onClick={() => trackClick(ad.id)}
-              className="block group relative w-full h-[180px] sm:h-[220px] overflow-hidden rounded-none border border-neutral-100/80 shadow-sm"
-            >
+      <div
+        className={`grid gap-4 ${
+          visibleAds.length === 3
+            ? 'grid-cols-1 md:grid-cols-3'
+            : visibleAds.length === 2
+              ? 'grid-cols-1 md:grid-cols-2'
+              : 'grid-cols-1'
+        }`}
+      >
+        {visibleAds.map((ad) => (
+          <a
+            key={ad.id}
+            href={ad.targetUrl}
+            target="_blank"
+            rel={AD_LINK_REL}
+            onClick={() => trackClick(ad.id)}
+            className="block group relative w-full h-[180px] sm:h-[220px] overflow-hidden rounded-none border border-neutral-100/80 shadow-sm bg-neutral-100"
+          >
+            {ad.imageUrl && (
               <img
-                src={displayImageUrl}
-                alt={bannerTitle}
+                src={ad.imageUrl}
+                alt={ad.title || ad.advertiser.name}
                 className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/35 to-transparent" />
-              
-              <div className="absolute bottom-0 left-0 right-0 p-5 text-white flex flex-col justify-end h-full">
-                <h3 className="text-base sm:text-lg font-bold font-serif mb-1 leading-snug">{bannerTitle}</h3>
-                {bannerDescription && <p className="text-[11px] text-white/80 line-clamp-2 mb-3 max-w-md font-medium">{bannerDescription}</p>}
-                <div>
-                  <span className="inline-flex items-center text-[10px] uppercase font-bold tracking-widest text-[#bfa37a] group-hover:text-white transition-colors">
-                    {ad.ctaText || 'Learn More'} →
-                  </span>
-                </div>
+            )}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/35 to-transparent" />
+
+            <div className="absolute bottom-0 left-0 right-0 p-5 text-white flex flex-col justify-end h-full">
+              <h3 className="text-base sm:text-lg font-bold font-serif mb-1 leading-snug">
+                {ad.title || ad.advertiser.name}
+              </h3>
+              {ad.description && (
+                <p className="text-[11px] text-white/80 line-clamp-2 mb-3 max-w-md font-medium">
+                  {ad.description}
+                </p>
+              )}
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center text-[10px] uppercase font-bold tracking-widest text-[#bfa37a] group-hover:text-white transition-colors">
+                  {ad.ctaText || 'Learn more'} <ExternalLink className="ml-1 h-3 w-3" />
+                </span>
+                <span className="text-[10px] text-white/50">by {ad.advertiser.name}</span>
               </div>
-              <span className="absolute top-3 right-3 text-[8px] font-bold uppercase tracking-widest text-white/60 bg-black/40 backdrop-blur-sm px-2 py-0.5 rounded-none border border-white/10">
-                Sponsored
-              </span>
-            </Link>
-          );
-        })}
+            </div>
+
+            <AdLabel className="absolute top-3 right-3 text-white/70 bg-black/50 backdrop-blur-sm px-2 py-0.5 border border-white/10" />
+          </a>
+        ))}
       </div>
     </div>
   );
 }
 
 /* =========================================================
-   2. SponsoredListing — Sponsored lawyer cards for directory
-   ========================================================= */
-export function SponsoredListing({
-  placement,
-  locale,
-  imageHeight = 'h-[360px]',
-}: {
-  placement: string;
-  locale: string;
-  imageHeight?: string;
-}) {
-  const { visibleAds, hasAds } = useAdSlider(placement, 6);
-
-  if (!hasAds) return null;
-
-  return (
-    <>
-      {visibleAds.map((ad) => (
-        <Link
-          key={ad.id}
-          href={`/${locale}/lawyers/${ad.lawyer.id}`}
-          onClick={() => trackClick(ad.id)}
-          className="w-full"
-        >
-          <div className="group flex flex-col items-start bg-white border border-[#bfa37a]/50 bg-[#bfa37a]/[0.02] p-4 hover:shadow-2xl transition-all duration-500 hover:-translate-y-1 relative">
-            {/* Image Frame */}
-            <div className={`relative w-full ${imageHeight} overflow-hidden bg-neutral-100`}>
-              <img
-                src={ad.lawyer.profileImageUrl || DEFAULT_LAWYER_IMAGE}
-                alt={ad.lawyer.fullName}
-                className="h-full w-full object-cover transition-all duration-500"
-              />
-              <div className="absolute top-4 left-4 z-10 flex flex-wrap items-center gap-1.5">
-                <span className="text-[10px] bg-[#bfa37a] text-white font-bold uppercase tracking-widest px-2 py-0.5 border border-[#bfa37a] rounded-none shadow-sm">
-                  ★ Sponsored
-                </span>
-              </div>
-              <div className="absolute inset-0 bg-black/25 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-            </div>
-
-            {/* Display Info below card */}
-            <div className="w-full pt-4 space-y-2 text-left">
-              <span className="text-[10px] font-bold uppercase tracking-widest text-[#bfa37a]">
-                {ad.lawyer.practiceAreas[0] || 'Legal Counsel'}
-              </span>
-              <h4 className="text-neutral-900 font-serif font-bold text-base transition-colors group-hover:text-[#bfa37a]">
-                {ad.lawyer.fullName}
-              </h4>
-              <p className="text-neutral-500 text-xs font-light line-clamp-1">
-                {ad.title || ad.lawyer.bio || 'Experienced legal professional.'}
-              </p>
-              
-              <div className="flex items-center gap-3 pt-2">
-                {ad.lawyer.district && (
-                  <div className="text-[9px] font-bold uppercase tracking-widest text-neutral-400 bg-neutral-100 px-2 py-1">
-                    {ad.lawyer.district}
-                  </div>
-                )}
-                <div className="text-[9px] font-bold uppercase tracking-widest text-[#bfa37a] bg-[#bfa37a]/10 px-2 py-1">
-                  {ad.ctaText || 'View Profile'}
-                </div>
-              </div>
-            </div>
-          </div>
-        </Link>
-      ))}
-    </>
-  );
-}
-
-/* =========================================================
-   3. SidebarAd — Sidebar card format for chats and blogs
+   2. SidebarAd — sidebar card for the blog, library and chat
    ========================================================= */
 export function SidebarAd({
   placement,
-  locale,
-  practiceArea,
   className = '',
 }: {
   placement: string;
-  locale: string;
+  locale?: string;
+  /**
+   * Accepted for call-site compatibility and deliberately unused.
+   *
+   * Targeting an advert on a practice area inferred from what a person is
+   * discussing would mean selling adverts against privileged material.
+   * See docs/restructure/LEGAL-GUARDRAILS.md (rule 5).
+   */
   practiceArea?: string;
   className?: string;
 }) {
@@ -281,107 +248,101 @@ export function SidebarAd({
 
   return (
     <div className={className}>
-      <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest mb-4">Sponsored Lawyers</p>
+      <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest mb-4">
+        {AD_LABEL}
+      </p>
       <div className="flex flex-col gap-4">
-        {visibleAds.map((ad) => {
-          const displayImage = ad.imageUrl || ad.lawyer.profileImageUrl || DEFAULT_LAWYER_IMAGE;
-          const linkHref = ad.imageUrl
-            ? (ad.targetUrl.startsWith('/') ? `/${locale}${ad.targetUrl}` : ad.targetUrl)
-            : `/${locale}/lawyers/${ad.lawyer.id}`;
-
-          return (
-            <Link
-              key={ad.id}
-              href={linkHref}
-              onClick={() => trackClick(ad.id)}
-              className="block group"
-            >
-              <div className="border border-neutral-200/60 rounded-none p-4 hover:shadow-md hover:border-neutral-300 transition-all bg-white text-left">
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="w-10 h-10 rounded-full overflow-hidden bg-neutral-100 shrink-0">
-                    <img src={displayImage} alt="" className="w-full h-full object-cover" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold text-neutral-900 truncate font-serif">{ad.lawyer.fullName}</p>
-                    <p className="text-xs text-neutral-500">{ad.lawyer.district || 'Sri Lanka'}</p>
-                  </div>
-                </div>
-                {ad.title && <p className="text-xs text-neutral-700 font-medium mb-2">{ad.title}</p>}
-                {ad.lawyer.practiceAreas.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mb-3">
-                    {ad.lawyer.practiceAreas.slice(0, 2).map((area) => (
-                      <span key={area} className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 bg-neutral-100 text-neutral-600 rounded">
-                        {area}
-                      </span>
-                    ))}
+        {visibleAds.map((ad) => (
+          <a
+            key={ad.id}
+            href={ad.targetUrl}
+            target="_blank"
+            rel={AD_LINK_REL}
+            onClick={() => trackClick(ad.id)}
+            className="block group"
+          >
+            <div className="border border-neutral-200/60 rounded-none p-4 hover:shadow-md hover:border-neutral-300 transition-all bg-white text-left">
+              <div className="flex items-center gap-3 mb-3">
+                {ad.advertiser.logoUrl && (
+                  <div className="w-10 h-10 overflow-hidden bg-neutral-100 shrink-0">
+                    <img src={ad.advertiser.logoUrl} alt="" className="w-full h-full object-contain" />
                   </div>
                 )}
-                <div className="text-[10px] font-bold text-[#bfa37a] uppercase tracking-wider group-hover:underline">
-                  {ad.ctaText || 'View Profile'} →
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-neutral-900 truncate">
+                    {ad.advertiser.name}
+                  </p>
+                  <AdLabel className="text-neutral-400" />
                 </div>
               </div>
-            </Link>
-          );
-        })}
+
+              {ad.title && (
+                <p className="text-xs text-neutral-800 font-medium mb-1">{ad.title}</p>
+              )}
+              {ad.description && (
+                <p className="text-[11px] text-neutral-500 line-clamp-3 mb-3">{ad.description}</p>
+              )}
+
+              <div className="text-[10px] font-bold text-[#bfa37a] uppercase tracking-wider group-hover:underline inline-flex items-center gap-1">
+                {ad.ctaText || 'Learn more'} <ExternalLink className="h-3 w-3" />
+              </div>
+            </div>
+          </a>
+        ))}
       </div>
     </div>
   );
 }
 
 /* =========================================================
-   4. StickyBottomAd — Sticky bottom bar that follows scrolling
+   3. StickyBottomAd — dismissible bar pinned to the viewport
    ========================================================= */
-export function StickyBottomAd({
-  placement,
-  locale,
-}: {
-  placement: string;
-  locale: string;
-}) {
+export function StickyBottomAd({ placement }: { placement: string; locale?: string }) {
   const { visibleAds, hasAds } = useAdSlider(placement, 3);
   const [closed, setClosed] = useState(false);
 
   if (!hasAds || visibleAds.length === 0 || closed) return null;
 
   const ad = visibleAds[0];
-  const displayImage = ad.imageUrl || ad.lawyer.profileImageUrl || DEFAULT_LAWYER_IMAGE;
-  const linkHref = ad.targetUrl.startsWith('/') ? `/${locale}${ad.targetUrl}` : ad.targetUrl;
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-50 bg-[#161616] text-white py-3 px-6 shadow-[0_-8px_30px_rgb(0,0,0,0.15)] border-t border-white/5 animate-in slide-in-from-bottom duration-300">
       <div className="max-w-[1200px] mx-auto flex items-center justify-between gap-4">
-        {/* Ad Info & Image */}
-        <Link 
-          href={linkHref}
+        <a
+          href={ad.targetUrl}
+          target="_blank"
+          rel={AD_LINK_REL}
           onClick={() => trackClick(ad.id)}
           className="flex items-center gap-4 flex-1 min-w-0 group"
         >
-          <div className="w-12 h-12 bg-neutral-800 rounded-none overflow-hidden shrink-0 border border-white/10 hidden sm:block">
-            <img src={displayImage} alt="" className="w-full h-full object-cover" />
-          </div>
+          {ad.advertiser.logoUrl && (
+            <div className="w-12 h-12 bg-white rounded-none overflow-hidden shrink-0 border border-white/10 hidden sm:block">
+              <img src={ad.advertiser.logoUrl} alt="" className="w-full h-full object-contain" />
+            </div>
+          )}
           <div className="min-w-0">
             <div className="flex items-center gap-2 mb-0.5">
-              <span className="text-[8px] font-bold uppercase tracking-widest text-[#bfa37a] bg-[#bfa37a]/15 border border-[#bfa37a]/35 px-1.5 py-0.5">Sponsored</span>
-              <h4 className="text-xs font-bold text-white truncate font-serif group-hover:text-[#bfa37a] transition-colors">{ad.title || ad.lawyer.fullName}</h4>
+              <AdLabel className="text-[#bfa37a] bg-[#bfa37a]/15 border border-[#bfa37a]/35 px-1.5 py-0.5" />
+              <h4 className="text-xs font-bold text-white truncate font-serif group-hover:text-[#bfa37a] transition-colors">
+                {ad.title || ad.advertiser.name}
+              </h4>
             </div>
-            <p className="text-[11px] text-neutral-400 line-clamp-1 font-light">{ad.description || ad.lawyer.bio || 'Consult with a verified legal counselor today.'}</p>
+            <p className="text-[11px] text-neutral-400 line-clamp-1 font-light">
+              {ad.description || `From ${ad.advertiser.name}`}
+            </p>
           </div>
-        </Link>
+        </a>
 
-        {/* CTA & Close button */}
         <div className="flex items-center gap-4 shrink-0">
-          <Link 
-            href={linkHref}
-            onClick={() => trackClick(ad.id)}
-          >
+          <a href={ad.targetUrl} target="_blank" rel={AD_LINK_REL} onClick={() => trackClick(ad.id)}>
             <button className="bg-[#bfa37a] hover:bg-[#a68d67] text-white text-[10px] font-bold uppercase tracking-wider px-4 py-2 flex items-center gap-1 transition-colors">
-              {ad.ctaText || 'Consult now'} <ExternalLink className="w-3 h-3" />
+              {ad.ctaText || 'Learn more'} <ExternalLink className="w-3 h-3" />
             </button>
-          </Link>
-          <button 
+          </a>
+          <button
             onClick={() => setClosed(true)}
             className="p-1 hover:bg-white/10 text-neutral-400 hover:text-white transition-colors"
-            title="Dismiss Ad"
+            title="Dismiss advertisement"
           >
             <X className="w-4 h-4" />
           </button>
@@ -390,3 +351,12 @@ export function StickyBottomAd({
     </div>
   );
 }
+
+/**
+ * `SponsoredListing` was removed in Phase 4.
+ *
+ * It rendered an attorney's profile card with a "★ Sponsored" flag and placed it
+ * at the top of the directory. That is the exact anti-pattern this file now
+ * exists to prevent: a paid placement wearing the clothes of a search result,
+ * sold to a practitioner. It is not replaced.
+ */

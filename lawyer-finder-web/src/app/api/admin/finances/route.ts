@@ -28,7 +28,7 @@ export async function GET(req: Request) {
     // 2. Get all approved/active/expired ad campaigns as a fallback/additional check
     const adCampaigns = await prisma.adCampaign.findMany({
       where: { status: { in: ['APPROVED', 'ACTIVE', 'EXPIRED'] } },
-      select: { totalBudget: true, lawyerId: true },
+      select: { totalBudget: true, advertiserId: true },
     });
     const totalAdCampaignBudget = adCampaigns.reduce((sum, c) => sum + (c.totalBudget || 0), 0);
 
@@ -75,16 +75,13 @@ export async function GET(req: Request) {
         .filter((inv: any) => inv.lawyerId === lawyer.id && (inv.paymentReason.toLowerCase().includes('subscription') || inv.paymentReason.toLowerCase().includes('plan')))
         .reduce((sum: number, inv: any) => sum + inv.amount, 0);
 
-      // Ads paid by this lawyer
-      const lawyerAds = paidInvoices
-        .filter((inv: any) => inv.lawyerId === lawyer.id && (inv.paymentReason.toLowerCase().includes('ad') || inv.paymentReason.toLowerCase().includes('campaign')))
-        .reduce((sum: number, inv: any) => sum + inv.amount, 0);
-
-      const lawyerCampaigns = adCampaigns
-        .filter((c: any) => c.lawyerId === lawyer.id)
-        .reduce((sum: number, c: any) => sum + (c.totalBudget || 0), 0);
-
-      const finalLawyerAdIncome = Math.max(lawyerAds, lawyerCampaigns);
+      // Per-lawyer ad income was removed in Phase 4: attorneys no longer buy
+      // advertising, so there is no such figure. The comparison that used to be
+      // here read `c.lawyerId === lawyer.id` against a campaign that now carries
+      // an advertiserId — it compiled only because the row was cast to `any`,
+      // and would have silently reported zero forever.
+      // See docs/restructure/LEGAL-GUARDRAILS.md (rule 3).
+      const finalLawyerAdIncome = 0;
 
       // Consultation fees this lawyer collected directly from clients.
       // Informational only — never platform income, and never a platform liability.

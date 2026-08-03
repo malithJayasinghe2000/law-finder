@@ -33,12 +33,12 @@ export default function Header({ locale, userRole = null, appStatus = null, user
     return null;
   }
   const navLinks = [
-    // Firms first: the firm is the provider of legal services, so it is the
-    // front door. Attorneys remain browsable for a client who wants a named
-    // practitioner — the choice is theirs either way.
+    // One entry, not two. /firms and /lawyers are two lenses on the same
+    // population — every attorney belongs to a practice, and a sole
+    // practitioner IS their practice — so listing both in the nav showed the
+    // same people twice. The toggle on the page switches lens.
     // See docs/restructure/LEGAL-GUARDRAILS.md (rules 4 and 7).
-    { href: `/${locale}/firms`, label: 'Law Firms', icon: Building2 },
-    { href: `/${locale}/lawyers`, label: t('directory'), icon: Search },
+    { href: `/${locale}/firms`, label: t('directory'), icon: Search },
     { href: `/${locale}/chat`, label: t('chat'), icon: MessageCircle },
     { href: `/${locale}/legal-library`, label: t('legalLibrary'), icon: BookOpen },
     { href: `/${locale}/blog`, label: t('blog'), icon: FileText },

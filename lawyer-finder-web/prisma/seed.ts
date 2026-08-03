@@ -633,29 +633,21 @@ async function main() {
       recommendedHeight: 90,
       allowedAdTypes: ['BANNER_IMAGE'],
     },
+    // The two directory placements that used to sit here were removed in Phase 4.
+    // Advertising belongs on editorial surfaces; an advert inside a list of
+    // attorneys blurs a paid placement into a listing, whoever bought it.
+    // See docs/restructure/LEGAL-GUARDRAILS.md (rules 3 and 4).
     {
-      placement: 'DIRECTORY_TOP',
-      displayName: 'Lawyer Directory — Top',
-      description: 'Pinned at the top of lawyer search results',
+      placement: 'LEGAL_LIBRARY_SIDEBAR',
+      displayName: 'Legal Library — Right Sidebar',
+      description: 'Sidebar of the legal library. Non-legal advertisers only.',
       pricePerDay: 2500,
-      isSlider: false,
-      sliderInterval: 3000,
-      maxAdsPerSlot: 2,
-      recommendedWidth: null,
-      recommendedHeight: null,
-      allowedAdTypes: ['PROFILE_CARD'],
-    },
-    {
-      placement: 'DIRECTORY_INLINE',
-      displayName: 'Lawyer Directory — Inline',
-      description: 'Interspersed within lawyer search results',
-      pricePerDay: 1500,
-      isSlider: false,
-      sliderInterval: 3000,
-      maxAdsPerSlot: 3,
-      recommendedWidth: null,
-      recommendedHeight: null,
-      allowedAdTypes: ['PROFILE_CARD'],
+      isSlider: true,
+      sliderInterval: 6000,
+      maxAdsPerSlot: 1,
+      recommendedWidth: 300,
+      recommendedHeight: 250,
+      allowedAdTypes: ['SIDEBAR_CARD'],
     },
   ]
 
@@ -678,7 +670,7 @@ async function main() {
   console.log(`Created ${permissions.length} permissions`)
   console.log('Set up feature limits for all roles')
   console.log(`Seeded ${communitiesData.length} communities`)
-  console.log('Seeded 9 Ad Placement Configurations')
+  console.log(`Seeded ${placements.length} ad placement configurations`)
   console.log('-------------------------------------------')
 }
 

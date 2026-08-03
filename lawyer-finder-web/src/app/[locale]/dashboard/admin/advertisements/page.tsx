@@ -29,7 +29,7 @@ import {
 
 interface Campaign {
   id: string;
-  lawyerId: string;
+  advertiserId: string;
   name: string;
   type: string;
   placement: string;
@@ -52,12 +52,11 @@ interface Campaign {
   rejectionReason: string | null;
   invoiceId: string | null;
   createdAt: string;
-  lawyer: {
+  advertiser: {
     id: string;
-    fullName: string;
-    baslNumber: string;
-    district: string | null;
-    profileImageUrl: string | null;
+    name: string;
+    category: string;
+    logoUrl: string | null;
   };
 }
 
@@ -71,16 +70,16 @@ interface Stats {
   rejected: number;
 }
 
-interface Lawyer {
+interface Advertiser {
   id: string;
-  fullName: string;
-  baslNumber: string;
+  name: string;
+  category: string;
 }
 
-interface LawyerApiItem {
+interface AdvertiserApiItem {
   id: string;
-  fullName: string;
-  baslNumber: string;
+  name: string;
+  category: string;
 }
 
 const AD_STATUSES = ['DRAFT', 'PENDING_REVIEW', 'APPROVED', 'ACTIVE', 'PAUSED', 'EXPIRED', 'REJECTED'];
@@ -103,7 +102,7 @@ export default function AdvertisementsPage() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
-  const [lawyers, setLawyers] = useState<Lawyer[]>([]);
+  const [advertisers, setAdvertisers] = useState<Advertiser[]>([]);
   const [configs, setConfigs] = useState<PlacementConfigClient[]>([]);
   const [selectedConfig, setSelectedConfig] = useState<PlacementConfigClient | null>(null);
   
@@ -118,7 +117,7 @@ export default function AdvertisementsPage() {
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
   const [form, setForm] = useState({
-    lawyerId: '',
+    advertiserId: '',
     name: '',
     type: 'BANNER_IMAGE' as AdTypeValue,
     placement: 'HOMEPAGE_BELOW_HERO' as AdPlacementValue,
@@ -212,14 +211,16 @@ export default function AdvertisementsPage() {
     }
   };
 
-  const fetchLawyers = async () => {
+  // Only advertisers that have been confirmed non-legal can be given a
+  // campaign. See docs/restructure/LEGAL-GUARDRAILS.md (rule 3).
+  const fetchAdvertisers = async () => {
     try {
-      const res = await fetch('/api/lawyers');
+      const res = await fetch('/api/admin/advertisers?status=ACTIVE&limit=50');
       const data = await res.json();
-      const list = data.lawyers || data || [];
-      setLawyers(
+      const list = (data.advertisers || []).filter((a: any) => a.nonLegalConfirmed);
+      setAdvertisers(
         Array.isArray(list)
-          ? list.map((l: LawyerApiItem) => ({ id: l.id, fullName: l.fullName, baslNumber: l.baslNumber }))
+          ? list.map((a: AdvertiserApiItem) => ({ id: a.id, name: a.name, category: a.category }))
           : []
       );
     } catch {}
@@ -227,7 +228,7 @@ export default function AdvertisementsPage() {
 
   useEffect(() => {
     fetchCampaigns();
-    fetchLawyers();
+    fetchAdvertisers();
     fetchConfigs();
   }, [filterStatus]);
 
@@ -293,7 +294,7 @@ export default function AdvertisementsPage() {
       toast.success('Campaign created successfully.');
       setShowCreate(false);
       setForm({
-        lawyerId: '', name: '', type: 'BANNER_IMAGE', placement: 'HOMEPAGE_BELOW_HERO',
+        advertiserId: '', name: '', type: 'BANNER_IMAGE', placement: 'HOMEPAGE_BELOW_HERO',
         title: '', description: '', imageUrl: '', targetUrl: '', ctaText: 'View Profile',
         targetDistricts: [], targetPracticeAreas: [], startDate: '', endDate: '',
         totalBudget: '', pricePerDay: String(selectedConfig?.pricePerDay || 2000), status: 'DRAFT',
@@ -361,24 +362,13 @@ export default function AdvertisementsPage() {
     }
   };
 
-  const handleGenerateInvoice = async (id: string) => {
-    setActionLoading(`invoice-${id}`);
-    try {
-      const res = await fetch('/api/admin/ads/invoice', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ campaignId: id }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
-      toast.success('Invoice generated successfully.');
-      fetchCampaigns();
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Failed to generate invoice.');
-    } finally {
-      setActionLoading(null);
-    }
-  };
+  // Ad invoicing was removed in Phase 4 along with attorney advertising.
+  //
+  // It created an Invoice against the campaign owner's LawyerProfile. Campaigns
+  // belong to non-legal advertisers now, and the Invoice model is keyed to a
+  // lawyer because it exists for firm subscriptions. Advertisers are billed
+  // outside the platform until there is a proper advertiser billing module.
+
 
   return (
     <div className="w-full space-y-6">
@@ -390,7 +380,7 @@ export default function AdvertisementsPage() {
           </div>
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-neutral-900">Ad Campaigns</h1>
-            <p className="text-sm text-neutral-500 font-medium">Manage lawyer advertisements & promotions</p>
+            <p className="text-sm text-neutral-500 font-medium">Campaigns from non-legal advertisers. Attorneys cannot advertise here.</p>
           </div>
         </div>
         <div className="flex gap-2">
@@ -465,14 +455,14 @@ export default function AdvertisementsPage() {
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5">Lawyer *</label>
-                  <select value={form.lawyerId} onChange={(e) => updateForm('lawyerId', e.target.value)} className="w-full py-2.5 px-3 bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-900 outline-none focus:border-[#0a0a0a]">
-                    <option value="">Select Lawyer</option>
-                    {lawyers.map((l) => (
-                      <option key={l.id} value={l.id}>{l.fullName} ({l.baslNumber})</option>
+                  <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5">Advertiser *</label>
+                  <select value={form.advertiserId} onChange={(e) => updateForm('advertiserId', e.target.value)} className="w-full py-2.5 px-3 bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-900 outline-none focus:border-[#0a0a0a]">
+                    <option value="">Select advertiser</option>
+                    {advertisers.map((a) => (
+                      <option key={a.id} value={a.id}>{a.name}</option>
                     ))}
                   </select>
-                  <FieldError message={formErrors.lawyerId} />
+                  <FieldError message={formErrors.advertiserId} />
                 </div>
                 <div>
                   <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5">Placement *</label>
@@ -500,7 +490,7 @@ export default function AdvertisementsPage() {
             <section className="space-y-3">
               <div>
                 <h4 className="text-[11px] font-bold uppercase tracking-wide text-neutral-900">2. Creative Content</h4>
-                <p className="text-xs text-neutral-500">Profile-based formats can use the lawyer profile photo automatically.</p>
+                <p className="text-xs text-neutral-500">Upload the advertiser's own creative. Nothing here may show an attorney.</p>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
@@ -534,7 +524,7 @@ export default function AdvertisementsPage() {
                     )
                   ) : (
                     <div className="min-h-[42px] flex items-center px-3 bg-neutral-50 border border-neutral-200 text-sm text-neutral-500">
-                      The lawyer profile photo will be used automatically for this format.
+                      The advertiser's logo is used when no creative is uploaded.
                     </div>
                   )}
                   <FieldError message={formErrors.imageUrl} />
@@ -671,7 +661,7 @@ export default function AdvertisementsPage() {
                       </span>
                     </div>
                     <p className="text-xs text-neutral-500">
-                      {campaign.lawyer.fullName} • {formatAdLabel(campaign.type)} • {formatAdLabel(campaign.placement)}
+                      {campaign.advertiser.name} • {formatAdLabel(campaign.type)} • {formatAdLabel(campaign.placement)}
                     </p>
                   </div>
 
@@ -791,19 +781,6 @@ export default function AdvertisementsPage() {
                           className="text-red-600 border-red-200 hover:bg-red-50 text-xs font-bold"
                         >
                           <XCircle className="w-3.5 h-3.5 mr-1.5" /> Reject
-                        </Button>
-                      )}
-
-                      {!campaign.invoiceId && ['APPROVED', 'ACTIVE'].includes(campaign.status) && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleGenerateInvoice(campaign.id)}
-                          disabled={actionLoading === `invoice-${campaign.id}`}
-                          className="text-indigo-600 border-indigo-200 hover:bg-indigo-50 text-xs font-bold"
-                        >
-                          {actionLoading === `invoice-${campaign.id}` ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : <FileText className="w-3.5 h-3.5 mr-1.5" />}
-                          Generate Invoice
                         </Button>
                       )}
 

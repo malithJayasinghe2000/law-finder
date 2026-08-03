@@ -99,13 +99,33 @@ export default async function FirmDirectory({
             and cannot be paid for. Use the filters to narrow the list, then choose for
             yourself.
           </p>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Prefer to choose an individual attorney?{' '}
-            <Link href={`/${locale}/lawyers`} className="underline underline-offset-2">
-              Browse attorneys instead
-            </Link>
-            .
-          </p>
+        </div>
+
+        {/* One browse surface, two lenses.
+            Every firm here is a practice and every attorney belongs to one, so
+            listing both as separate menu items showed a sole practitioner twice
+            — once as a person and once as their own firm. The toggle keeps both
+            ways of looking without pretending they are different populations. */}
+        <div
+          className="mb-6 inline-flex border border-neutral-200"
+          role="tablist"
+          aria-label="Browse by"
+        >
+          <span
+            role="tab"
+            aria-selected="true"
+            className="bg-neutral-900 px-5 py-2.5 text-[11px] font-bold uppercase tracking-widest text-white"
+          >
+            Practices
+          </span>
+          <Link
+            href={`/${locale}/lawyers`}
+            role="tab"
+            aria-selected="false"
+            className="px-5 py-2.5 text-[11px] font-bold uppercase tracking-widest text-neutral-600 transition-colors hover:bg-neutral-50"
+          >
+            People
+          </Link>
         </div>
 
         <FirmFilterForm locale={locale} filters={filters} />

@@ -86,10 +86,33 @@ export default async function LawyerDirectory({
       <div className="mx-auto max-w-[1400px] px-6 lg:px-12 xl:px-24">
         {/* Header */}
         <div className="mb-10 max-w-2xl">
-          <h1 className="text-3xl font-light tracking-tight sm:text-4xl">Lawyer Directory</h1>
+          <h1 className="text-3xl font-light tracking-tight sm:text-4xl">Attorneys</h1>
           <p className="mt-3 text-muted-foreground">
             Browse verified Sri Lankan Attorneys-at-Law. Listings are ordered alphabetically and cannot be paid for. Use the filters to narrow the list, then choose for yourself.
           </p>
+        </div>
+
+        {/* Same two lenses as /firms. See the note there. */}
+        <div
+          className="mb-6 inline-flex border border-neutral-200"
+          role="tablist"
+          aria-label="Browse by"
+        >
+          <Link
+            href={`/${locale}/firms`}
+            role="tab"
+            aria-selected="false"
+            className="px-5 py-2.5 text-[11px] font-bold uppercase tracking-widest text-neutral-600 transition-colors hover:bg-neutral-50"
+          >
+            Practices
+          </Link>
+          <span
+            role="tab"
+            aria-selected="true"
+            className="bg-neutral-900 px-5 py-2.5 text-[11px] font-bold uppercase tracking-widest text-white"
+          >
+            People
+          </span>
         </div>
 
         <LawyerFilterForm locale={locale} filters={filters} />

@@ -75,6 +75,76 @@ it runs on. We are never a party to the retainer.
 
 ---
 
+## Advertising — who may buy, and where
+
+Added 2026-08-03, Phase 4.
+
+**No attorney, law firm, or seller of legal services may buy visibility on this
+platform.** Selling an attorney a promoted slot makes us the mechanism of their
+breach of Rules 39–49, and touting reaches the *intermediary* criminally under
+the Intermeddlers with Suitors Ordinance No. 11 of 1894.
+
+This is enforced structurally, not procedurally: `AdCampaign` belongs to an
+`Advertiser` and has **no relation to `LawyerProfile` or `LawFirm` at all**. A
+lawyer cannot buy an advert because the schema gives them nowhere to be.
+
+### Who may advertise
+
+| ✅ Permitted | ⛔ Refused, by category |
+| --- | --- |
+| Banks and finance companies | Attorneys, law firms, chambers |
+| Insurers (general, life, motor) | Legal consultants and consultancies |
+| Universities and education providers | Claims-management and accident-claims companies |
+| Publishers and media | Document-drafting and deed-writing services |
+| Technology and software vendors | Legal-expenses insurance |
+| Healthcare, real estate, retail | Litigation funders |
+| Government and NGOs | Debt-recovery agencies |
+| Non-legal professional services (accountancy, translation, surveying) | Anything else selling legal advice or representation |
+
+"Not an attorney" is not sufficient. The refused column contains businesses that
+either practise law without a licence or channel work toward those who do — and
+we would be the channel. They are refused **by category**, because judging them
+one at a time is where mistakes happen.
+
+**The gate is a person, not a flag.** `Advertiser.nonLegalConfirmed` records that
+a named `ADMIN` positively confirmed this organisation is none of the above, with
+the date. No campaign runs without it — checked at review, at campaign creation,
+and again at serve time.
+
+### Where advertising may appear
+
+Editorial surfaces only — pages a person reads for information:
+
+✅ Homepage banner · blog · blog post · legal library · AI chat sidebar
+
+⛔ **Never** the attorney directory, the firm directory, any profile page, the
+engagement flow, or any dashboard. The `DIRECTORY_TOP` and `DIRECTORY_INLINE`
+placements were deleted from the `AdPlacement` enum in Phase 4 rather than merely
+deactivated, so restoring them takes a migration and a conversation instead of a
+toggle in an admin screen.
+
+An advert inside a list of practitioners teaches a client that position in that
+list is purchasable, and blurs an advertisement into a listing. That is true
+whoever bought it.
+
+### How adverts must look and behave
+
+- Labelled **"Advertisement"** — not "Sponsored", which reads as editorial
+  endorsement. The label is visible without hovering.
+- Never shaped like a listing or profile card. The unit Phase 4 removed was an
+  attorney's profile card with a star on it; that shape is the anti-pattern.
+- Always links **outward** to the advertiser's own site, with `rel="sponsored"`.
+  An advert never navigates a person deeper into this platform, because the only
+  thing it could point at here is a lawyer.
+- **Never targeted on matter data.** Targeting may use the *page*; it may never
+  use anything derived from what a client wrote about their legal problem. That
+  is privileged material, and selling adverts against it would breach rule 5 and
+  the PDPA at once.
+
+Enforced in [`src/lib/ads/eligibility.ts`](../../src/lib/ads/eligibility.ts).
+
+---
+
 ## The directory question — our largest unresolved risk
 
 Added 2026-08-01, Phase 2. **Read this before adding any public-facing surface that
@@ -172,7 +242,7 @@ it, the consumer directory becomes a removable front end rather than the foundat
 | **Practice add-ons** | Per-module | Doc automation, e-sign, time recording, court diary |
 | **Corporate panel management** | Enterprise annual | Companies managing outside counsel. Highest ARPU, no ethics issue |
 | **Consumer subscription** | B2C monthly | Legal library, templates, AI research. Selling information, not legal services |
-| **Third-party advertising** | CPM / flat | **Non-lawyer advertisers only** |
+| **Third-party advertising** | CPM / flat | **Non-lawyer advertisers only.** Implemented in Phase 4 — see [the advertising rules](#advertising--who-may-buy-and-where) |
 | **Data & analytics** | Licence | Anonymised aggregate court/outcome trends |
 | **CPD & events** | Per-seat / sponsorship | Natural BASL partnership surface |
 
@@ -205,6 +275,7 @@ Before merging anything that touches booking, payments, advertising, ranking, or
 - [ ] No percentage of a legal fee flows to the platform, in any direction
 - [ ] No client money touches a platform-controlled account or balance
 - [ ] Nothing sells position, visibility, or leads to an attorney
+- [ ] Every advert belongs to a `nonLegalConfirmed` advertiser, sits on an editorial surface, is labelled, and links outward
 - [ ] Ranking is neutral, disclosed, and independent of what a lawyer pays
 - [ ] Every attorney/firm-describing payload obeys the [Rule 40 content limit](#the-rule-40-content-limit--binding-on-every-profile-surface) — no fees, no ratings, no marketing copy
 - [ ] No red-flag phrase appears in code, strings, or UI

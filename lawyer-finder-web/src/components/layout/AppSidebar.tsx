@@ -43,6 +43,7 @@ export function AppSidebar({ locale, role, userId }: { locale: string; role: str
       label: 'Ad Campaigns',
       subLinks: [
         { href: `/${locale}/dashboard/admin/advertisements`, icon: Image, label: 'Campaigns' },
+        { href: `/${locale}/dashboard/admin/advertisers`, icon: Megaphone, label: 'Advertisers' },
         { href: `/${locale}/dashboard/admin/ad-config`, icon: Settings, label: 'Placement Config' },
       ]
     },
@@ -80,7 +81,6 @@ export function AppSidebar({ locale, role, userId }: { locale: string; role: str
       ]
     },
     { href: `/${locale}/dashboard/lawyer/chat`, icon: MessageCircle, label: 'Messages', hasBadge: true },
-    { href: `/${locale}/dashboard/lawyer/ads`, icon: Image, label: 'My Ads' },
     { 
       href: `/${locale}/dashboard/lawyer/payments`, 
       icon: CreditCard, 

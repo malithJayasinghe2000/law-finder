@@ -113,44 +113,11 @@ export function PlacementPreview({ placement }: PlacementPreviewProps) {
           </div>
         );
 
-      case 'card-grid':
-        return (
-          <div className="w-full space-y-4 border border-neutral-100 p-4 bg-white shadow-[0_4px_24px_rgba(0,0,0,0.02)]">
-            <div className="h-6 w-1/4 bg-neutral-200 animate-pulse rounded-md" />
-            
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              {/* If directory top, the ad is the first card */}
-              {placement === 'DIRECTORY_TOP' ? (
-                <div className={`relative h-44 flex flex-col items-center justify-center border-2 border-dashed ${preview.previewColor} transition-all duration-300 p-3 text-center rounded-xl`}>
-                  <div className="absolute inset-0 bg-current opacity-5 animate-pulse rounded-xl" />
-                  <div className="z-10 space-y-1">
-                    <span className="text-[9px] bg-neutral-900 text-white font-bold px-1.5 py-0.5 rounded uppercase tracking-wider block mb-1">Sponsored</span>
-                    <p className="text-[10px] font-bold text-neutral-800 uppercase">Profile Card</p>
-                    <p className="text-[9px] text-neutral-500 font-medium">{preview.previewLabel}</p>
-                  </div>
-                </div>
-              ) : (
-                <div className="h-44 bg-neutral-50 rounded-xl border border-neutral-150" />
-              )}
-
-              {/* Normal card or inline ad card */}
-              {placement === 'DIRECTORY_INLINE' ? (
-                <div className={`relative h-44 flex flex-col items-center justify-center border-2 border-dashed ${preview.previewColor} transition-all duration-300 p-3 text-center rounded-xl`}>
-                  <div className="absolute inset-0 bg-current opacity-5 animate-pulse rounded-xl" />
-                  <div className="z-10 space-y-1">
-                    <span className="text-[9px] bg-[#bfa37a] text-white font-bold px-1.5 py-0.5 rounded uppercase tracking-wider block mb-1">Sponsored</span>
-                    <p className="text-[10px] font-bold text-neutral-800 uppercase">Profile Card</p>
-                    <p className="text-[9px] text-neutral-500 font-medium">{preview.previewLabel}</p>
-                  </div>
-                </div>
-              ) : (
-                <div className="h-44 bg-neutral-50 rounded-xl border border-neutral-150" />
-              )}
-
-              <div className="h-44 bg-neutral-50 rounded-xl border border-neutral-150" />
-            </div>
-          </div>
-        );
+      // The 'card-grid' preview was removed in Phase 4 along with the
+      // directory placements it previewed. It showed a paid placement drawn as
+      // a profile card sitting inside a list of attorneys, which is exactly the
+      // shape advertising must never take here.
+      // See docs/restructure/LEGAL-GUARDRAILS.md (rules 3 and 4).
 
       default:
         return null;

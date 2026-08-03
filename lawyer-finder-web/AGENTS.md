@@ -25,7 +25,7 @@ the AI chatbot, read in this order:**
 3. `docs/restructure/PROGRESS.md` — **live status: what is done, what is next**
 4. `docs/restructure/ROADMAP.md` — the phase plan
 5. `docs/restructure/QUESTIONS-FOR-COUNSEL.md` — open legal questions
-6. `docs/restructure/PHASE-2-BRIEF.md` — Phase 2 (complete)
+6. `docs/restructure/PHASE-5-BRIEF.md` — if starting Phase 5 (next up)
 
 ### The seven hard rules (full detail in LEGAL-GUARDRAILS.md)
 

@@ -14,7 +14,7 @@
 | 2 | Law firm entity | 🟢 **Done** |
 | 2.5 | Firm-first intake + stop pricing on client volume | 🟢 **Done** |
 | 3 | Billing restructure (SaaS licence) | 🟡 Partly done — the unlawful part is out; seats/fee notes remain |
-| 4 | Advertising split | ⚪ Not started |
+| 4 | Advertising split | 🟢 **Done** |
 | 5 | AI compliance | ⚪ Not started |
 | 6 | PDPA compliance | ⚪ Not started |
 | 7 | Growth features | ⚪ Not started |
@@ -23,14 +23,15 @@ Legend: ⚪ not started · 🟡 in progress · 🟢 done · 🔴 blocked
 
 ## Next up
 
+**Phase 5 — AI compliance.** See [PHASE-5-BRIEF.md](./PHASE-5-BRIEF.md).
+
 **Phase 3, remainder** — move `Subscription` from `LawyerProfile` to `LawFirm` so a
 firm buys seats rather than each attorney buying a licence; build the fee-note
 module (the firm issues its own invoice under its own TIN/VAT, we generate the
 document and never the transaction); drop `ConsultationPricing.physicalPrice` /
 `onlinePrice`, which are always 0 and read by nothing.
 
-Then **Phase 4** — retire `PaidPromo` and lawyer-owned `AdCampaign`, and introduce
-a non-lawyer `Advertiser` entity.
+
 
 **But first, and more urgent than Phase 3:** put counsel questions **16, 17 and
 18** in front of a Sri Lankan Attorney-at-Law experienced in professional conduct.
@@ -613,3 +614,85 @@ check when there is nothing to clash with; unassigned matters carry an
 - Fee-note module not built (Phase 3)
 - `PaidPromo` and lawyer-owned `AdCampaign` still exist (Phase 4)
 - `ConsultationPricing.physicalPrice` / `onlinePrice` still present, always 0
+
+### 2026-08-03 — Phase 4 (advertising split) + directory merge
+
+**A correction to what Phase 2 claimed.** Phase 2 reported removing attorney-bought
+placement. It removed it from the *directory only*. `AdBanner`, `SidebarAd` and
+`StickyBottomAd` still rendered `ad.lawyer.fullName` and linked to `/lawyers/{id}`
+on the homepage, the blog, blog posts — and **the AI chat sidebar**, where a person
+describes their legal problem and an attorney who paid us appeared beside the
+answer. That is rules 3 and 4 together on the surface where the 1894 Ordinance
+bites hardest.
+
+**The split.**
+
+Advertising is now sold to non-legal advertisers only, and the rule is structural
+rather than procedural: `AdCampaign` belongs to an `Advertiser` and has **no
+relation to `LawyerProfile` or `LawFirm` at all**. A lawyer cannot buy an advert
+because the schema gives them nowhere to be.
+
+*Schema* (`20260803095511_advertising_split`) — new `Advertiser` with
+`AdvertiserCategory` / `AdvertiserStatus`; `AdCampaign.lawyerId` → `advertiserId`;
+`PaidPromo` and `PromoStatus` **deleted**, not repurposed; `DIRECTORY_TOP` and
+`DIRECTORY_INLINE` removed from the `AdPlacement` enum entirely so restoring them
+needs a migration rather than an admin toggle; `LEGAL_LIBRARY_SIDEBAR` added.
+
+*The gate.* `Advertiser.nonLegalConfirmed` records that a named `ADMIN` positively
+confirmed the organisation neither practises law nor sells legal services, with the
+date and their id. Nothing runs without it, and it is checked three times — at
+review, at campaign creation, and in the serve query itself. Changing an
+advertiser's name, legal name or category withdraws the confirmation and pauses
+live campaigns.
+
+*Refused by category, not case by case* — legal consultancies, claims-management
+companies, document-drafting services, legal-expenses insurers, litigation funders,
+debt-recovery agencies. "Not an attorney" is not sufficient: those businesses either
+practise law unlicensed or channel work to those who do, and we would be the
+channel. A plain-text screen surfaces these terms to the reviewer as an aid, not a
+substitute for looking.
+
+*Units* — every advert is labelled **"Advertisement"** (not "Sponsored", which reads
+as editorial endorsement), never shaped like a listing card, and always links
+**outward** with `rel="sponsored"`. `SponsoredListing` — an attorney's profile card
+with a star on it — was deleted and is not replaced.
+
+*Removed* — `/api/lawyer/ads`, the lawyer ads dashboard, `/api/admin/paid-promo` and
+its page, `/api/admin/ads/invoice`, `LawyerCreateAdSchema`, the `card-grid`
+placement preview, and ad invoicing through the lawyer-keyed `Invoice` model
+(advertisers are billed outside the platform until there is a proper advertiser
+billing module).
+
+**Directory merge.** `/firms` and `/lawyers` were showing the same four people —
+every firm is currently a firm of one, so a sole practitioner appeared once as a
+person and once as their own practice. They are now two lenses on one browse
+surface with a Practices / People toggle, and the site nav carries one entry
+instead of two. Fewer ways to be channelled, which also matters for counsel
+question 18.
+
+**Verification**
+- `npm run build`, `npx tsc --noEmit`, `npm run check:privilege` (10/10), migrations
+  in sync
+- Migration tested against a database seeded **with the data that would break it**:
+  two attorney-owned campaigns, one on a `DIRECTORY_TOP` placement, plus slot
+  bookings, analytics and a `PaidPromo` row. The generated SQL would have failed
+  twice — on the enum rewrite and on `ADD COLUMN advertiserId NOT NULL` against a
+  populated table — so the migration deletes the attorney-owned advertising first,
+  which is the thing it exists to remove
+- **17-assertion ad test** against a real database: no `lawyerId` column survives,
+  `PaidPromo` is gone, directory placements are not expressible, every DB placement
+  is permitted in code, pending/unconfirmed/suspended advertisers all serve nothing,
+  a confirmed one serves, and the text screen catches a law firm, a legal
+  consultancy and a claims manager while passing a bank
+- `db:reset` exercised end to end — **and it caught a real break**: the seed still
+  wrote the two directory placements, so a fresh database would have failed. Fixed
+- Guardrail sweep found two silent leftovers: a dead `LawyerCreateAdSchema` with no
+  callers, and `c.lawyerId === lawyer.id` in admin finances comparing against a
+  column that no longer exists — it compiled only because the row was cast to
+  `any`, and would have reported zero forever
+
+**Still open**
+- Counsel questions 16–18 — **blocks everything**
+- Advertiser billing has no module; invoicing happens outside the platform
+- Phase 3 remainder: firm seats, fee notes, `ConsultationPricing` price columns
+- Phases 5 (AI), 6 (PDPA), 7 (growth)
