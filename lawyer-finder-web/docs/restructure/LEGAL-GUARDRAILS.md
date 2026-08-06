@@ -414,6 +414,58 @@ Asserted by `npm run check:billing` (17 cases, against a real database).
 
 ---
 
+## Data protection — what we hold, and who decides
+
+Added 2026-08-03, Phase 6. Full detail in [DATA-INVENTORY.md](./DATA-INVENTORY.md);
+enforced in [`src/lib/privacy/policy.ts`](../../src/lib/privacy/policy.ts) and asserted by
+`npm run check:pdpa` (48 cases).
+
+### We are controller and processor at the same time
+
+Not "a processor for firms" — both, on different data, with different duties. Almost every
+mistake available here is applying one role's rule to the other role's data.
+
+| | **Controller** — we decide | **Processor** — the firm decides |
+| --- | --- | --- |
+| Data | `User`, `LawyerProfile`, `AiConversation`, community content, `Advertiser`, `Invoice`, `Inquiry` | `Booking` and everything under it: `ConflictCheck`, `Quote`, `EngagementLetter`, `FeeNote`, `BookingPayment`, attorney↔client `Message` |
+| We may delete it on our own schedule | yes | **never** |
+| Who answers a subject request | us | **the firm** — we refer |
+| Who decides an erasure | us | **the firm** — it may be professionally required to retain |
+
+`controllerOf()` makes this a lookup, not a judgement call in a route.
+
+### Four rules with teeth
+
+1. **The purge cannot reach matter data.** `assertPurgeable()` refuses every
+   firm-controlled model. Deleting a firm's conflict-check records on our own authority
+   is the one thing a processor may not do, so it is not expressible.
+2. **The access log holds no content — and must never gain a column that does.** A log of
+   *who read* a matter description is accountability. A log holding the description is a
+   second privileged store with different access rules and a different retention period.
+   The absence is the guardrail, exactly as with the commission column on `FeeNote`.
+3. **Erasure is anonymisation, and it is partial.** The `User` row survives with its
+   identifying fields overwritten, because matters reference the client for years. The
+   response must say what was kept and **which duty required it** — a refusal that does
+   not name the duty is not a defensible refusal.
+4. **A subject-access export contains no matter data.** A `ConflictCheck` names *other*
+   clients and opposing parties; releasing it on one person's request would breach several
+   others' confidentiality. The export names the firms to ask instead.
+
+### Consent is for three things, and matter data is not one of them
+
+`MARKETING_EMAIL`, `PRODUCT_ANALYTICS`, `AI_HISTORY_RETENTION`. Nothing else, and none is
+a precondition of using the platform.
+
+> Matter data is processed to perform the retainer and to meet the firm's professional
+> duties. Asking for consent implies it can be withdrawn, and we cannot honour a
+> withdrawal against a firm that is required to keep the file. **Treating everything as
+> consent is the common and expensive PDPA error.**
+
+Withdrawal that leaves the data in place is not withdrawal: withdrawing
+`AI_HISTORY_RETENTION` deletes the conversations rather than merely stopping collection.
+
+---
+
 ## Open questions for counsel
 
 Track answers here as they come in. Do not build on an unanswered question.
@@ -454,4 +506,7 @@ Before merging anything that touches booking, payments, advertising, ranking, or
 - [ ] No fee note carries a platform fee, commission, or any share to us
 - [ ] `npm run check:billing` passes
 - [ ] Client-facing artefacts name the **firm** as the service provider
+- [ ] Nothing deletes, exports or seeks consent for data the **firm** controls
+- [ ] No content column was added to `DataAccessLog`
+- [ ] `npm run check:pdpa` passes
 - [ ] `npm run build` passes

@@ -2,6 +2,7 @@ import { getSession } from '@/lib/auth';
 import { redirect, notFound } from 'next/navigation';
 import prisma from '@/lib/db';
 import { getMatterAccess } from '@/lib/firms/access';
+import { recordAccess, actorRoleFor } from '@/lib/privacy/audit';
 import PrintableFeeNote from './PrintableFeeNote';
 
 /**
@@ -35,6 +36,7 @@ export default async function FeeNotePrintPage(props: {
   const feeNote = await prisma.feeNote.findUnique({
     where: { id },
     select: {
+      id: true,
       noteNumber: true,
       content: true,
       status: true,
@@ -44,7 +46,7 @@ export default async function FeeNotePrintPage(props: {
       issuedAt: true,
       settledAt: true,
       booking: {
-        select: { clientId: true, lawyerId: true, firmId: true },
+        select: { id: true, clientId: true, lawyerId: true, firmId: true },
       },
     },
   });
@@ -71,6 +73,18 @@ export default async function FeeNotePrintPage(props: {
 
   // A draft has no snapshot, so there is nothing to print.
   if (!feeNote.content || feeNote.status === 'DRAFT') notFound();
+
+  // A fee note names the client and narrates the legal work done for them.
+  await recordAccess({
+    actorUserId: session.userId,
+    actorRole: actorRoleFor({ sessionRole: session.role, firmRole: access.basis }),
+    resource: 'FEE_NOTE',
+    resourceId: feeNote.id,
+    action: 'READ_DETAIL',
+    bookingId: feeNote.booking.id,
+    firmId: feeNote.booking.firmId,
+    clientUserId: feeNote.booking.clientId,
+  });
 
   return (
     <PrintableFeeNote

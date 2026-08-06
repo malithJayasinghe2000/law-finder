@@ -25,9 +25,12 @@ the AI chatbot, read in this order:**
 3. `docs/restructure/PROGRESS.md` — **live status: what is done, what is next**
 4. `docs/restructure/ROADMAP.md` — the phase plan
 5. `docs/restructure/QUESTIONS-FOR-COUNSEL.md` — open legal questions
-6. `docs/restructure/PHASE-6-BRIEF.md` — if starting Phase 6 (next up)
+6. `docs/restructure/DATA-INVENTORY.md` — what personal data we hold, whose it is,
+   and whether we are its controller or the firm's processor
+7. `docs/restructure/COUNSEL-MEETING-BRIEF.md` — the five questions to put to an
+   attorney, in plain language
 
-Phases 0–5 are complete. Phase 6 (PDPA) is next.
+Phases 0–6 are complete. Phase 7 (growth) is next.
 
 ### The seven hard rules (full detail in LEGAL-GUARDRAILS.md)
 
@@ -67,5 +70,9 @@ bound by that limit — no fee ranges, no ratings, no promotional copy.
   `src/lib/firms/billing.ts` — a green build does not prove a fee note is free of a
   platform fee. **The licence belongs to the `LawFirm`; a seat is a person who can
   sign in. Never meter clients, matters, enquiries, messages or conversations**
+- Run `npm run check:pdpa` after touching `src/lib/privacy/` — a green build does not
+  prove that an "erasure" erases anything. **We are controller for our own data and
+  processor for the firm's matter data at once: never delete, export, or seek consent
+  for anything under `Booking`. And never add a content column to `DataAccessLog`**
 - **Never break a working flow to make a legal fix** — replace before removing
 - Update `docs/restructure/PROGRESS.md` at the end of every session

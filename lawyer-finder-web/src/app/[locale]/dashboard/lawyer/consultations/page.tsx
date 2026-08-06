@@ -42,8 +42,6 @@ interface Booking {
   description: string;
   practiceArea: string | null;
   status: string;
-  clientRating: number | null;
-  clientFeedback: string | null;
   createdAt: string;
   client: { id: string; fullName: string | null; email: string; profileImageUrl: string | null };
   payment: any;
@@ -719,12 +717,6 @@ export default function LawyerBookingsPage() {
                 <p className="text-neutral-500 text-xs mb-1">Description</p>
                 <p className="text-sm text-neutral-700">{selectedBooking.description}</p>
               </div>
-              {selectedBooking.clientRating && (
-                <div className="p-3 bg-amber-50 border border-amber-200">
-                  <p className="text-xs font-semibold text-amber-800">Client Rating: {'⭐'.repeat(selectedBooking.clientRating)}</p>
-                  {selectedBooking.clientFeedback && <p className="text-sm text-amber-700 mt-1">{selectedBooking.clientFeedback}</p>}
-                </div>
-              )}
             </div>
           </div>
         </div>

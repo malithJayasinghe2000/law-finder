@@ -36,7 +36,13 @@ export function AppSidebar({ locale, role, userId }: { locale: string; role: str
     { href: `/${locale}/dashboard/admin/verification`, icon: ShieldCheck, label: 'Verification' },
     { href: `/${locale}/dashboard/admin/firms`, icon: Building2, label: 'Law Firms' },
     { href: `/${locale}/dashboard/admin/invoices`, icon: FileText, label: 'Invoices' },
-    // { href: `/${locale}/dashboard/admin/paymentTemplate`, icon: ShieldCheck, label: 'Payment Templates' },
+    // 'Payment Templates' was removed in Phase 6. The page was an orphan — this
+    // link had been commented out — but it was still routable, and it rendered a
+    // hardcoded invoice billing an attorney for "Premium Lawyer Profile
+    // Promotion — Featured placement in results" and "Featured Directory Ad
+    // Slots". That is selling position and visibility to a lawyer (rule 3), on
+    // the surface where the Intermeddlers with Suitors Ordinance No. 11 of 1894
+    // bites hardest. Deleted rather than left dead.
     {
       href: `/${locale}/dashboard/admin/advertisements`,
       icon: Image,

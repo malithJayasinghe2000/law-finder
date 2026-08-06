@@ -45,7 +45,6 @@ interface Booking {
   refundReference: string | null;
   refundProofUrl: string | null;
   refundSentOn: string | null;
-  clientRating: number | null;
   createdAt: string;
   lawyer: { id: string; fullName: string; profileImageUrl: string | null; district: string | null; contactPhone: string | null };
   payment: any;

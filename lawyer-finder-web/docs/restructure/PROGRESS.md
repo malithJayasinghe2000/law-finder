@@ -16,12 +16,29 @@
 | 3 | Billing restructure (SaaS licence) | 🟢 **Done** |
 | 4 | Advertising split | 🟢 **Done** |
 | 5 | AI compliance | 🟢 **Done** |
-| 6 | PDPA compliance | ⚪ Not started |
+| 6 | PDPA compliance | 🟢 **Done** |
 | 7 | Growth features | ⚪ Not started |
 
 Legend: ⚪ not started · 🟡 in progress · 🟢 done · 🔴 blocked
 
 ## Next up
+
+**Take counsel questions 16, 17 and 18 to a Sri Lankan Attorney-at-Law.** A meeting
+brief exists: [COUNSEL-MEETING-BRIEF.md](./COUNSEL-MEETING-BRIEF.md) — five questions in
+priority order, written in plain language, with an introduction explaining what the
+restructure changed. Everything after this builds on an answer we do not have.
+
+**Then Phase 7 (growth).** Phase 6 is complete. The three items it deliberately left
+open, all needing an answer rather than more code:
+
+- **Counsel question 7(c)** — how long a matter file and a conflict-check record must be
+  kept. Until it is answered, `privacy:purge` refuses to touch firm-controlled data at
+  all and says so on every run
+- **Counsel question 19 (new)** — cross-border transfer. If production runs on Neon
+  (`us-east-1`) and the RAG service forwards questions to a model outside Sri Lanka, both
+  need a documented basis
+- **Encryption at rest** for Tier 1 fields was scoped into Phase 6 and **not built** —
+  see the session log entry for why it was deferred rather than rushed
 
 **Register the three missing Acts in the legal library.** The vector store holds the
 Civil Procedure Code, Companies Act and Motor Traffic Act, but none of them has a
@@ -78,6 +95,13 @@ Phases 0, 1 and 2 are complete. `npm run build`, `npx tsc --noEmit` and
 | 2026-08-03 | `FeeNote` carries **no platform-fee or commission column at all** | Not a nullable one, not one defaulting to zero. A column that exists is a column a future product decision can populate. The absence is the guardrail |
 | 2026-08-03 | A cancelled fee note **keeps its number** | Sri Lankan tax practice expects an unbroken series. A gap is a question the firm would have to answer to a tax officer, created by our convenience |
 | 2026-08-03 | Only a **firm principal** may buy or change the firm's licence | It now binds the whole practice and every seat in it. Any attorney could previously buy one because the subscription was theirs alone |
+| 2026-08-03 | We are **controller and processor at the same time**, on different data, and every retention/erasure rule is tagged with which | "We are a processor for firms" is only half true, and almost every available mistake comes from applying one role's rule to the other role's data. `controllerOf()` makes it a lookup instead of a judgement call |
+| 2026-08-03 | The purge **structurally cannot** delete matter data | `assertPurgeable()` refuses every firm-controlled model. A retention job that deleted a firm's conflict-check records would destroy evidence they are required to keep, on our own authority. That is the one thing a processor may not do, so it is not expressible |
+| 2026-08-03 | Erasure is **anonymisation of the `User` row**, never deletion | Matters reference the client for years. Deleting the row would cascade into a firm's file or orphan it. The result is reported as PARTIAL, with a per-model reason, rather than as a clean success |
+| 2026-08-03 | The access log holds **no content column at all** | A log of who read a matter description is accountability. A log that copies the description into itself is a second privileged store with different access rules and a different retention period — a new place for privilege to leak. Same reasoning as the absent commission column |
+| 2026-08-03 | A subject-access export **excludes matter data entirely** and names the firm to ask instead | A `ConflictCheck` names other firms' clients. Answering one person's request by releasing it would breach several others' confidentiality — and would hand someone the parties they were screened against |
+| 2026-08-03 | `ConsentPurpose` has **three values and none is matter data** | Matter data rests on contract and professional duty. Asking for consent implies withdrawal is possible, and we cannot honour that against a firm's retention duty. Treating everything as consent is the common and expensive PDPA error |
+| 2026-08-03 | `Booking.clientRating` / `clientFeedback` **dropped**, not disabled | Phase 2 reported ratings "gone entirely" and they were not. A column that exists is a column a future decision can populate, and `clientRating` was one `orderBy` away from being ranking |
 
 ## Session log
 
@@ -923,3 +947,131 @@ seeding a clean database found a real break that the build did not.
   resolve — a data task, see above
 - The AI refusal patterns are English-only while the platform ships `si` and `ta`
 - Phases 6 (PDPA), 7 (growth)
+
+### 2026-08-03 — Phase 6 (PDPA compliance)
+
+**The framing that shaped the phase.** The brief said we are a *processor* for firms.
+That is half true, and the missing half is where the mistakes live: we are a
+**controller** for our own data — accounts, attorney profiles, AI conversations,
+community content — and a **processor** for the firm's matter data, at the same time.
+Almost every available error is applying one role's rule to the other role's data:
+purging matter files on our schedule, honouring "delete everything about me" against a
+file an attorney is required to keep, or calling matter processing "consent" and
+implying it can be withdrawn.
+
+So `controllerOf()` makes the role a lookup rather than a judgement call, and every
+retention rule and erasure step carries it.
+
+**Built**
+
+- **[DATA-INVENTORY.md](./DATA-INVENTORY.md)** — every model in the schema, not the
+  brief's shortlist: what personal data it holds, whose it is, our role, the lawful
+  basis, who can reach it, retention. Four sensitivity tiers, because privileged matter
+  data and an ad-impression counter do not carry the same duty
+- **`src/lib/privacy/policy.ts`** — the rule file, sibling of `firms/access.ts` and
+  `ai/policy.ts`. Retention schedule, the controller/processor split, the erasure plan
+  with a per-model explanation, the three consent purposes, and the subject-request clock
+- **`src/lib/privacy/audit.ts` + `DataAccessLog`** — `firms/access.ts` already decided
+  *whether*; nothing recorded *that it happened*. Wired into the five detail reads:
+  matter, conflict check, engagement letter, fee-note list, fee-note print page
+- **`src/lib/privacy/subject.ts`** — the export and the erasure engine
+- **DSAR endpoints** — `/api/privacy/requests`, `/export`, `/consents`, `/me`, and
+  `/api/firms/me/subject-requests` so a referred request lands somewhere on the firm side
+- **`npm run privacy:purge`** — driven entirely by the schedule; supersedes `ai:purge`
+- **`npm run check:pdpa`** — 48 assertions against a real database
+
+**Four decisions worth carrying forward**
+
+1. **The purge structurally cannot reach matter data.** `assertPurgeable()` refuses every
+   firm-controlled model. Nine assertions prove it, and the script prints what it did not
+   touch on every run so the gap cannot go quiet once it is scheduled.
+2. **The access log has no content column, and must never get one.** A log of who read a
+   description is accountability; a log holding the description is a second privileged
+   store. The absence is the guardrail, exactly as on `FeeNote`.
+3. **Erasure anonymises the `User` row rather than deleting it**, and reports itself as
+   **partial** with a reason per retained model. Matters reference the client for years;
+   deleting the row would cascade into a firm's file or orphan it.
+4. **A subject-access export contains no matter data at all**, and names the firms to ask
+   instead. A `ConflictCheck` names *other* clients — answering one request by releasing
+   it would breach several other people's confidentiality at once.
+
+**Also fixed: the invoice routes locked out the person their own error message named.**
+
+`POST /api/invoices/create` required `session.role === 'LAWYER'` and a `LawyerProfile`,
+then told the caller *"only the firm's principal or practice manager can change the
+firm's software licence"* — but a practice manager need not be an admitted attorney and
+may have no profile at all, so they got 401 or 404 instead.
+
+Sweeping the four sibling routes found the worse half. All of them scoped invoices by
+`Invoice.lawyerId` (who raised it) rather than `firmId` (who is billed). Since Phase 3
+made `lawyerId` nullable, fixing `create` alone would have produced an invoice with
+`lawyerId: null` that **no query could find and nobody could pay**. All five now resolve
+the firm from membership. Asserted by four new cases in `check:billing`, including one
+proving the old scoping really would have hidden the row — otherwise the probe is vacuous.
+
+**Two live guardrail violations found by the sweep, both pre-existing**
+
+- **Star ratings were still being collected and displayed.** Phase 2 deleted the `Review`
+  model and reported ratings *"gone entirely"*. They were not: the `rate` action still
+  wrote a 1–5 score to `Booking.clientRating` and the lawyer console rendered it as
+  `⭐⭐⭐⭐`. No UI submitted it any more, so it was a dormant column with a live write
+  path — and one `orderBy` away from being ranking. Columns dropped, not disabled.
+- **An orphan admin page selling directory placement.** `dashboard/admin/paymentTemplate`
+  had its nav link commented out but was still routable, and rendered a hardcoded invoice
+  billing an attorney **LKR 8,500/month for "Premium Lawyer Profile Promotion — Featured
+  placement in results"** and **LKR 30,000 for "Featured Directory Ad Slots"**. Phase 4
+  removed the directory placements from the enum; this page still advertised the price
+  list. Deleted.
+
+**Verification — and what only running it found**
+
+`npm run build`, `npx tsc --noEmit`, `check:privilege` 10/10, `check:ai` 49/49,
+`check:billing` 21/21, `check:pdpa` 48/48. Migrations in sync; `migrate diff` reports
+*No difference detected*.
+
+The migration was tested against a scratch database seeded **before** it with the data
+that would break it: bookings carrying populated `clientRating` and `clientFeedback`, and
+existing users that had to survive a `NOT NULL` status column being added to a populated
+table. 11 assertions: users defaulted to `ACTIVE`, the rating columns were gone, the
+privileged matter text was untouched, all three new tables existed, and `DataAccessLog`
+carried no content column.
+
+**`db:reset` on a clean database caught a real break for the fourth consecutive phase** —
+this time in a *check* rather than the seed. `check:billing` opened with
+`throw new Error('no assigned booking in dev db to test against')`, and the seed creates
+firms and attorneys but no matters and no `Subscription`. So the check documented as
+"needs a seeded database" could not run on one. Both fixtures are now built by the check
+itself and cleaned up after; proved by running it twice in a row.
+
+Also worth recording, because it wasted time twice: **two failures in this session were a
+stale generated Prisma client, not code.** `check:pdpa` failed with `ColumnNotFound` and
+`tsc` failed on a deleted route's generated type. `npm run db:generate` and a rebuild
+fixed both. A failing check is not automatically a failing rule.
+
+**Not built, and deliberately so**
+
+**Encryption at rest for Tier 1 fields** was in the brief's scope and is not done. It is
+the largest and riskiest item — it touches every read path for matter data — and one of
+the questions going to counsel this week (question 4(c)) asks whether technical controls
+are legally relevant at all or whether the contractual position is what matters. Building
+it before that answer risks spending the effort in the wrong place, and rushing it risks
+`check:privilege` passing trivially against ciphertext while proving nothing. Recorded as
+the first item of Phase 7, or of a Phase 6.5 once counsel replies.
+
+**Still open**
+- Counsel questions 16–18 — **blocks everything**. Meeting brief prepared:
+  [COUNSEL-MEETING-BRIEF.md](./COUNSEL-MEETING-BRIEF.md)
+- Counsel question 4 — does a processor agreement preserve privilege? Directly in this
+  phase's path, and 4(c) gates the encryption work
+- Counsel question 7(c) — matter and conflict-check retention. Until answered, nothing
+  firm-controlled expires automatically
+- **Counsel question 19 (new)** — cross-border transfer to Neon and to the model provider
+- The **processor agreement template** and **DPO designation** are documents, not code,
+  and still to be drafted — question 4(b) asks counsel for the Sri Lanka-specific wording
+- `Inquiry` is still an unauthenticated intake for Tier 2 data
+  ([inventory finding A](./DATA-INVENTORY.md#7-findings-from-building-this))
+- `Conversation`/`Message` is privileged data outside `firms/access.ts` (finding B)
+- `LawyerApplication.draftData` is an unaudited `Json` blob (finding D)
+- The AI refusal patterns are English-only while the platform ships `si` and `ta`
+- Advertiser billing has no module; invoicing happens outside the platform
+- Three Acts are in the vector store with no library row

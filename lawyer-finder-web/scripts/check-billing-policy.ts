@@ -27,6 +27,7 @@
 import prisma from '@/lib/db';
 import { renderFeeNote, allocateFeeNoteNumber, calculateFeeNoteTotals } from '@/lib/consultations/feeNote';
 import { getSeatAllowance, canAddFirmMember, getFirmSubscription } from '@/lib/firms/billing';
+import { getFirmMembership, canManageFirm } from '@/lib/firms/access';
 
 let pass = 0; const fails: string[] = [];
 function ok(name: string, cond: boolean, why: string) {
@@ -34,15 +35,85 @@ function ok(name: string, cond: boolean, why: string) {
   else { fails.push(`  FAIL  ${name}\n        ${why}`); console.log('  FAIL ', name); }
 }
 
-async function main() {
-  const booking = await prisma.booking.findFirst({
+const BOOKING_SELECT = {
+  id: true, bookingNumber: true, firmId: true, lawyerId: true,
+  client: { select: { fullName: true, email: true } },
+  lawyer: { select: { fullName: true } },
+  firm: { select: { id: true, name: true, isVatRegistered: true, vatRatePercent: true } },
+} as const;
+
+/**
+ * A matter to test against.
+ *
+ * Prefers one that already exists so the check exercises real data. Builds its
+ * own when there is none — `db:reset` seeds firms and attorneys but no matters,
+ * so requiring one meant this check could not run on a freshly seeded database,
+ * which is exactly when it is most worth running.
+ */
+async function acquireMatter() {
+  const existing = await prisma.booking.findFirst({
     where: { lawyerId: { not: null } },
-    select: { id: true, bookingNumber: true, firmId: true, lawyerId: true,
-      client: { select: { fullName: true, email: true } },
-      lawyer: { select: { fullName: true } },
-      firm: { select: { id: true, name: true, isVatRegistered: true, vatRatePercent: true } } },
+    select: BOOKING_SELECT,
   });
-  if (!booking) throw new Error('no assigned booking in dev db to test against');
+  if (existing) return { booking: existing, fixtureIds: null };
+
+  const attorney = await prisma.lawyerProfile.findFirst({
+    where: { firmId: { not: null } },
+    select: { id: true, firmId: true, userId: true },
+  });
+  if (!attorney?.firmId) {
+    throw new Error('no attorney attached to a firm — run `npm run db:reset` first');
+  }
+
+  const tag = `billing-fixture-${Date.now()}`;
+  const client = await prisma.user.create({
+    data: { email: `${tag}@example.com`, fullName: 'Fixture Client', role: 'CLIENT' },
+  });
+  const created = await prisma.booking.create({
+    data: {
+      bookingNumber: `${tag}-BK`, clientId: client.id, firmId: attorney.firmId,
+      lawyerId: attorney.id, mode: 'ONLINE', subject: 'Fixture matter',
+      description: 'created by check:billing', status: 'REQUESTED',
+      lawyerFee: 0, totalAmount: 0,
+    },
+    select: BOOKING_SELECT,
+  });
+
+  return { booking: created, fixtureIds: { bookingId: created.id, clientId: client.id } };
+}
+
+/**
+ * A live licence for the firm under test.
+ *
+ * Same reason as `acquireMatter`: the seed creates plans and roles but never a
+ * `Subscription`, so "the licence resolves through the firm" could not be
+ * asserted on a freshly seeded database.
+ */
+async function ensureLicence(firmId: string): Promise<string | null> {
+  const existing = await prisma.subscription.findFirst({
+    where: { firmId, OR: [{ status: 'ACTIVE' }, { status: 'CANCELED', endDate: { gte: new Date() } }] },
+    select: { id: true },
+  });
+  if (existing) return null;
+
+  const plan = await prisma.subscriptionPlan.findFirst({ select: { id: true, tier: true } });
+  if (!plan) throw new Error('no subscription plans — run `npm run db:reset` first');
+
+  const role = await prisma.subscriptionRole.findUnique({ where: { name: plan.tier } });
+  if (!role) throw new Error(`no subscription role for tier ${plan.tier}`);
+
+  const created = await prisma.subscription.create({
+    data: {
+      firmId, planId: plan.id, roleId: role.id, status: 'ACTIVE',
+      billingCycle: 'MONTHLY', nextBilling: new Date(Date.now() + 30 * 86_400_000),
+    },
+  });
+  return created.id;
+}
+
+async function main() {
+  const { booking, fixtureIds } = await acquireMatter();
+  const fixtureSubscriptionId = await ensureLicence(booking.firmId);
 
   console.log(`\nMatter ${booking.bookingNumber} at ${booking.firm.name}\n`);
 
@@ -161,8 +232,61 @@ async function main() {
      'metering clients would be fee-sharing (rule 1)');
   console.log(`\n  seats: ${seats.used}/${seats.unlimited ? '∞' : seats.limit} used on ${sub?.plan.name}`);
 
+  // ── Who may license the practice ────────────────────────────────────────
+  //
+  // The licence binds the whole firm, so it is bought by whoever runs the
+  // practice — and a practice manager need not be an admitted attorney. The
+  // invoice routes used to demand `session.role === 'LAWYER'` and a
+  // `LawyerProfile`, which locked out the very person their own error message
+  // named. They also scoped invoices by `Invoice.lawyerId` (who raised it)
+  // rather than `firmId` (who is billed), so an invoice raised by a practice
+  // manager was invisible to everyone and could never be paid.
+  const probeTag = `billing-probe-${Date.now()}`;
+  const probeFirm = await prisma.lawFirm.create({
+    data: { name: `${probeTag} Practice`, slug: probeTag, firmType: 'PARTNERSHIP', isSoloPractice: false },
+  });
+  const pmUser = await prisma.user.create({
+    data: { email: `${probeTag}@example.com`, fullName: 'Practice Manager', role: 'CLIENT' },
+  });
+  await prisma.firmMember.create({
+    data: { firmId: probeFirm.id, userId: pmUser.id, role: 'FIRM_ADMIN', status: 'ACTIVE' },
+  });
+
+  const pm = await getFirmMembership(pmUser.id);
+  ok('a practice manager with no attorney profile resolves to their firm',
+     pm?.firmId === probeFirm.id,
+     'membership, not LawyerProfile, is what identifies the firm being licensed');
+  ok('that practice manager may license the practice',
+     canManageFirm(pm) && pm?.profileId === null,
+     'canManageFirm decides this; requiring an attorney profile locked out the person the rule names');
+
+  const probeInvoice = await prisma.invoice.create({
+    data: { firmId: probeFirm.id, lawyerId: pm?.profileId ?? null, amount: 5000,
+            status: 'PENDING', paymentReason: 'probe' },
+  });
+  ok('an invoice raised by a practice manager is billed to the firm',
+     probeInvoice.firmId === probeFirm.id && probeInvoice.lawyerId === null,
+     'firmId is the party billed; lawyerId is display and audit only');
+  ok('that invoice is reachable by firm scoping',
+     (await prisma.invoice.count({ where: { firmId: probeFirm.id } })) === 1,
+     'scoping by lawyerId would have hidden it from everyone, making it unpayable');
+
+  await prisma.invoice.deleteMany({ where: { firmId: probeFirm.id } });
+  await prisma.firmMember.deleteMany({ where: { firmId: probeFirm.id } });
+  await prisma.user.delete({ where: { id: pmUser.id } });
+  await prisma.lawFirm.delete({ where: { id: probeFirm.id } });
+
   // Cleanup
   await prisma.feeNote.deleteMany({ where: { bookingId: booking.id } });
+
+  if (fixtureSubscriptionId) {
+    await prisma.subscription.delete({ where: { id: fixtureSubscriptionId } });
+  }
+
+  if (fixtureIds) {
+    await prisma.booking.delete({ where: { id: fixtureIds.bookingId } });
+    await prisma.user.delete({ where: { id: fixtureIds.clientId } });
+  }
 
   if (fails.length) { console.error('\n' + fails.join('\n\n')); console.error(`\n${pass} passed, ${fails.length} FAILED\n`); process.exit(1); }
   console.log(`\n${pass} passed, 0 failed\n`);

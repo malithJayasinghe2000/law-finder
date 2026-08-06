@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { getMatterAccess } from '@/lib/firms/access';
+import { recordAccess, actorRoleFor } from '@/lib/privacy/audit';
 
 /**
  * The engagement letter for a request.
@@ -26,6 +27,7 @@ export async function GET(
     const booking = await prisma.booking.findUnique({
       where: { id },
       select: {
+        id: true,
         clientId: true,
         lawyerId: true,
         firmId: true,
@@ -83,6 +85,17 @@ export async function GET(
         data: { clientViewedAt: new Date() },
       });
     }
+
+    await recordAccess({
+      actorUserId: session.userId,
+      actorRole: actorRoleFor({ sessionRole: session.role, firmRole: access.basis }),
+      resource: 'ENGAGEMENT_LETTER',
+      resourceId: letter.id,
+      action: 'READ_DETAIL',
+      bookingId: booking.id,
+      firmId: booking.firmId,
+      clientUserId: booking.clientId,
+    });
 
     return NextResponse.json({
       letter: {

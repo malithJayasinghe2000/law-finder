@@ -1,13 +1,13 @@
 import { NextResponse, NextRequest } from 'next/server';
 import prisma from '@/lib/db';
+import { getFirmMembership } from '@/lib/firms/access';
 import { getSession } from '@/lib/auth';
 
 export async function GET(req: NextRequest) {
   try {
     const session = await getSession();
 
-    // Check if authorized
-    if (!session || session.role !== 'LAWYER') {
+    if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -18,13 +18,14 @@ export async function GET(req: NextRequest) {
     const filter = searchParams.get('filter') || 'all';
     const skip = (page - 1) * limit;
 
-    // Get lawyer profile
-    const lawyerProfile = await prisma.lawyerProfile.findUnique({
-      where: { userId: session.userId },
-    });
+    // These are the FIRM's software invoices, not one attorney's. Scoping by
+    // `lawyerId` — who happened to raise the invoice — hid the practice's own
+    // bills from everyone else in it, and hid them from everyone once a practice
+    // manager raised one, since `lawyerId` is then null.
+    const membership = await getFirmMembership(session.userId);
 
-    if (!lawyerProfile) {
-      return NextResponse.json({ error: 'Lawyer profile not found' }, { status: 404 });
+    if (!membership) {
+      return NextResponse.json({ error: 'You do not belong to a firm.' }, { status: 404 });
     }
 
     // Determine status filter
@@ -36,14 +37,14 @@ export async function GET(req: NextRequest) {
     }
 
     const whereClause: any = {
-      lawyerId: lawyerProfile.id,
+      firmId: membership.firmId,
     };
-    
+
     if (statusFilter) {
       whereClause.status = statusFilter;
     }
 
-    // Get invoices for this lawyer
+    // Get invoices for this firm
     const [invoices, total] = await Promise.all([
       prisma.invoice.findMany({
         where: whereClause,

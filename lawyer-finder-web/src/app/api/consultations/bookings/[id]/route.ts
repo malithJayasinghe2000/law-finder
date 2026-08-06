@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
-import { CancelBookingSchema, CompleteBookingSchema, BookingRatingSchema } from '@/schemas/consultation.schema';
+import { CancelBookingSchema, CompleteBookingSchema } from '@/schemas/consultation.schema';
 import { formatSriLankaDateIso, formatSriLankaDateIsoOrNull } from '@/lib/utils';
 import { EmailService } from '@/lib/email/EmailService';
 import { canTransition } from '@/lib/consultations/bookingStatus';
 import { getMatterAccess, redactMatter } from '@/lib/firms/access';
+import { recordAccess, actorRoleFor } from '@/lib/privacy/audit';
 
 /**
  * Engagement request lifecycle.
@@ -72,6 +73,21 @@ export async function GET(
 
     const isClient = access.basis === 'CLIENT';
     const isLawyer = booking.lawyer?.userId === session.userId;
+
+    // Record that someone other than the client read the client's own account of
+    // their legal problem. `access.ts` decided they may; this says they did.
+    if (access.canReadMatterDetail) {
+      await recordAccess({
+        actorUserId: session.userId,
+        actorRole: actorRoleFor({ sessionRole: session.role, firmRole: access.basis }),
+        resource: 'BOOKING',
+        resourceId: booking.id,
+        action: 'READ_DETAIL',
+        bookingId: booking.id,
+        firmId: booking.firmId,
+        clientUserId: booking.clientId,
+      });
+    }
 
     return NextResponse.json({
       booking: {
@@ -454,34 +470,6 @@ export async function PATCH(
         const updated = await prisma.booking.update({
           where: { id },
           data: { status: 'NO_SHOW', lawyerRemarks: body.remarks || 'Client did not attend' },
-        });
-
-        return NextResponse.json({
-          success: true,
-          booking: { ...updated, date: formatSriLankaDateIsoOrNull(updated.date) },
-        });
-      }
-
-      case 'rate': {
-        if (!isClient) {
-          return NextResponse.json({ error: 'Only the client can rate' }, { status: 403 });
-        }
-
-        if (booking.status !== 'COMPLETED') {
-          return NextResponse.json({ error: 'Can only rate completed consultations' }, { status: 400 });
-        }
-
-        const validated = BookingRatingSchema.safeParse(body);
-        if (!validated.success) {
-          return NextResponse.json({ error: validated.error.format() }, { status: 400 });
-        }
-
-        const updated = await prisma.booking.update({
-          where: { id },
-          data: {
-            clientRating: validated.data.rating,
-            clientFeedback: validated.data.feedback,
-          },
         });
 
         return NextResponse.json({

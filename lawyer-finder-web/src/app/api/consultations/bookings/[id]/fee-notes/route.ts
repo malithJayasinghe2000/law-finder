@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { getMatterAccess } from '@/lib/firms/access';
+import { recordAccess, actorRoleFor } from '@/lib/privacy/audit';
 import {
   renderFeeNote,
   allocateFeeNoteNumber,
@@ -38,6 +39,8 @@ import { FeeNoteCreateSchema, FeeNoteActionSchema } from '@/schemas/feeNote.sche
 type Access = {
   isClient: boolean;
   isFirmSide: boolean;
+  /** Carried through for the access log, which records why someone could read. */
+  basis: Awaited<ReturnType<typeof getMatterAccess>>['basis'];
 };
 
 async function resolveAccess(
@@ -64,6 +67,7 @@ async function resolveAccess(
       isClient: matterAccess.basis === 'CLIENT',
       isFirmSide:
         matterAccess.basis === 'ASSIGNED_ATTORNEY' || matterAccess.basis === 'FIRM_PRINCIPAL',
+      basis: matterAccess.basis,
     },
   };
 }
@@ -114,7 +118,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     const resolved = await resolveAccess(id, session);
     if (!resolved) return NextResponse.json({ error: 'Request not found' }, { status: 404 });
 
-    const { access } = resolved;
+    const { access, booking } = resolved;
     if (!access.isClient && !access.isFirmSide) {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 });
     }
@@ -130,6 +134,24 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       },
       orderBy: { createdAt: 'desc' },
     });
+
+    // The payload carries `lineItems` and the rendered `content`, which narrate
+    // the legal work done for a named client. That is a detail read, not a
+    // listing, so it is recorded.
+    await Promise.all(
+      feeNotes.map((note) =>
+        recordAccess({
+          actorUserId: session.userId,
+          actorRole: actorRoleFor({ sessionRole: session.role, firmRole: access.basis }),
+          resource: 'FEE_NOTE',
+          resourceId: note.id,
+          action: 'READ_DETAIL',
+          bookingId: booking.id,
+          firmId: booking.firmId,
+          clientUserId: booking.clientId,
+        })
+      )
+    );
 
     return NextResponse.json({ feeNotes: feeNotes.map(serialise) });
   } catch (error) {

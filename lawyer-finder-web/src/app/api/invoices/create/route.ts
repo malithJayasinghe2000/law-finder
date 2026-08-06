@@ -9,8 +9,7 @@ export async function POST(req: NextRequest) {
   try {
     const session = await getSession();
 
-    // Check if authorized
-    if (!session || session.role !== 'LAWYER') {
+    if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -29,32 +28,37 @@ export async function POST(req: NextRequest) {
 
     const { planId, billingCycle } = validation.data;
 
-    // Get lawyer profile
-    const lawyerProfile = await prisma.lawyerProfile.findUnique({
-      where: { userId: session.userId },
-    });
-
-    if (!lawyerProfile) {
-      return NextResponse.json({ error: 'Lawyer profile not found' }, { status: 404 });
-    }
-
-    // The licence is the FIRM's, not this attorney's (Phase 3).
-    if (!lawyerProfile.firmId) {
-      return NextResponse.json({ error: 'This attorney is not linked to a firm.' }, { status: 404 });
-    }
-    const firmId = lawyerProfile.firmId;
-
-    // Only a principal may commit the practice to a licence. Any attorney could
-    // previously buy one, because the subscription was theirs; now it binds the
-    // whole firm and every seat in it, so it is a decision for whoever runs the
-    // practice.
+    // The licence belongs to the FIRM (Phase 3), so the firm is resolved from the
+    // buyer's MEMBERSHIP and not from a LawyerProfile.
+    //
+    // This route used to require `session.role === 'LAWYER'` and then look the
+    // buyer up in `lawyerProfile`. That contradicted its own error message: a
+    // practice manager is a FIRM_ADMIN who need not be an admitted attorney and
+    // may have no LawyerProfile at all, so the person the message named could
+    // never reach it — they got 401 or 404 instead. Membership is the right
+    // source of truth here; `canManageFirm` already decides who may commit the
+    // practice to a licence.
     const membership = await getFirmMembership(session.userId);
-    if (!membership || membership.firmId !== firmId || !canManageFirm(membership)) {
+
+    if (!membership) {
+      return NextResponse.json(
+        { error: 'You do not belong to a firm, so there is no practice to license.' },
+        { status: 404 }
+      );
+    }
+
+    if (!canManageFirm(membership)) {
       return NextResponse.json(
         { error: 'Only the firm\'s principal or practice manager can change the firm\'s software licence.' },
         { status: 403 }
       );
     }
+
+    const firmId = membership.firmId;
+
+    // Display and audit only — `Invoice.firmId` records the party actually being
+    // billed. Null where the buyer is not an admitted attorney.
+    const raisedByProfileId = membership.profileId;
 
     // One live licence per firm.
     const existingActiveSubscription = await prisma.subscription.findFirst({
@@ -121,7 +125,7 @@ export async function POST(req: NextRequest) {
       data: {
         // Billed to the firm; `lawyerId` records who raised it.
         firmId,
-        lawyerId: lawyerProfile.id,
+        lawyerId: raisedByProfileId,
         planId: planId,
         subscriptionId: subscription.id,
         amount: amount,
@@ -145,15 +149,16 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // Fetch lawyer user details for the email
-    const lawyerUser = await prisma.user.findUnique({
+    // The person who raised it gets the invoice email. They are not necessarily
+    // an attorney, so the fallback greeting must not assume one.
+    const buyer = await prisma.user.findUnique({
       where: { id: session.userId },
     });
 
-    if (lawyerUser?.email) {
+    if (buyer?.email) {
       EmailService.sendInvoiceCreated(
-        lawyerUser.email,
-        lawyerUser.fullName || 'Valued Lawyer',
+        buyer.email,
+        buyer.fullName || membership.firmName,
         invoice.id,
         invoice.amount,
         invoice.paymentReason,

@@ -208,6 +208,13 @@ model User {
   profileImageUrl    String?
   role               Role                      @default(CLIENT)
   createdAt          DateTime                  @default(now())
+
+  /// Account lifecycle. See `UserStatus` — there are no hard deletes here,
+  /// because a firm's matter file references the client for years.
+  status     UserStatus @default(ACTIVE)
+  /// Set when identifying fields were overwritten under a PDPA erasure request.
+  erasedAt   DateTime?
+
   verificationTokens VerificationToken[]
   profile            LawyerProfile?
   application        LawyerApplication?
@@ -231,6 +238,10 @@ model User {
 
   // Consultation Booking relations
   bookings Booking[] @relation("ClientBookings")
+
+  // Data protection (Phase 6)
+  consents        ConsentRecord[]
+  subjectRequests DataSubjectRequest[]
 }
 
 model VerificationToken {
@@ -1587,9 +1598,18 @@ model Booking {
   paidAt              DateTime?
 
   // Post-consultation
-  lawyerNotes    String?
-  clientRating   Int?
-  clientFeedback String?
+  lawyerNotes String?
+
+  // `clientRating` and `clientFeedback` were dropped in Phase 6.
+  //
+  // Phase 2 deleted the `Review` model and reported that ratings were gone
+  // entirely. They were not: the `rate` action still wrote a 1-5 score here and
+  // the lawyer console still rendered it as stars. No UI collected it any more,
+  // so it was a dormant column with a live write path — and a column that
+  // exists is a column a future product decision can populate. `clientRating`
+  // was one `orderBy` away from being ranking, which is guardrail rules 3 and 4.
+  // Removed rather than disabled, exactly like the commission columns.
+  // See docs/restructure/LEGAL-GUARDRAILS.md and DATA-INVENTORY.md finding E.
 
   // Lawyer workflow
   lawyerRemarks          String?
@@ -1813,3 +1833,201 @@ model BookingPayment {
 // WithdrawRequest / WithdrawStatus removed in Phase 1a.
 // The platform never holds a lawyer's fees, so there is no balance to withdraw
 // from. See docs/restructure/LEGAL-GUARDRAILS.md (rule 2).
+
+// ============= Data protection (PDPA No. 9 of 2022) — Phase 6 =============
+//
+// Three models and one status field, all serving one rule file:
+// src/lib/privacy/policy.ts. See docs/restructure/DATA-INVENTORY.md for what
+// personal data this platform holds and under which lawful basis.
+
+/// Lifecycle of a user account.
+///
+/// The project convention is soft delete via status fields and no hard deletes
+/// (see AGENTS.md), but `User` had nothing to soft-delete WITH — so an erasure
+/// request had no landing place. A hard delete is not available to us: matters
+/// reference clients for years and a firm may be professionally required to
+/// keep the file, so removing the row would either cascade into a firm's
+/// records or orphan them.
+enum UserStatus {
+  ACTIVE
+  /// Signed out and blocked from signing in, at the user's request. Reversible.
+  DEACTIVATED
+  /// Identifying fields have been overwritten in place. Irreversible.
+  /// The row survives so that a firm's matter file stays referentially intact.
+  ERASED
+}
+
+/// Purposes for which we rely on CONSENT — and only these.
+///
+/// Matter data is processed to perform the retainer and to meet the firm's
+/// professional duties. It is deliberately absent from this enum: asking for
+/// consent implies it can be withdrawn, and we cannot honour a withdrawal
+/// against a firm's retention duty. Calling everything consent is the common
+/// and expensive PDPA error.
+enum ConsentPurpose {
+  /// Product news and offers by email. Never a precondition of using anything.
+  MARKETING_EMAIL
+  /// Non-essential usage analytics.
+  PRODUCT_ANALYTICS
+  /// Keeping AI chat history so the user can return to it. Withdrawing this
+  /// purges their conversations rather than merely stopping collection.
+  AI_HISTORY_RETENTION
+}
+
+/// A record that a person agreed to — or withdrew from — a specific purpose.
+///
+/// Consent under the PDPA must be specific, informed and demonstrable, so this
+/// records the purpose, the version of the notice shown, and the moment. A row
+/// is never updated in place: withdrawing writes `withdrawnAt` and granting
+/// again writes a NEW row, because the history is the evidence.
+model ConsentRecord {
+  id String @id @default(uuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  purpose ConsentPurpose
+
+  /// The version of the privacy notice the person was shown. Without this,
+  /// "they consented" is a claim about a document nobody can produce.
+  noticeVersion String
+
+  grantedAt   DateTime  @default(now())
+  withdrawnAt DateTime?
+
+  /// Where the agreement was given, for evidence. Not used for tracking.
+  sourceIp  String?
+  userAgent String?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, purpose, withdrawnAt])
+}
+
+/// What kind of record an access-log entry refers to.
+enum AuditedResource {
+  BOOKING
+  CONFLICT_CHECK
+  QUOTE
+  ENGAGEMENT_LETTER
+  FEE_NOTE
+  MESSAGE_THREAD
+  SUBJECT_REQUEST
+}
+
+/// What was done to it.
+enum AuditedAction {
+  /// Saw that the matter exists — list entry, status, schedule.
+  READ_SUMMARY
+  /// Read the client's own account of their problem, notes, or conflict check.
+  READ_DETAIL
+  EXPORTED
+  RECTIFIED
+  ERASED
+}
+
+/// Who read what matter data, and when.
+///
+/// `firms/access.ts` already decides WHETHER someone may read a matter. Nothing
+/// recorded THAT IT HAPPENED, and the PDPA expects access to privileged
+/// material to be accountable.
+///
+/// ─────────────────────────────────────────────────────────────────────────
+/// This model deliberately holds NO CONTENT.
+///
+/// There is no column for the matter description, the conflict-check note, or
+/// any excerpt of what was read — not even a truncated one. A log of *who read
+/// a matter description* is an accountability record. A log that copies the
+/// description into itself is a second privileged store, in a table with
+/// different access rules and a different retention period, and it is a new
+/// place for privilege to leak. The absence of a content column is the
+/// guardrail, exactly as it is on `FeeNote`.
+/// ─────────────────────────────────────────────────────────────────────────
+model DataAccessLog {
+  id String @id @default(uuid())
+
+  /// The person who read it. Not a relation: the log must survive the erasure
+  /// of the actor's account, or it stops being an audit trail.
+  actorUserId String
+  /// Their firm role at the time, or 'ADMIN' / 'CLIENT'. Denormalised because
+  /// roles change and the log must say what was true that day.
+  actorRole   String
+
+  resource   AuditedResource
+  resourceId String
+  action     AuditedAction
+
+  /// The matter and firm this touched, for firm-scoped review. Denormalised
+  /// for the same reason as `actorRole`.
+  bookingId String?
+  firmId    String?
+
+  createdAt DateTime @default(now())
+
+  @@index([bookingId, createdAt])
+  @@index([actorUserId, createdAt])
+  @@index([firmId, createdAt])
+  @@index([createdAt])
+}
+
+enum SubjectRequestType {
+  ACCESS
+  RECTIFICATION
+  ERASURE
+  PORTABILITY
+  OBJECTION
+}
+
+enum SubjectRequestStatus {
+  RECEIVED
+  IN_PROGRESS
+  /// Matter data is the FIRM's to decide on. We hold it as processor and
+  /// cannot release or delete it on our own authority.
+  AWAITING_FIRM
+  COMPLETED
+  /// Some of it was done and some refused — the normal outcome for erasure,
+  /// where a firm's retention duty outlives the request.
+  PARTIALLY_FULFILLED
+  REFUSED
+}
+
+/// A data-subject request under the PDPA.
+///
+/// The endpoints are the easy part. The hard part is that a request spanning
+/// matter data has TWO decision-makers: we answer for the data we control, and
+/// the firm answers for the matter file it controls. `AWAITING_FIRM` is that
+/// split made explicit rather than hidden in a support inbox.
+model DataSubjectRequest {
+  id String @id @default(uuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type   SubjectRequestType
+  status SubjectRequestStatus @default(RECEIVED)
+
+  /// What the person actually asked for, in their words.
+  requestNote String?
+
+  /// Firms that hold matter data caught by this request and must decide for
+  /// themselves. Denormalised ids: this is a worklist, not a relation.
+  referredFirmIds String[]
+
+  /// The statutory clock. Recorded rather than computed at read time so that
+  /// changing the period later does not silently re-date open requests.
+  dueBy DateTime
+
+  /// What we did, and — where we refused — why. A refusal that does not say
+  /// which duty required the retention is not a defensible refusal.
+  outcomeNote   String?
+  refusalReason String?
+
+  handledById String?
+  completedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, status])
+  @@index([status, dueBy])
+}

@@ -226,18 +226,6 @@ export const CompleteBookingSchema = z.object({
 
 export type CompleteBookingInput = z.infer<typeof CompleteBookingSchema>;
 
-// ============= Client Rating =============
-
-export const BookingRatingSchema = z.object({
-  rating: z.number().int().min(1).max(5),
-  feedback: z.preprocess(
-    (val) => typeof val === 'string' ? sanitizeString(val) : val,
-    z.string().max(1000).optional()
-  ),
-});
-
-export type BookingRatingInput = z.infer<typeof BookingRatingSchema>;
-
 // ============= Query Filters =============
 
 export const BookingFilterSchema = z.object({
