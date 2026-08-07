@@ -39,6 +39,13 @@ export function QuoteComposerDialog({
   bookingNumber,
   clientName,
   defaultPaymentInstructions = '',
+  /**
+   * True when the matter has no appointment yet — it arrived through firm-first
+   * intake, where the client engaged the practice rather than picking a slot in
+   * one attorney's diary. The quote is where the firm offers a time as well as
+   * a fee.
+   */
+  needsAppointment = false,
   open,
   onOpenChange,
   onCompleted,
@@ -47,6 +54,7 @@ export function QuoteComposerDialog({
   bookingNumber: string;
   clientName: string;
   defaultPaymentInstructions?: string;
+  needsAppointment?: boolean;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onCompleted: () => void;
@@ -59,6 +67,9 @@ export function QuoteComposerDialog({
   const [exclusions, setExclusions] = useState('');
   const [paymentInstructions, setPaymentInstructions] = useState(defaultPaymentInstructions);
   const [validUntil, setValidUntil] = useState(defaultValidUntil());
+  const [proposedDate, setProposedDate] = useState('');
+  const [proposedStartTime, setProposedStartTime] = useState('');
+  const [proposedEndTime, setProposedEndTime] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   async function submit() {
@@ -79,6 +90,14 @@ export function QuoteComposerDialog({
       toast.error('An hourly quote needs an hourly rate');
       return;
     }
+    if (needsAppointment && (!proposedDate || !proposedStartTime || !proposedEndTime)) {
+      toast.error('Propose a date, start time and end time for the appointment');
+      return;
+    }
+    if (proposedStartTime && proposedEndTime && proposedEndTime <= proposedStartTime) {
+      toast.error('The appointment must end after it starts');
+      return;
+    }
 
     setSubmitting(true);
     try {
@@ -94,6 +113,13 @@ export function QuoteComposerDialog({
           exclusions: exclusions.trim() || undefined,
           paymentInstructions: paymentInstructions.trim(),
           validUntil: new Date(`${validUntil}T23:59:59`).toISOString(),
+          ...(proposedDate && proposedStartTime && proposedEndTime
+            ? {
+                proposedDate,
+                proposedStartTime,
+                proposedEndTime,
+              }
+            : {}),
         }),
       });
       const data = await res.json();
@@ -187,6 +213,54 @@ export function QuoteComposerDialog({
               />
             </div>
           </div>
+
+          {/* The appointment. Shown only when the matter has none — a client who
+              picked a slot from your calendar already has one. */}
+          {needsAppointment && (
+            <div className="space-y-2 border border-neutral-200 bg-neutral-50 p-3">
+              <p className="text-[11px] font-bold uppercase tracking-widest text-neutral-600">
+                Propose an appointment <span className="text-red-600">*</span>
+              </p>
+              <p className="text-[10px] leading-relaxed text-neutral-500">
+                {clientName} engaged the firm rather than booking a slot, so there is no
+                time set yet. Offer one from your own diary — it is held for you while
+                the quote is outstanding.
+              </p>
+              <div className="grid gap-2 sm:grid-cols-3">
+                <div className="space-y-1">
+                  <Label htmlFor="q-date" className="text-[10px] uppercase tracking-wide text-neutral-500">Date</Label>
+                  <Input
+                    id="q-date"
+                    type="date"
+                    value={proposedDate}
+                    min={new Date().toISOString().split('T')[0]}
+                    onChange={(e) => setProposedDate(e.target.value)}
+                    className="rounded-none"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="q-start" className="text-[10px] uppercase tracking-wide text-neutral-500">From</Label>
+                  <Input
+                    id="q-start"
+                    type="time"
+                    value={proposedStartTime}
+                    onChange={(e) => setProposedStartTime(e.target.value)}
+                    className="rounded-none"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="q-end" className="text-[10px] uppercase tracking-wide text-neutral-500">To</Label>
+                  <Input
+                    id="q-end"
+                    type="time"
+                    value={proposedEndTime}
+                    onChange={(e) => setProposedEndTime(e.target.value)}
+                    className="rounded-none"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
 
           {feeBasis === 'HOURLY' && (
             <div className="grid gap-3 sm:grid-cols-2">

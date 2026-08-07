@@ -2,11 +2,10 @@
 LawyerAI RAG System - Flask Application Entry Point
 
 This is the main entry point for the Flask API server.
-It registers all blueprints and configures CORS for the Next.js frontend.
+It registers all blueprints. Called only by the Next.js server, never a browser.
 """
 
 from flask import Flask
-from flask_cors import CORS
 
 from app.utils.helpers import setup_logging
 from app.config import config
@@ -19,18 +18,17 @@ def create_app() -> Flask:
     """Create and configure the Flask application."""
     app = Flask(__name__)
 
-    # Configure CORS to allow requests from the Next.js frontend
-    CORS(app, resources={
-        r"/api/*": {
-            "origins": [
-                "http://localhost:3000",
-                "http://127.0.0.1:3000",
-                "http://localhost:3001",
-            ],
-            "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-            "allow_headers": ["Content-Type", "Authorization"],
-        }
-    })
+    # No CORS. Nothing in a browser calls this service any more.
+    #
+    # Until Phase 5 the chat page fetched /api/chat directly from the user's
+    # machine, which is why browser origins were allowed here. Every caller is
+    # now a Next.js server route — /api/ai/ask for questions, the admin
+    # legal-document routes for ingestion — so cross-origin access has no
+    # legitimate use, and allowing it would leave a way around the AI policy
+    # that the application enforces on every answer.
+    #
+    # This service should not be reachable from the public internet at all.
+    # Bind it to a private interface or keep it behind the application host.
 
     # Register API blueprints
     from app.api.chat import chat_bp

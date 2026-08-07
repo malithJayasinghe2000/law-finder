@@ -136,6 +136,46 @@ no attorney-client relationship. It cites its sources.
   it stay strictly general?
 - (e) Who bears liability if the assistant is wrong and a user relies on it?
 
+**Updated 2026-08-03, Phase 5 — what we have now done, pending your answer.**
+
+We did not wait on (c) and (d). Where we were unsure we took the restrictive option,
+because it is cheap to relax and expensive to have got wrong:
+
+- **(c) — we assume the answer is no.** The assistant now suggests **no practitioner
+  at all**: not a named attorney, not a firm, and not a category such as "you need a
+  labour lawyer". It previously did all three, generating "I'd recommend consulting
+  **a Property Lawyer**... I've found some matching lawyers on our platform below"
+  from what the user had described about their own problem. If you tell us category
+  suggestion is permissible, restoring it is a small change. If you tell us it is not,
+  we never did it.
+- **(d) — we assume it must stay strictly general.** The assistant answers about the
+  law and refuses to apply it to the user's facts. Requests for advice on the user's
+  own matter are declined *before* the question reaches any model; answers that stray
+  into advising are withheld after generation rather than edited.
+
+Enforced in code, server-side, and asserted by `npm run check:ai` (49 cases).
+
+**Still to confirm, in addition to (a), (b) and (e):**
+- (f) Our refusal line is: *the assistant may explain the law, but never advise on the
+  user's own case.* Is that the right line, and is it drawn in the right place? A
+  worked example either side of it would be more useful to us than a general
+  statement.
+- (g) When the assistant declines, it says the choice of attorney is the user's and
+  points at the alphabetical directory. Is pointing at the directory *at that moment*
+  — immediately after someone has described a legal problem — itself a channelling
+  act, even though the link is identical for every user and unaffected by anything
+  they said? If so the refusal must not mention the directory at all.
+- (h) **The refusals are English-only.** The platform ships Sinhala and Tamil locales,
+  and a question asked in either language bypasses the pre-generation check entirely;
+  the post-generation checks are English-only too. We would rather fix this with
+  translated rules reviewed by someone who knows the terminology than with more
+  pattern-matching by us. Is an assistant that enforces its limits in only one of
+  three offered languages defensible in the interim, or must the non-English locales
+  be closed until it is fixed?
+- (i) We keep a record of every refusal and its category. Is that record helpful
+  evidence of compliance, or does it create a discoverable log of the moments people
+  asked for advice and were turned away?
+
 ---
 
 ## Priority 2 — Needed before scaling
@@ -206,6 +246,61 @@ legal problem, matter records, and lawyer-client messages.
   record-keeping duties?
 - (e) How do data-subject erasure rights interact with a firm's obligation to retain
   matter files?
+
+**Updated 2026-08-03, Phase 6 — what we have now built, pending your answers.**
+
+We wrote a full data inventory (`docs/restructure/DATA-INVENTORY.md`), a retention
+schedule with an automated purge, subject-request endpoints, an access log over matter
+data, and consent capture. Where the answer was unclear we took the restrictive option:
+
+- **(a) — we assume BOTH.** We treat ourselves as **controller** for account, profile, AI
+  and community data, and as **processor** for everything under `Booking`. The two roles
+  are tagged in code and the purge structurally refuses to touch firm-controlled data.
+- **(c) — we assume matter data is NOT consent-based.** It is processed to perform the
+  retainer and meet your professional duties. Consent is used for three things only:
+  marketing email, product analytics, and keeping AI chat history.
+- **(e) — we assume a firm's retention duty outweighs an erasure request.** An erasure
+  anonymises the account and deletes what we control, and reports itself as **partial**.
+  The matter file is referred to the firm to decide.
+
+**Still to confirm, in addition to (a)–(e):**
+- (f) Is "controller for our own data, processor for matter data" the correct
+  characterisation, or are we a joint controller for some of it?
+- (g) **Must we register with the Data Protection Authority, and must we appoint a DPO?**
+  We have appointed nobody. If it is required, we need to know now.
+- (h) We keep an access log recording who read a matter description, with **no copy of the
+  content**. Is that record helpful evidence of compliance, or does it create a
+  discoverable log of who looked at what and when?
+- (i) A subject-access request currently returns **nothing from the matter file**, and
+  names the firm to ask instead. Is that the right allocation, or must we produce it?
+- (j) We hold `LawyerProfile.nic` and images of identity and practising certificates. Is
+  that special-category data, and is verification the right lawful basis?
+
+---
+
+### Q19. Cross-border transfer of personal data
+
+**Added 2026-08-03, Phase 6.** The PDPA restricts sending personal data outside Sri Lanka,
+and two flows in this system may do so without any documented basis:
+
+1. **Database hosting.** Development runs on local Postgres, but `.env` carries a
+   commented-out **Neon** URL in `us-east-1`. If production uses it, *everything* in the
+   inventory — including privileged matter data — is stored outside Sri Lanka.
+2. **The AI model.** Questions typed into the assistant are forwarded by our retrieval
+   service to a model provider. No matter data travels this path by construction, but the
+   user's own description of their situation does.
+
+**Confirm:**
+- (a) May personal data — and specifically **privileged** matter data — be stored on
+  infrastructure outside Sri Lanka? On what basis, and with what documentation?
+- (b) Does hosting privileged material abroad affect **privilege** as distinct from data
+  protection? (Related to Q4.)
+- (c) Do the answers differ for the AI questions, where no attorney-client relationship
+  exists?
+- (d) Must a firm using our software be told where its client data is stored, and must it
+  consent?
+
+---
 
 ### Q10. Our own tax position
 
@@ -325,12 +420,12 @@ informational lawyer websites.
 | 2 | Advertising and touting | | | |
 | 3 | Engagement letter | | | |
 | 4 | Privilege | | | |
-| 5 | AI and unauthorised practice | | | |
+| 5 | AI and unauthorised practice (incl. 5(f)–(i), added Phase 5) | | | |
 | 6 | Payment role | | | |
 | 7 | Conflict checks | | | |
 | 8 | Firm structure | | | |
 | 9 | PDPA | | | |
-| 10 | Tax | | | |
+| 10 | Tax (now load-bearing: fee notes compute VAT — see Phase 3) | | | |
 | 11 | Third-party advertising | | | |
 | 12 | Pro bono module | | | |
 | 13 | Cause lists | | | |
@@ -339,3 +434,4 @@ informational lawyer websites.
 | **16** | **May a public attorney directory exist at all** | | | |
 | **17** | **Intermeddlers Ordinance 1894 — operator's criminal exposure** | | | |
 | **18** | **Is client-driven search indirect solicitation** | | | |
+| 19 | Cross-border transfer (Neon hosting, model provider) — added Phase 6 | | | |

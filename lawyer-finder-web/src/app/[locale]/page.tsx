@@ -15,7 +15,6 @@ import {
   Linkedin,
   Users
 } from 'lucide-react';
-import ChatWidget from '@/components/home/ChatWidget';
 import HeroChatInput from '@/components/home/HeroChatInput';
 
 import { AdBanner } from '@/components/ads/AdComponents';
@@ -299,9 +298,6 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
         
 
       </main>
-
-      {/* Persistent AI Chat Widget */}
-      {/* <ChatWidget /> */}
 
       <Footer locale={locale} />
     </div>

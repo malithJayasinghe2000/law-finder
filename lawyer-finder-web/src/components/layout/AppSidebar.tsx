@@ -36,13 +36,20 @@ export function AppSidebar({ locale, role, userId }: { locale: string; role: str
     { href: `/${locale}/dashboard/admin/verification`, icon: ShieldCheck, label: 'Verification' },
     { href: `/${locale}/dashboard/admin/firms`, icon: Building2, label: 'Law Firms' },
     { href: `/${locale}/dashboard/admin/invoices`, icon: FileText, label: 'Invoices' },
-    // { href: `/${locale}/dashboard/admin/paymentTemplate`, icon: ShieldCheck, label: 'Payment Templates' },
+    // 'Payment Templates' was removed in Phase 6. The page was an orphan — this
+    // link had been commented out — but it was still routable, and it rendered a
+    // hardcoded invoice billing an attorney for "Premium Lawyer Profile
+    // Promotion — Featured placement in results" and "Featured Directory Ad
+    // Slots". That is selling position and visibility to a lawyer (rule 3), on
+    // the surface where the Intermeddlers with Suitors Ordinance No. 11 of 1894
+    // bites hardest. Deleted rather than left dead.
     {
       href: `/${locale}/dashboard/admin/advertisements`,
       icon: Image,
       label: 'Ad Campaigns',
       subLinks: [
         { href: `/${locale}/dashboard/admin/advertisements`, icon: Image, label: 'Campaigns' },
+        { href: `/${locale}/dashboard/admin/advertisers`, icon: Megaphone, label: 'Advertisers' },
         { href: `/${locale}/dashboard/admin/ad-config`, icon: Settings, label: 'Placement Config' },
       ]
     },
@@ -80,7 +87,6 @@ export function AppSidebar({ locale, role, userId }: { locale: string; role: str
       ]
     },
     { href: `/${locale}/dashboard/lawyer/chat`, icon: MessageCircle, label: 'Messages', hasBadge: true },
-    { href: `/${locale}/dashboard/lawyer/ads`, icon: Image, label: 'My Ads' },
     { 
       href: `/${locale}/dashboard/lawyer/payments`, 
       icon: CreditCard, 
@@ -199,11 +205,14 @@ export function AppSidebar({ locale, role, userId }: { locale: string; role: str
                                       {counts.pendingAdCampaignsCount}
                                     </span>
                                   )}
-                                  {sub.label === 'Payments & Commission' && role === 'ADMIN' && counts.pendingBankPaymentsCount > 0 && (
-                                    <span className="ml-auto bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full flex items-center justify-center min-w-[16px] h-[16px] shrink-0">
-                                      {counts.pendingBankPaymentsCount}
-                                    </span>
-                                  )}
+                                  {/* A badge keyed to a nav item labelled
+                                      "Payments & Commission" used to sit here.
+                                      That page was deleted in Phase 1b — the
+                                      platform does not adjudicate transfers into
+                                      a firm's own account and takes no
+                                      commission — so the condition had matched
+                                      nothing since. Removed rather than left as
+                                      the last use of the word in the UI. */}
                                 </SidebarMenuSubButton>
                               </SidebarMenuSubItem>
                             );

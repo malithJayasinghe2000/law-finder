@@ -1,40 +1,18 @@
 import prisma from './db'
 import { SubscriptionStatus, BillingCycle } from '@prisma/client'
+import { getSubscriptionForProfile } from './firms/billing'
 
 /**
- * Get user's subscription information
- * Returns ACTIVE subscriptions, and CANCELED subscriptions that haven't expired yet
+ * The licence covering an attorney.
+ *
+ * `lawyerId` is a `LawyerProfile.id`, kept as the parameter because that is what
+ * callers hold — but the licence itself belongs to the attorney's **firm** as of
+ * Phase 3, not to them. Resolution lives in `src/lib/firms/billing.ts`.
+ *
+ * Returns ACTIVE subscriptions, and CANCELED ones that have not yet expired.
  */
 export async function getUserSubscription(lawyerId: string) {
-  const now = new Date()
-  
-  const subscription = await prisma.subscription.findFirst({
-    where: {
-      lawyerId,
-      OR: [
-        { status: 'ACTIVE' },
-        {
-          status: 'CANCELED',
-          endDate: { gte: now },
-        },
-      ],
-    },
-    include: {
-      plan: true,
-      role: {
-        include: {
-          permissions: {
-            include: {
-              permission: true,
-            },
-          },
-        },
-      },
-    },
-    orderBy: { createdAt: 'desc' },
-  })
-
-  return subscription
+  return getSubscriptionForProfile(lawyerId)
 }
 
 /**

@@ -4,7 +4,7 @@ import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { AdminCreateAdSchema, formatZodFieldErrors, getComputedTotalBudget, AdTypeSchema, AdPlacementSchema, AdStatusSchema } from '@/schemas/ad.schema';
 import { isValidUUID, validatePaginationParams } from '@/lib/security';
-import { EmailService } from '@/lib/email/EmailService';
+import { canAdvertiserRunCampaigns, isPermittedPlacement } from '@/lib/ads/eligibility';
 import { z } from 'zod';
 
 // Admin Update Ad Schema
@@ -102,13 +102,14 @@ export async function GET(req: Request) {
       prisma.adCampaign.findMany({
         where,
         include: {
-          lawyer: {
+          advertiser: {
             select: {
               id: true,
-              fullName: true,
-              baslNumber: true,
-              district: true,
-              profileImageUrl: true,
+              name: true,
+              category: true,
+              status: true,
+              nonLegalConfirmed: true,
+              logoUrl: true,
             },
           },
         },
@@ -169,7 +170,7 @@ export async function POST(req: Request) {
     }
 
     const {
-      lawyerId,
+      advertiserId,
       name,
       type,
       placement,
@@ -186,9 +187,28 @@ export async function POST(req: Request) {
       status,
     } = parsed.data;
 
-    const lawyer = await prisma.lawyerProfile.findUnique({ where: { id: lawyerId } });
-    if (!lawyer) {
-      return NextResponse.json({ error: 'Lawyer not found.' }, { status: 404 });
+    // The advertiser must exist AND have been confirmed non-legal by a named
+    // ADMIN. That confirmation is the single thing standing between this and
+    // guardrail rule 3, so it is checked here as well as at serve time.
+    const advertiser = await prisma.advertiser.findUnique({
+      where: { id: advertiserId },
+      select: { id: true, status: true, isActive: true, nonLegalConfirmed: true },
+    });
+
+    if (!advertiser) {
+      return NextResponse.json({ error: 'Advertiser not found.' }, { status: 404 });
+    }
+
+    const eligibility = canAdvertiserRunCampaigns(advertiser);
+    if (!eligibility.eligible) {
+      return NextResponse.json({ error: eligibility.reason }, { status: 400 });
+    }
+
+    if (!isPermittedPlacement(placement as AdPlacement)) {
+      return NextResponse.json(
+        { error: 'Advertising is not permitted on that surface.' },
+        { status: 400 }
+      );
     }
 
     const config = await prisma.adPlacementConfig.findUnique({
@@ -205,7 +225,7 @@ export async function POST(req: Request) {
 
     const campaign = await prisma.adCampaign.create({
       data: {
-        lawyerId,
+        advertiserId,
         name,
         type: type as AdType,
         placement: placement as AdPlacement,
@@ -323,40 +343,17 @@ export async function PATCH(req: Request) {
         }
       }
 
-      // Generate invoice on approval
-      if (validatedData.status === 'APPROVED' && !existing.invoiceId) {
-        let amount = 0;
-        const rate = (updateData.pricePerDay as number) || existing.pricePerDay;
-        const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-        amount = rate ? rate * Math.max(1, days) : 0;
-
-        if (amount > 0) {
-          const invoice = await prisma.invoice.create({
-            data: {
-              lawyerId: existing.lawyerId,
-              amount,
-              status: 'PENDING',
-              paymentReason: `Ad Campaign: ${existing.name}`,
-            },
-          });
-          updateData.invoiceId = invoice.id;
-
-          const lawyerProfile = await prisma.lawyerProfile.findUnique({
-            where: { id: existing.lawyerId },
-            include: { user: true },
-          });
-
-          if (lawyerProfile?.user?.email) {
-            EmailService.sendInvoiceCreated(
-              lawyerProfile.user.email,
-              lawyerProfile.user.fullName || 'Valued Lawyer',
-              invoice.id,
-              invoice.amount,
-              invoice.paymentReason
-            ).catch(err => console.error('Failed to send invoice creation email:', err));
-          }
-        }
-      }
+      // Ad invoicing was removed in Phase 4.
+      //
+      // It created an `Invoice` against the campaign owner's LawyerProfile,
+      // which no longer exists — campaigns belong to non-legal advertisers now.
+      // The `Invoice` model is keyed to a lawyer because it exists for firm
+      // subscriptions; billing an advertiser is a different commercial
+      // relationship and must not be forced through it.
+      //
+      // Until an advertiser billing module exists, a campaign records its
+      // `pricePerDay` and `totalBudget` and the advertiser is invoiced outside
+      // the platform.
 
       // Handle bookings cleanup for released statuses
       if (['DRAFT', 'REJECTED', 'EXPIRED'].includes(validatedData.status)) {
@@ -386,7 +383,7 @@ export async function PATCH(req: Request) {
       where: { id },
       data: updateData,
       include: {
-        lawyer: { select: { fullName: true, baslNumber: true } },
+        advertiser: { select: { name: true, category: true } },
       },
     });
 

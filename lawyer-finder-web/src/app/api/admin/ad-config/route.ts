@@ -77,23 +77,14 @@ const DEFAULT_CONFIGS: Record<AdPlacementValue, {
     recommendedHeight: 90,
     allowedAdTypes: ['BANNER_IMAGE'],
   },
-  DIRECTORY_TOP: {
+  LEGAL_LIBRARY_SIDEBAR: {
     pricePerDay: 2500,
-    isSlider: false,
-    sliderInterval: 3000,
-    maxAdsPerSlot: 2,
-    recommendedWidth: null,
-    recommendedHeight: null,
-    allowedAdTypes: ['PROFILE_CARD'],
-  },
-  DIRECTORY_INLINE: {
-    pricePerDay: 1500,
-    isSlider: false,
-    sliderInterval: 3000,
-    maxAdsPerSlot: 3,
-    recommendedWidth: null,
-    recommendedHeight: null,
-    allowedAdTypes: ['PROFILE_CARD'],
+    isSlider: true,
+    sliderInterval: 6000,
+    maxAdsPerSlot: 1,
+    recommendedWidth: 300,
+    recommendedHeight: 250,
+    allowedAdTypes: ['SIDEBAR_CARD'],
   },
 };
 

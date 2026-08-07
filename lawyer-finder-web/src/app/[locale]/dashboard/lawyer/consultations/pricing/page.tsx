@@ -11,8 +11,6 @@ export default function PricingPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [pricingType, setPricingType] = useState('PER_SESSION');
-  const [physicalPrice, setPhysicalPrice] = useState(5000);
-  const [onlinePrice, setOnlinePrice] = useState(3000);
   const [freeInitial, setFreeInitial] = useState(false);
   const [freeDuration, setFreeDuration] = useState(15);
   const [minAdvanceNoticeHours, setMinAdvanceNoticeHours] = useState(24);
@@ -31,8 +29,6 @@ export default function PricingPage() {
       const data = await res.json();
       if (data.pricing) {
         setPricingType(data.pricing.pricingType);
-        setPhysicalPrice(data.pricing.physicalPrice);
-        setOnlinePrice(data.pricing.onlinePrice);
         setFreeInitial(data.pricing.freeInitialConsultation);
         setFreeDuration(data.pricing.freeConsultationDuration || 15);
         setMinAdvanceNoticeHours(data.pricing.minAdvanceNoticeHours || 24);
@@ -55,12 +51,10 @@ export default function PricingPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          // physicalPrice/onlinePrice are no longer used for quoting — a fee is
-          // set per matter in the quote composer. Sent as 0 until the columns are
-          // dropped in Phase 3. See docs/restructure/LEGAL-GUARDRAILS.md (rule 1).
+          // No price fields. A fee exists only on a Quote, issued for one
+          // matter after a conflict check — never as a standing price attached
+          // to a practitioner. The columns were dropped in Phase 3.
           pricingType,
-          physicalPrice: 0,
-          onlinePrice: 0,
           freeInitialConsultation: freeInitial,
           freeConsultationDuration: freeInitial ? freeDuration : undefined,
           minAdvanceNoticeHours,

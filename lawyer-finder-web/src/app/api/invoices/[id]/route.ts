@@ -1,5 +1,6 @@
 import { NextResponse, NextRequest } from 'next/server';
 import prisma from '@/lib/db';
+import { getFirmMembership } from '@/lib/firms/access';
 import { getSession } from '@/lib/auth';
 
 /**
@@ -37,13 +38,13 @@ export async function GET(
       return NextResponse.json({ error: 'Invoice not found' }, { status: 404 });
     }
 
-    // Non-admin can only see their own invoices
+    // Non-admin can only see invoices billed to their own firm. Matching on
+    // `lawyerId` — who raised it — locked out everyone else at the practice, and
+    // locked out everyone entirely once a practice manager raised one, since
+    // `lawyerId` is null in that case. The firm is the party billed.
     if (session.role !== 'ADMIN') {
-      const profile = await prisma.lawyerProfile.findUnique({
-        where: { userId: session.userId },
-        select: { id: true },
-      });
-      if (!profile || invoice.lawyerId !== profile.id) {
+      const membership = await getFirmMembership(session.userId);
+      if (!membership || invoice.firmId !== membership.firmId) {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
       }
     }

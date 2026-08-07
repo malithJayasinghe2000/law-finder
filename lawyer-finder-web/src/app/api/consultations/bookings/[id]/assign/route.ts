@@ -198,27 +198,33 @@ export async function POST(
 
     // Each attorney keeps their own calendar. Moving a matter must not silently
     // double-book the attorney receiving it.
-    const clash = await prisma.booking.findFirst({
-      where: {
-        id: { not: booking.id },
-        lawyerId: attorneyProfileId,
-        date: booking.date,
-        status: { in: SLOT_BLOCKING_STATUSES },
-        startTime: { lt: booking.endTime },
-        endTime: { gt: booking.startTime },
-      },
-      select: { bookingNumber: true, startTime: true, endTime: true },
-    });
-
-    if (clash) {
-      return NextResponse.json(
-        {
-          error:
-            `That attorney already has a matter at this time ` +
-            `(${clash.startTime}–${clash.endTime}). Reschedule one of them first.`,
+    //
+    // A matter that arrived through firm-first intake has no appointment yet, so
+    // there is nothing to clash with — the receiving attorney will propose a
+    // time from their own diary when they quote.
+    if (booking.date && booking.startTime && booking.endTime) {
+      const clash = await prisma.booking.findFirst({
+        where: {
+          id: { not: booking.id },
+          lawyerId: attorneyProfileId,
+          date: booking.date,
+          status: { in: SLOT_BLOCKING_STATUSES },
+          startTime: { lt: booking.endTime },
+          endTime: { gt: booking.startTime },
         },
-        { status: 409 }
-      );
+        select: { bookingNumber: true, startTime: true, endTime: true },
+      });
+
+      if (clash) {
+        return NextResponse.json(
+          {
+            error:
+              `That attorney already has a matter at this time ` +
+              `(${clash.startTime}–${clash.endTime}). Reschedule one of them first.`,
+          },
+          { status: 409 }
+        );
+      }
     }
 
     const updated = await prisma.booking.update({
@@ -243,7 +249,7 @@ export async function POST(
 
     // Tell the client which attorney at the firm is now handling their matter.
     // They engaged the firm, but they are entitled to know who is acting.
-    if (updated.client?.email) {
+    if (updated.client?.email && updated.lawyer) {
       EmailService.sendMatterReassignedClient(
         updated.client.email,
         updated.client.fullName || 'Client',
@@ -258,7 +264,7 @@ export async function POST(
       booking: {
         id: updated.id,
         lawyerId: updated.lawyerId,
-        lawyerName: updated.lawyer.fullName,
+        lawyerName: updated.lawyer?.fullName ?? null,
       },
     });
   } catch (error) {

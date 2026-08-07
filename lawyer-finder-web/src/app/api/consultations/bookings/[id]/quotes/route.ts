@@ -2,10 +2,17 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { IssueQuoteSchema, RespondToQuoteSchema } from '@/schemas/consultation.schema';
-import { canTransition } from '@/lib/consultations/bookingStatus';
+import { canTransition, SLOT_BLOCKING_STATUSES } from '@/lib/consultations/bookingStatus';
 import { renderEngagementLetter, buildLetterReference } from '@/lib/consultations/engagementLetter';
 import { EmailService } from '@/lib/email/EmailService';
-import { formatSriLankaDateIso } from '@/lib/utils';
+import { formatSriLankaDateIso, formatSriLankaDateIsoOrNull, parseDateOnlyToUtc } from '@/lib/utils';
+
+/** Minutes between two "HH:mm" times on the same day. */
+function minutesBetween(start: string, end: string): number {
+  const [sh, sm] = start.split(':').map(Number);
+  const [eh, em] = end.split(':').map(Number);
+  return eh * 60 + em - (sh * 60 + sm);
+}
 
 /**
  * Fee quotes.
@@ -41,7 +48,7 @@ export async function GET(
     }
 
     const isClient = booking.clientId === session.userId;
-    const isLawyer = booking.lawyer.userId === session.userId;
+    const isLawyer = !!booking.lawyer && booking.lawyer.userId === session.userId;
 
     // A quote is a commercial term between the client and the firm. Platform
     // staff have no need to see it.
@@ -91,6 +98,16 @@ export async function POST(
       return NextResponse.json({ error: 'Request not found' }, { status: 404 });
     }
 
+    if (!booking.lawyer) {
+      return NextResponse.json(
+        {
+          error:
+            'This matter has not been assigned to an attorney yet. A principal must assign it before a quote can be issued.',
+        },
+        { status: 400 }
+      );
+    }
+
     if (booking.lawyer.userId !== session.userId) {
       return NextResponse.json(
         { error: 'Only the attorney handling this request can issue a quote.' },
@@ -111,6 +128,47 @@ export async function POST(
     }
 
     const data = validated.data;
+
+    // A matter that arrived without an appointment (the client engaged the firm,
+    // not an individual) needs one proposed now — the quote is where the firm
+    // offers both a fee and a time.
+    const needsAppointment = !booking.date || !booking.startTime || !booking.endTime;
+
+    if (needsAppointment && !data.proposedDate) {
+      return NextResponse.json(
+        {
+          error:
+            'This matter has no appointment yet. Propose a date and time along with your fee.',
+        },
+        { status: 400 }
+      );
+    }
+
+    // The proposed slot must be free in this attorney's own diary. Availability
+    // belongs to the attorney, never to the firm.
+    if (data.proposedDate && data.proposedStartTime && data.proposedEndTime) {
+      const proposedDate = parseDateOnlyToUtc(data.proposedDate);
+      const clash = await prisma.booking.findFirst({
+        where: {
+          id: { not: id },
+          lawyerId: booking.lawyerId!,
+          date: proposedDate,
+          status: { in: SLOT_BLOCKING_STATUSES },
+          startTime: { lt: data.proposedEndTime },
+          endTime: { gt: data.proposedStartTime },
+        },
+        select: { bookingNumber: true, startTime: true, endTime: true },
+      });
+
+      if (clash) {
+        return NextResponse.json(
+          {
+            error: `You already have a matter at that time (${clash.startTime}–${clash.endTime}). Choose another slot.`,
+          },
+          { status: 409 }
+        );
+      }
+    }
 
     const result = await prisma.$transaction(async (tx) => {
       // Supersede any quote still outstanding
@@ -138,13 +196,29 @@ export async function POST(
           exclusions: data.exclusions,
           paymentInstructions: data.paymentInstructions,
           validUntil: new Date(data.validUntil),
+          proposedDate: data.proposedDate ? parseDateOnlyToUtc(data.proposedDate) : null,
+          proposedStartTime: data.proposedStartTime ?? null,
+          proposedEndTime: data.proposedEndTime ?? null,
           issuedById: session.userId,
         },
       });
 
+      // The proposed appointment is written onto the matter now, not on
+      // acceptance, so the slot is held against the attorney's diary while the
+      // client considers the quote — QUOTED is a slot-blocking status.
       await tx.booking.update({
         where: { id },
-        data: { status: 'QUOTED' },
+        data: {
+          status: 'QUOTED',
+          ...(data.proposedDate && data.proposedStartTime && data.proposedEndTime
+            ? {
+                date: parseDateOnlyToUtc(data.proposedDate),
+                startTime: data.proposedStartTime,
+                endTime: data.proposedEndTime,
+                duration: minutesBetween(data.proposedStartTime, data.proposedEndTime),
+              }
+            : {}),
+        },
       });
 
       return quote;
@@ -155,8 +229,8 @@ export async function POST(
       booking.client.fullName || 'Client',
       booking.bookingNumber,
       booking.lawyer.fullName,
-      formatSriLankaDateIso(booking.date),
-      `${booking.startTime} - ${booking.endTime}`
+      data.proposedDate ?? formatSriLankaDateIsoOrNull(booking.date) ?? 'To be arranged',
+      `${data.proposedStartTime ?? booking.startTime ?? '—'} - ${data.proposedEndTime ?? booking.endTime ?? '—'}`
     );
 
     return NextResponse.json({ success: true, quote: result }, { status: 201 });
@@ -318,13 +392,17 @@ export async function PATCH(
       //
       // Letters already issued are untouched: their body was snapshotted at
       // issue time and is never re-rendered.
-      const firmName = booking.firm?.name || booking.lawyer.fullName;
+      // A quote cannot exist without an assigned attorney and an appointment —
+      // POST refuses both — so by acceptance these are always present.
+      const actingAttorney = booking.lawyer!;
+
+      const firmName = booking.firm?.name || actingAttorney.fullName;
       const firmAddress =
-        booking.firm?.offices?.[0]?.address || booking.lawyer.address;
+        booking.firm?.offices?.[0]?.address || actingAttorney.address;
       const firmContact =
-        booking.firm?.contactPhone || booking.lawyer.contactPhone;
+        booking.firm?.contactPhone || actingAttorney.contactPhone;
       const firmBaslNumber =
-        booking.firm?.principalBaslNumber || booking.lawyer.baslNumber;
+        booking.firm?.principalBaslNumber || actingAttorney.baslNumber;
 
       const body = renderEngagementLetter({
         reference,
@@ -334,8 +412,8 @@ export async function PATCH(
         firmAddress,
         firmContact,
         firmRegistrationNumber: booking.firm?.registrationNumber,
-        attorneyName: booking.lawyer.fullName,
-        attorneyBaslNumber: booking.lawyer.baslNumber,
+        attorneyName: actingAttorney.fullName,
+        attorneyBaslNumber: actingAttorney.baslNumber,
         clientName,
         clientEmail: booking.client.email,
         matterSubject: booking.subject,
@@ -347,8 +425,11 @@ export async function PATCH(
         hourlyRate: quote.hourlyRate,
         estimatedHours: quote.estimatedHours,
         paymentInstructions: quote.paymentInstructions,
-        consultationDate: formatSriLankaDateIso(booking.date),
-        consultationTime: `${booking.startTime} - ${booking.endTime}`,
+        consultationDate: formatSriLankaDateIsoOrNull(booking.date) ?? 'To be confirmed',
+        consultationTime:
+          booking.startTime && booking.endTime
+            ? `${booking.startTime} - ${booking.endTime}`
+            : 'To be confirmed',
         mode: booking.mode,
       });
 
@@ -378,19 +459,19 @@ export async function PATCH(
       return { updatedBooking: updated, engagementLetter: letter };
     });
 
-    if (booking.lawyer.user?.email) {
+    if (booking.lawyer?.user?.email) {
       await EmailService.sendBookingCreatedLawyer(
         booking.lawyer.user.email,
         booking.lawyer.fullName,
         booking.client.fullName || 'Client',
-        formatSriLankaDateIso(booking.date),
-        booking.startTime
+        formatSriLankaDateIsoOrNull(booking.date) ?? 'To be confirmed',
+        booking.startTime ?? '—'
       );
     }
 
     return NextResponse.json({
       success: true,
-      booking: { ...updatedBooking, date: formatSriLankaDateIso(updatedBooking.date) },
+      booking: { ...updatedBooking, date: formatSriLankaDateIsoOrNull(updatedBooking.date) },
     });
   } catch (error) {
     console.error('Quote response error:', error);

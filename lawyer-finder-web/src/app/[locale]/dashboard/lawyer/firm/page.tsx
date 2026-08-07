@@ -79,6 +79,10 @@ interface Firm {
   accountName: string | null;
   accountNumber: string | null;
   bankBranch: string | null;
+  taxIdentificationNumber: string | null;
+  vatNumber: string | null;
+  isVatRegistered: boolean;
+  vatRatePercent: number | null;
   members: FirmMember[];
   offices: FirmOffice[];
 }
@@ -188,6 +192,12 @@ export default function FirmPage() {
           accountName: fd.get('accountName') || '',
           accountNumber: fd.get('accountNumber') || '',
           bankBranch: fd.get('bankBranch') || '',
+          taxIdentificationNumber: fd.get('taxIdentificationNumber') || '',
+          vatNumber: fd.get('vatNumber') || '',
+          isVatRegistered: fd.get('isVatRegistered') === 'on',
+          vatRatePercent: fd.get('vatRatePercent')
+            ? Number(fd.get('vatRatePercent'))
+            : null,
         }),
       });
       if (!res.ok) throw new Error('Could not save the account details.');
@@ -591,10 +601,51 @@ export default function FirmPage() {
                 <Label htmlFor="accountNumber" className="text-[11px] font-bold uppercase tracking-widest text-neutral-500">Account number</Label>
                 <Input id="accountNumber" name="accountNumber" defaultValue={firm.accountNumber || ''} className="rounded-none" />
               </div>
+              {/* Tax identity. Printed on the fee notes the firm issues to its
+                  own clients — the firm supplies the legal service, so the firm
+                  is the taxable person and we are not in that transaction. */}
+              <div className="sm:col-span-2 border-t border-neutral-200 pt-4">
+                <p className="text-[11px] font-bold uppercase tracking-widest text-neutral-500">
+                  Tax identity
+                </p>
+                <p className="mt-1 text-[11px] leading-relaxed text-neutral-500">
+                  Printed on the fee notes you issue to your clients. Your firm bills under its
+                  own registration; this platform is not a party to those invoices and takes no
+                  share of your fees.
+                </p>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="taxIdentificationNumber" className="text-[11px] font-bold uppercase tracking-widest text-neutral-500">TIN</Label>
+                <Input id="taxIdentificationNumber" name="taxIdentificationNumber" defaultValue={firm.taxIdentificationNumber || ''} className="rounded-none" />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="vatNumber" className="text-[11px] font-bold uppercase tracking-widest text-neutral-500">VAT number</Label>
+                <Input id="vatNumber" name="vatNumber" defaultValue={firm.vatNumber || ''} className="rounded-none" />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="isVatRegistered" className="text-[11px] font-bold uppercase tracking-widest text-neutral-500">VAT registered</Label>
+                <div className="flex h-9 items-center gap-2">
+                  <input
+                    id="isVatRegistered"
+                    name="isVatRegistered"
+                    type="checkbox"
+                    defaultChecked={firm.isVatRegistered}
+                    className="h-4 w-4 border-neutral-300"
+                  />
+                  <span className="text-xs text-neutral-600">
+                    Add VAT to fee notes
+                  </span>
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="vatRatePercent" className="text-[11px] font-bold uppercase tracking-widest text-neutral-500">VAT rate (%)</Label>
+                <Input id="vatRatePercent" name="vatRatePercent" type="number" min={0} max={100} step={1} defaultValue={firm.vatRatePercent ?? ''} className="rounded-none" />
+              </div>
+
               <div className="sm:col-span-2">
                 <Button type="submit" disabled={saving} className="rounded-none">
                   {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Save account details
+                  Save account &amp; tax details
                 </Button>
               </div>
             </form>

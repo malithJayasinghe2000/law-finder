@@ -6,10 +6,13 @@ The upgraded RAG pipeline that:
 2. Retrieves relevant legal document chunks from ChromaDB (Vector search)
 3. Extracts entities from the query and traverses the knowledge graph
 4. Expands retrieval with graph-discovered related documents
-5. Searches the web for additional context
-6. Formats everything into a structured, AI-readable prompt
-7. Sends to Ollama LLM for response generation
-8. Returns the answer with source citations, graph context, and detected practice areas
+5. Formats everything into a structured, AI-readable prompt
+6. Sends to Ollama LLM for response generation
+7. Returns the answer with source citations and graph context
+
+Phase 5 removed two things from this pipeline: web-search grounding (a search
+result is not a legal authority) and practice-area detection (it existed to pick
+attorneys to show the user). See lawyer-finder-web/docs/restructure/.
 """
 
 import logging
@@ -20,7 +23,6 @@ from langsmith import traceable
 
 from app.core.llm import get_llm
 from app.core.vectorstore import search_documents
-from app.core.web_search import web_search, format_web_results
 from app.core.graph_store import get_knowledge_graph
 from app.core.entity_extractor import extract_entities_regex
 from app.core.query_router import (
@@ -28,73 +30,83 @@ from app.core.query_router import (
     rewrite_query,
     generate_conversational_response,
     generate_clarification_response,
-    generate_lawyer_response,
+    LAWYER_REQUEST_REFUSAL,
 )
 from app.config import config
 
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Practice Areas Mapping — for lawyer suggestion matching
+# System Prompt
 # ---------------------------------------------------------------------------
-PRACTICE_AREA_KEYWORDS = {
-    "Criminal Law": ["criminal", "penal", "murder", "theft", "robbery", "assault", "bail", "arrest", "prison", "sentence"],
-    "Civil Litigation": ["civil", "plaint", "defendant", "plaintiff", "suit", "decree", "appeal", "court case", "file a case"],
-    "Corporate Law": ["company", "companies", "director", "shareholder", "incorporation", "corporate", "board", "dividend"],
-    "Family Law": ["marriage", "divorce", "custody", "maintenance", "adoption", "matrimonial", "dowry"],
-    "Property Law": ["property", "property dispute", "land", "deed", "title", "lease", "rent", "tenant", "landlord", "partition", "tree", "boundary", "fence"],
-    "Labour Law": ["labour", "labor", "employment", "worker", "wages", "termination", "industrial", "workmen"],
-    "Tax Law": ["tax", "revenue", "income tax", "vat", "customs", "duty", "fiscal"],
-    "Constitutional Law": ["constitution", "fundamental rights", "supreme court", "constitutional"],
-    "Environmental Law": ["environment", "pollution", "forest", "wildlife", "conservation", "ecological"],
-    "Intellectual Property": ["patent", "copyright", "trademark", "intellectual property", "ip rights"],
-    "Motor Traffic Law": ["motor", "traffic", "vehicle", "driving", "license", "road", "accident", "bike", "speed", "speeding", "pedestrian", "drunk driving", "hit and run", "collision"],
-    "Banking Law": ["banking", "bank", "finance", "loan", "mortgage", "financial", "cheque"],
-    "Immigration Law": ["immigration", "visa", "passport", "citizenship", "alien", "deportation"],
-    "Insurance Law": ["insurance", "claim", "policy", "premium", "indemnity"],
-    "Real Estate": ["real estate", "property", "conveyance", "land registry", "property transaction"],
-    "Notary Services": ["notary", "attestation", "affidavit", "power of attorney"],
-}
+# Note on where the real enforcement lives.
+#
+# This prompt is defence in depth, not the guardrail. It is an instruction to a
+# small local model, and a model that ignores an instruction fails silently.
+# The binding rules run in the Next.js application, in src/lib/ai/policy.ts,
+# after generation and before any user sees a character — see
+# lawyer-finder-web/docs/restructure/LEGAL-GUARDRAILS.md (rule 6).
+#
+# What changed here in Phase 5, and why:
+#   - The instruction to fall back on "your general legal knowledge" is gone.
+#     An answer the model made up is an answer that cannot be cited, and an
+#     uncited legal answer is withheld downstream anyway.
+#   - "Recommend a specialist lawyer" is gone. Naming a kind of practitioner
+#     off the back of what a person described about their own legal problem is
+#     the platform channelling work toward lawyers, which is touting under the
+#     Intermeddlers with Suitors Ordinance No. 11 of 1894 and reaches the
+#     operator criminally.
+#   - The own-matter line is now explicit, because "never provide specific legal
+#     advice" turned out to be too abstract for the model to apply.
+SYSTEM_PROMPT = """You are a legal information assistant for Sri Lankan law.
+You are NOT a lawyer and you are NOT anyone's lawyer.
 
-# ---------------------------------------------------------------------------
-# System Prompt — Enhanced for Graph RAG with AI-readable formatting
-# ---------------------------------------------------------------------------
-SYSTEM_PROMPT = """You are LawyerAI, an expert legal assistant specialized in Sri Lankan law. 
-You help users understand Sri Lankan legislation, legal procedures, and their rights.
-
-AVAILABLE LEGISLATION IN YOUR DATABASE:
+LEGISLATION AVAILABLE TO YOU:
 - Companies Act (Consolidated, 2024)
 - Civil Procedure Code (Consolidated, 2024)
 - Motor Traffic Act (Consolidated, 2024)
 - Act No. 24 of 2007 — Computer Crimes Act
 - Act No. 24 of 2025 — Amendment
 
-IMPORTANT: If the user's question is about a legal area NOT covered by these Acts
-(e.g. Family Law, Property Law, Labour Law, Tax Law, Criminal Law, etc.),
-be HONEST that your legislation database does not yet include that specific area.
-Still try to help using WEB SEARCH RESULTS and your general legal knowledge,
-but clearly note that the information may not be from the official legislation text.
-Always recommend consulting a qualified lawyer for areas outside your database.
+THE LINE YOU MUST NOT CROSS:
+You explain what the law says. You never advise a person about their own case.
 
-CRITICAL RULES:
-1. Base your answers primarily on the provided LEGAL CONTEXT. If insufficient, use WEB SEARCH RESULTS.
-2. ALWAYS cite the specific Act name, Section number, and Part/Chapter when referencing a law.
-3. If neither legal context nor web results have enough info, clearly say so and recommend a lawyer.
-4. Distinguish between Consolidated Acts and Amendment Acts.
-5. When multiple sections are relevant, reference all of them.
-6. Use clear, simple language that non-lawyers can understand, but maintain legal accuracy.
-7. NEVER provide specific legal advice — always recommend consulting a professional lawyer.
-8. Format your response with proper paragraph breaks and section references.
-9. When using web search results, mention the information was found online and may need verification.
-10. When RELATED DOCUMENTS are provided, mention connections between acts/laws.
-11. Be conversational and empathetic — the user may be in a stressful legal situation.
+  ALLOWED:  "Section 12 of the Companies Act requires a director to..."
+  ALLOWED:  "The Act sets out three grounds on which an application may be made."
+  REFUSED:  "In your case, you would be entitled to compensation."
+  REFUSED:  "You should file a claim."
+  REFUSED:  "You have a strong case."
+
+If a person describes their own situation, answer the general legal question
+underneath it and nothing more. Do not apply the law to their facts, do not tell
+them what to do, and do not predict what would happen to them. Say plainly that
+you cannot advise on their own matter and that an attorney-at-law can.
+
+NEVER suggest a lawyer, a firm, or a type of specialist — not by name and not by
+category — however the person asks. Choosing who advises someone is not yours to
+influence. If they ask, tell them the directory lists every verified practice
+alphabetically and the choice is theirs.
+
+CITATION RULES:
+1. Answer ONLY from the LEGAL CONTEXT below. It is the whole of what you know.
+2. Cite the Act name and Section number for every proposition you state.
+3. NEVER cite an Act that does not appear in the LEGAL CONTEXT below, even if
+   you believe it exists. An invented citation is worse than no answer.
+4. If the LEGAL CONTEXT does not answer the question, say exactly that and stop.
+   Do not fill the gap from memory.
+5. Distinguish Consolidated Acts from Amendment Acts.
+
+STYLE:
+- Plain language a non-lawyer can follow, without losing legal accuracy.
+- Proper paragraph breaks.
+- Be calm and clear. The person may be under real stress, and the most useful
+  thing you can give them is an accurate account of the law and an honest
+  statement of where your usefulness ends.
 
 LEGAL CONTEXT FROM SRI LANKAN LEGISLATION:
 {context}
 
 {graph_context}
-
-{web_context}
 """
 
 # ---------------------------------------------------------------------------
@@ -190,7 +202,10 @@ def format_sources(docs_with_scores: list) -> list[dict]:
                 "status": meta.get("status", "Unknown"),
                 "last_updated_year": meta.get("last_updated_year", "N/A"),
                 "relevance_score": round(score, 3),
-                "chunk_preview": doc.page_content[:200] + "..." if len(doc.page_content) > 200 else doc.page_content,
+                # The ingested file this chunk came from. The application uses it
+                # to resolve a citation to a LegalDocument the reader can open —
+                # a citation nobody can open manufactures authority.
+                "source_file": meta.get("source_file", ""),
             })
 
     return sources
@@ -207,21 +222,14 @@ def convert_chat_history(history: list[dict]) -> list:
     return messages
 
 
-def detect_practice_areas(question: str, context: str) -> list[str]:
-    """
-    Detect relevant practice areas from the question and retrieved context.
-    Returns a list of matching practice area names.
-    """
-    combined_text = f"{question} {context}".lower()
-    detected = []
-
-    for area, keywords in PRACTICE_AREA_KEYWORDS.items():
-        for keyword in keywords:
-            if keyword in combined_text:
-                detected.append(area)
-                break  # One match per area is enough
-
-    return detected[:5]  # Limit to top 5 areas
+# `detect_practice_areas` and `PRACTICE_AREA_KEYWORDS` were deleted in Phase 5.
+#
+# They classified what a person had written about their own legal problem into a
+# practice area, and that classification was then used to select which attorneys
+# to display beside the answer. Two guardrails at once: the platform choosing the
+# lawyer (rule 4), and targeting on privileged material (rule 5). The route that
+# consumed the output, /api/ai-chat/suggest-lawyers, is deleted, and so is the
+# column that stored the result.
 
 
 @traceable(name="Graph Expansion Retrieval")
@@ -338,7 +346,7 @@ def query_rag(
 
     Returns:
         Dict with 'answer', 'sources', 'chunks_retrieved', 'web_sources',
-        'detected_practice_areas', 'graph_entities', 'related_documents'
+        'intent', 'graph_entities', 'related_documents'
     """
     if top_k is None:
         top_k = config.TOP_K_RESULTS
@@ -361,20 +369,35 @@ def query_rag(
         return {
             "answer": answer,
             "sources": [],
-            "web_sources": [],
             "chunks_retrieved": 0,
-            "detected_practice_areas": [],
+            "intent": intent,
             "graph_entities": [],
             "related_documents": [],
         }
 
     if intent == "clarification_needed":
         logger.info("Handling clarification_needed — asking user for specifics")
-        return generate_clarification_response(question, chat_history)
+        return {**generate_clarification_response(question, chat_history), "intent": intent}
 
     if intent == "lawyer_request":
-        logger.info("Handling lawyer_request via dedicated handler")
-        return generate_lawyer_response(question, chat_history)
+        # Deleted in Phase 5: this used to run generate_lawyer_response(), which
+        # classified the person's situation into practice areas and replied
+        # "Based on our conversation, I'd recommend consulting a Property
+        # Lawyer... I've found some matching lawyers on our platform below."
+        #
+        # That is the platform selecting practitioners for a person on the basis
+        # of what they had just disclosed about their own legal problem. It is
+        # rule 4, rule 5 and the 1894 Ordinance in one sentence, and it was the
+        # single worst thing left in the codebase.
+        logger.info("Refusing lawyer_request — the platform does not choose practitioners")
+        return {
+            "answer": LAWYER_REQUEST_REFUSAL,
+            "sources": [],
+            "chunks_retrieved": 0,
+            "intent": intent,
+            "graph_entities": [],
+            "related_documents": [],
+        }
 
     # ── RAG paths (need search) ───────────────────────────────────────────
 
@@ -403,20 +426,19 @@ def query_rag(
             filter_metadata=filter_metadata,
         )
 
-    # ── Post-processing for situation_report ───────────────────────────────
-    # When the user describes a personal situation, append a proactive offer
-    # to connect them with a specialist lawyer. Don't auto-show lawyer cards;
-    # wait for the user to explicitly ask (smoother, more human-like flow).
-    if intent == "situation_report":
-        result["answer"] += (
-            "\n\n---\n\n"
-            "💡 **Would you like me to recommend a lawyer who specializes in this area?** "
-            "Just let me know and I'll show you some options on our platform."
-        )
-        # Suppress auto-display of lawyer cards — user should ask first
-        result["detected_practice_areas"] = []
-        logger.info("Appended lawyer offer to situation_report response")
+    # A situation_report used to have this appended to its answer:
+    #
+    #   "💡 Would you like me to recommend a lawyer who specializes in this
+    #    area? Just let me know and I'll show you some options on our platform."
+    #
+    # Deleted in Phase 5. The trigger for it was the model detecting that a
+    # person had just described a personal legal problem — so the platform was
+    # offering to steer them toward practitioners at precisely the moment they
+    # had disclosed privileged material and were least able to judge the offer.
+    # A situation report is now answered like any other question: about the law,
+    # never about them.
 
+    result["intent"] = intent
     return result
 
 
@@ -528,22 +550,22 @@ def _query_rag_linear(
     # Step 5: Format graph context
     graph_context = format_graph_context(graph_entities, related_doc_names)
 
-    # Step 6: Web search for additional context
-    web_results = web_search(search_query, max_results=3)
-    web_context = format_web_results(web_results) if web_results else ""
+    # Step 6 used to be a DuckDuckGo search whose results were fed to the model
+    # as grounding alongside the legislation. Removed in Phase 5.
+    #
+    # A web result is not a legal authority. Passing one to the model produces an
+    # answer that reads exactly like a statute-grounded answer while resting on
+    # whatever a search engine returned that morning — and an answer with no
+    # legislation behind it is withheld by the application anyway, so this path
+    # only ever produced work that could not be published.
 
-    # Step 7: Detect practice areas for lawyer suggestions
-    detected_areas = detect_practice_areas(search_query, context)
-    logger.info(f"Detected practice areas: {detected_areas}")
-
-    # Step 8: Build prompt and invoke LLM
+    # Step 6: Build prompt and invoke LLM
     llm = get_llm()
     langchain_history = convert_chat_history(chat_history)
 
     prompt = PROMPT_TEMPLATE.invoke({
         "context": context,
         "graph_context": graph_context,
-        "web_context": web_context,
         "chat_history": langchain_history,
         "question": question,
     })
@@ -551,30 +573,20 @@ def _query_rag_linear(
     response = llm.invoke(prompt)
     answer = response.content
 
-    # Step 9: Extract source citations
+    # Step 7: Extract source citations.
+    # These come from vector-store metadata, not from the model, so the model
+    # cannot invent an entry here. That is what makes them checkable.
     sources = format_sources(docs_with_scores)
-
-    # Step 10: Format web sources
-    web_sources = [
-        {
-            "title": r.get("title", ""),
-            "url": r.get("href", ""),
-            "snippet": r.get("body", ""),
-        }
-        for r in web_results
-    ]
 
     logger.info(
         f"Generated response: {len(answer)} chars, {len(sources)} sources, "
-        f"{len(web_sources)} web sources, {len(graph_entities)} graph entities"
+        f"{len(graph_entities)} graph entities"
     )
 
     return {
         "answer": answer,
         "sources": sources,
-        "web_sources": web_sources,
         "chunks_retrieved": len(docs_with_scores),
-        "detected_practice_areas": detected_areas,
         "graph_entities": [
             {"name": e.get("name", ""), "type": e.get("type", ""), "relationship": e.get("relationship", "")}
             for e in graph_entities[:10]

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
-import { formatSriLankaDateIso } from '@/lib/utils';
+import { formatSriLankaDateIso, formatSriLankaDateIsoOrNull } from '@/lib/utils';
 import { EmailService } from '@/lib/email/EmailService';
 
 // GET: List bookings with pending refunds (Admin only)
@@ -53,8 +53,8 @@ export async function GET(req: Request) {
         bookingNumber: b.bookingNumber,
         clientName: b.client.fullName || b.client.email,
         clientEmail: b.client.email,
-        lawyerName: b.lawyer.fullName,
-        date: formatSriLankaDateIso(b.date),
+        lawyerName: b.lawyer?.fullName ?? null,
+        date: formatSriLankaDateIsoOrNull(b.date),
         startTime: b.startTime,
         endTime: b.endTime,
         mode: b.mode,
@@ -145,7 +145,7 @@ export async function PATCH(req: Request) {
     }
 
     const isAdmin = session.role === 'ADMIN';
-    const isOwningLawyer = booking.lawyer.userId === session.userId;
+    const isOwningLawyer = !!booking.lawyer && booking.lawyer.userId === session.userId;
     const isClient = booking.clientId === session.userId;
 
     // --- Client side: acknowledge or dispute a refund the firm says it sent ---

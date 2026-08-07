@@ -30,7 +30,7 @@ export async function GET(req: Request) {
 
       const campaign = await prisma.adCampaign.findUnique({
         where: { id: campaignId },
-        include: { lawyer: { select: { fullName: true, baslNumber: true } } },
+        include: { advertiser: { select: { name: true, category: true } } },
       });
 
       return NextResponse.json({ campaign, analytics });
@@ -49,7 +49,7 @@ export async function GET(req: Request) {
         where: { status: 'ACTIVE' },
         orderBy: { clicks: 'desc' },
         take: 10,
-        include: { lawyer: { select: { fullName: true } } },
+        include: { advertiser: { select: { name: true } } },
       }),
 
       // Daily trend (last N days)
@@ -89,7 +89,7 @@ export async function GET(req: Request) {
       topCampaigns: topCampaigns.map((c) => ({
         id: c.id,
         name: c.name,
-        lawyer: c.lawyer.fullName,
+        lawyer: c.advertiser.name,
         impressions: c.impressions,
         clicks: c.clicks,
         ctr: c.impressions > 0 ? ((c.clicks / c.impressions) * 100).toFixed(2) : '0.00',

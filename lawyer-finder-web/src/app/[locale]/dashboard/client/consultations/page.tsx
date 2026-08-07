@@ -8,21 +8,26 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import {
-  CalendarDays, Clock, MapPin, Video, Star, XCircle, ChevronLeft, ChevronRight, AlertTriangle, CreditCard, Building2, Loader2, ImagePlus, FileText, ScrollText
+  CalendarDays, Clock, MapPin, Video, Star, XCircle, ChevronLeft, ChevronRight, AlertTriangle, CreditCard, Building2, Loader2, ImagePlus, FileText, ScrollText, Receipt
 } from 'lucide-react';
 import { BOOKING_STATUS_COLORS, BOOKING_STATUS_LABELS } from '@/schemas/consultation.schema';
 import { formatDateOnlyString } from '@/lib/utils';
 import Link from 'next/link';
 import QuoteReviewDialog from '@/components/consultations/QuoteReviewDialog';
 import EngagementLetterDialog from '@/components/consultations/EngagementLetterDialog';
+import FeeNoteDialog from '@/components/consultations/FeeNoteDialog';
 
 interface Booking {
   id: string;
   bookingNumber: string;
-  date: string;
-  startTime: string;
-  endTime: string;
-  duration: number;
+  /**
+   * Null until an appointment exists. When you engage a FIRM rather than a named
+   * attorney, there is no time yet — the firm proposes one with its fee quote.
+   */
+  date: string | null;
+  startTime: string | null;
+  endTime: string | null;
+  duration: number | null;
   mode: string;
   meetingLink: string | null;
   officeAddress: string | null;
@@ -40,7 +45,6 @@ interface Booking {
   refundReference: string | null;
   refundProofUrl: string | null;
   refundSentOn: string | null;
-  clientRating: number | null;
   createdAt: string;
   lawyer: { id: string; fullName: string; profileImageUrl: string | null; district: string | null; contactPhone: string | null };
   payment: any;
@@ -57,6 +61,7 @@ export default function ClientConsultationsPage() {
   const [cancelModal, setCancelModal] = useState<string | null>(null);
   const [quoteReview, setQuoteReview] = useState<Booking | null>(null);
   const [letterBookingId, setLetterBookingId] = useState<string | null>(null);
+  const [feeNoteBookingId, setFeeNoteBookingId] = useState<string | null>(null);
   const [cancelReason, setCancelReason] = useState('');
 
   const [paymentModal, setPaymentModal] = useState<string | null>(null);
@@ -307,8 +312,14 @@ export default function ClientConsultationsPage() {
                     <h3 className="text-sm font-bold text-neutral-900">{b.subject}</h3>
                     <div className="flex items-center gap-4 mt-2 text-xs text-neutral-500">
                       <span>Lawyer: <strong className="text-neutral-700">{b.lawyer?.fullName}</strong></span>
-                      <span className="flex items-center gap-1"><CalendarDays className="w-3 h-3" />{formatDateOnlyString(b.date, 'en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
-                      <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{b.startTime} – {b.endTime}</span>
+                      {b.date ? (
+                        <>
+                          <span className="flex items-center gap-1"><CalendarDays className="w-3 h-3" />{formatDateOnlyString(b.date, 'en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
+                          <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{b.startTime} – {b.endTime}</span>
+                        </>
+                      ) : (
+                        <span className="flex items-center gap-1"><Clock className="w-3 h-3" />Appointment proposed with the firm&apos;s quote</span>
+                      )}
                     </div>
                     {/* Meeting link for confirmed online bookings */}
                     {b.status === 'SCHEDULED' && b.mode !== 'PHYSICAL' && b.meetingLink && (
@@ -426,6 +437,11 @@ export default function ClientConsultationsPage() {
                           <ScrollText className="w-3 h-3 mr-1" /> Engagement letter
                         </Button>
                       )}
+                      {['ACCEPTED', 'AWAITING_PAYMENT', 'SCHEDULED', 'COMPLETED'].includes(b.status) && (
+                        <Button size="sm" variant="outline" onClick={() => setFeeNoteBookingId(b.id)} className="rounded-none h-7 text-[10px] px-2.5 font-bold">
+                          <Receipt className="w-3 h-3 mr-1" /> Fee notes
+                        </Button>
+                      )}
                       {b.status === 'ACCEPTED' && (() => {
                         // Once a payment is recorded the client should not be able
                         // to submit it again as if nothing happened. They can still
@@ -484,6 +500,18 @@ export default function ClientConsultationsPage() {
           bookingId={letterBookingId}
           open={Boolean(letterBookingId)}
           onOpenChange={(o) => { if (!o) setLetterBookingId(null); }}
+        />
+      )}
+
+      {/* Fee notes the firm has issued. Read-only for the client: they can open
+          and save them, and pay the firm directly. `canManage` is false, and the
+          API refuses firm-side actions from a client regardless. */}
+      {feeNoteBookingId && (
+        <FeeNoteDialog
+          bookingId={feeNoteBookingId}
+          canManage={false}
+          open={Boolean(feeNoteBookingId)}
+          onOpenChange={(o) => { if (!o) setFeeNoteBookingId(null); }}
         />
       )}
 

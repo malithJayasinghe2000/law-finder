@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import prisma from '@/lib/db';
+import { getSubscriptionForProfile } from '@/lib/firms/billing';
 import { createSession, SessionPayload } from '@/lib/auth';
 import { loginSchema } from '@/schemas/auth.schema';
 import { checkRateLimit, getClientIp } from '@/lib/security';
@@ -70,11 +71,8 @@ export async function POST(req: Request) {
       if (profile) {
         sessionPayload.profileId = profile.id;
 
-        const subscription = await prisma.subscription.findFirst({
-          where: { lawyerId: profile.id, status: { in: ['ACTIVE', 'PAST_DUE'] } },
-          include: { role: true },
-          orderBy: { createdAt: 'desc' },
-        });
+        // The licence belongs to the attorney's firm, not to the attorney.
+        const subscription = await getSubscriptionForProfile(profile.id);
 
         if (subscription) {
           sessionPayload.subscriptionRole = subscription.role.name;

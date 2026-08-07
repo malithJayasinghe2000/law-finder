@@ -51,8 +51,6 @@ export async function POST(req: Request) {
       where: { lawyerId: session.profileId },
       update: {
         pricingType: validated.data.pricingType as any,
-        physicalPrice: validated.data.physicalPrice,
-        onlinePrice: validated.data.onlinePrice,
         freeInitialConsultation: validated.data.freeInitialConsultation,
         freeConsultationDuration: validated.data.freeConsultationDuration,
         minAdvanceNoticeHours: validated.data.minAdvanceNoticeHours,
@@ -64,8 +62,6 @@ export async function POST(req: Request) {
       create: {
         lawyerId: session.profileId,
         pricingType: validated.data.pricingType as any,
-        physicalPrice: validated.data.physicalPrice,
-        onlinePrice: validated.data.onlinePrice,
         freeInitialConsultation: validated.data.freeInitialConsultation,
         freeConsultationDuration: validated.data.freeConsultationDuration,
         minAdvanceNoticeHours: validated.data.minAdvanceNoticeHours,

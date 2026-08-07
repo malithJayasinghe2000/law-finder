@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
-import { Scale, Menu, Search, BookOpen, LogOut, FileText, UserCircle, LayoutDashboard, Zap, CheckCircle2, MessageCircle } from 'lucide-react';
+import { Scale, Menu, Search, BookOpen, LogOut, FileText, UserCircle, LayoutDashboard, Zap, CheckCircle2, MessageCircle, Building2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -33,7 +33,12 @@ export default function Header({ locale, userRole = null, appStatus = null, user
     return null;
   }
   const navLinks = [
-    { href: `/${locale}/lawyers`, label: t('directory'), icon: Search },
+    // One entry, not two. /firms and /lawyers are two lenses on the same
+    // population — every attorney belongs to a practice, and a sole
+    // practitioner IS their practice — so listing both in the nav showed the
+    // same people twice. The toggle on the page switches lens.
+    // See docs/restructure/LEGAL-GUARDRAILS.md (rules 4 and 7).
+    { href: `/${locale}/firms`, label: t('directory'), icon: Search },
     { href: `/${locale}/chat`, label: t('chat'), icon: MessageCircle },
     { href: `/${locale}/legal-library`, label: t('legalLibrary'), icon: BookOpen },
     { href: `/${locale}/blog`, label: t('blog'), icon: FileText },

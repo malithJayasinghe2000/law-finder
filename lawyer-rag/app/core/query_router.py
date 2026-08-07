@@ -57,39 +57,13 @@ The user just sent a conversational message, greeting, acknowledgement, expresse
 Respond politely and concisely as an AI assistant. Do NOT provide legal advice or invent legal context.
 If they say thanks, say you're welcome. If they say hello, ask how you can help them with Sri Lankan law today.
 If they say they don't understand, politely apologize and ask them which specific part of the previous answer they would like you to clarify or explain in simpler terms.
-If they ask how you verify information or if they can trust you, explain that you retrieve answers directly from a verified vector database of Sri Lankan legislation and use an internal verification tool to self-check citations before answering, but they should always consult a human lawyer for official advice.
+If they ask how you verify information or whether they can trust you, tell them the truth and nothing more: your answers are drawn from a database of Sri Lankan legislation, every answer shows the Act and section it came from so they can check it themselves, and you are not a lawyer and cannot advise them on their own situation.
+Never claim to verify or self-check your own citations. You do not. Overstating your reliability to someone deciding whether to rely on you is the worst thing you can do here.
 """
 
-# ---------------------------------------------------------------------------
-# LLM-based practice area extraction for lawyer recommendations
-# ---------------------------------------------------------------------------
-LAWYER_AREA_EXTRACTION_PROMPT = """You are a legal classification assistant. Analyze the conversation below and identify which practice areas are most relevant to the user's legal situation.
-
-Choose ONLY from this list:
-- Criminal Law
-- Civil Litigation
-- Corporate Law
-- Family Law
-- Property Law
-- Labour Law
-- Tax Law
-- Constitutional Law
-- Environmental Law
-- Intellectual Property
-- Motor Traffic Law
-- Banking Law
-- Immigration Law
-- Insurance Law
-- Real Estate
-- Notary Services
-
-RULES:
-- Pick 1 to 3 areas that BEST match the user's actual legal situation, not just keywords.
-- Consider the legal advice already given in the conversation to determine the correct areas.
-- "Real Estate" is for property transactions (buying, selling, conveyancing), NOT for property damage or trespass disputes.
-- Return ONLY a valid JSON array of strings. No markdown, no explanation, no thinking.
-- Example: ["Property Law", "Civil Litigation"]
-"""
+# The LLM practice-area extraction prompt was deleted in Phase 5. It classified
+# what a person had written about their own legal problem so that matching
+# attorneys could be displayed to them. See the note on lawyer_request below.
 
 # ---------------------------------------------------------------------------
 # Clarification topics — used when user's query is too vague
@@ -252,6 +226,34 @@ LAWYER_REQUEST_REGEX = re.compile(
     r'\b(need|want|find|recommend|suggest|get|looking for|require|connect\s+me|show\s+me)\b'
     r'.*\b(lawyer|lawyers|attorney|attorneys|counsel|counsil)\b',
     re.IGNORECASE
+)
+
+# ---------------------------------------------------------------------------
+# What we say when someone asks us to find them a lawyer
+# ---------------------------------------------------------------------------
+# The `lawyer_request` intent used to be the *most* helpful path in the system:
+# it read the whole conversation, worked out which practice areas the person's
+# problem fell into, and replied "Based on our conversation, I'd recommend
+# consulting a Property Lawyer... I've found some matching lawyers on our
+# platform below", with attorney cards underneath.
+#
+# That is the platform choosing a practitioner for someone on the basis of what
+# they had just disclosed about their own legal problem. Touting under the
+# Intermeddlers with Suitors Ordinance No. 11 of 1894 is a criminal offence and
+# reaches the intermediary — and BASL's June 2021 note treats advice through an
+# online platform as touting in the first place.
+#
+# The intent is kept only so the request can be recognised and declined. This is
+# a fixed string, not a generated one: a refusal that a model composes is a
+# refusal that a model can compose its way out of.
+LAWYER_REQUEST_REFUSAL = (
+    "I do not choose attorneys or firms, and I will not suggest one to you — not by name, "
+    "not by type, and not based on what you have told me. Who advises you has to be your "
+    "decision, made from neutral information rather than from a suggestion of mine.\n\n"
+    "The directory lists every verified practice and practitioner alphabetically. Position in "
+    "it cannot be bought, and nothing you have said here changes what you see. You can also "
+    "approach any attorney-at-law directly, whether or not they are listed with us.\n\n"
+    "If it helps, I am happy to explain what the law says on the subject you are dealing with."
 )
 
 
@@ -533,70 +535,6 @@ def generate_clarification_response(question: str, chat_history: list) -> dict:
     }
 
 
-def generate_lawyer_response(question: str, chat_history: list) -> dict:
-    """
-    Handle explicit lawyer recommendation requests by extracting practice areas
-    from the full conversation context and generating a natural bridging response.
-
-    Returns:
-        Dict matching the standard query_rag return format.
-    """
-    from app.core.rag_chain import detect_practice_areas
-
-    # Build full conversation context (both user AND bot messages)
-    conversation_text_parts = []
-    for msg in (chat_history or [])[-8:]:
-        role = msg.get("role", "user")
-        content = msg.get("content", "")
-        conversation_text_parts.append(f"{role.upper()}: {content}")
-    conversation_text_parts.append(f"USER: {question}")
-    conversation_text = "\n\n".join(conversation_text_parts)
-
-    # LLM-based practice area extraction (uses full context including bot replies)
-    detected_areas = _extract_practice_areas_llm(conversation_text)
-    logger.info(f"[lawyer_response] LLM detected areas: {detected_areas}")
-
-    # Fallback to keyword-based detection if LLM returns nothing
-    if not detected_areas:
-        user_history_text = " ".join(
-            msg.get("content", "")
-            for msg in (chat_history or [])[-8:]
-            if msg.get("role") == "user"
-        )
-        combined_context = f"{question} {user_history_text}"
-        detected_areas = detect_practice_areas(combined_context, combined_context)
-        logger.info(f"[lawyer_response] Keyword fallback areas: {detected_areas}")
-
-    if not detected_areas:
-        return {
-            "answer": (
-                "I'd be happy to help you find the right type of lawyer! "
-                "Could you briefly describe your legal situation or the topic you need help with? "
-                "For example: a road accident, a property dispute, an employment issue, etc. "
-                "This will help me recommend the most suitable specialist for you."
-            ),
-            "sources": [],
-            "web_sources": [],
-            "chunks_retrieved": 0,
-            "detected_practice_areas": [],
-            "graph_entities": [],
-            "related_documents": [],
-        }
-
-    # Generate deterministic bridging response
-    answer = _generate_lawyer_bridging_response(detected_areas)
-
-    return {
-        "answer": answer,
-        "sources": [],
-        "web_sources": [],
-        "chunks_retrieved": 0,
-        "detected_practice_areas": detected_areas,
-        "graph_entities": [],
-        "related_documents": [],
-    }
-
-
 # ═══════════════════════════════════════════════════════════════════════════
 # Internal Helpers
 # ═══════════════════════════════════════════════════════════════════════════
@@ -605,98 +543,3 @@ def _strip_think_tags(text: str) -> str:
     """Strip reasoning model's <think>...</think> tags from output."""
     cleaned = re.sub(r'<think>.*?</think>', '', text, flags=re.DOTALL).strip()
     return cleaned if cleaned else text
-
-
-def _extract_practice_areas_llm(conversation_text: str) -> list[str]:
-    """
-    Use the LLM to extract the most relevant practice areas from the full
-    conversation context, instead of naive keyword matching.
-    """
-    import json as _json
-
-    valid_areas = {
-        "Criminal Law", "Civil Litigation", "Corporate Law", "Family Law",
-        "Property Law", "Labour Law", "Tax Law", "Constitutional Law",
-        "Environmental Law", "Intellectual Property", "Motor Traffic Law",
-        "Banking Law", "Immigration Law", "Insurance Law", "Real Estate",
-        "Notary Services",
-    }
-
-    try:
-        llm = get_llm()
-        prompt = ChatPromptTemplate.from_messages([
-            ("system", LAWYER_AREA_EXTRACTION_PROMPT),
-            ("human", "{conversation}"),
-        ])
-
-        response = llm.invoke(prompt.invoke({"conversation": conversation_text}))
-        raw = response.content.strip()
-        logger.info(f"[_extract_practice_areas_llm] Raw: {raw}")
-
-        # Strip <think>...</think> reasoning tags
-        cleaned = _strip_think_tags(raw)
-
-        # Strip markdown fences if present
-        if cleaned.startswith("```"):
-            cleaned = re.sub(r'^```(?:json)?\s*', '', cleaned)
-            cleaned = re.sub(r'\s*```$', '', cleaned)
-
-        # Try to find a JSON array in the output
-        json_match = re.search(r'\[.*?\]', cleaned, re.DOTALL)
-        if json_match:
-            cleaned = json_match.group(0)
-
-        areas = _json.loads(cleaned)
-        if isinstance(areas, list):
-            return [a for a in areas if a in valid_areas][:3]
-
-    except Exception as e:
-        logger.warning(f"[_extract_practice_areas_llm] Failed: {e}")
-
-    return []
-
-
-def _generate_lawyer_bridging_response(detected_areas: list[str]) -> str:
-    """
-    Generate a short, deterministic response that bridges to the lawyer
-    suggestions the frontend will display.
-
-    Uses a template instead of an LLM call — reasoning models ignore
-    brevity instructions and produce lengthy legal essays.
-    """
-    area_descriptions = {
-        "Criminal Law": "a Criminal Defense Lawyer",
-        "Civil Litigation": "a Civil Litigation Lawyer",
-        "Corporate Law": "a Corporate / Commercial Lawyer",
-        "Family Law": "a Family Law Specialist",
-        "Property Law": "a Property Lawyer",
-        "Labour Law": "an Employment / Labour Lawyer",
-        "Tax Law": "a Tax Lawyer",
-        "Constitutional Law": "a Constitutional Lawyer",
-        "Environmental Law": "an Environmental Lawyer",
-        "Intellectual Property": "an IP Lawyer",
-        "Motor Traffic Law": "a Motor Traffic / Personal Injury Lawyer",
-        "Banking Law": "a Banking & Finance Lawyer",
-        "Immigration Law": "an Immigration Lawyer",
-        "Insurance Law": "an Insurance Claims Lawyer",
-        "Real Estate": "a Real Estate / Conveyancing Lawyer",
-        "Notary Services": "a Notary Public",
-    }
-
-    specialist_parts = []
-    for area in detected_areas:
-        desc = area_descriptions.get(area, f"a {area} specialist")
-        specialist_parts.append(f"**{desc}**")
-
-    if len(specialist_parts) == 1:
-        specialists_text = specialist_parts[0]
-    elif len(specialist_parts) == 2:
-        specialists_text = f"{specialist_parts[0]} or {specialist_parts[1]}"
-    else:
-        specialists_text = ", ".join(specialist_parts[:-1]) + f", or {specialist_parts[-1]}"
-
-    return (
-        f"Based on our conversation, I'd recommend consulting {specialists_text} "
-        f"for your situation. I've found some matching lawyers on our platform below "
-        f"who may be able to help you."
-    )

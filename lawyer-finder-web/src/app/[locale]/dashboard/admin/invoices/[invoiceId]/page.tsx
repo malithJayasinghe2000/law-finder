@@ -25,14 +25,13 @@ export default async function AdminInvoiceDetailPage({
   const invoice = await prisma.invoice.findUnique({
     where: { id: invoiceId },
     include: {
+      // The firm is the party billed; `lawyer` is who raised it (Phase 3).
+      firm: {
+        select: { id: true, name: true, slug: true },
+      },
       lawyer: {
         include: {
           user: true,
-          Subscription: {
-            include: {
-              plan: true,
-            },
-          },
         },
       },
       plan: true,

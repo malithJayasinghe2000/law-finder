@@ -3,6 +3,7 @@ import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { AddFirmMemberSchema, UpdateFirmMemberSchema } from '@/schemas/firm.schema';
 import { getFirmMembership, canManageMembers } from '@/lib/firms/access';
+import { canAddFirmMember } from '@/lib/firms/billing';
 
 /**
  * Firm membership.
@@ -106,6 +107,17 @@ export async function POST(req: Request) {
       );
     }
 
+    // Seats. This is a licensing limit on how many PEOPLE may use the software,
+    // and nothing else. It does not cap matters, clients, enquiries or messages
+    // — metering any of those would make our revenue move with the volume of
+    // legal work, which is fee-sharing under a different name (guardrail rule
+    // 1). A firm on one seat may run a thousand matters; it just does so with
+    // one login.
+    const seatCheck = await canAddFirmMember(membership!.firmId);
+    if (!seatCheck.allowed) {
+      return NextResponse.json({ error: seatCheck.reason }, { status: 402 });
+    }
+
     await prisma.$transaction(async (tx) => {
       if (existing) {
         await tx.firmMember.update({
@@ -194,12 +206,22 @@ export async function PATCH(req: Request) {
         firmId: true,
         userId: true,
         role: true,
+        status: true,
         user: { select: { profile: { select: { id: true } } } },
       },
     });
 
     if (!member || member.firmId !== membership!.firmId) {
       return NextResponse.json({ error: 'Member not found.' }, { status: 404 });
+    }
+
+    // Bringing a removed member back consumes a seat just as adding a new one
+    // does. Without this, "remove then re-add" is a way around the licence.
+    if (status === 'ACTIVE' && member.status !== 'ACTIVE') {
+      const seatCheck = await canAddFirmMember(membership!.firmId);
+      if (!seatCheck.allowed) {
+        return NextResponse.json({ error: seatCheck.reason }, { status: 402 });
+      }
     }
 
     // A firm must always have someone who can administer it and answer for it.

@@ -208,6 +208,13 @@ model User {
   profileImageUrl    String?
   role               Role                      @default(CLIENT)
   createdAt          DateTime                  @default(now())
+
+  /// Account lifecycle. See `UserStatus` — there are no hard deletes here,
+  /// because a firm's matter file references the client for years.
+  status     UserStatus @default(ACTIVE)
+  /// Set when identifying fields were overwritten under a PDPA erasure request.
+  erasedAt   DateTime?
+
   verificationTokens VerificationToken[]
   profile            LawyerProfile?
   application        LawyerApplication?
@@ -231,6 +238,10 @@ model User {
 
   // Consultation Booking relations
   bookings Booking[] @relation("ClientBookings")
+
+  // Data protection (Phase 6)
+  consents        ConsentRecord[]
+  subjectRequests DataSubjectRequest[]
 }
 
 model VerificationToken {
@@ -287,8 +298,9 @@ model LawyerProfile {
   licenseImageUrl   String?
   identityImageUrl  String?
   isVerified        Boolean        @default(false)
-  subscriptionId    String?
-  Subscription      Subscription[]
+  /// `Subscription` moved to `LawFirm` in Phase 3. An attorney does not buy a
+  /// licence; the practice they work in does, and their access follows from
+  /// their membership of it. Resolve through `src/lib/firms/billing.ts`.
   invoices          Invoice[]      @relation("InvoiceLawyer")
 
   /// The firm this attorney practises in (Phase 2).
@@ -300,10 +312,8 @@ model LawyerProfile {
   firmId String?
   firm   LawFirm? @relation(fields: [firmId], references: [id], onDelete: SetNull)
 
-  inquiries   Inquiry[]
-  articles    Article[]
-  paidPromos  PaidPromo[]
-  adCampaigns AdCampaign[]
+  inquiries Inquiry[]
+  articles  Article[]
 
   // Consultation & Booking relations
   availability          LawyerAvailability[]
@@ -414,6 +424,18 @@ model LawFirm {
   accountNumber String?
   bankBranch    String?
 
+  // --- Tax identity ---
+  // The firm's own, printed on the fee notes the firm issues to its own
+  // clients. These are here because the firm is the supplier of the legal
+  // service and therefore the taxable person; we are not in that transaction
+  // at any point. See docs/restructure/LEGAL-GUARDRAILS.md (rules 1, 2 and 7).
+  taxIdentificationNumber String?
+  vatNumber               String?
+  isVatRegistered         Boolean @default(false)
+  /// Percent, e.g. 18 for 18%. Stored on the firm so a fee note can snapshot
+  /// the rate that applied on the day it was issued.
+  vatRatePercent          Int?
+
   // --- Verification ---
   verificationStatus FirmVerificationStatus @default(UNVERIFIED)
   verifiedAt         DateTime?
@@ -427,10 +449,13 @@ model LawFirm {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  members  FirmMember[]
-  offices  FirmOffice[]
-  lawyers  LawyerProfile[]
-  bookings Booking[]
+  members       FirmMember[]
+  offices       FirmOffice[]
+  lawyers       LawyerProfile[]
+  bookings      Booking[]
+  subscriptions Subscription[]
+  invoices      Invoice[]
+  feeNotes      FeeNote[]
 
   @@index([verificationStatus])
   @@index([district])
@@ -499,10 +524,24 @@ model SubscriptionPlan {
   invoices            Invoice[]
 }
 
+/// A firm's licence to use this software.
+///
+/// The subscription belongs to the **firm**, not to an attorney. Before Phase 3
+/// each attorney bought their own licence, which made the platform look like
+/// something individual practitioners subscribe to in order to get work. What
+/// we actually sell is practice-management software, and the practice is the
+/// thing that runs on it.
+///
+/// It is priced on **seats and features** — how many people use the software
+/// and what it can do — and never on how many matters, enquiries or clients
+/// flow through it. Revenue that moves with the volume of legal work is
+/// fee-sharing under a different name, whatever the invoice says. Phase 2.5
+/// deleted enquiry and message quotas from the tiers for exactly this reason.
+/// See docs/restructure/LEGAL-GUARDRAILS.md (rule 1).
 model Subscription {
-  id       String        @id @default(uuid())
-  lawyerId String
-  lawyer   LawyerProfile @relation(fields: [lawyerId], references: [id], onDelete: Cascade)
+  id     String  @id @default(uuid())
+  firmId String
+  firm   LawFirm @relation(fields: [firmId], references: [id], onDelete: Cascade)
 
   planId String
   plan   SubscriptionPlan @relation(fields: [planId], references: [id])
@@ -527,6 +566,8 @@ model Subscription {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([firmId, status])
 }
 
 model SubscriptionCycle {
@@ -543,11 +584,21 @@ model SubscriptionCycle {
   invoices Invoice[]
 }
 
+/// Our invoice to a firm for its software licence.
+///
+/// Do not confuse this with `FeeNote`. This is the platform billing a firm for
+/// software. A `FeeNote` is a firm billing its own client for legal work, which
+/// we only ever render as a document.
 model Invoice {
   id String @id @default(uuid())
 
-  lawyerId String
-  lawyer   LawyerProfile? @relation("InvoiceLawyer", fields: [lawyerId], references: [id], onDelete: Cascade)
+  firmId String
+  firm   LawFirm @relation(fields: [firmId], references: [id], onDelete: Cascade)
+
+  /// The member who raised or paid it. Display and audit only — the firm is the
+  /// party being billed, which is what `firmId` records.
+  lawyerId String?
+  lawyer   LawyerProfile? @relation("InvoiceLawyer", fields: [lawyerId], references: [id], onDelete: SetNull)
 
   subscriptionCycleId String?
   subscriptionCycle   SubscriptionCycle? @relation(fields: [subscriptionCycleId], references: [id], onDelete: SetNull)
@@ -568,6 +619,8 @@ model Invoice {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([firmId, status])
 }
 
 model InvoiceRemark {
@@ -579,6 +632,107 @@ model InvoiceRemark {
   isForLawyer Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+enum FeeNoteStatus {
+  DRAFT
+  ISSUED
+  /// The firm has recorded that its client paid it. Not a payment we processed,
+  /// observed, or verified — a fact the firm asserted.
+  SETTLED
+  CANCELLED
+}
+
+/// A firm's fee note to its own client.
+///
+/// ─────────────────────────────────────────────────────────────────────────────
+/// This is a **document we render**, not a transaction we run.
+/// ─────────────────────────────────────────────────────────────────────────────
+///
+/// The firm supplies the legal service, so the firm is the taxable person and
+/// the firm bills its client under its own TIN and VAT registration. The client
+/// pays the firm's own bank account directly. We never hold the money, never
+/// route it, never verify it, and take no percentage of it — that would be
+/// unlicensed payment activity under the Payments and Settlements Systems Act
+/// No. 28 of 2005 and fee-sharing under Supreme Court Rules 39-49 at the same
+/// time. See docs/restructure/LEGAL-GUARDRAILS.md (rules 1, 2 and 7).
+///
+/// There is deliberately **no platform-fee column and no commission column** on
+/// this model. Not a nullable one, not one defaulting to zero. A fee note is
+/// arithmetic between a firm and its client that we are not part of.
+///
+/// Like the engagement letter, the rendered document is **snapshotted** rather
+/// than joined at read time. A fee note is a tax document: if the firm later
+/// changes its address, VAT number or name, an already-issued note must still
+/// say what it said on the day it was issued.
+model FeeNote {
+  id String @id @default(uuid())
+
+  /// Sequential per firm and year — "FN-2026-0001". Sri Lankan tax practice
+  /// expects an unbroken series, so numbers are allocated on issue and a
+  /// cancelled note keeps its number rather than freeing it for reuse.
+  noteNumber String @unique
+
+  firmId String
+  firm   LawFirm @relation(fields: [firmId], references: [id], onDelete: Cascade)
+
+  bookingId String
+  booking   Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  /// The quote whose accepted terms this bills. A fee note that does not
+  /// correspond to something the client agreed to is a dispute waiting to
+  /// happen.
+  quoteId String?
+  quote   Quote?  @relation(fields: [quoteId], references: [id], onDelete: SetNull)
+
+  // --- Snapshotted parties, as at issue ---
+  firmName       String
+  firmAddress    String?
+  firmTin        String?
+  firmVatNumber  String?
+  firmBankName   String?
+  firmAccountName String?
+  firmAccountNumber String?
+  firmBankBranch String?
+
+  clientName    String
+  clientAddress String?
+  clientEmail   String?
+
+  /// The attorney who did the work, named because the client is entitled to
+  /// know who acted. The firm remains the party billing.
+  attorneyName String?
+
+  // --- Amounts, all in whole rupees ---
+  /// [{ description, amount }] — narration comes from the accepted quote's
+  /// scope, not from the client's account of their problem.
+  lineItems Json
+  subtotal  Int
+  /// Snapshotted from the firm at issue, because the rate can change.
+  vatRatePercent Int?
+  vatAmount      Int    @default(0)
+  total          Int
+  currency       String @default("LKR")
+
+  status   FeeNoteStatus @default(DRAFT)
+  issuedAt DateTime?
+  dueDate  DateTime?
+
+  /// When the FIRM recorded that its client paid. There is no admin approval
+  /// step and no platform confirmation, by design.
+  settledAt        DateTime?
+  settlementNote   String?
+  cancelledAt      DateTime?
+  cancellationNote String?
+
+  /// The rendered note, frozen at issue. Markdown.
+  content String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([firmId, status])
+  @@index([bookingId])
 }
 
 model SubscriptionDetails {
@@ -619,10 +773,7 @@ model Article {
 // endpoint and the public payloads were all still live.
 // See docs/restructure/LEGAL-GUARDRAILS.md — "The Rule 40 content limit".
 
-enum PromoStatus {
-  ACTIVE
-  INACTIVE
-}
+// PromoStatus removed in Phase 4 along with the PaidPromo model. See below.
 
 enum PaymentStatus {
   PAID
@@ -632,20 +783,98 @@ enum PaymentStatus {
   CANCELLED
 }
 
-model PaidPromo {
-  id            String        @id @default(uuid())
-  lawyerId      String
-  lawyer        LawyerProfile @relation(fields: [lawyerId], references: [id], onDelete: Cascade)
-  fromDate      DateTime
-  toDate        DateTime
-  status        PromoStatus   @default(INACTIVE)
-  paymentStatus PaymentStatus @default(UNPAID)
-  invoiceId     String?
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
-}
+// The `PaidPromo` model was removed in Phase 4.
+//
+// It sold a promotional slot to a LawyerProfile. That is selling visibility to
+// an attorney: prohibited by guardrail rule 3, prohibited as advertising under
+// Supreme Court Rules 39-49, and — because it reaches the intermediary —
+// exposure for this platform's operators under the Intermeddlers with Suitors
+// Ordinance No. 11 of 1894.
+//
+// It is not repurposed or renamed. Advertising is now sold to non-legal
+// advertisers only, through the `Advertiser` model.
+// See docs/restructure/LEGAL-GUARDRAILS.md (rule 3).
 
 // ============= Advertisement Management System =============
+//
+// Advertising is sold to NON-LEGAL advertisers only.
+//
+// An attorney may not advertise or solicit, so selling an attorney visibility
+// makes this platform the mechanism of their breach — and touting reaches the
+// intermediary as a criminal matter under the Intermeddlers with Suitors
+// Ordinance No. 11 of 1894. A bank, an insurer or a university is under no such
+// restriction, so their advertising raises no touting question at all.
+//
+// The rule is enforced structurally: `AdCampaign` belongs to an `Advertiser`,
+// and there is no relation from `AdCampaign` to `LawyerProfile` or `LawFirm`.
+// A lawyer cannot buy an advert because there is nowhere to put them.
+// See docs/restructure/LEGAL-GUARDRAILS.md (rule 3).
+
+/// What sector an advertiser trades in.
+///
+/// There is deliberately no legal-services category, and there never may be.
+/// The categories that are refused outright are listed in
+/// src/lib/ads/eligibility.ts — the schema cannot express "not a law firm", so
+/// the check lives in code and in the admin review step.
+enum AdvertiserCategory {
+  BANKING_FINANCE
+  INSURANCE
+  EDUCATION
+  PUBLISHING_MEDIA
+  TECHNOLOGY
+  HEALTHCARE
+  REAL_ESTATE
+  GOVERNMENT_NGO
+  RETAIL_CONSUMER
+  PROFESSIONAL_SERVICES // accountancy, translation, surveying — never legal
+  OTHER
+}
+
+enum AdvertiserStatus {
+  PENDING_REVIEW // submitted, not yet checked
+  ACTIVE
+  SUSPENDED
+  REJECTED
+}
+
+/// A non-legal organisation that buys advertising space.
+model Advertiser {
+  id   String @id @default(uuid())
+  name String
+
+  /// Registered legal name and company registration, so the review step can
+  /// establish who this actually is before any advert runs.
+  legalName          String?
+  registrationNumber String?
+
+  category AdvertiserCategory
+  status   AdvertiserStatus   @default(PENDING_REVIEW)
+
+  contactName  String?
+  contactEmail String
+  contactPhone String?
+  websiteUrl   String?
+  logoUrl      String?
+
+  /// Recorded by the ADMIN who confirmed this advertiser neither practises law
+  /// nor sells legal services. An advertiser cannot run a campaign without it.
+  /// This is the check that keeps rule 3 intact, so it is a stored fact with a
+  /// name and a date against it, not an implicit consequence of `status`.
+  nonLegalConfirmed     Boolean   @default(false)
+  nonLegalConfirmedAt   DateTime?
+  nonLegalConfirmedById String?
+  reviewNotes           String?
+
+  isActive Boolean @default(true)
+
+  campaigns AdCampaign[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([category])
+}
 
 enum AdType {
   BANNER_IMAGE // Full banner with image (for hero, top areas)
@@ -677,8 +906,18 @@ enum AdPlacement {
   BLOG_BOTTOM_STICKY // /en/blog: bottom fixed bar
   BLOG_POST_SIDEBAR // /en/blog/[slug]: right sidebar
   BLOG_POST_BOTTOM // /en/blog/[slug]: below article content
-  DIRECTORY_TOP // /en/lawyers: top of search results
-  DIRECTORY_INLINE // /en/lawyers: interspersed in results
+  LEGAL_LIBRARY_SIDEBAR // /en/legal-library: right sidebar
+  // DIRECTORY_TOP and DIRECTORY_INLINE were removed in Phase 4.
+  //
+  // They sold position at the top of, and inside, the attorney directory. Even
+  // with a non-legal advertiser that is wrong: an advert inside a results list
+  // teaches a client that position in that list is purchasable, and blurs the
+  // line between a listing and an advertisement.
+  //
+  // Deleted from the enum rather than merely deactivated, so that re-enabling
+  // them requires a migration and a conversation, not a toggle in an admin
+  // screen. Advertising belongs on editorial surfaces only.
+  // See docs/restructure/LEGAL-GUARDRAILS.md (rules 3 and 4).
 }
 
 // Admin-configurable settings per ad placement
@@ -714,9 +953,13 @@ model AdPlacementConfig {
 model AdCampaign {
   id String @id @default(uuid())
 
-  // Who owns this campaign
-  lawyerId String
-  lawyer   LawyerProfile @relation(fields: [lawyerId], references: [id], onDelete: Cascade)
+  // Who owns this campaign.
+  //
+  // An Advertiser, never a LawyerProfile or a LawFirm. There is no relation to
+  // either, on purpose: a lawyer cannot buy an advert because the schema gives
+  // them nowhere to be. See docs/restructure/LEGAL-GUARDRAILS.md (rule 3).
+  advertiserId String
+  advertiser   Advertiser @relation(fields: [advertiserId], references: [id], onDelete: Cascade)
 
   // Campaign details
   name      String
@@ -729,9 +972,15 @@ model AdCampaign {
   description String?
   imageUrl    String?
   targetUrl   String?
-  ctaText     String? @default("View Profile")
+  ctaText     String? @default("Learn more")
 
-  // Targeting
+  // Targeting.
+  //
+  // These describe the PAGE an advert may appear on, never the person reading
+  // it. Nothing here may ever be derived from what a client wrote about their
+  // legal problem — that is privileged material, and using it to sell adverts
+  // would breach rule 5 and the PDPA at once.
+  // See docs/restructure/LEGAL-GUARDRAILS.md (rule 5).
   targetDistricts     String[]
   targetPracticeAreas String[]
 
@@ -1169,14 +1418,25 @@ model AiConversation {
 }
 
 model AiMessage {
-  id                String         @id @default(uuid())
-  conversationId    String
-  conversation      AiConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  role              String // 'user' or 'assistant'
-  content           String
-  sources           Json? // Legal source citations
-  lawyerSuggestions Json? // Suggested lawyers
-  createdAt         DateTime       @default(now())
+  id             String         @id @default(uuid())
+  conversationId String
+  conversation   AiConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  role           String // 'user' or 'assistant'
+  content        String
+
+  // Citations that survived src/lib/ai/policy.ts — each one names a document
+  // that was actually retrieved. Never client-supplied.
+  citations Json?
+
+  // Set when the assistant declined to answer, or when a generated answer was
+  // withheld. Values are RefusalCategory in src/lib/ai/policy.ts. Kept because a
+  // rising count in one category is a signal about the model or the corpus, and
+  // because "we refused" is the fact we would need to evidence.
+  refusalCategory String?
+
+  createdAt DateTime @default(now())
+
+  @@index([conversationId, createdAt])
 }
 
 // ============= Consultation & Booking System =============
@@ -1225,10 +1485,17 @@ model ConsultationPricing {
   lawyerId String        @unique
   lawyer   LawyerProfile @relation(fields: [lawyerId], references: [id], onDelete: Cascade)
 
-  pricingType   ConsultationPricingType @default(PER_SESSION)
-  physicalPrice Int // LKR (e.g., 5000)
-  onlinePrice   Int // LKR (usually lower)
-  currency      String                  @default("LKR")
+  pricingType ConsultationPricingType @default(PER_SESSION)
+  currency    String                  @default("LKR")
+
+  // `physicalPrice` and `onlinePrice` were dropped in Phase 3.
+  //
+  // They were the last remnant of the marketplace: a published price a client
+  // could see and "buy" a consultation at. Since Phase 1 a fee has existed only
+  // on a Quote, issued by the attorney after a conflict check, for that matter.
+  // Both columns had been forced to 0 since Phase 0 and were read by nothing —
+  // but a price column on a lawyer's profile is one product decision away from
+  // being a fee range on a public page, which Rule 40 does not permit.
 
   freeInitialConsultation  Boolean @default(false)
   freeConsultationDuration Int? // minutes
@@ -1253,20 +1520,28 @@ model Booking {
 
   /// The attorney currently responsible for this matter.
   ///
-  /// Always set. At intake it is the attorney the client chose from the
-  /// directory — the client's choice, logged, never ours (rule 4). A firm owner
-  /// or firm admin may reassign it to another attorney **in the same firm**;
-  /// nothing can move a matter between firms.
-  lawyerId String
-  lawyer   LawyerProfile @relation(fields: [lawyerId], references: [id])
+  /// NULL means the request is sitting in the firm's queue, not yet assigned —
+  /// which is what happens when a client engages the FIRM rather than picking an
+  /// individual. A firm owner or firm admin assigns it, and may reassign it
+  /// later, but only ever to an attorney **in the same firm**; nothing can move
+  /// a matter between firms.
+  lawyerId String?
+  lawyer   LawyerProfile? @relation(fields: [lawyerId], references: [id])
+
+  /// The attorney the client themselves chose at intake, if they chose one.
+  ///
+  /// Set once and never changed — including when the firm reassigns the matter.
+  /// This is the evidence that the choice of practitioner was the client's and
+  /// never the platform's, which is the whole of guardrail rule 4. NULL means
+  /// the client engaged the firm and left the choice of attorney to it.
+  clientSelectedAttorneyId String?
 
   /// The firm that received the request and is the provider of legal services.
   ///
-  /// Derived from the chosen attorney's firm at intake and immutable thereafter.
-  /// `lawyerId` must always belong to this firm — the invariant is enforced in
-  /// src/lib/firms/access.ts and re-checked on every reassignment.
-  firmId String?
-  firm   LawFirm? @relation(fields: [firmId], references: [id])
+  /// Required: a matter always belongs to a firm, even when no individual
+  /// attorney has been assigned yet. Immutable after intake.
+  firmId String
+  firm   LawFirm @relation(fields: [firmId], references: [id])
 
   /// Set when a firm owner/admin reassigns the responsible attorney. Null on a
   /// matter that has stayed with the attorney the client originally chose.
@@ -1274,11 +1549,19 @@ model Booking {
   assignedAt     DateTime?
   assignmentNote String?
 
-  // Schedule
-  date      DateTime @db.Date
-  startTime String // "10:00"
-  endTime   String // "11:00"
-  duration  Int // minutes
+  // Schedule.
+  //
+  // NULL until an appointment exists. A client who engages a firm does not pick
+  // a slot at intake — the firm has not yet decided whether it can act, and
+  // holding a diary slot before a conflict check is a marketplace-booking habit,
+  // not how an engagement works. The attorney proposes a time with the quote.
+  //
+  // The attorney-first path still sets these at intake, because there the client
+  // picked a specific practitioner and one of their published slots.
+  date      DateTime? @db.Date
+  startTime String? // "10:00"
+  endTime   String? // "11:00"
+  duration  Int? // minutes
 
   // Mode
   mode          ConsultationMode
@@ -1304,6 +1587,7 @@ model Booking {
   conflictCheck    ConflictCheck?
   quotes           Quote[]
   engagementLetter EngagementLetter?
+  feeNotes         FeeNote[]
   /// Set when the client accepts a quote — the moment terms are agreed
   termsAcceptedAt  DateTime?
 
@@ -1314,9 +1598,18 @@ model Booking {
   paidAt              DateTime?
 
   // Post-consultation
-  lawyerNotes    String?
-  clientRating   Int?
-  clientFeedback String?
+  lawyerNotes String?
+
+  // `clientRating` and `clientFeedback` were dropped in Phase 6.
+  //
+  // Phase 2 deleted the `Review` model and reported that ratings were gone
+  // entirely. They were not: the `rate` action still wrote a 1-5 score here and
+  // the lawyer console still rendered it as stars. No UI collected it any more,
+  // so it was a dormant column with a live write path — and a column that
+  // exists is a column a future product decision can populate. `clientRating`
+  // was one `orderBy` away from being ranking, which is guardrail rules 3 and 4.
+  // Removed rather than disabled, exactly like the commission columns.
+  // See docs/restructure/LEGAL-GUARDRAILS.md and DATA-INVENTORY.md finding E.
 
   // Lawyer workflow
   lawyerRemarks          String?
@@ -1352,6 +1645,8 @@ model Booking {
   @@index([clientId, status])
   @@index([lawyerId, date])
   @@index([firmId, status])
+  /// The firm's unassigned queue
+  @@index([firmId, lawyerId])
   @@index([status])
   @@index([bookingNumber])
 }
@@ -1416,6 +1711,13 @@ model Quote {
 
   validUntil DateTime
 
+  /// The appointment the attorney proposes, for a matter that has no slot yet
+  /// (the firm-first path). Applied to the Booking when the client accepts.
+  /// NULL where the client already chose a slot at intake.
+  proposedDate      DateTime? @db.Date
+  proposedStartTime String?
+  proposedEndTime   String?
+
   /// The attorney who issued the quote
   issuedById    String
   respondedAt   DateTime?
@@ -1424,6 +1726,7 @@ model Quote {
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
   engagementLetter EngagementLetter?
+  feeNotes         FeeNote[]
 
   @@unique([bookingId, version])
   @@index([bookingId, status])
@@ -1530,3 +1833,201 @@ model BookingPayment {
 // WithdrawRequest / WithdrawStatus removed in Phase 1a.
 // The platform never holds a lawyer's fees, so there is no balance to withdraw
 // from. See docs/restructure/LEGAL-GUARDRAILS.md (rule 2).
+
+// ============= Data protection (PDPA No. 9 of 2022) — Phase 6 =============
+//
+// Three models and one status field, all serving one rule file:
+// src/lib/privacy/policy.ts. See docs/restructure/DATA-INVENTORY.md for what
+// personal data this platform holds and under which lawful basis.
+
+/// Lifecycle of a user account.
+///
+/// The project convention is soft delete via status fields and no hard deletes
+/// (see AGENTS.md), but `User` had nothing to soft-delete WITH — so an erasure
+/// request had no landing place. A hard delete is not available to us: matters
+/// reference clients for years and a firm may be professionally required to
+/// keep the file, so removing the row would either cascade into a firm's
+/// records or orphan them.
+enum UserStatus {
+  ACTIVE
+  /// Signed out and blocked from signing in, at the user's request. Reversible.
+  DEACTIVATED
+  /// Identifying fields have been overwritten in place. Irreversible.
+  /// The row survives so that a firm's matter file stays referentially intact.
+  ERASED
+}
+
+/// Purposes for which we rely on CONSENT — and only these.
+///
+/// Matter data is processed to perform the retainer and to meet the firm's
+/// professional duties. It is deliberately absent from this enum: asking for
+/// consent implies it can be withdrawn, and we cannot honour a withdrawal
+/// against a firm's retention duty. Calling everything consent is the common
+/// and expensive PDPA error.
+enum ConsentPurpose {
+  /// Product news and offers by email. Never a precondition of using anything.
+  MARKETING_EMAIL
+  /// Non-essential usage analytics.
+  PRODUCT_ANALYTICS
+  /// Keeping AI chat history so the user can return to it. Withdrawing this
+  /// purges their conversations rather than merely stopping collection.
+  AI_HISTORY_RETENTION
+}
+
+/// A record that a person agreed to — or withdrew from — a specific purpose.
+///
+/// Consent under the PDPA must be specific, informed and demonstrable, so this
+/// records the purpose, the version of the notice shown, and the moment. A row
+/// is never updated in place: withdrawing writes `withdrawnAt` and granting
+/// again writes a NEW row, because the history is the evidence.
+model ConsentRecord {
+  id String @id @default(uuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  purpose ConsentPurpose
+
+  /// The version of the privacy notice the person was shown. Without this,
+  /// "they consented" is a claim about a document nobody can produce.
+  noticeVersion String
+
+  grantedAt   DateTime  @default(now())
+  withdrawnAt DateTime?
+
+  /// Where the agreement was given, for evidence. Not used for tracking.
+  sourceIp  String?
+  userAgent String?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, purpose, withdrawnAt])
+}
+
+/// What kind of record an access-log entry refers to.
+enum AuditedResource {
+  BOOKING
+  CONFLICT_CHECK
+  QUOTE
+  ENGAGEMENT_LETTER
+  FEE_NOTE
+  MESSAGE_THREAD
+  SUBJECT_REQUEST
+}
+
+/// What was done to it.
+enum AuditedAction {
+  /// Saw that the matter exists — list entry, status, schedule.
+  READ_SUMMARY
+  /// Read the client's own account of their problem, notes, or conflict check.
+  READ_DETAIL
+  EXPORTED
+  RECTIFIED
+  ERASED
+}
+
+/// Who read what matter data, and when.
+///
+/// `firms/access.ts` already decides WHETHER someone may read a matter. Nothing
+/// recorded THAT IT HAPPENED, and the PDPA expects access to privileged
+/// material to be accountable.
+///
+/// ─────────────────────────────────────────────────────────────────────────
+/// This model deliberately holds NO CONTENT.
+///
+/// There is no column for the matter description, the conflict-check note, or
+/// any excerpt of what was read — not even a truncated one. A log of *who read
+/// a matter description* is an accountability record. A log that copies the
+/// description into itself is a second privileged store, in a table with
+/// different access rules and a different retention period, and it is a new
+/// place for privilege to leak. The absence of a content column is the
+/// guardrail, exactly as it is on `FeeNote`.
+/// ─────────────────────────────────────────────────────────────────────────
+model DataAccessLog {
+  id String @id @default(uuid())
+
+  /// The person who read it. Not a relation: the log must survive the erasure
+  /// of the actor's account, or it stops being an audit trail.
+  actorUserId String
+  /// Their firm role at the time, or 'ADMIN' / 'CLIENT'. Denormalised because
+  /// roles change and the log must say what was true that day.
+  actorRole   String
+
+  resource   AuditedResource
+  resourceId String
+  action     AuditedAction
+
+  /// The matter and firm this touched, for firm-scoped review. Denormalised
+  /// for the same reason as `actorRole`.
+  bookingId String?
+  firmId    String?
+
+  createdAt DateTime @default(now())
+
+  @@index([bookingId, createdAt])
+  @@index([actorUserId, createdAt])
+  @@index([firmId, createdAt])
+  @@index([createdAt])
+}
+
+enum SubjectRequestType {
+  ACCESS
+  RECTIFICATION
+  ERASURE
+  PORTABILITY
+  OBJECTION
+}
+
+enum SubjectRequestStatus {
+  RECEIVED
+  IN_PROGRESS
+  /// Matter data is the FIRM's to decide on. We hold it as processor and
+  /// cannot release or delete it on our own authority.
+  AWAITING_FIRM
+  COMPLETED
+  /// Some of it was done and some refused — the normal outcome for erasure,
+  /// where a firm's retention duty outlives the request.
+  PARTIALLY_FULFILLED
+  REFUSED
+}
+
+/// A data-subject request under the PDPA.
+///
+/// The endpoints are the easy part. The hard part is that a request spanning
+/// matter data has TWO decision-makers: we answer for the data we control, and
+/// the firm answers for the matter file it controls. `AWAITING_FIRM` is that
+/// split made explicit rather than hidden in a support inbox.
+model DataSubjectRequest {
+  id String @id @default(uuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type   SubjectRequestType
+  status SubjectRequestStatus @default(RECEIVED)
+
+  /// What the person actually asked for, in their words.
+  requestNote String?
+
+  /// Firms that hold matter data caught by this request and must decide for
+  /// themselves. Denormalised ids: this is a worklist, not a relation.
+  referredFirmIds String[]
+
+  /// The statutory clock. Recorded rather than computed at read time so that
+  /// changing the period later does not silently re-date open requests.
+  dueBy DateTime
+
+  /// What we did, and — where we refused — why. A refusal that does not say
+  /// which duty required the retention is not a defensible refusal.
+  outcomeNote   String?
+  refusalReason String?
+
+  handledById String?
+  completedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, status])
+  @@index([status, dueBy])
+}

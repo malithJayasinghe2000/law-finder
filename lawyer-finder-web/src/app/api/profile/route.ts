@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db';
+import { getSubscriptionForProfile } from '@/lib/firms/billing';
 import { getSession } from '@/lib/auth';
 import bcrypt from 'bcryptjs';
 import { isGoogleMeetLink } from '@/lib/meetings/googleMeet';
@@ -59,17 +60,8 @@ export async function GET(req: NextRequest) {
         },
       });
 
-      // Fetch active subscription
-      const activeSubscription = await prisma.subscription.findFirst({
-        where: {
-          lawyer: { userId: user.id },
-          status: 'ACTIVE',
-        },
-        include: {
-          plan: true,
-          role: true,
-        },
-      });
+      // The licence belongs to the attorney's firm (Phase 3).
+      const activeSubscription = await getSubscriptionForProfile(lawyerProfile?.id);
 
       if (activeSubscription) {
         subscription = {

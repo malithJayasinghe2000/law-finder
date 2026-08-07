@@ -28,8 +28,11 @@ export const AD_PLACEMENTS = [
   'BLOG_BOTTOM_STICKY',
   'BLOG_POST_SIDEBAR',
   'BLOG_POST_BOTTOM',
-  'DIRECTORY_TOP',
-  'DIRECTORY_INLINE',
+  'LEGAL_LIBRARY_SIDEBAR',
+  // DIRECTORY_TOP and DIRECTORY_INLINE were removed in Phase 4 along with
+  // attorney advertising. Advertising belongs on editorial surfaces; an advert
+  // inside a list of practitioners blurs a paid placement into a listing.
+  // See docs/restructure/LEGAL-GUARDRAILS.md (rules 3 and 4).
 ] as const;
 export type AdPlacementValue = (typeof AD_PLACEMENTS)[number];
 
@@ -41,8 +44,7 @@ export const AD_PLACEMENT_LABELS: Record<AdPlacementValue, string> = {
   BLOG_BOTTOM_STICKY: 'Blog — Bottom Sticky Bar',
   BLOG_POST_SIDEBAR: 'Blog Post — Right Sidebar',
   BLOG_POST_BOTTOM: 'Blog Post — Below Article',
-  DIRECTORY_TOP: 'Lawyer Directory — Top',
-  DIRECTORY_INLINE: 'Lawyer Directory — Inline',
+  LEGAL_LIBRARY_SIDEBAR: 'Legal Library — Right Sidebar',
 };
 
 export const PLACEMENT_DETAILS: Record<AdPlacementValue, {
@@ -93,17 +95,11 @@ export const PLACEMENT_DETAILS: Record<AdPlacementValue, {
     page: '/en/blog/[slug]',
     position: 'Below article',
   },
-  DIRECTORY_TOP: {
-    description: 'Pinned at the top of lawyer search results',
-    dimensions: 'Profile card',
-    page: '/en/lawyers',
-    position: 'Top of results',
-  },
-  DIRECTORY_INLINE: {
-    description: 'Interspersed within lawyer search results',
-    dimensions: 'Profile card',
-    page: '/en/lawyers',
-    position: 'Within results',
+  LEGAL_LIBRARY_SIDEBAR: {
+    description: 'Sidebar of the legal library',
+    dimensions: '300×250px',
+    page: '/en/legal-library',
+    position: 'Right sidebar',
   },
 };
 
@@ -114,11 +110,10 @@ export const AD_TYPE_PLACEMENTS: Record<AdTypeValue, readonly AdPlacementValue[]
     'BLOG_TOP_BANNER',
     'BLOG_POST_BOTTOM',
   ],
-  PROFILE_CARD: [
-    'HOMEPAGE_BELOW_HERO',
-    'DIRECTORY_TOP',
-    'DIRECTORY_INLINE',
-  ],
+  // PROFILE_CARD was the attorney-shaped unit. It has no placements left, and
+  // must not be given any: an advert shaped like a profile is the anti-pattern
+  // Phase 4 removed.
+  PROFILE_CARD: [],
   SIDEBAR_CARD: [
     'CHAT_RIGHT_SIDEBAR',
     'BLOG_RIGHT_SIDEBAR',
@@ -172,15 +167,10 @@ export const PLACEMENT_PREVIEW: Record<AdPlacementValue, {
     previewColor: 'bg-teal-100 border-teal-400',
     skeletonLayout: 'full-width',
   },
-  DIRECTORY_TOP: {
-    previewLabel: 'Your profile card is pinned at the top of search results',
+  LEGAL_LIBRARY_SIDEBAR: {
+    previewLabel: 'Your advert appears in the legal library sidebar',
     previewColor: 'bg-orange-100 border-orange-400',
-    skeletonLayout: 'card-grid',
-  },
-  DIRECTORY_INLINE: {
-    previewLabel: 'Your profile card appears within search results',
-    previewColor: 'bg-cyan-100 border-cyan-400',
-    skeletonLayout: 'card-grid',
+    skeletonLayout: 'sidebar',
   },
 };
 
@@ -329,7 +319,8 @@ function validateSharedCampaignRules(
 
 // ─── Admin schema — full control ──────────────────────────────────
 export const AdminCreateAdSchema = AdCampaignBaseSchema.extend({
-  lawyerId: z.string().min(1, 'Lawyer is required'),
+  // An advertiser, never a lawyer. See src/lib/ads/eligibility.ts.
+  advertiserId: z.string().min(1, 'Choose an advertiser'),
   pricePerDay: requiredPositiveInt,
   totalBudget: optionalPositiveInt,
   dailyBudget: optionalPositiveInt,
@@ -338,17 +329,11 @@ export const AdminCreateAdSchema = AdCampaignBaseSchema.extend({
   validateSharedCampaignRules(value, ctx, { requireFutureStart: false });
 });
 
-// ─── Lawyer schema — price comes from config, no budget field ──────
-export const LawyerCreateAdBaseSchema = AdCampaignBaseSchema.extend({
-  pricePerDay: optionalPositiveInt,  // Set from server-side config lookup
-});
-
-export const LawyerCreateAdSchema = LawyerCreateAdBaseSchema.superRefine((value, ctx) => {
-  validateSharedCampaignRules(value, ctx, { requireFutureStart: true });
-});
+// The lawyer-facing campaign schema was removed in Phase 4 with the rest of
+// attorney advertising. There is no lawyer path into the ad system any more.
+// See docs/restructure/LEGAL-GUARDRAILS.md (rule 3).
 
 export type AdminCreateAdInput = z.infer<typeof AdminCreateAdSchema>;
-export type LawyerCreateAdInput = z.infer<typeof LawyerCreateAdSchema>;
 
 export type AdFieldErrors = Record<string, string>;
 

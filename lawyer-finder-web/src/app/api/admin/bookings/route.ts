@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
-import { formatSriLankaDateIso, parseDateOnlyToUtc } from '@/lib/utils';
+import { formatSriLankaDateIso, formatSriLankaDateIsoOrNull, parseDateOnlyToUtc } from '@/lib/utils';
+import { ensureAttorneyHasFirm } from '@/lib/firms/provisioning';
 import { z } from 'zod';
 import { SLOT_BLOCKING_STATUSES } from '@/lib/consultations/bookingStatus';
 
@@ -63,6 +64,21 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Lawyer not found' }, { status: 404 });
     }
 
+    // The matter belongs to the attorney's FIRM, exactly as it would if the
+    // client had submitted the request themselves. This is a call-to-book
+    // support path — the client named the attorney on the phone — so
+    // `clientSelectedAttorneyId` is set for the same reason it is at normal
+    // intake: the choice was theirs, not ours.
+    // See docs/restructure/LEGAL-GUARDRAILS.md (rules 4 and 7).
+    const firmId = await ensureAttorneyHasFirm(prisma, lawyerId);
+
+    if (!firmId) {
+      return NextResponse.json(
+        { error: 'That attorney is not attached to a firm, so cannot be engaged.' },
+        { status: 400 }
+      );
+    }
+
     // No fee is set here and the platform derives nothing from one. The lawyer
     // quotes their fee when they accept the request.
     // See docs/restructure/LEGAL-GUARDRAILS.md (rule 1).
@@ -119,6 +135,8 @@ export async function POST(req: Request) {
           bookingNumber,
           clientId: clientUser.id,
           lawyerId,
+          clientSelectedAttorneyId: lawyerId,
+          firmId,
           date: targetDate,
           startTime,
           endTime,
@@ -145,7 +163,7 @@ export async function POST(req: Request) {
       success: true,
       booking: {
         ...booking,
-        date: formatSriLankaDateIso(booking.date),
+        date: formatSriLankaDateIsoOrNull(booking.date),
         createdAt: booking.createdAt.toISOString(),
       },
     }, { status: 201 });

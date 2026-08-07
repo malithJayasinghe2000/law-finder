@@ -16,7 +16,6 @@ import {
   Scale,
   Gavel
 } from 'lucide-react';
-import ChatWidget from '@/components/home/ChatWidget';
 import LawyersMarquee from '@/components/home/LawyersMarquee';
 
 export default async function HomePage({ params }: { params: Promise<{ locale: string }> }) {
@@ -207,9 +206,13 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
 
       </main>
 
-      {/* Persistent AI Chat Widget */}
-      <ChatWidget />
-
+      {/* The floating "Legal Assistant" widget was removed in Phase 5.
+          Its input had no handler — typing into it did nothing — while it
+          greeted every visitor with "How can we assist you with your legal
+          needs today?". A platform that is not a law firm cannot offer to
+          assist with someone's legal needs (guardrail rule 7), and a dead
+          input that appears to is worse than none. The working assistant is
+          at /chat, where the AI policy applies. */}
 
     </div>
   );

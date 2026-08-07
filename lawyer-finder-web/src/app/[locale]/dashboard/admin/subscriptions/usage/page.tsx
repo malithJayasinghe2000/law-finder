@@ -15,7 +15,8 @@ import { Input } from '@/components/ui/input';
 
 interface UsageRecord {
   id: string;
-  lawyerName: string;
+  /** The firm holding the licence. Usage is a firm's, not an individual's (Phase 3). */
+  firmName: string;
   subscriptionTier: string;
   featureName: string;
   usageCount: number;
@@ -69,7 +70,7 @@ export default function UsageTrackingPage() {
   };
 
   const filteredRecords = records.filter(record => {
-    const matchesSearch = record.lawyerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    const matchesSearch = record.firmName.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          record.featureName.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesTier = filterTier === 'all' || record.subscriptionTier === filterTier;
     const matchesStatus = filterStatus === 'all' || record.status === filterStatus;
@@ -209,7 +210,7 @@ export default function UsageTrackingPage() {
             <table className="w-full text-sm">
               <thead className="border-b">
                 <tr>
-                  <th className="text-left py-3 px-4 font-semibold text-neutral-900">Lawyer</th>
+                  <th className="text-left py-3 px-4 font-semibold text-neutral-900">Firm</th>
                   <th className="text-left py-3 px-4 font-semibold text-neutral-900">Tier</th>
                   <th className="text-left py-3 px-4 font-semibold text-neutral-900">Feature</th>
                   <th className="text-center py-3 px-4 font-semibold text-neutral-900">Usage</th>
@@ -222,7 +223,7 @@ export default function UsageTrackingPage() {
               <tbody>
                 {filteredRecords.map((record) => (
                   <tr key={record.id} className="border-b hover:bg-neutral-50 transition">
-                    <td className="py-3 px-4 font-medium text-neutral-900">{record.lawyerName}</td>
+                    <td className="py-3 px-4 font-medium text-neutral-900">{record.firmName}</td>
                     <td className="py-3 px-4">
                       <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
                         {record.subscriptionTier}

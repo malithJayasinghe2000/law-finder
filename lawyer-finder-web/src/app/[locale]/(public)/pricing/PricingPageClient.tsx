@@ -79,17 +79,26 @@ const tierIcons: Record<string, React.ElementType> = {
 // Tier order for display
 const tierOrder = ['BASIC', 'PROFESSIONAL', 'PREMIUM', 'ENTERPRISE'];
 
-// Format feature limit for display
+// Format feature limit for display.
+//
+// Every label here must describe SOFTWARE the firm gets, never CLIENTS it gets.
+// "50 Inquiries/mo" and "500 Messages/mo" used to appear on this page — a lawyer
+// paying us more to receive more clients is pay-per-lead, and publishing it on a
+// pricing page is the clearest possible evidence of it.
+// See docs/restructure/LEGAL-GUARDRAILS.md (rules 1 and 3).
 function formatFeatureLimit(name: string, limit: number): string {
-  if (limit === -1) return 'Unlimited';
-  const labels: Record<string, string> = {
-    articles_per_month: `${limit} Articles/mo`,
-    inquiries_per_month: `${limit} Inquiries/mo`,
-    chat_messages_per_month: `${limit} Messages/mo`,
-    promo_campaigns_per_month: `${limit} Promos/mo`,
-    storage_gb: `${limit} GB Storage`,
+  const labels: Record<string, { one: string; many: string; unlimited: string }> = {
+    firm_seats: { one: '1 user', many: `${limit} users`, unlimited: 'Unlimited users' },
+    storage_gb: { one: '1 GB storage', many: `${limit} GB storage`, unlimited: 'Unlimited storage' },
+    articles_per_month: { one: '1 article/mo', many: `${limit} articles/mo`, unlimited: 'Unlimited articles' },
+    document_templates: { one: '1 document template', many: `${limit} document templates`, unlimited: 'Unlimited document templates' },
+    ai_research_queries_per_month: { one: '1 research query/mo', many: `${limit} research queries/mo`, unlimited: 'Unlimited research queries' },
   };
-  return labels[name] || `${limit}`;
+
+  const label = labels[name];
+  if (!label) return limit === -1 ? 'Unlimited' : `${limit}`;
+  if (limit === -1) return label.unlimited;
+  return limit === 1 ? label.one : label.many;
 }
 
 export default function PricingPageClient({ locale }: { locale: string }) {

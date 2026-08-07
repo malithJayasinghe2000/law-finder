@@ -33,6 +33,7 @@ export default async function FirmProfilePage({
     where: { slug },
     select: {
       id: true,
+      slug: true,
       name: true,
       firmType: true,
       description: true,
@@ -267,9 +268,27 @@ export default async function FirmProfilePage({
               </h3>
               <p className="mt-2 text-sm font-light leading-relaxed text-neutral-600">
                 Legal services are provided by <strong>{firm.name}</strong>, not by this
-                platform. If you send an enquiry, the firm will check for conflicts of
-                interest, then send you its own fee quote and terms. No fee is payable
-                until you accept them, and any fee you agree is paid directly to the firm.
+                platform. If you send a request, the firm will check for conflicts of
+                interest, assign one of its attorneys, then send you its own fee quote,
+                terms and a proposed appointment. No fee is payable until you accept
+                them, and any fee you agree is paid directly to the firm.
+              </p>
+
+              <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
+                <Link
+                  href={`/${locale}/firms/${firm.slug}/engage`}
+                  className="inline-flex items-center justify-center gap-2 bg-[#1a1a1a] px-6 py-3.5 text-xs font-bold uppercase tracking-widest text-white transition-all hover:bg-neutral-800"
+                >
+                  Request an engagement
+                </Link>
+                <span className="text-[10px] uppercase tracking-widest text-neutral-400">
+                  No fee · No obligation
+                </span>
+              </div>
+
+              <p className="mt-3 text-[11px] leading-relaxed text-neutral-500">
+                Prefer a particular attorney? Open their profile above and request from
+                them directly — the choice is entirely yours either way.
               </p>
             </div>
 

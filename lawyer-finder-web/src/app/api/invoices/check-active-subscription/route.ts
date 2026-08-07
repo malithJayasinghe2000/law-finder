@@ -1,5 +1,6 @@
 import { NextResponse, NextRequest } from 'next/server';
 import prisma from '@/lib/db';
+import { getFirmMembership } from '@/lib/firms/access';
 import { getSession } from '@/lib/auth';
 import { CheckActiveSubscriptionSchema } from '@/schemas/subscription.schema';
 
@@ -7,8 +8,7 @@ export async function POST(req: NextRequest) {
   try {
     const session = await getSession();
 
-    // Check if authorized
-    if (!session || session.role !== 'LAWYER') {
+    if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -24,19 +24,20 @@ export async function POST(req: NextRequest) {
 
     const { planId } = validation.data;
 
-    // Get lawyer profile
-    const lawyerProfile = await prisma.lawyerProfile.findUnique({
-      where: { userId: session.userId },
-    });
+    // The licence is the firm's (Phase 3), resolved from membership so that a
+    // practice manager with no LawyerProfile can answer for their own firm.
+    // Fail closed if there is no firm: `firmId: undefined` would drop the filter
+    // and match another firm's row.
+    const membership = await getFirmMembership(session.userId);
 
-    if (!lawyerProfile) {
-      return NextResponse.json({ error: 'Lawyer profile not found' }, { status: 404 });
+    if (!membership) {
+      return NextResponse.json({ error: 'You do not belong to a firm.' }, { status: 404 });
     }
 
-    // Check if lawyer has active subscription for this plan
+    // Does this FIRM already hold this plan?
     const activeSubscription = await prisma.subscription.findFirst({
       where: {
-        lawyerId: lawyerProfile.id,
+        firmId: membership.firmId,
         planId: planId,
         status: 'ACTIVE',
       },

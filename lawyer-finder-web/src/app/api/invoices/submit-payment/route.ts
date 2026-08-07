@@ -1,5 +1,6 @@
 import { NextResponse, NextRequest } from 'next/server';
 import prisma from '@/lib/db';
+import { getFirmMembership, canManageFirm } from '@/lib/firms/access';
 import { getSession } from '@/lib/auth';
 import { SubmitPaymentSchema } from '@/schemas/subscription.schema';
 
@@ -7,8 +8,7 @@ export async function POST(req: NextRequest) {
   try {
     const session = await getSession();
 
-    // Check if authorized
-    if (!session || session.role !== 'LAWYER') {
+    if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -34,16 +34,26 @@ export async function POST(req: NextRequest) {
       notes,
     } = validation.data;
 
-    // Get lawyer profile
-    const lawyerProfile = await prisma.lawyerProfile.findUnique({
-      where: { userId: session.userId },
-    });
+    // The invoice is billed to the FIRM (Phase 3), so access is decided by firm
+    // membership. `Invoice.lawyerId` only records who raised it and is null when
+    // that was a practice manager, so matching on it would have made an invoice
+    // nobody could pay.
+    const membership = await getFirmMembership(session.userId);
 
-    if (!lawyerProfile) {
-      return NextResponse.json({ error: 'Lawyer profile not found' }, { status: 404 });
+    if (!membership) {
+      return NextResponse.json(
+        { error: 'You do not belong to a firm, so there is no invoice to settle.' },
+        { status: 404 }
+      );
     }
 
-    // Get invoice and verify it belongs to this lawyer
+    if (!canManageFirm(membership)) {
+      return NextResponse.json(
+        { error: 'Only the firm\'s principal or practice manager can settle the firm\'s software invoice.' },
+        { status: 403 }
+      );
+    }
+
     const invoice = await prisma.invoice.findUnique({
       where: { id: invoiceId },
       include: {
@@ -56,7 +66,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invoice not found' }, { status: 404 });
     }
 
-    if (invoice.lawyerId !== lawyerProfile.id) {
+    if (invoice.firmId !== membership.firmId) {
       return NextResponse.json({ error: 'You do not have access to this invoice' }, { status: 403 });
     }
 

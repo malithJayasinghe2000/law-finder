@@ -98,6 +98,15 @@ sharing fees again.
 **In the code:** there is no commission field anywhere. It was deleted in Phase 0,
 not disabled.
 
+**The subtle version of this rule, which we got wrong for a while.** Subscription
+tiers used to sell attorneys a quota of *client enquiries* and *client messages* —
+10 a month on the cheap tier, unlimited on the expensive one — and advertised it on
+the public pricing page. Nobody called it commission, and it still was one: revenue
+rising with the amount of legal work is fee-sharing whatever the invoice says. If
+you are ever asked to meter something, ask whether the number counts **software**
+or **clients**. Seats, storage and templates are software. Enquiries, messages,
+matters and introductions are clients.
+
 ### 2. Never hold client money
 
 **The rule:** money owed to a lawyer never touches an account we control.
@@ -134,12 +143,27 @@ Ordinance No. 11 of 1894**, "touting" — steering clients toward lawyers for
 reward — is a **criminal offence**, and it is not limited to attorneys. It can
 reach the intermediary. That is us.
 
-**What we found in Phase 2:** the platform was doing exactly this. Attorneys could
-buy an ad campaign and appear as a "★ Sponsored" card at the top of the lawyer
-directory, above everyone else. That was removed.
+**What we found, in two goes.** Phase 2 removed attorney adverts from the
+directory. Phase 4 found that only *half* the job had been done — attorney adverts
+were still running on the homepage, the blog, and the AI chat sidebar, where
+someone describes their legal problem and an attorney who paid us appeared beside
+the answer.
 
 **What is still fine:** selling ads to *non-lawyer* advertisers — a bank, an
 insurer, a university. They are not bound by the conduct rules.
+
+**But "not an attorney" is not enough.** A legal consultancy, a claims-management
+company, a document-drafting service or a legal-expenses insurer either practises
+law without a licence or funnels work to those who do — and we would be the
+funnel. Those are refused by category. The full list, and where adverts may
+appear, is in
+[LEGAL-GUARDRAILS.md](./LEGAL-GUARDRAILS.md#advertising--who-may-buy-and-where).
+
+**How it is enforced:** structurally. `AdCampaign` belongs to an `Advertiser` and
+has no relation to `LawyerProfile` or `LawFirm` at all — a lawyer cannot buy an
+advert because the schema gives them nowhere to be. A named `ADMIN` has to
+positively confirm each advertiser is not a legal-services provider before
+anything runs.
 
 ### 4. Never let the platform choose the lawyer
 
@@ -227,21 +251,42 @@ party to the engagement, and receives no part of the fee.
 
 ## Part 3 — How a matter actually flows
 
-Here is one client engaging one firm, end to end, with the reasoning at each step.
+There are two ways a matter starts, and the difference is **what the client
+chose**. Both are the client choosing; neither is us choosing.
 
 ```
- 1. Client browses the directory        alphabetical, unpurchaseable ordering
+FIRM-FIRST                              ATTORNEY-FIRST
+client engages a practice               client picks a named attorney
+                                        and one of their published slots
+```
+
+Firm-first is the shape the model points at — the firm is the provider of legal
+services, so engaging the firm is the natural act. Attorney-first exists because a
+client who already knows which practitioner they want should not be forced through
+a firm they do not care about. `clientSelectedAttorneyId` records which happened,
+and never changes afterwards.
+
+Here is a firm-first matter end to end, with the reasoning at each step.
+
+```
+ 1. Client browses the firm directory   alphabetical, unpurchaseable ordering
         │                               (rules 3, 4)
         ▼
- 2. Client chooses an attorney          THEIR choice, recorded on Booking.lawyerId
-        │                               so we can always show it was theirs
+ 2. Client engages a firm               THEIR choice, recorded on Booking.firmId
+        │                               clientSelectedAttorneyId stays NULL —
+        │                               they left the practitioner to the firm
         ▼
  3. Client submits an intake request    status: REQUESTED
-        │                               Booking.firmId = that attorney's firm
-        │                               No fee. No commitment. No relationship yet.
+        │                               lawyerId NULL — it sits in the firm's queue
+        │                               No date. No fee. No relationship yet.
+        │                               Deliberately no slot picker: the firm has
+        │                               not yet decided whether it can act, and
+        │                               holding a diary slot before a conflict
+        │                               check is a marketplace habit.
         ▼
- 4. Firm may reassign internally        only FIRM_OWNER / FIRM_ADMIN
+ 4. Firm assigns an attorney            only FIRM_OWNER / FIRM_ADMIN
         │                               only within the same firm, never across
+        │                               the client is told who is acting
         ▼
  5. Attorney runs a conflict check      status: CONFLICT_CHECK
         │                               privileged, firm-internal
@@ -253,6 +298,9 @@ Here is one client engaging one firm, end to end, with the reasoning at each ste
  6. Attorney issues a quote             status: QUOTED
         │                               the firm's fee in full, the firm's own
         │                               bank details, scope and exclusions, expiry
+        │                               — AND a proposed appointment, because
+        │                               this matter still has no time. The slot
+        │                               is held while the quote is outstanding.
         ▼
  7. Client accepts                      status: ACCEPTED
         │                               engagement letter generated and snapshotted
@@ -270,10 +318,16 @@ Here is one client engaging one firm, end to end, with the reasoning at each ste
 
 ### Things worth noticing about that flow
 
-**No fee exists until step 6.** A client cannot "buy a consultation". They request
-one; the firm decides whether it can act and what it charges. This is why the
+**No fee exists until step 6, and on the firm-first path no appointment does
+either.** A client cannot "buy a consultation". They request one; the firm decides
+whether it can act, what it charges, and when it can see them. This is why the
 model is called `Booking` but the language everywhere says "request" and
 "engagement" — the model name is historical, the behaviour is not.
+
+**An unassigned matter is a real state.** `Booking.lawyerId` is null while a
+request sits in the firm's queue. Only the principal or practice manager can read
+it — that is what makes it triageable — and the conflict check and quote both
+refuse until someone is assigned.
 
 **Steps 5 and 6 cannot be done by a colleague.** Screening for conflicts is a
 professional duty of the attorney taking the matter. A conflict check signed by
@@ -342,6 +396,12 @@ Each of these is a normal, sensible product feature that is illegal here.
 
 | Tempting feature | Why it is prohibited |
 |---|---|
+| Charging a lawyer per enquiry, message, or matter | Pay-per-lead and fee-sharing (rules 1, 3) — even packaged as a subscription tier |
+| Any advert on the directory, a profile, or the engagement flow | Blurs a paid placement into a listing (rule 3) — true whoever bought it |
+| Selling ad space to a "legal consultancy" or claims manager | They sell legal services without a licence; we would be the channel (rule 3) |
+| Targeting an advert on what a client described in chat | Selling adverts against privileged material (rule 5 + PDPA) |
+| Auto-assigning a firm request to an attorney by workload | The platform choosing (rule 4). The *firm* may pick however it likes; we may not pick for it |
+| Letting a client book a slot before the firm accepts | Marketplace booking — it holds a diary slot before any conflict check, and implies a consultation was purchased |
 | "Top rated lawyers" / star ratings | Unfair attraction under Rule 39. Also makes ordering non-neutral (rule 4) |
 | "Recommended for you" / "best match" | Indirect solicitation — the system is choosing (rule 4) |
 | "Featured firm" / promoted placement | Selling visibility to an attorney (rule 3) — and potentially criminal under the 1894 Ordinance |
@@ -387,13 +447,149 @@ in `PROJECT-PLAN.md` at the repository root.
 
 ---
 
+## Part 7 — How the two enforcement subsystems actually work
+
+Parts 1–6 explain the rules. This part explains the machinery, because two of the
+seven rules cannot be enforced by schema shape alone and needed real systems
+built for them.
+
+### The pattern, in one paragraph
+
+Every hard rule in this codebase is enforced in exactly one of three ways, and
+you should know which before you change anything:
+
+| How | Example | What breaks it |
+|---|---|---|
+| **Structurally** — the schema gives it nowhere to exist | `AdCampaign` has no lawyer relation, so a lawyer cannot buy an advert. `FeeNote` has no commission column | A migration, which is a conversation |
+| **By one policy file** — a single function decides, and routes call it | `firms/access.ts` (who reads a matter), `ads/eligibility.ts` (who advertises), `ai/policy.ts` (what the AI may say), `firms/billing.ts` (what a firm is licensed for) | Re-implementing the rule inline in a route |
+| **By a runnable check** — an assertion, not a promise | `check:privilege`, `check:ai`, `check:billing` | Nothing, if you run them |
+
+The rule of thumb: **prefer structural, fall back to a policy file, and always
+add a check.** A green `npm run build` has never once proved any of these rules
+hold.
+
+### The AI (rule 6) — refuse, generate, evaluate, then publish
+
+The AI is the only surface where a violation is produced *at runtime, per answer,
+by a generative model*. Schema cannot stop it and neither can a prompt, because a
+model that ignores an instruction fails silently.
+
+So generation is a **four-step pipeline in one route**,
+[`/api/ai/ask`](../../src/app/api/ai/ask/route.ts), and the order is the
+compliance measure:
+
+```
+1. classifyRequest(question)      ── refuse BEFORE the model is called
+       │                             "what should I do about my landlord"
+       │                             Their account of their problem is never
+       │                             transmitted at all. That is the
+       ▼                             confidentiality dividend of checking the
+2. askRag(context)                   request and not only the answer.
+       │                          ── generate, server side
+       ▼                             The browser has no model URL any more.
+3. evaluateAnswer({...})          ── withhold AFTER generation
+       │                             advice · practitioner steering ·
+       │                             invented citations · nothing cited
+       ▼
+4. persist + return               ── only now does anyone see a character
+```
+
+Three things about this that are easy to get wrong later:
+
+**Nothing streams, deliberately.** Streaming and step 3 are mutually exclusive —
+a streamed answer has been read by the time it can be checked. The typing effect
+is worth less than the check.
+
+**Answers are withheld whole, never edited.** Rewriting a model's legal prose to
+make it compliant means we are authoring legal content by hand, which is the
+thing rule 6 exists to stop.
+
+**Citations cannot be faked, but prose can.** The citation list comes from
+retrieval metadata, so the model cannot invent an entry in it. What it *can*
+invent is a mention in the sentence — which is why `findUnsupportedProseCitations`
+cross-checks every Act named in the prose against what retrieval actually
+returned. This is not theoretical: live testing caught the model citing an
+"Employment (Amendment) Ordinance No. 14 of 2017" that is not in the corpus, with
+six unrelated Companies Act sources attached. **Having sources is not the same as
+being sourced.**
+
+A citation is shown as a link only where it resolves to a `LegalDocument` the
+reader can open. Where it does not, it is shown as text marked *"Not yet in the
+library"* — never as a link to nowhere, because a citation nobody can open
+manufactures authority.
+
+### The money (rules 1, 2, 7) — two different invoices
+
+The single most common confusion in this codebase, so learn the pair:
+
+| Model | Who bills whom | For what | Do we touch the money? |
+|---|---|---|---|
+| `Invoice` | **us → firm** | the software licence | yes, it is our revenue |
+| `FeeNote` | **firm → its client** | legal work | **never** |
+
+`FeeNote` is a document we render. The firm bills under its own TIN and VAT
+number, into its own bank account, and we are not in the transaction at any
+point. There is no platform-fee column and no commission column on the model —
+not a nullable one, not one defaulting to zero, because *a column that exists is
+a column a future product decision can populate.* The absence is the guardrail.
+
+Two behaviours that look like bugs and are not:
+
+- **"Record as paid" does not verify anything.** The firm asserts the money
+  arrived; there is no admin approval step. We did not see the payment and
+  cannot honestly attest to it — the same reasoning as booking payments since
+  Phase 1.
+- **A cancelled fee note keeps its number.** Sri Lankan tax practice expects an
+  unbroken series, and a gap created by our convenience is a question the firm
+  has to answer to a tax officer.
+
+The rendered note is **snapshotted at issue**, like the engagement letter. A fee
+note is a tax document: if the firm renames itself tomorrow, an issued note must
+still say what it said today.
+
+### Seats — the only thing we are allowed to meter
+
+The licence belongs to the `LawFirm`. A **seat is a person who can sign in** — an
+`ACTIVE` `FirmMember`, attorney or not.
+
+> **The test, every time you are asked to meter something: does the number count
+> software, or clients?**
+>
+> Seats, storage and templates are software. Enquiries, messages, matters,
+> introductions and conversations are clients — and metering a client is
+> fee-sharing under a different name, whichever way the invoice points.
+
+A seat limit refuses a **person**, never a matter. A firm on one seat may run a
+thousand matters; it just does so with one login.
+
+This is the rule that has been broken twice, both times by accident, both times
+by someone building a perfectly ordinary SaaS feature:
+
+- Phase 2.5 — subscription tiers sold `inquiries_per_month` and
+  `chat_messages_per_month`, advertised on the public pricing page
+- Phase 3 — an attorney without a plan saw only their five oldest client
+  conversations, the rest reading *"Locked Conversation — Please upgrade to view
+  this conversation"*
+
+The second is the more instructive. Nobody set out to sell leads; someone
+implemented a freemium limit on a chat list. It withheld a client's own message
+from their own lawyer over an unpaid software bill. **If you find yourself gating
+something that a client did, stop.**
+
+---
+
 ## Quick reference
 
 | I want to… | Read / run |
 |---|---|
+| Know whether something may be metered in pricing | Does the number count software, or clients? Clients are never permitted |
 | Understand a rule | [LEGAL-GUARDRAILS.md](./LEGAL-GUARDRAILS.md) |
 | Know what is done and what is next | [PROGRESS.md](./PROGRESS.md) |
 | Change who can read matter data | `src/lib/firms/access.ts`, then `npm run check:privilege` |
 | Change the database | [database-migrations.md](../database-migrations.md) — migrations only, never `db push` |
 | Add a field to a public profile | Check it against the Rule 40 content limit first |
 | Know what counsel still has to answer | [QUESTIONS-FOR-COUNSEL.md](./QUESTIONS-FOR-COUNSEL.md) |
+| Change what the AI may say | `src/lib/ai/policy.ts`, then `npm run check:ai` |
+| Change what a firm is licensed for | `src/lib/firms/billing.ts`, then `npm run check:billing` |
+| Change a fee note | `src/lib/consultations/feeNote.ts` — and never add a fee of ours to it |
+| Understand how any of that is enforced | [Part 7](#part-7--how-the-two-enforcement-subsystems-actually-work) |

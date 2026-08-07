@@ -25,7 +25,12 @@ the AI chatbot, read in this order:**
 3. `docs/restructure/PROGRESS.md` — **live status: what is done, what is next**
 4. `docs/restructure/ROADMAP.md` — the phase plan
 5. `docs/restructure/QUESTIONS-FOR-COUNSEL.md` — open legal questions
-6. `docs/restructure/PHASE-2-BRIEF.md` — Phase 2 (complete)
+6. `docs/restructure/DATA-INVENTORY.md` — what personal data we hold, whose it is,
+   and whether we are its controller or the firm's processor
+7. `docs/restructure/COUNSEL-MEETING-BRIEF.md` — the five questions to put to an
+   attorney, in plain language
+
+Phases 0–6 are complete. Phase 7 (growth) is next.
 
 ### The seven hard rules (full detail in LEGAL-GUARDRAILS.md)
 
@@ -57,5 +62,17 @@ bound by that limit — no fee ranges, no ratings, no promotional copy.
 - Run `npm run build` after every change set and fix all errors
 - Run `npm run check:privilege` after touching `src/lib/firms/access.ts` — a green
   build does not prove a paralegal cannot read a client's legal problem
+- Run `npm run check:ai` after touching `src/lib/ai/policy.ts` — a green build does
+  not prove the assistant refuses to advise on someone's own case. **Every AI answer
+  is generated server-side through `/api/ai/ask` and passes that policy file. The
+  browser must never call a model service directly**
+- Run `npm run check:billing` after touching `src/lib/consultations/feeNote.ts` or
+  `src/lib/firms/billing.ts` — a green build does not prove a fee note is free of a
+  platform fee. **The licence belongs to the `LawFirm`; a seat is a person who can
+  sign in. Never meter clients, matters, enquiries, messages or conversations**
+- Run `npm run check:pdpa` after touching `src/lib/privacy/` — a green build does not
+  prove that an "erasure" erases anything. **We are controller for our own data and
+  processor for the firm's matter data at once: never delete, export, or seek consent
+  for anything under `Booking`. And never add a content column to `DataAccessLog`**
 - **Never break a working flow to make a legal fix** — replace before removing
 - Update `docs/restructure/PROGRESS.md` at the end of every session

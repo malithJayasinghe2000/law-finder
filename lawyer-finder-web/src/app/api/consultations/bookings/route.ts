@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { CreateBookingSchema, BookingFilterSchema } from '@/schemas/consultation.schema';
-import { formatSriLankaDateIso, parseDateOnlyToUtc } from '@/lib/utils';
+import { formatSriLankaDateIso, formatSriLankaDateIsoOrNull, parseDateOnlyToUtc } from '@/lib/utils';
 import { EmailService } from '@/lib/email/EmailService';
 import { SLOT_BLOCKING_STATUSES } from '@/lib/consultations/bookingStatus';
 import { expireStaleQuotes } from '@/lib/consultations/expireQuotes';
@@ -109,7 +109,7 @@ export async function GET(req: Request) {
           canAssign: access.canAssign,
           basis: access.basis,
         },
-        date: formatSriLankaDateIso(b.date),
+        date: formatSriLankaDateIsoOrNull(b.date),
         createdAt: b.createdAt.toISOString(),
         updatedAt: b.updatedAt.toISOString(),
         paidAt: b.paidAt?.toISOString() || null,
@@ -153,88 +153,151 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: validated.error.format() }, { status: 400 });
     }
 
-    const { lawyerId, date, startTime, endTime, mode, subject, description, practiceArea } = validated.data;
-    const targetDate = parseDateOnlyToUtc(date);
-    const now = new Date();
+    const { lawyerId, firmId: requestedFirmId, date, startTime, endTime, mode, subject, description, practiceArea } = validated.data;
 
-    const lawyer = await prisma.lawyerProfile.findUnique({
-      where: { id: lawyerId },
-      include: { user: { select: { email: true } } },
-    });
+    // Two lawful ways in. Both are the CLIENT choosing; neither is us choosing.
+    //   attorney-first — they named a practitioner and picked one of their slots
+    //   firm-first     — they engaged a firm and left the practitioner to it
+    // See docs/restructure/LEGAL-GUARDRAILS.md (rules 4 and 7).
+    const isFirmFirst = !lawyerId;
+
+    const targetDate = date ? parseDateOnlyToUtc(date) : null;
+
+    const lawyer = lawyerId
+      ? await prisma.lawyerProfile.findUnique({
+          where: { id: lawyerId },
+          include: { user: { select: { email: true } } },
+        })
+      : null;
 
     // A consultation request no longer depends on the lawyer having configured a
     // price. Previously this 404'd when consultationPricing was missing, which
     // blocked requests entirely in a flow that is not supposed to have prices.
-    if (!lawyer || !lawyer.user) {
+    if (lawyerId && (!lawyer || !lawyer.user)) {
       return NextResponse.json({ error: 'Lawyer not found' }, { status: 404 });
     }
 
     // Cannot book yourself
-    if (lawyer.userId === session.userId) {
+    if (lawyer && lawyer.userId === session.userId) {
       return NextResponse.json({ error: 'Cannot book a consultation with yourself' }, { status: 400 });
+    }
+
+    // Resolve the firm that will actually be engaged.
+    //
+    // Attorney-first: the firm the chosen attorney practises in. Firm-first: the
+    // firm the client named. Either way the FIRM is the provider of legal
+    // services, not the individual and certainly not us.
+    let firmId: string | null;
+    let firm: { id: string; name: string; contactEmail: string | null; verificationStatus: string } | null = null;
+
+    if (isFirmFirst) {
+      firm = await prisma.lawFirm.findUnique({
+        where: { id: requestedFirmId! },
+        select: { id: true, name: true, contactEmail: true, verificationStatus: true, isActive: true },
+      });
+
+      if (!firm || !(firm as any).isActive) {
+        return NextResponse.json({ error: 'Firm not found' }, { status: 404 });
+      }
+
+      // Only a verified practice can receive an engagement request. An
+      // unverified firm is one we have not confirmed exists.
+      if (firm.verificationStatus !== 'VERIFIED') {
+        return NextResponse.json(
+          { error: 'This firm is not currently accepting requests through the platform.' },
+          { status: 400 }
+        );
+      }
+
+      // A member of the firm cannot instruct their own firm.
+      const ownMembership = await prisma.firmMember.findUnique({
+        where: { firmId_userId: { firmId: firm.id, userId: session.userId } },
+        select: { id: true },
+      });
+      if (ownMembership) {
+        return NextResponse.json(
+          { error: 'You cannot send an engagement request to your own firm.' },
+          { status: 400 }
+        );
+      }
+
+      firmId = firm.id;
+    } else {
+      firmId = await ensureAttorneyHasFirm(prisma, lawyerId!);
+    }
+
+    if (!firmId) {
+      return NextResponse.json(
+        { error: 'That attorney is not currently attached to a firm, so cannot be engaged.' },
+        { status: 400 }
+      );
     }
 
     // No fee is set at request time and the platform never derives one.
     // The lawyer quotes their fee when they accept the request, and the client
     // pays that exact amount directly to the lawyer.
     // See docs/restructure/LEGAL-GUARDRAILS.md (rules 1 and 2).
-    const duration = calculateDuration(startTime, endTime);
-
-    // The request is addressed to the FIRM the chosen attorney practises in —
-    // the firm is the provider of legal services, not the individual and
-    // certainly not us. `lawyerId` still records the attorney the client chose,
-    // which is the evidence that the choice was theirs and never ours.
-    // See docs/restructure/LEGAL-GUARDRAILS.md (rules 4 and 7).
-    const firmId = await ensureAttorneyHasFirm(prisma, lawyerId);
+    const duration = startTime && endTime ? calculateDuration(startTime, endTime) : null;
 
     // Race-condition-safe booking creation using serializable transaction
     const booking = await prisma.$transaction(async (tx) => {
-      // Check for conflicting bookings (atomic check)
-      const conflicts = await tx.booking.findMany({
-        where: {
-          lawyerId,
-          date: targetDate,
-          status: { in: SLOT_BLOCKING_STATUSES },
-          OR: [
-            { startTime: { lt: endTime }, endTime: { gt: startTime } },
-          ],
-        },
-      });
+      // Slot checks only apply to the attorney-first path. A firm-first request
+      // has no appointment yet — there is no calendar to clash with until the
+      // firm has assigned someone and proposed a time.
+      if (!isFirmFirst) {
+        // Inside this branch the schema has already guaranteed a full slot —
+        // CreateBookingSchema refuses an attorney without a date and time.
+        const slotDate = targetDate!;
+        const slotStart = startTime!;
+        const slotEnd = endTime!;
 
-      // SLOT_BLOCKING_STATUSES already excludes released slots, so any hit is a
-      // genuine conflict. The old 24h grace period for unpaid bookings is gone —
-      // an unanswered quote now expires explicitly into QUOTE_EXPIRED.
-      if (conflicts.length > 0) {
-        throw new Error('SLOT_TAKEN');
+        // Check for conflicting bookings (atomic check)
+        const conflicts = await tx.booking.findMany({
+          where: {
+            lawyerId,
+            date: slotDate,
+            status: { in: SLOT_BLOCKING_STATUSES },
+            OR: [
+              { startTime: { lt: slotEnd }, endTime: { gt: slotStart } },
+            ],
+          },
+        });
+
+        // SLOT_BLOCKING_STATUSES already excludes released slots, so any hit is a
+        // genuine conflict. The old 24h grace period for unpaid bookings is gone —
+        // an unanswered quote now expires explicitly into QUOTE_EXPIRED.
+        if (conflicts.length > 0) {
+          throw new Error('SLOT_TAKEN');
+        }
+
+        // Check for conflicting holds by OTHER clients
+        const conflictingHold = await tx.slotHold.findFirst({
+          where: {
+            lawyerId,
+            date: slotDate,
+            expiresAt: { gt: new Date() },
+            clientId: { not: session.userId },
+            OR: [
+              { startTime: { lt: slotEnd }, endTime: { gt: slotStart } },
+            ],
+          },
+        });
+
+        if (conflictingHold) {
+          throw new Error('SLOT_HELD');
+        }
+
+        // Clean up the client's own hold if it exists
+        await tx.slotHold.deleteMany({
+          where: {
+            lawyerId,
+            date: slotDate,
+            clientId: session.userId,
+            startTime: slotStart,
+            endTime: slotEnd,
+          },
+        });
       }
-
-      // Check for conflicting holds by OTHER clients
-      const conflictingHold = await tx.slotHold.findFirst({
-        where: {
-          lawyerId,
-          date: targetDate,
-          expiresAt: { gt: new Date() },
-          clientId: { not: session.userId },
-          OR: [
-            { startTime: { lt: endTime }, endTime: { gt: startTime } },
-          ],
-        },
-      });
-
-      if (conflictingHold) {
-        throw new Error('SLOT_HELD');
-      }
-
-      // Clean up the client's own hold if it exists
-      await tx.slotHold.deleteMany({
-        where: {
-          lawyerId,
-          date: targetDate,
-          clientId: session.userId,
-          startTime,
-          endTime,
-        },
-      });
 
       // Generate booking number, scoped to the current year.
       // Previously this used count() + 1 across all bookings, which collided
@@ -255,19 +318,28 @@ export async function POST(req: Request) {
         : 0;
       const bookingNumber = `${prefix}${String(lastSequence + 1).padStart(4, '0')}`;
 
-      // Create booking
+      // Create the engagement request.
+      //
+      // `clientSelectedAttorneyId` is set only where the CLIENT named the
+      // practitioner. It is never written later, so it stays true even after the
+      // firm reassigns the matter — which is the evidence that the choice of
+      // practitioner was theirs and never ours (rule 4).
       return tx.booking.create({
         data: {
           bookingNumber,
           clientId: session.userId,
-          lawyerId,
+          lawyerId: lawyerId ?? null,
+          clientSelectedAttorneyId: lawyerId ?? null,
           firmId,
           date: targetDate,
-          startTime,
-          endTime,
+          startTime: startTime ?? null,
+          endTime: endTime ?? null,
           duration,
           mode: mode as any,
-          officeAddress: mode === 'PHYSICAL' ? (lawyer.address || lawyer.district || 'Contact lawyer for address') : null,
+          officeAddress:
+            mode === 'PHYSICAL' && lawyer
+              ? lawyer.address || lawyer.district || 'Contact lawyer for address'
+              : null,
           lawyerFee: 0,
           totalAmount: 0,
           subject,
@@ -283,23 +355,29 @@ export async function POST(req: Request) {
     // Send emails asynchronously
     const client = await prisma.user.findUnique({ where: { id: session.userId } });
     if (client && client.email) {
-      const formattedDate = formatSriLankaDateIso(booking.date);
       const clientName = client.fullName || 'Client';
-      
-      EmailService.sendBookingCreatedClient(client.email, clientName, lawyer.fullName, formattedDate, startTime, booking.bookingNumber);
-      
-      if (lawyer.user?.email) {
-        EmailService.sendBookingCreatedLawyer(lawyer.user.email, lawyer.fullName, clientName, formattedDate, startTime);
+      // A firm-first request has no appointment yet, so there is no date to
+      // confirm — only that the request reached the firm.
+      const formattedDate = booking.date ? formatSriLankaDateIso(booking.date) : 'To be arranged';
+      const slotTime = booking.startTime ?? '—';
+      const recipientName = lawyer?.fullName ?? firm?.name ?? 'the firm';
+
+      EmailService.sendBookingCreatedClient(client.email, clientName, recipientName, formattedDate, slotTime, booking.bookingNumber);
+
+      if (lawyer?.user?.email) {
+        EmailService.sendBookingCreatedLawyer(lawyer.user.email, lawyer.fullName, clientName, formattedDate, slotTime);
+      } else if (firm?.contactEmail) {
+        EmailService.sendBookingCreatedLawyer(firm.contactEmail, firm.name, clientName, formattedDate, slotTime);
       }
-      
-      EmailService.sendBookingCreatedAdmin(clientName, lawyer.fullName, formattedDate, startTime, booking.bookingNumber);
+
+      EmailService.sendBookingCreatedAdmin(clientName, recipientName, formattedDate, slotTime, booking.bookingNumber);
     }
 
     return NextResponse.json({
       success: true,
       booking: {
         ...booking,
-        date: formatSriLankaDateIso(booking.date),
+        date: booking.date ? formatSriLankaDateIso(booking.date) : null,
         createdAt: booking.createdAt.toISOString(),
       },
     }, { status: 201 });
