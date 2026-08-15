@@ -1279,7 +1279,22 @@ proves none of them:
 did not catch a break, and only because the seed was fixed as part of the `Inquiry`
 removal rather than afterwards.
 
-**Also removed:** `/api/chat/route.ts`, a stub returning `{status:'ok'}` with no callers.
+**Also removed:** `/api/chat/route.ts`, a stub returning `{status:'ok'}` with no callers,
+and `dashboard/lawyer/payments/submit-payment`, whose own first line read *"This directory
+is intentionally empty — not used"*.
+
+**The sidebar led almost nowhere, and that was fixed too.** Four of its twelve links were
+**404s** — `lawyer/profile`, `lawyer/articles`, `admin/lawyers`, `admin/subscription-conf`
+— and a fifth pointed at `lawyer/inquiries`, a page that never existed. Meanwhile it did
+not link to an attorney's **matters**, **messages** or **invoices**, the three screens they
+use daily. So the primary navigation mostly led nowhere while the real product was
+reachable only by typing a URL. All 18 links now resolve, and every one was opened.
+
+**A full read of the codebase produced [SYSTEM-REVIEW.md](./SYSTEM-REVIEW.md)** — what to
+remove, restructure and add, with the reasoning. Headline: the legal work is in good
+shape; what is weak now is ordinary software. There is a large permissions subsystem that
+is almost entirely unenforced (and is where two guardrail violations have hidden), several
+things exist twice, and the finished DSAR engine has no interface at all.
 
 **A note for the next session on a thing that wasted time.** The first `tsc` run after
 deleting a route failed on `.next/types/validator.ts` referencing the deleted file. That

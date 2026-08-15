@@ -29,6 +29,8 @@ the AI chatbot, read in this order:**
    and whether we are its controller or the firm's processor
 7. `docs/restructure/COUNSEL-MEETING-BRIEF.md` — the five questions to put to an
    attorney, in plain language
+8. `docs/restructure/SYSTEM-REVIEW.md` — a whole-codebase review: what to remove,
+   restructure and add, and what is good and must not be "cleaned up"
 
 Phases 0–7 are complete. Phase 8 (growth) is next.
 
