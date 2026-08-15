@@ -127,13 +127,17 @@ export const RETENTION_SCHEDULE: RetentionRule[] = [
       'that delivers that, counted from last use rather than creation.',
   },
   {
-    model: 'inquiry',
-    days: 365,
-    timestampField: 'createdAt',
+    model: 'lawyerApplication',
+    days: 730,
+    timestampField: 'updatedAt',
     controller: 'PLATFORM',
     reason:
-      'An enquiry that never became a matter is a description of a legal problem ' +
-      'with no retainer behind it and no reason to outlive the year it was sent.',
+      'An application holds an NIC number and images of identity and practising ' +
+      'certificates. Two years after a decision is long enough to answer a challenge ' +
+      'to how we handled it and short enough that a rejected applicant is not on file ' +
+      'indefinitely. An APPROVED application is reduced to a stub at approval — the ' +
+      'data it held now lives on the attorney profile, and two copies of a national ' +
+      'identity number is one too many.',
   },
   {
     model: 'slotHold',
@@ -360,10 +364,12 @@ export const ERASURE_PLAN: ErasureStep[] = [
     explanation: 'Your conversations with the legal assistant are deleted outright.',
   },
   {
-    model: 'inquiry',
+    model: 'lawyerApplication',
     action: 'DELETE',
     controller: 'PLATFORM',
-    explanation: 'Enquiries you sent to attorneys that never became a matter are deleted.',
+    explanation:
+      'If you applied to be listed as an Attorney-at-Law, that application and the ' +
+      'identity documents attached to it are deleted.',
   },
   {
     model: 'consentRecord',

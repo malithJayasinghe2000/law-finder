@@ -3,8 +3,9 @@ import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { RecordConflictCheckSchema } from '@/schemas/consultation.schema';
 import { canTransition } from '@/lib/consultations/bookingStatus';
-import { getMatterAccess } from '@/lib/firms/access';
+import { getMatterAccess, discloseField, discloseFieldList } from '@/lib/firms/access';
 import { recordAccess, actorRoleFor } from '@/lib/privacy/audit';
+import { encryptField, encryptFieldList } from '@/lib/privacy/encryption';
 
 /**
  * Conflict-of-interest screening.
@@ -90,7 +91,28 @@ export async function GET(
       });
     }
 
-    return NextResponse.json({ conflictCheck });
+    // `notes` and `screenedParties` are stored encrypted, bound to this
+    // booking id. Only this reader — who has just been proved to be the acting
+    // attorney or the principal — gets them back as words.
+    return NextResponse.json({
+      conflictCheck: conflictCheck && {
+        ...conflictCheck,
+        notes: discloseField({
+          access,
+          model: 'ConflictCheck',
+          recordId: booking.id,
+          field: 'notes',
+          stored: conflictCheck.notes,
+        }),
+        screenedParties: discloseFieldList({
+          access,
+          model: 'ConflictCheck',
+          recordId: booking.id,
+          field: 'screenedParties',
+          stored: conflictCheck.screenedParties,
+        }),
+      },
+    });
   } catch {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
@@ -155,6 +177,22 @@ export async function POST(
 
     const { outcome, screenedParties, notes } = validated.data;
 
+    // Encrypted at rest, bound to the booking id.
+    //
+    // `ConflictCheck` is keyed 1:1 on `bookingId`, so the binding value is
+    // already known here and no id has to be generated for the upsert. The
+    // outcome itself stays in the clear — the firm needs to query on it, and
+    // "this firm declined a matter" is not the confidential part. The names
+    // screened are, because they belong to OTHER clients.
+    const encryptedNotes = encryptField(
+      { model: 'ConflictCheck', recordId: id, field: 'notes' },
+      notes
+    );
+    const encryptedParties = encryptFieldList(
+      { model: 'ConflictCheck', recordId: id, field: 'screenedParties' },
+      screenedParties
+    );
+
     // A conflict found (or unresolved) means the firm cannot act.
     const nextStatus = outcome === 'CLEAR' ? 'CONFLICT_CHECK' : 'DECLINED';
 
@@ -168,8 +206,19 @@ export async function POST(
     const [conflictCheck] = await prisma.$transaction([
       prisma.conflictCheck.upsert({
         where: { bookingId: id },
-        update: { outcome, screenedParties, notes, checkedById: session.userId },
-        create: { bookingId: id, outcome, screenedParties, notes, checkedById: session.userId },
+        update: {
+          outcome,
+          screenedParties: encryptedParties,
+          notes: encryptedNotes,
+          checkedById: session.userId,
+        },
+        create: {
+          bookingId: id,
+          outcome,
+          screenedParties: encryptedParties,
+          notes: encryptedNotes,
+          checkedById: session.userId,
+        },
       }),
       prisma.booking.update({
         where: { id },
@@ -187,7 +236,14 @@ export async function POST(
       }),
     ]);
 
-    return NextResponse.json({ success: true, conflictCheck }, { status: 201 });
+    // Echo back what the attorney just typed, not the ciphertext of it.
+    return NextResponse.json(
+      {
+        success: true,
+        conflictCheck: { ...conflictCheck, screenedParties, notes },
+      },
+      { status: 201 }
+    );
   } catch (error) {
     console.error('Conflict check error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

@@ -42,7 +42,6 @@ interface SubscriptionPlan {
 // Map permission categories to icons
 const categoryIcons: Record<string, React.ElementType> = {
   articles: FileText,
-  inquiries: Users,
   chat: MessageSquare,
   profile: Settings,
   promotion: Megaphone,
@@ -55,9 +54,6 @@ const permissionIcons: Record<string, React.ElementType> = {
   edit_article: FileText,
   delete_article: Trash2,
   publish_article: BookOpen,
-  receive_inquiries: Users,
-  post_inquiry: Send,
-  manage_inquiries: Eye,
   access_chat: MessageSquare,
   send_message: Send,
   edit_profile: Settings,

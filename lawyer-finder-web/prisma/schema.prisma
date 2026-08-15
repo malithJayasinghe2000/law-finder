@@ -17,11 +17,6 @@ enum AuthProvider {
   GOOGLE
 }
 
-enum InquiryStatus {
-  PENDING
-  CONTACTED
-}
-
 enum ApplicationStatus {
   DRAFT
   SUBMITTED
@@ -220,6 +215,9 @@ model User {
   application        LawyerApplication?
   conversations      ConversationParticipant[]
   messages           Message[]
+  /// Threads where this user is the client. Distinct from `conversations`,
+  /// which is participation of any kind.
+  clientConversations Conversation[] @relation("ClientConversations")
 
   /// Firms this user belongs to. A user is normally a member of exactly one
   /// firm, but the schema does not forbid more (an attorney may be a consultant
@@ -312,7 +310,6 @@ model LawyerProfile {
   firmId String?
   firm   LawFirm? @relation(fields: [firmId], references: [id], onDelete: SetNull)
 
-  inquiries Inquiry[]
   articles  Article[]
 
   // Consultation & Booking relations
@@ -443,6 +440,16 @@ model LawFirm {
   verifiedById       String?
   verificationNotes  String?
 
+  /// True once a principal has actually registered this practice through the
+  /// firm-registration flow, as opposed to it being the firm of one created
+  /// automatically when their individual application was approved.
+  ///
+  /// The distinction matters for verification: an auto-created firm inherits the
+  /// standing of its only member, and a registered practice must be checked in
+  /// its own right before it appears in the public directory.
+  isRegisteredPractice Boolean   @default(false)
+  registeredAt         DateTime?
+
   /// Soft delete. Firms are never hard-deleted — matters reference them.
   isActive Boolean @default(true)
 
@@ -456,6 +463,8 @@ model LawFirm {
   subscriptions Subscription[]
   invoices      Invoice[]
   feeNotes      FeeNote[]
+  conversations Conversation[]
+  invitations   FirmInvitation[]
 
   @@index([verificationStatus])
   @@index([district])
@@ -507,6 +516,69 @@ model FirmMember {
   @@unique([firmId, userId])
   @@index([firmId, status])
   @@index([userId, status])
+}
+
+enum FirmInvitationStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  REVOKED
+  EXPIRED
+}
+
+/// An invitation to join a firm.
+///
+/// ───────────────────────────────────────────────────────────────────────────
+/// WHY THIS MODEL EXISTS (Phase 7).
+///
+/// Before it, "adding a member" required the person to ALREADY have a platform
+/// account, and adding them was instant and unilateral — the principal typed an
+/// email address and that person was in the firm, able to see that its matters
+/// exist, without ever being asked.
+///
+/// So a real multi-partner firm had no way to join. The only route was: one
+/// partner registers as an individual attorney, a firm of one is silently
+/// created and named after them, they rename it, and then they add partners one
+/// at a time — each of whom must have registered separately first. Nobody would
+/// guess that, and the last step put people inside a privilege boundary without
+/// their consent.
+///
+/// An invitation fixes both halves: someone who has not registered can be
+/// invited and will find the firm waiting when they do, and joining a practice
+/// becomes something a person AGREES to rather than something done to them.
+/// ───────────────────────────────────────────────────────────────────────────
+model FirmInvitation {
+  id     String  @id @default(uuid())
+  firmId String
+  firm   LawFirm @relation(fields: [firmId], references: [id], onDelete: Cascade)
+
+  /// Lower-cased. The invitee may not have an account yet, which is the point.
+  email String
+  role  FirmRole
+  title String?
+
+  /// Single-use secret in the invitation link. Unique so a lookup by token is
+  /// an index hit and cannot be brute-forced by enumeration.
+  token String @unique
+
+  status FirmInvitationStatus @default(PENDING)
+
+  invitedById String
+  /// A stale invitation is a standing offer of access to privileged material,
+  /// so it expires whether or not anyone remembers to revoke it.
+  expiresAt   DateTime
+  respondedAt DateTime?
+  /// Set on acceptance. Null while the invitee has no account yet.
+  acceptedByUserId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// One outstanding invitation per email per firm. Re-inviting updates the
+  /// existing row rather than leaving several live tokens for one person.
+  @@unique([firmId, email])
+  @@index([email, status])
+  @@index([status, expiresAt])
 }
 
 model SubscriptionPlan {
@@ -742,17 +814,22 @@ model SubscriptionDetails {
   details        String
 }
 
-model Inquiry {
-  id          String        @id @default(uuid())
-  lawyerId    String
-  lawyer      LawyerProfile @relation(fields: [lawyerId], references: [id], onDelete: Cascade)
-  clientName  String
-  clientPhone String
-  clientEmail String
-  message     String
-  status      InquiryStatus @default(PENDING)
-  createdAt   DateTime      @default(now())
-}
+// The `Inquiry` model was removed in Phase 7.
+//
+// It was an UNAUTHENTICATED intake: `POST /api/inquiries` accepted a person's
+// name, phone number, email and a free-text description of their legal problem,
+// addressed to a named attorney, with no sign-in, no rate limit, no firm
+// scoping, no privilege gate and no retention. It sat outside every access
+// control in the system and predated firm-first intake, which is its proper
+// replacement — that path runs the conflict check, the quote and the engagement
+// letter, and puts the material behind src/lib/firms/access.ts.
+//
+// Two intakes doing the same job is the duplicate-state-machine problem this
+// restructure has fixed twice already. The rows were deleted rather than
+// migrated: an enquiry created no retainer and no obligation, so there was no
+// lawful basis to keep holding a stranger's account of their legal problem.
+//
+// See docs/restructure/DATA-INVENTORY.md §7 finding A.
 
 model Article {
   id        String        @id @default(uuid())
@@ -1134,12 +1211,49 @@ model FeatureUsage {
 
 // ============= Chat System =============
 
+/// A message thread between a client and a firm.
+///
+/// ───────────────────────────────────────────────────────────────────────────
+/// This is privileged material (Evidence Ordinance s.126) and until Phase 7 it
+/// was the one place holding privileged material that never passed through
+/// `src/lib/firms/access.ts`. It had no firm, no matter, and no rule beyond
+/// "are you a row in ConversationParticipant" — which meant an attorney who
+/// left a practice kept reading its clients' messages forever, and nothing in
+/// the schema said platform staff must not.
+///
+/// `firmId` and `clientId` exist so the rule can be expressed at all. Access is
+/// decided by `resolveConversationAccess()`, asserted by `npm run check:privilege`.
+/// See docs/restructure/DATA-INVENTORY.md §7 finding B.
+/// ───────────────────────────────────────────────────────────────────────────
 model Conversation {
-  id           String                    @id @default(uuid())
+  id String @id @default(uuid())
+
+  /// The firm on the other side of the thread. The client talks to a practice,
+  /// not to an individual who might leave it. NULL only for threads created
+  /// before Phase 7 whose attorney had no firm at backfill time — those fall
+  /// back to participants-only access and can never be widened.
+  firmId String?
+  firm   LawFirm? @relation(fields: [firmId], references: [id], onDelete: SetNull)
+
+  /// The client in the thread, denormalised so access does not depend on
+  /// scanning participants and guessing which one is the client by role.
+  clientId String?
+  client   User?   @relation("ClientConversations", fields: [clientId], references: [id], onDelete: SetNull)
+
+  /// The matter this thread concerns, where it concerns one. Optional because a
+  /// client may message a firm before any matter exists — which is exactly the
+  /// moment the material is most sensitive and least protected.
+  bookingId String?
+  booking   Booking? @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+
   participants ConversationParticipant[]
   messages     Message[]
   createdAt    DateTime                  @default(now())
   updatedAt    DateTime                  @updatedAt
+
+  @@index([firmId, updatedAt])
+  @@index([clientId, updatedAt])
+  @@index([bookingId])
 }
 
 model ConversationParticipant {
@@ -1160,8 +1274,13 @@ model Message {
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   senderId       String
   sender         User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  /// Encrypted at rest, bound to this message id. Never read directly — go
+  /// through `discloseMessage()` in src/lib/firms/access.ts, which will not
+  /// hand back ciphertext to a reader who may not have the words.
   content        String
   createdAt      DateTime     @default(now())
+
+  @@index([conversationId, createdAt])
 }
 
 // ============= Community & Knowledge Hub =============
@@ -1588,6 +1707,7 @@ model Booking {
   quotes           Quote[]
   engagementLetter EngagementLetter?
   feeNotes         FeeNote[]
+  conversations    Conversation[]
   /// Set when the client accepts a quote — the moment terms are agreed
   termsAcceptedAt  DateTime?
 

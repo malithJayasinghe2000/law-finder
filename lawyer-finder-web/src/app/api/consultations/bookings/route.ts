@@ -6,7 +6,9 @@ import { formatSriLankaDateIso, formatSriLankaDateIsoOrNull, parseDateOnlyToUtc 
 import { EmailService } from '@/lib/email/EmailService';
 import { SLOT_BLOCKING_STATUSES } from '@/lib/consultations/bookingStatus';
 import { expireStaleQuotes } from '@/lib/consultations/expireQuotes';
-import { getFirmMembership, resolveMatterAccess, redactMatter } from '@/lib/firms/access';
+import { getFirmMembership, resolveMatterAccess, discloseMatter } from '@/lib/firms/access';
+import { encryptField } from '@/lib/privacy/encryption';
+import { randomUUID } from 'crypto';
 import { ensureAttorneyHasFirm } from '@/lib/firms/provisioning';
 
 // GET: List bookings (filtered by role)
@@ -102,7 +104,7 @@ export async function GET(req: Request) {
         });
 
         return {
-        ...redactMatter(b, access),
+        ...discloseMatter(b, access),
         access: {
           canReadMatterDetail: access.canReadMatterDetail,
           canAct: access.canAct,
@@ -324,8 +326,17 @@ export async function POST(req: Request) {
       // practitioner. It is never written later, so it stays true even after the
       // firm reassigns the matter — which is the evidence that the choice of
       // practitioner was theirs and never ours (rule 4).
+      //
+      // The id is generated here rather than left to the database default
+      // because the privileged fields are encrypted bound to it — see
+      // src/lib/privacy/encryption.ts. Without an id before the insert there is
+      // nothing to bind the ciphertext to, and ciphertext that is not bound to
+      // its row can be moved to a row somebody is allowed to read.
+      const bookingId = randomUUID();
+
       return tx.booking.create({
         data: {
+          id: bookingId,
           bookingNumber,
           clientId: session.userId,
           lawyerId: lawyerId ?? null,
@@ -342,8 +353,19 @@ export async function POST(req: Request) {
               : null,
           lawyerFee: 0,
           totalAmount: 0,
-          subject,
-          description,
+          // The client's own account of their legal problem, encrypted at rest
+          // and bound to this row. `practiceArea` stays in the clear: it is a
+          // category the client picked from a list, it is what the firm filters
+          // its queue on, and it says nothing about the matter that the choice
+          // of firm does not already say.
+          subject: encryptField(
+            { model: 'Booking', recordId: bookingId, field: 'subject' },
+            subject
+          ),
+          description: encryptField(
+            { model: 'Booking', recordId: bookingId, field: 'description' },
+            description
+          ),
           practiceArea,
           status: 'REQUESTED',
         },
@@ -373,12 +395,24 @@ export async function POST(req: Request) {
       EmailService.sendBookingCreatedAdmin(clientName, recipientName, formattedDate, slotTime, booking.bookingNumber);
     }
 
+    // The row that just came back holds ciphertext in `subject` and
+    // `description`. Returning it raw would send the client base64 where they
+    // expect the words they typed — so this goes back through the same
+    // disclosure gate as every other read, with the client's own access.
+    const created = discloseMatter(booking, {
+      canRead: true,
+      canReadMatterDetail: true,
+      canAct: false,
+      canAssign: false,
+      basis: 'CLIENT',
+    });
+
     return NextResponse.json({
       success: true,
       booking: {
-        ...booking,
-        date: booking.date ? formatSriLankaDateIso(booking.date) : null,
-        createdAt: booking.createdAt.toISOString(),
+        ...created,
+        date: created.date ? formatSriLankaDateIso(created.date) : null,
+        createdAt: created.createdAt.toISOString(),
       },
     }, { status: 201 });
   } catch (error: any) {

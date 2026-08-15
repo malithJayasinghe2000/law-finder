@@ -17,56 +17,48 @@
 | 4 | Advertising split | 🟢 **Done** |
 | 5 | AI compliance | 🟢 **Done** |
 | 6 | PDPA compliance | 🟢 **Done** |
-| 7 | Growth features | ⚪ Not started |
+| 7 | Encryption at rest · firm onboarding · the three open inventory findings | 🟢 **Done** |
+| 8 | Growth features | ⚪ Not started |
 
 Legend: ⚪ not started · 🟡 in progress · 🟢 done · 🔴 blocked
 
 ## Next up
 
-**Take counsel questions 16, 17 and 18 to a Sri Lankan Attorney-at-Law.** A meeting
-brief exists: [COUNSEL-MEETING-BRIEF.md](./COUNSEL-MEETING-BRIEF.md) — five questions in
-priority order, written in plain language, with an introduction explaining what the
-restructure changed. Everything after this builds on an answer we do not have.
+**Take counsel questions 16, 17 and 18 to a Sri Lankan Attorney-at-Law.** Unchanged and
+still first. A meeting brief exists: [COUNSEL-MEETING-BRIEF.md](./COUNSEL-MEETING-BRIEF.md).
+Everything after this builds on an answer we do not have.
 
-**Then Phase 7 (growth).** Phase 6 is complete. The three items it deliberately left
-open, all needing an answer rather than more code:
+**Then, in order of how much they matter:**
 
-- **Counsel question 7(c)** — how long a matter file and a conflict-check record must be
-  kept. Until it is answered, `privacy:purge` refuses to touch firm-controlled data at
-  all and says so on every run
-- **Counsel question 19 (new)** — cross-border transfer. If production runs on Neon
-  (`us-east-1`) and the RAG service forwards questions to a model outside Sri Lanka, both
-  need a documented basis
-- **Encryption at rest** for Tier 1 fields was scoped into Phase 6 and **not built** —
-  see the session log entry for why it was deferred rather than rushed
+1. **Build the data-subject-rights interface.** Phase 6 built the whole DSAR engine —
+   `/api/privacy/requests`, `/export`, `/consents`, `/me` and
+   `/api/firms/me/subject-requests` — and **not one of them has a caller**. There is no
+   page from which a person can export their data, withdraw a consent, or ask for
+   erasure, and no screen where a firm sees a request referred to it. The PDPA rights
+   exist in code and are unusable by any actual user, which is the worst of both: the
+   work is done and the compliance position is unchanged. This is the single largest gap
+   in the system.
+2. **An authenticated file-serving route for identity documents.** `/api/upload` falls
+   back to `public/uploads` when object storage is not configured, which serves a
+   practising certificate and a photograph of someone's face on a guessable URL. Phase 7
+   made an `identity` upload **refuse** that fallback rather than degrade into it, which
+   closes the hole but does not build the right thing.
+3. **Back up `MATTER_ENCRYPTION_KEYS` somewhere real.** Losing it destroys every matter
+   description, conflict check, quote scope, engagement letter and client message.
+   Not this repository, and not the same host as the database.
+4. **Register the three missing Acts in the legal library.** Unchanged from Phase 6. The
+   vector store holds the Civil Procedure Code, Companies Act and Motor Traffic Act with
+   no `LegalDocument` row, so their citations show "Not yet in the library" instead of a
+   link. Upload the PDFs through `/dashboard/admin/legal-documents`. Do not hand-edit
+   `ragDocumentName` — guessing which Act a row refers to is how you cite the wrong
+   statute.
+5. **The AI refusal patterns are English-only** while the platform ships `si` and `ta`.
+   Counsel question 5(h) asks whether that is defensible in the interim.
 
-**Register the three missing Acts in the legal library.** The vector store holds the
-Civil Procedure Code, Companies Act and Motor Traffic Act, but none of them has a
-`LegalDocument` row — they were loaded by the ingestion script rather than through the
-admin upload screen. So citations to them are correct but **not clickable**: the chat
-shows "Not yet in the library" instead of a link. That is the honest failure mode, and
-it is a data task, not a code one. Upload the three PDFs through
-`/dashboard/admin/legal-documents` and the citations resolve. Do not hand-edit
-`ragDocumentName` to force a match — guessing which Act a row refers to is how you end
-up citing the wrong statute.
-
-**Phase 6 — PDPA.** The natural next phase, and now the only one left before growth
-work. Phase 5 left it the retention period, the purge script and a clean picture of
-what personal data the AI holds; Phase 3 left it a `FeeNote` model holding client
-names and work narrations that will need the same treatment.
-
-
-
-**But first, and more urgent than Phase 3:** put counsel questions **16, 17 and
-18** in front of a Sri Lankan Attorney-at-Law experienced in professional conduct.
-They ask whether a consumer-facing attorney directory may lawfully exist at all,
-and whether the **Intermeddlers with Suitors Ordinance No. 11 of 1894** creates
-*criminal* exposure for the platform operator. Every phase after this one builds
-on an answer we do not have. See
-[the directory question](./LEGAL-GUARDRAILS.md#the-directory-question--our-largest-unresolved-risk).
-
-Phases 0, 1 and 2 are complete. `npm run build`, `npx tsc --noEmit` and
-`npm run check:privilege` all clean; migrations in sync.
+**Still unanswered and still blocking their own areas:** counsel question 7(c) (matter
+and conflict-check retention — nothing firm-controlled expires automatically until it is
+answered), question 19 (cross-border transfer), and the processor-agreement template and
+DPO designation, which are documents rather than code.
 
 ## Decisions taken
 
@@ -101,6 +93,18 @@ Phases 0, 1 and 2 are complete. `npm run build`, `npx tsc --noEmit` and
 | 2026-08-03 | The access log holds **no content column at all** | A log of who read a matter description is accountability. A log that copies the description into itself is a second privileged store with different access rules and a different retention period — a new place for privilege to leak. Same reasoning as the absent commission column |
 | 2026-08-03 | A subject-access export **excludes matter data entirely** and names the firm to ask instead | A `ConflictCheck` names other firms' clients. Answering one person's request by releasing it would breach several others' confidentiality — and would hand someone the parties they were screened against |
 | 2026-08-03 | `ConsentPurpose` has **three values and none is matter data** | Matter data rests on contract and professional duty. Asking for consent implies withdrawal is possible, and we cannot honour that against a firm's retention duty. Treating everything as consent is the common and expensive PDPA error |
+| 2026-08-16 | Tier 1 matter fields are **encrypted at rest**, and the disclosure gate has no branch that returns ciphertext | `firms/access.ts` binds code that goes through the application; a database dump does not. The trap was shipping a version where a withheld reader receives `enc.v1.…` — it passes a naive privilege check and hands platform staff an offline-attackable copy of a client's legal problem. `check:privilege` asserts the withheld value is neither the plaintext nor the ciphertext |
+| 2026-08-16 | Ciphertext is **bound to its row and column** (AEAD), and record ids are generated in application code before the insert | The reader rule 5 is about is a platform insider. An insider with write access who could copy ciphertext into a matter they are allowed to read would walk straight around the access rules |
+| 2026-08-16 | `FeeNote` is deliberately **not** encrypted | A fee note is a tax document the firm can be compelled to produce over a statutory period. Making a statutory record depend on our key custody trades a confidentiality risk for a compliance failure the firm cannot argue its way out of. Revisit once key escrow is designed — counsel question 4(i) |
+| 2026-08-16 | `EngagementLetter.matterSubject` and `scopeOfWork` are encrypted too | They are copies of encrypted columns on `Booking` and `Quote`. Leaving the copies in the clear would have made encrypting the originals pointless for every matter that reached acceptance — the leak would have been a plaintext column three tables away from the one anyone was looking at |
+| 2026-08-16 | Message threads are readable by **participants only** — not the firm's principal, who can read the matter file | A principal needs the file to triage and reassign; they do not need to read a conversation that already happened. Every extra reader of a privileged communication is another person an opponent can name to argue waiver. Deliberately narrower than the matter rule, and put to counsel as question 4(g) |
+| 2026-08-16 | Participation in a thread **ends when firm membership ends** | A `ConversationParticipant` row had no end date, so leaving a practice removed access to the matter file and left the conversation about it open — including from inside a competing firm |
+| 2026-08-16 | `Inquiry` **removed entirely**, model and rows, rather than secured | Fixing it (auth, rate limit, firm scoping, privilege gate, retention) is rebuilding firm-first intake, which already exists and also runs the conflict check, quote and engagement letter. Two intakes doing one job is the duplicate-state-machine problem fixed twice already. The rows had no lawful basis to be kept: an enquiry created no retainer and no obligation |
+| 2026-08-16 | Firm registration **converts the founder's existing firm** instead of creating a new one | Every attorney already has a firm of one holding their matters, subscription and invoices. A second firm would leave `Booking.firmId` pointing at a practice the attorney had left — orphaning the matters or silently re-pointing them at a firm the client never chose |
+| 2026-08-16 | Joining a firm is by **invitation the person accepts**, not by a principal typing an email address | Being in a practice means being able to see that its clients' matters exist. That is a privilege boundary, and someone should not be put inside it without being asked. Invitations expire in 14 days because a pending one is a standing offer of access |
+| 2026-08-16 | An attorney **holding open matters cannot move practice** | The client engaged *that* firm — it is the party to the retainer. Carrying the file across would change who the client is retained by without telling them. Mirrors the rule the member-removal path already enforced. Put to counsel as question 8(e), because it may be heavier than the profession expects |
+| 2026-08-16 | Approval **refuses** an incomplete application instead of inventing values | `baslNumber: … \|\| \`BASL-MANUAL-${Date.now()}\`` ran in the same statement that set `isVerified: true`. "Verified" means we checked this person's BASL registration; an invented number makes that claim false on the one field it is a claim about |
+| 2026-08-16 | Identity documents upload through `/api/upload` and are stored as URLs; an `identity` upload **refuses** the public-folder fallback | They were base64 `data:` URLs inside `draftData`, bypassing the magic-byte check, MIME allow-list, size limit and rate limit — and the fallback would have served a practising certificate and a face photograph on a guessable public URL |
 | 2026-08-03 | `Booking.clientRating` / `clientFeedback` **dropped**, not disabled | Phase 2 reported ratings "gone entirely" and they were not. A column that exists is a column a future decision can populate, and `clientRating` was one `orderBy` away from being ranking |
 
 ## Session log
@@ -1074,4 +1078,223 @@ the first item of Phase 7, or of a Phase 6.5 once counsel replies.
 - `LawyerApplication.draftData` is an unaudited `Json` blob (finding D)
 - The AI refusal patterns are English-only while the platform ships `si` and `ta`
 - Advertiser billing has no module; invoicing happens outside the platform
+- Three Acts are in the vector store with no library row
+
+### 2026-08-16 — Phase 7 (encryption at rest, firm onboarding, the three open findings)
+
+Four pieces of work that had one thing in common: each was a rule the codebase *said* it
+followed, in a place nothing checked.
+
+**1. Encryption at rest for privileged matter data.**
+
+Phase 6 scoped this and did not build it, pending counsel question 4(c) — are technical
+controls legally relevant to privilege, or is the contractual position what matters? We
+built it without waiting, because the PDPA imposes a security duty on us as processor
+*independently* of privilege. That makes 4(c) a question about how much credit the work
+earns, not whether it was worth doing.
+
+`firms/access.ts` decides who may read a matter, and that binds every path that goes
+through the application. A database dump, a restored backup, a misconfigured replica and
+an engineer with a `psql` prompt all sit underneath it.
+
+**The trap this was at risk of shipping, which is the part worth remembering.** An
+encryption feature where the redaction path returns the stored ciphertext instead of the
+plaintext *looks like it works*. Every existing privilege case still passes:
+`canReadMatterDetail` is false, and the value returned is not the plaintext. The reader
+is now holding an encrypted copy of a client's legal problem and the key is one
+environment variable away.
+
+So the disclosure gate has exactly three outcomes and ciphertext is not one of them —
+the plaintext, `[Withheld — privileged]`, or `[Unavailable]` — and `decryptField` throws
+rather than degrading to its input.
+
+`check:privilege` went from 10 assertions to 39. The new ones compare the disclosed
+value against the **ciphertext** as well as the plaintext, prove real AEAD is in play
+(ciphertext moved to another row or column will not decrypt; tampering is rejected; the
+same words encrypt differently each time), and prove failure is closed.
+
+**Both failure modes were verified by deliberately breaking the code and watching the
+check go red** — a passthrough `encryptField` (7 failures) and a `discloseField` that
+returns the stored value to a withheld reader (2 failures, including the one this
+section exists for). A check nobody has seen fail is a check nobody knows works.
+
+Covered: `Booking.subject/description/lawyerNotes`, `ConflictCheck.notes/screenedParties`,
+`Quote.scopeOfWork/exclusions/declineReason`, `EngagementLetter.body/matterSubject/
+scopeOfWork/exclusions`, `Message.content`.
+
+`EngagementLetter.matterSubject` and `scopeOfWork` are on that list because of something
+found while wiring it: **they are plaintext copies of encrypted columns.** Leaving them
+would have made encrypting `Booking.subject` pointless for every matter that ever
+reached acceptance — the leak would have been a column three tables away from the one
+anyone was looking at.
+
+`FeeNote` is deliberately excluded. It is a tax document the firm can be compelled to
+produce over a statutory retention period, and making a statutory record depend on our
+key custody trades a confidentiality risk for a compliance failure the firm cannot argue
+its way out of. Recorded as counsel question 4(i).
+
+**A live privilege leak found while doing this.** The booking detail route `include`s
+`quotes` and spread them straight into its response, so every quote's `scopeOfWork` — a
+description of what the firm agreed to do about the client's problem — reached anyone
+who could see that the matter existed: a paralegal, an unassigned colleague, and platform
+`ADMIN`. The subject and description were being carefully withheld one line above.
+`discloseQuote` and `discloseEngagementLetter` now gate both, and `GET .../quotes` was
+moved off its hand-written `isClient || isLawyer` test onto `getMatterAccess`.
+
+**2. Firm onboarding.** *(inventory finding: none — reported by the user)*
+
+A real multi-partner firm had no way to join. The only route was: one partner registers
+as an individual, a firm of one is silently created and named after them, they find the
+firm console and rename it, then they add partners one at a time — each of whom must have
+registered separately first. Nobody would guess that, and the last step put people inside
+a privilege boundary without asking them.
+
+New: `FirmInvitation`, `POST /api/firms/register`, invitation list/revoke, an
+accept/decline page, a three-step registration wizard, and
+`src/lib/firms/invitations.ts` — the sibling of `access.ts` (who may read) and
+`billing.ts` (what is licensed) answering *who may be a member at all*.
+
+Two decisions worth carrying:
+
+- **Registration converts the founder's existing firm, it does not create a second one.**
+  That firm already owns their matters, subscription and invoices. Creating a new one
+  would leave `Booking.firmId` pointing at the practice the attorney had left, orphaning
+  the matters or silently re-pointing them at a firm the client never chose. The screen
+  says this out loud, because a user assuming they now have two firms and wondering which
+  their matters are in is a confusion the screen would have caused.
+- **An attorney holding open matters cannot move practice.** The client engaged *that*
+  firm. This mirrors the rule the member-removal path already enforced, and it is put to
+  counsel as question 8(e) because it may be heavier than the profession expects — in
+  real life attorneys do move live matters, with the client's consent.
+
+The old "add member" route was rewritten onto the same shared rules rather than keeping
+its own copy, which is why the invitation path could be built against one rule instead
+of two.
+
+**3. Finding A — `Inquiry` removed.**
+
+`POST /api/inquiries` took a name, phone number, email and free-text legal problem
+addressed to a named attorney, with no auth, no rate limit, no firm scoping, no privilege
+gate and no retention.
+
+Removed rather than repaired: securing it is rebuilding firm-first intake, which already
+exists and also runs the conflict check, the quote and the engagement letter. Two intakes
+doing one job is the duplicate-state-machine problem this restructure has fixed twice.
+Entry points were replaced before the endpoint was deleted. The rows were deleted rather
+than migrated — an enquiry created no retainer, so there was no lawful basis to keep
+holding a stranger's account of their legal problem.
+
+**Two more live violations found on `/about` while doing it**, both advertising features
+the restructure had already removed: *"Filter lawyers by … fee range"* (`baseFeeRange`
+deleted in Phase 2) and *"Verified Reviews"* (the `Review` model deleted in Phase 2).
+Marketing copy is a surface like any other. Also found and removed: a sidebar link to
+`/dashboard/lawyer/inquiries`, a page that does not exist and never did; and three
+`inquiries` permissions in the seed, one of which — "receive client inquiries" as a paid
+tier feature — was the pay-per-lead shape Phase 2.5 removed from the pricing page, still
+sitting in the permission table where nobody looked.
+
+**4. Finding B — privileged chat brought inside the privilege system.**
+
+`Conversation`/`Message` held client↔attorney communication with no `firmId`, no matter
+linkage, and no route through `firms/access.ts`. Looking at it properly found **four**
+holes rather than one:
+
+- A **departed attorney kept reading**. A participant row has no end date, so leaving a
+  practice removed access to the matter file and left the conversation *about* it open —
+  including from inside a competing firm.
+- **Nothing said platform staff may not.** No route did, but the rule lived in the
+  absence of a query rather than in a decision.
+- **`POST /api/chat/conversations` accepted any user id**, so any signed-in user could
+  open a thread with anyone — client to client included.
+- **The socket server had the same weak check**, so a departed attorney could still join
+  the live room and receive messages in real time.
+
+`Conversation` gained `firmId`, `clientId` and an optional `bookingId`, backfilled by
+migration. `resolveConversationAccess()` decides; nine cases assert it. The rule is
+**deliberately narrower than the matter rule**: participants only, not the firm's
+principal. Put to counsel as question 4(g).
+
+The siblings were swept, per the standing rule: `unread-count` was counting threads the
+person could no longer open, and `read` was marking read a thread they could not read.
+
+**5. Finding D — the application draft, which was worse than recorded.**
+
+Auditing the "unaudited Json blob" found four things:
+
+- **The route stored the raw request body, not the parsed result.** It validated only the
+  steps *before* the current one, then wrote `body.draftData` verbatim. The step being
+  edited was never checked and any invented key was persisted forever. Validating and
+  then saving something else is the shape of the bug.
+- **It held two identity documents as inline base64** — the practising certificate via
+  `FileReader.readAsDataURL` and a photograph of the applicant's face via
+  `canvas.toDataURL`. Multi-megabyte images in a JSON column, copied verbatim into
+  `licenseImageUrl`/`identityImageUrl`, columns named "Url" that were not URLs. They also
+  bypassed `/api/upload` and with it the magic-byte anti-spoofing check, the MIME
+  allow-list, the size limit and the rate limit.
+- **Approval invented a BASL number.** `baslNumber: … || \`BASL-MANUAL-${Date.now()}\``
+  ran in the same statement that set `isVerified: true`, producing an attorney publicly
+  marked as verified against a registration number we had made up.
+- **The upload fallback writes to `public/uploads`** — fine for a profile photograph, not
+  for a practising certificate and a face photograph on a guessable URL.
+
+Fixed: `ApplicationDraftSchema` (strict per step, unknown keys rejected, images as URLs),
+the parsed value is what is stored, submission requires a complete application, approval
+refuses an incomplete one and refuses a BASL number already registered to someone else,
+an approved draft is reduced to a stub, the draft is on the retention schedule (730 days)
+and in the erasure plan, and an `identity` upload refuses the public-folder fallback.
+
+**Verification**
+
+`npm run build`, `npx tsc --noEmit`, `check:privilege` **39/39** (was 10),
+`check:ai` 49/49, `check:billing` 21/21, `check:pdpa` 48/48, and a new
+**`check:firm` 15/15**. Migrations in sync.
+
+Three migrations, each tested against a scratch database seeded **before** it with the
+data that would break it, not an empty one:
+
+- `conversation_firm_scope` — 9 assertions against a normal thread, a thread whose
+  attorney has **no firm**, a thread with **two clients and no attorney** (a shape the
+  old route permitted), and a client with **two matters at the same firm**. The last one
+  matters: the matter-link backfill **declines to guess** rather than picking one, because
+  a wrong file reference on privileged correspondence is worse than none.
+- `drop_inquiry_intake` — run against a database holding **six populated enquiries**, so
+  the FK drop and table drop were exercised with data in them rather than on an empty
+  table.
+- `firm_registration_and_invitations` — additive.
+
+Beyond the checks, three things were driven against a real database because a green build
+proves none of them:
+
+- **The disclosure gate end to end** (9 assertions): what is actually stored in the dev
+  database is ciphertext, the client gets words back, and `ADMIN` gets a marker that is
+  neither the plaintext nor the ciphertext. Confirmed separately by reading the raw rows
+  the way a DBA with `psql` would, and seeing `enc.v1.k1.…`.
+- **The backfill run twice in a row** — 4 rows encrypted, then 0 encrypted and 8 already
+  done. Idempotency is what makes it safe to run, check, and run again.
+- **`check:firm`'s 15 cases**, which build and clean up their own fixtures so the check
+  can run twice — Phase 6 shipped a check that could not run on the database its own
+  documentation told you to seed.
+
+`db:reset` on a clean database: **the seed passed** — the first phase in five where it
+did not catch a break, and only because the seed was fixed as part of the `Inquiry`
+removal rather than afterwards.
+
+**Also removed:** `/api/chat/route.ts`, a stub returning `{status:'ok'}` with no callers.
+
+**A note for the next session on a thing that wasted time.** The first `tsc` run after
+deleting a route failed on `.next/types/validator.ts` referencing the deleted file. That
+is a stale generated artefact, not a code error — `rm -rf .next` fixes it, exactly as
+`npm run db:generate` fixed the stale Prisma client twice in Phase 6. **A failing check
+is not automatically a failing rule.**
+
+**Still open**
+- Counsel questions 16–18 — **blocks everything**
+- Counsel questions 4(f)–(i) and 8(e)–(g), added this phase
+- Counsel question 7(c) — matter and conflict-check retention
+- Counsel question 19 — cross-border transfer
+- **The DSAR engine has no interface at all** — see *Next up*, item 1. This is now the
+  largest gap in the system
+- No authenticated file-serving route for identity documents
+- The AI refusal patterns are English-only while the platform ships `si` and `ta`
+- Advertiser billing has no module
 - Three Acts are in the vector store with no library row

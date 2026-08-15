@@ -117,6 +117,44 @@ communications.
 - (e) Are we obliged to be able to produce, or to be unable to produce, this material
   if served with a court order?
 
+**Updated 2026-08-16, Phase 7 — we built the encryption without waiting on 4(c).**
+
+Phase 6 deferred encryption at rest pending your answer to 4(c). We have now built it,
+on the reasoning that the PDPA imposes a security duty on us as processor independently
+of privilege — so 4(c) changes how much *credit* the work earns, not whether it was
+worth doing. Where we were unsure we took the restrictive option:
+
+- The client's account of their problem, the conflict-check record, the quoted scope,
+  the engagement letter and every client↔attorney message are encrypted with AES-256-GCM,
+  bound to their own row and column. Platform staff receive a withheld marker — never
+  the ciphertext.
+- **Fee notes are deliberately NOT encrypted.** A fee note is a tax document the firm
+  can be compelled to produce over a statutory retention period, and making it depend on
+  our key custody trades a confidentiality risk for a compliance failure the firm cannot
+  argue its way out of. We would rather you told us we were wrong about that than
+  discover it when a tax officer asks.
+- Message threads are readable by their participants only — not by the firm's principal,
+  who *can* read the matter file. See (g) below.
+
+**Still to confirm, in addition to (a)–(e):**
+- (f) **Does encryption at rest, with platform staff structurally unable to obtain
+  plaintext, actually help the privilege analysis** — or is the contractual position
+  (the processor agreement) doing all the work?
+- (g) We made message threads readable by **participants only**, deliberately narrower
+  than the matter file, which the firm's principal can read. Our reasoning was that a
+  principal needs the file to reassign a matter but does not need to read a conversation
+  that has already happened, and that every extra reader is another person an opponent
+  can name to argue waiver. **Is that the right line, or does a principal's supervisory
+  duty require access to their firm's client correspondence?** If it does, we have made
+  supervision harder than the profession expects.
+- (h) **We hold the decryption key.** If served with a court order we can produce this
+  material. Should the architecture instead be one where we *cannot* — client-held keys,
+  with the consequence that we could not restore a firm's file after a key loss? This
+  is (e) asked as an engineering question, and the answer changes the design.
+- (i) **Key loss destroys the data.** Is there a professional-conduct problem with a
+  firm's matter file being unrecoverable if a software supplier mislays a key, and does
+  that need to be disclosed in the processor agreement?
+
 ---
 
 ### Q5. Are we exposed on unauthorised practice through the AI assistant?
@@ -229,6 +267,33 @@ client account details and issue their own fee notes.
 - (c) Must every matter be attributable to a named responsible attorney?
 - (d) Does a firm listing itself on our platform raise any advertising issue that an
   individual listing does not?
+
+**Updated 2026-08-16, Phase 7 — we built firm registration.** Until now a multi-partner
+firm had no way to join: one partner registered as an individual, a firm of one was
+created and named after them, and they renamed it and added partners one at a time.
+There is now a registration flow with invitations. The positions we took:
+
+- **(a) — we assume sole practitioner or partnership only.** `FirmType` has no company
+  option and the registration form says why.
+- Only a **verified Attorney-at-Law** can register a practice or hold a partner or
+  attorney role. A practice manager or paralegal need not be admitted.
+- An attorney **holding open matters cannot move practice** until they are closed or
+  reassigned, because the client engaged the firm and moving the file would change who
+  they are retained by without telling them.
+- Registration **converts the founder's existing firm** rather than creating a second
+  one, so matters, licence and invoices stay attached.
+
+**Still to confirm, in addition to (a)–(d):**
+- (e) **Is our "cannot move practice while holding open matters" rule right, or heavier
+  than the profession expects?** In practice an attorney changing firms surely does move
+  live matters, with the client's consent. Should we build a client-consent step instead
+  of a hard refusal? If so, what does the client have to be told?
+- (f) When an attorney leaves a practice, **who owns the matter file** — the firm, the
+  attorney, or the client? We have assumed the firm, which is why a departing attorney
+  loses access to both the file and the conversation about it.
+- (g) A registered practice is **not listed publicly until we have verified it**. What
+  should verification of a *firm* actually consist of, as distinct from verifying an
+  individual attorney's BASL registration?
 
 ### Q9. Are we compliant with the Personal Data Protection Act No. 9 of 2022?
 
@@ -435,3 +500,5 @@ informational lawyer websites.
 | **17** | **Intermeddlers Ordinance 1894 — operator's criminal exposure** | | | |
 | **18** | **Is client-driven search indirect solicitation** | | | |
 | 19 | Cross-border transfer (Neon hosting, model provider) — added Phase 6 | | | |
+| **4(f)–(i)** | **Encryption at rest, key custody, participants-only chat — added Phase 7** | | | |
+| **8(e)–(g)** | **Attorneys moving practice, matter-file ownership, firm verification — added Phase 7** | | | |

@@ -172,10 +172,12 @@ async function main() {
   const attorney = await prisma.lawyerProfile.create({
     data: { userId: attorneyUser.id, fullName: 'Acting Attorney', baslNumber: `${TAG}-b`, firmId: firm.id },
   });
-  await prisma.inquiry.create({
+  // Replaces the `Inquiry` fixture removed in Phase 7. An application holds an
+  // NIC number and identity images, so erasure must actually delete it.
+  await prisma.lawyerApplication.create({
     data: {
-      lawyerId: attorney.id, clientName: 'Erasure Subject', clientPhone: '0770000000',
-      clientEmail: subject.email, message: 'I have a problem with my landlord',
+      userId: subject.id, status: 'DRAFT', currentStep: 1,
+      draftData: { step1: { fullName: 'Erasure Subject', nic: '901234567V' } },
     },
   });
   const booking = await prisma.booking.create({
@@ -233,9 +235,9 @@ async function main() {
   ok('AI conversations are deleted',
      (await prisma.aiConversation.findUnique({ where: { id: conv.id } })) === null,
      'the plan promises deletion, not hiding');
-  ok('enquiries are deleted',
-     (await prisma.inquiry.count({ where: { clientEmail: `${TAG}@example.com` } })) === 0,
-     'enquiries are keyed by email, which the erasure overwrites — order matters here');
+  ok('the attorney application is deleted',
+     (await prisma.lawyerApplication.count({ where: { userId: subject.id } })) === 0,
+     'it holds a national identity number and images of identity documents');
 
   const bookingAfter = await prisma.booking.findUnique({ where: { id: booking.id } });
   const conflictAfter = await prisma.conflictCheck.findUnique({ where: { id: conflict.id } });
@@ -327,7 +329,7 @@ async function main() {
   await prisma.dataSubjectRequest.deleteMany({ where: { userId: subject.id } });
   await prisma.conflictCheck.deleteMany({ where: { bookingId: booking.id } });
   await prisma.booking.delete({ where: { id: booking.id } });
-  await prisma.inquiry.deleteMany({ where: { lawyerId: attorney.id } });
+  await prisma.lawyerApplication.deleteMany({ where: { userId: subject.id } });
   await prisma.lawyerProfile.delete({ where: { id: attorney.id } });
   await prisma.user.deleteMany({ where: { id: { in: [subject.id, attorneyUser.id] } } });
   await prisma.lawFirm.delete({ where: { id: firm.id } });

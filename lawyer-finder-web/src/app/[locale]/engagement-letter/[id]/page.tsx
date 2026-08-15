@@ -2,6 +2,7 @@ import { getSession } from '@/lib/auth';
 import { redirect, notFound } from 'next/navigation';
 import prisma from '@/lib/db';
 import PrintableLetter from './PrintableLetter';
+import { getMatterAccess, discloseEngagementLetter } from '@/lib/firms/access';
 
 /**
  * Print-ready engagement letter.
@@ -26,25 +27,48 @@ export default async function EngagementLetterPrintPage(props: {
 
   const booking = await prisma.booking.findUnique({
     where: { id },
-    select: { clientId: true, lawyer: { select: { userId: true } } },
+    select: {
+      clientId: true,
+      lawyerId: true,
+      firmId: true,
+      lawyer: { select: { userId: true } },
+    },
   });
 
   if (!booking) notFound();
 
-  const isClient = booking.clientId === session.userId;
-  // `lawyer` is null while a matter sits unassigned in the firm's queue — though
-  // no engagement letter can exist at that point, since a letter requires an
-  // accepted quote and a quote requires an assigned attorney.
-  const isLawyer = !!booking.lawyer && booking.lawyer.userId === session.userId;
+  // Resolved through the one file that decides, exactly as the API route does.
+  // This page reaches the database directly, so a rule written out by hand here
+  // would be a second copy of the privilege rule that nothing asserts.
+  const access = await getMatterAccess({
+    actorUserId: session.userId,
+    actorRole: session.role,
+    actorProfileId: session.profileId,
+    matter: {
+      lawyerId: booking.lawyerId,
+      firmId: booking.firmId,
+      clientId: booking.clientId,
+    },
+  });
 
-  if (!isClient && !isLawyer) notFound();
+  const isClient = access.basis === 'CLIENT';
+
+  const mayReadLetter =
+    isClient ||
+    access.basis === 'ASSIGNED_ATTORNEY' ||
+    access.basis === 'FIRM_PRINCIPAL';
+
+  if (!mayReadLetter) notFound();
 
   const letter = await prisma.engagementLetter.findUnique({
     where: { bookingId: id },
-    select: { reference: true, body: true, issuedAt: true, firmName: true },
+    select: { id: true, reference: true, body: true, issuedAt: true, firmName: true },
   });
 
   if (!letter) notFound();
+
+  // The body is stored encrypted; this is the only place it becomes a document.
+  const disclosed = discloseEngagementLetter(letter, access);
 
   if (isClient) {
     await prisma.engagementLetter.updateMany({
@@ -56,7 +80,7 @@ export default async function EngagementLetterPrintPage(props: {
   return (
     <PrintableLetter
       reference={letter.reference}
-      body={letter.body}
+      body={disclosed.body}
       firmName={letter.firmName}
       issuedAt={letter.issuedAt.toISOString()}
     />

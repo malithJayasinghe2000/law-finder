@@ -82,6 +82,46 @@ export const EmailService = {
     `));
   },
 
+  /**
+   * Invite someone to join a law firm.
+   *
+   * Deliberately plain about what accepting means. Joining a practice puts a
+   * person inside a privilege boundary — they will be able to see that the
+   * firm's matters exist — so the email says so rather than reading as a generic
+   * "you've been added to a team" notification.
+   */
+  async sendFirmInvitation(params: {
+    to: string;
+    firmName: string;
+    invitedByName: string;
+    role: string;
+    token: string;
+  }) {
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://thelawyr.lk';
+    const url = `${appUrl}/firm-invitation?token=${params.token}`;
+
+    const roleLabel: Record<string, string> = {
+      FIRM_OWNER: 'a principal (partner) of the practice',
+      FIRM_ADMIN: 'a practice manager',
+      ATTORNEY: 'an attorney practising in the firm',
+      PARALEGAL: 'a paralegal',
+    };
+
+    await sendMailSafe(
+      params.to,
+      `${params.invitedByName} has invited you to join ${params.firmName}`,
+      template('An invitation to join a practice', `
+        <p>${params.invitedByName} has invited you to join <strong>${params.firmName}</strong> on TheLawyr as ${roleLabel[params.role] ?? 'a member of the firm'}.</p>
+        <p>If you accept, you will be able to see that the firm's matters exist. What you can read about any one of them depends on your role and on whether the matter is assigned to you — a client's own account of their legal problem is not visible to everyone in a practice.</p>
+        <p>You do not have to accept, and nothing happens until you do.</p>
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${url}" style="background-color: #bfa37a; color: #ffffff; padding: 14px 28px; text-decoration: none; display: inline-block; font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.15em; border-radius: 0;">View the invitation</a>
+        </div>
+        <p style="font-size: 13px; color: #737373;">This invitation was sent to ${params.to} and can only be accepted by signing in with that address. It expires in 14 days. If you were not expecting it, ignore this email — no account of yours has been changed.</p>
+      `)
+    );
+  },
+
   async sendApplicationSubmitted(email: string, fullName: string) {
     await sendMailSafe(email, 'Lawyer Application Received', template('Application Received', `
       <p>Dear ${fullName},</p>

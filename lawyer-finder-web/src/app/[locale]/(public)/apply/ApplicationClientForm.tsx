@@ -47,6 +47,8 @@ export default function ApplicationClientForm({ locale, initialStep, initialData
   });
 
   const [stream, setStream] = useState<MediaStream | null>(null);
+  /** Which document is uploading, so the buttons can say so. */
+  const [uploading, setUploading] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
 
   // ── Camera controls ────────────────────────────────────────────────────────
@@ -63,17 +65,52 @@ export default function ApplicationClientForm({ locale, initialStep, initialData
     }
   };
 
-  const captureFace = () => {
+  /**
+   * Send a file to /api/upload and return the stored URL.
+   *
+   * Both identity documents used to be turned into base64 `data:` URLs in the
+   * browser and posted straight into the draft, which stored two multi-megabyte
+   * images inline in a JSON column and skipped every check /api/upload does:
+   * MIME allow-list, magic-byte anti-spoofing, size limit and rate limit.
+   */
+  const uploadDocument = async (file: File | Blob, filename: string): Promise<string> => {
+    const body = new FormData();
+    body.append('file', file, filename);
+    body.append('purpose', 'identity');
+
+    const res = await fetch('/api/upload', { method: 'POST', body });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Upload failed.');
+    return data.url as string;
+  };
+
+  const captureFace = async () => {
     if (!videoRef.current) return;
     const canvas = document.createElement('canvas');
     canvas.width = videoRef.current.videoWidth;
     canvas.height = videoRef.current.videoHeight;
     canvas.getContext('2d')?.drawImage(videoRef.current, 0, 0);
-    const url = canvas.toDataURL('image/jpeg');
-    setFormData((prev: any) => ({ ...prev, step4: { ...prev.step4, identityImage: url } }));
-    clearFieldError('identityImage');
+
+    const blob: Blob | null = await new Promise((resolve) =>
+      canvas.toBlob((b) => resolve(b), 'image/jpeg', 0.9)
+    );
+    if (!blob) {
+      toast.error('Could not capture the snapshot. Please try again.');
+      return;
+    }
+
     stopCamera();
-    toast.success('Face snapshot captured successfully!');
+    setUploading('identityImage');
+    try {
+      const url = await uploadDocument(blob, 'identity.jpg');
+      setFormData((prev: any) => ({ ...prev, step4: { ...prev.step4, identityImage: url } }));
+      clearFieldError('identityImage');
+      toast.success('Face snapshot captured successfully!');
+    } catch (err: any) {
+      toast.error(err.message || 'Could not upload the snapshot.');
+    } finally {
+      setUploading(null);
+    }
   };
 
   const stopCamera = () => {
@@ -83,20 +120,27 @@ export default function ApplicationClientForm({ locale, initialStep, initialData
     }
   };
 
-  const handleLicenseUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleLicenseUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      // Validate file size (max 5MB)
+      // Validate file size (max 5MB). The server checks this too — this is only
+      // so the applicant hears about it before waiting for an upload.
       if (file.size > 5 * 1024 * 1024) {
         toast.error('License file must be under 5 MB.');
         return;
       }
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setFormData((prev: any) => ({ ...prev, step4: { ...prev.step4, licenseImage: reader.result } }));
+
+      setUploading('licenseImage');
+      try {
+        const url = await uploadDocument(file, file.name);
+        setFormData((prev: any) => ({ ...prev, step4: { ...prev.step4, licenseImage: url } }));
         clearFieldError('licenseImage');
-      };
-      reader.readAsDataURL(file);
+        toast.success('Practising certificate uploaded.');
+      } catch (err: any) {
+        toast.error(err.message || 'Could not upload the document.');
+      } finally {
+        setUploading(null);
+      }
     }
   };
 

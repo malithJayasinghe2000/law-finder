@@ -4,6 +4,7 @@ import { getSession } from '@/lib/auth';
 import { AddFirmMemberSchema, UpdateFirmMemberSchema } from '@/schemas/firm.schema';
 import { getFirmMembership, canManageMembers } from '@/lib/firms/access';
 import { canAddFirmMember } from '@/lib/firms/billing';
+import { checkJoinEligibility, admitMemberToFirm } from '@/lib/firms/invitations';
 
 /**
  * Firm membership.
@@ -48,63 +49,33 @@ export async function POST(req: Request) {
 
     const user = await prisma.user.findUnique({
       where: { email: email.toLowerCase().trim() },
-      select: {
-        id: true,
-        fullName: true,
-        profile: { select: { id: true, isVerified: true, firmId: true } },
-      },
+      select: { id: true, fullName: true },
     });
 
     if (!user) {
       return NextResponse.json(
         {
           error:
-            'No account exists with that email address. Ask them to register first, then add them.',
+            'No account exists with that email address. Send them an invitation instead — ' +
+            'they will find the firm waiting when they register.',
+          suggestInvitation: true,
         },
         { status: 404 }
       );
     }
 
-    if (role === 'ATTORNEY' || role === 'FIRM_OWNER') {
-      if (!user.profile) {
-        return NextResponse.json(
-          {
-            error:
-              'That person is not registered as an Attorney-at-Law. Only an admitted attorney can hold this role.',
-          },
-          { status: 400 }
-        );
-      }
-      if (!user.profile.isVerified) {
-        return NextResponse.json(
-          {
-            error:
-              'That attorney has not completed BASL verification yet. They can be added once verified.',
-          },
-          { status: 400 }
-        );
-      }
-      if (user.profile.firmId && user.profile.firmId !== membership!.firmId) {
-        return NextResponse.json(
-          {
-            error:
-              'That attorney already practises in another firm on this platform. They must leave it first.',
-          },
-          { status: 409 }
-        );
-      }
-    }
-
-    const existing = await prisma.firmMember.findUnique({
-      where: { firmId_userId: { firmId: membership!.firmId, userId: user.id } },
-      select: { id: true, status: true },
+    // The rules about who may hold which role live in one place, shared with the
+    // invitation flow. They used to be written out here and only here, which is
+    // why the invitation path had to be built against the same rule rather than
+    // a second copy of it.
+    const eligibility = await checkJoinEligibility({
+      firmId: membership!.firmId,
+      role,
+      userId: user.id,
     });
 
-    if (existing && existing.status === 'ACTIVE') {
-      return NextResponse.json(
-        { error: 'That person is already a member of this firm.' },
-        { status: 409 }
-      );
+    if (!eligibility.ok) {
+      return NextResponse.json({ error: eligibility.reason }, { status: eligibility.status });
     }
 
     // Seats. This is a licensing limit on how many PEOPLE may use the software,
@@ -118,55 +89,15 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: seatCheck.reason }, { status: 402 });
     }
 
-    await prisma.$transaction(async (tx) => {
-      if (existing) {
-        await tx.firmMember.update({
-          where: { id: existing.id },
-          data: { role, title: title || null, status: 'ACTIVE', removedAt: null },
-        });
-      } else {
-        await tx.firmMember.create({
-          data: {
-            firmId: membership!.firmId,
-            userId: user.id,
-            role,
-            title: title || null,
-            status: 'ACTIVE',
-            invitedById: session.userId,
-            invitedAt: new Date(),
-          },
-        });
-      }
-
-      // An attorney joining a firm practises in that firm.
-      if ((role === 'ATTORNEY' || role === 'FIRM_OWNER') && user.profile) {
-        await tx.lawyerProfile.update({
-          where: { id: user.profile.id },
-          data: { firmId: membership!.firmId },
-        });
-      }
-
-      // The moment a firm has more than one member it stops being a firm of one.
-      // It must then be verified in its own right rather than inheriting the
-      // standing of its founder, so the badge is withdrawn until we re-check.
-      const activeCount = await tx.firmMember.count({
-        where: { firmId: membership!.firmId, status: 'ACTIVE' },
-      });
-
-      if (activeCount > 1) {
-        await tx.lawFirm.update({
-          where: { id: membership!.firmId },
-          data: {
-            isSoloPractice: false,
-            firmType: 'PARTNERSHIP',
-            verificationStatus: 'PENDING',
-            verifiedAt: null,
-            verificationNotes:
-              'Re-verification required: the practice is no longer a sole practitioner.',
-          },
-        });
-      }
-    });
+    await prisma.$transaction((tx) =>
+      admitMemberToFirm(tx, {
+        firmId: membership!.firmId,
+        userId: user.id,
+        role,
+        title,
+        invitedById: session.userId,
+      })
+    );
 
     return NextResponse.json({ success: true }, { status: 201 });
   } catch (error) {

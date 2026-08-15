@@ -237,10 +237,11 @@ async function main() {
     { name: 'delete_article', slug: 'delete-article', category: 'articles', description: 'Delete articles' },
     { name: 'publish_article', slug: 'publish-article', category: 'articles', description: 'Publish articles' },
     
-    // Inquiry Permissions
-    { name: 'receive_inquiries', slug: 'receive-inquiries', category: 'inquiries', description: 'Receive client inquiries' },
-    { name: 'post_inquiry', slug: 'post-inquiry', category: 'inquiries', description: 'Post inquiries to clients' },
-    { name: 'manage_inquiries', slug: 'manage-inquiries', category: 'inquiries', description: 'Manage all inquiries' },
+    // The three "inquiries" permissions were removed in Phase 7 along with the
+    // `Inquiry` model. They gated an unauthenticated intake that no longer
+    // exists — and "receive client inquiries" as a paid tier feature was the
+    // pay-per-lead shape Phase 2.5 removed from the pricing page, still sitting
+    // in the permission table where nobody looked.
     
     // Chat Permissions
     { name: 'access_chat', slug: 'access-chat', category: 'chat', description: 'Access chat functionality' },
@@ -275,7 +276,6 @@ async function main() {
   // BASIC: Limited permissions
   const basicPermissions = [
     'create_article',
-    'receive_inquiries',
     'access_chat',
     'send_message',
     'edit_profile',
@@ -286,7 +286,6 @@ async function main() {
     ...basicPermissions,
     'edit_article',
     'publish_article',
-    'post_inquiry',
     'view_analytics',
     'upload_documents',
   ]
@@ -295,7 +294,6 @@ async function main() {
   const premiumPermissions = [
     ...professionalPermissions,
     'delete_article',
-    'manage_inquiries',
     'access_paid_promo',
     'create_promo',
     'export_data',

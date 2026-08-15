@@ -78,7 +78,11 @@ function loadBooking(bookingId: string) {
     select: {
       id: true,
       bookingNumber: true,
-      subject: true,
+      // `subject` is deliberately not selected. A fee note narrates the work
+      // from what the firm types when it raises the note, never from the
+      // client's own account of their problem — and a privileged column loaded
+      // "just in case" is a privileged column that will eventually be spread
+      // into a response.
       clientId: true,
       lawyerId: true,
       firmId: true,

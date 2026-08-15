@@ -414,6 +414,36 @@ Asserted by `npm run check:billing` (17 cases, against a real database).
 
 ---
 
+## Who may be in a law firm
+
+Added 2026-08-16, Phase 7. Enforced in
+[`src/lib/firms/invitations.ts`](../../src/lib/firms/invitations.ts) and asserted by
+`npm run check:firm` (15 cases).
+
+A law firm is a group of **Attorneys-at-Law** practising together. There is no lawful
+form in which a non-attorney founds a legal practice, so:
+
+- **Only a verified attorney may register a practice**, and only a principal may do it.
+- **`FIRM_OWNER` and `ATTORNEY` require an admitted, BASL-verified attorney.**
+  `FIRM_ADMIN` (practice manager) and `PARALEGAL` do not, and often are not.
+- **Joining is consented to, not done to someone.** `FirmInvitation` exists because a
+  principal used to type an email address and that person was inside the firm's
+  privilege boundary immediately, without being asked. Invitations expire in 14 days: a
+  pending one is a standing offer of access to privileged material.
+- **An attorney holding open matters cannot move practice.** The client engaged *that*
+  firm — it is the party to the retainer (rule 7) — so carrying the file across would
+  change who the client is retained by without telling them. Close or hand over first.
+- **A firm of one that gains a member becomes a partnership and loses its inherited
+  verification**, leaving the public directory until an administrator checks it in its
+  own right. We have not verified the claim a registered practice makes.
+
+Registration **converts the founder's existing firm** rather than creating a second one.
+Every attorney already has a firm of one holding their matters, subscription and
+invoices; a new firm would leave `Booking.firmId` pointing at a practice the attorney
+had left.
+
+---
+
 ## Data protection — what we hold, and who decides
 
 Added 2026-08-03, Phase 6. Full detail in [DATA-INVENTORY.md](./DATA-INVENTORY.md);
@@ -434,6 +464,54 @@ mistake available here is applying one role's rule to the other role's data.
 
 `controllerOf()` makes this a lookup, not a judgement call in a route.
 
+### Encryption at rest, and the trap it nearly shipped
+
+Added 2026-08-16, Phase 7. Full detail in
+[DATA-INVENTORY.md §11](./DATA-INVENTORY.md#11-encryption-at-rest).
+
+The client's account of their legal problem, the conflict-check record, the quoted
+scope, the engagement letter and every client↔attorney message are **encrypted at rest**
+with AES-256-GCM, bound by AEAD to their own row and column. `firms/access.ts` binds
+code that goes through the application; a database dump does not go through the
+application.
+
+> **The rule: ciphertext is never a return value.** The disclosure gate has three
+> outcomes — the plaintext, `[Withheld — privileged]`, or `[Unavailable]`. There is no
+> fourth branch that hands back what is stored, because that is the version of this
+> feature that passes a naive privilege check while giving platform staff an
+> offline-attackable copy of a client's legal problem.
+
+`npm run check:privilege` asserts the withheld value is neither the plaintext **nor the
+ciphertext**, that ciphertext moved between rows or columns will not decrypt, and that
+failure is closed. **Losing the key destroys the data** — which is why fee notes, being
+tax documents the firm can be compelled to produce, are deliberately excluded until key
+escrow is designed.
+
+### Message threads are participants-only
+
+Added 2026-08-16, Phase 7. `Conversation` now carries `firmId` and `clientId`, and
+access runs through `resolveConversationAccess()`.
+
+This rule is **narrower than the matter rule** on purpose:
+
+| Who | Reads the matter file | Reads a message thread |
+|---|---|---|
+| The client | yes | yes |
+| An attorney in the thread, still at the firm | yes if assigned | yes |
+| The same attorney **after leaving the firm** | no | **no** |
+| The firm's principal, not in the thread | yes | **no** |
+| A paralegal | no | **no** |
+| Platform `ADMIN` | no | **no** |
+
+A principal needs the matter file to triage and reassign a matter. They do not need to
+read a conversation that has already happened between a colleague and a client. Every
+additional reader of a privileged communication is another person an opponent can name
+to argue privilege was waived, so the default is the narrowest one that still works.
+
+Before this, participation had no end date: leaving a practice removed access to the
+matter file and left the conversation about it open — including from inside a competing
+firm. The socket server had the same defect and was fixed with it.
+
 ### Four rules with teeth
 
 1. **The purge cannot reach matter data.** `assertPurgeable()` refuses every
@@ -450,6 +528,9 @@ mistake available here is applying one role's rule to the other role's data.
 4. **A subject-access export contains no matter data.** A `ConflictCheck` names *other*
    clients and opposing parties; releasing it on one person's request would breach several
    others' confidentiality. The export names the firms to ask instead.
+5. **Nothing collects a description of a legal problem outside the engagement flow.**
+   The unauthenticated `Inquiry` intake was deleted in Phase 7 — model and rows. If you
+   are asked to add a "quick contact a lawyer" form, that is this coming back.
 
 ### Consent is for three things, and matter data is not one of them
 
@@ -508,5 +589,9 @@ Before merging anything that touches booking, payments, advertising, ranking, or
 - [ ] Client-facing artefacts name the **firm** as the service provider
 - [ ] Nothing deletes, exports or seeks consent for data the **firm** controls
 - [ ] No content column was added to `DataAccessLog`
+- [ ] No disclosure path can return ciphertext — plaintext or a marker, never the stored value
+- [ ] Nothing collects a description of a legal problem outside the engagement flow
+- [ ] Only a verified attorney can found or be a partner in a practice
 - [ ] `npm run check:pdpa` passes
+- [ ] `npm run check:firm` passes
 - [ ] `npm run build` passes

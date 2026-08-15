@@ -96,6 +96,49 @@ app.prepare().then(() => {
     }
   });
 
+  /**
+   * May this user be in this conversation's live room?
+   *
+   * ───────────────────────────────────────────────────────────────────────────
+   * THIS MIRRORS `resolveConversationAccess` IN src/lib/firms/access.ts. That
+   * file is the source of truth; this exists only because the socket server is
+   * plain CommonJS and cannot import the TypeScript module. If the rule changes
+   * there, it changes here in the same commit.
+   *
+   * It is expressed as ONE query whose `where` can only match when the rule
+   * holds, rather than as branching logic, because a second copy of a privilege
+   * rule written as `if` statements is a second copy that will drift.
+   *
+   * Before Phase 7 this was a bare `conversationParticipant.findFirst`, which
+   * meant an attorney who had left a firm still joined the room and received
+   * that firm's clients' messages live.
+   * ───────────────────────────────────────────────────────────────────────────
+   */
+  const mayAccessConversation = async (conversationId, user) => {
+    // Platform staff, first and unconditionally. Same reasoning as access.ts.
+    if (user.role === 'ADMIN') return false;
+
+    const match = await prisma.conversation.findFirst({
+      where: {
+        id: conversationId,
+        // Must be in the thread at all.
+        participants: { some: { userId: user.userId } },
+        OR: [
+          // The client always keeps their own thread.
+          { clientId: user.userId },
+          // A thread created before Phase 7, with no firm recorded.
+          { firmId: null },
+          // The firm side: participation must still be backed by an ACTIVE
+          // membership of the firm the client was talking to.
+          { firm: { members: { some: { userId: user.userId, status: 'ACTIVE' } } } },
+        ],
+      },
+      select: { id: true },
+    });
+
+    return !!match;
+  };
+
   io.on('connection', (socket) => {
     console.log('Client connected:', socket.id, 'User:', socket.user.userId);
 
@@ -114,10 +157,7 @@ app.prepare().then(() => {
       if (!UUID_V4_REGEX.test(conversationId)) return;
 
       try {
-        const participant = await prisma.conversationParticipant.findFirst({
-          where: { conversationId, userId: socket.user.userId }
-        });
-        if (participant) {
+        if (await mayAccessConversation(conversationId, socket.user)) {
           socket.join(`conv_${conversationId}`);
         }
       } catch (err) {
@@ -137,10 +177,7 @@ app.prepare().then(() => {
       if (!UUID_V4_REGEX.test(data.conversationId)) return;
 
       try {
-        const participant = await prisma.conversationParticipant.findFirst({
-          where: { conversationId: data.conversationId, userId: socket.user.userId }
-        });
-        if (!participant) return;
+        if (!(await mayAccessConversation(data.conversationId, socket.user))) return;
 
         const sanitizedContent = sanitizeString(data.content || '', 5000);
         const cleanData = {

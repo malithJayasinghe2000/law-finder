@@ -153,6 +153,120 @@ export const UpdateFirmMemberSchema = z.object({
   status: z.enum(['ACTIVE', 'SUSPENDED', 'REMOVED']).optional(),
 });
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Registering a practice, and inviting people into it
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Registering a real firm.
+ *
+ * The founder must already be a verified Attorney-at-Law, because in Sri Lanka
+ * a law firm is a group of attorneys practising together — there is no lawful
+ * form in which a non-attorney founds a legal practice. That is enforced in the
+ * route, not here, because it is a fact about the caller rather than the input.
+ *
+ * See docs/restructure/HOW-IT-WORKS.md Part 1.
+ */
+export const RegisterFirmSchema = z.object({
+  name: text(160).refine((v) => v.trim().length >= 2, {
+    message: 'Enter the name of the practice.',
+  }),
+  firmType: FirmTypeEnum,
+  registrationNumber: optionalText(60),
+  establishedYear: z
+    .number()
+    .int()
+    .min(1800, 'Enter a four-digit year.')
+    .max(new Date().getFullYear(), 'That year is in the future.')
+    .nullable()
+    .optional(),
+
+  description: optionalText(1200),
+  practiceAreas: z
+    .array(z.enum(PRACTICE_AREAS as unknown as [string, ...string[]]))
+    .max(12, 'You may list up to 12 practice areas.')
+    .default([]),
+  languages: z
+    .array(z.enum(LANGUAGES as unknown as [string, ...string[]]))
+    .default([]),
+  courts: z.array(text(80)).max(20).default([]),
+  district: z
+    .enum(DISTRICTS as unknown as [string, ...string[]])
+    .optional()
+    .or(z.literal('')),
+
+  contactEmail: z.string().email('Enter a valid email address.').optional().or(z.literal('')),
+  contactPhone: z
+    .string()
+    .regex(SRI_LANKA_PHONE, 'Enter a valid Sri Lankan phone number.')
+    .optional()
+    .or(z.literal('')),
+  websiteUrl: z.string().url('Enter a full URL, including https://').optional().or(z.literal('')),
+  officeHours: optionalText(200),
+
+  /** The head office. A practice has a place of business. */
+  office: z.object({
+    label: text(120).default('Head office'),
+    address: text(400).refine((v) => v.trim().length >= 5, {
+      message: 'Enter the address of the practice.',
+    }),
+    district: z
+      .enum(DISTRICTS as unknown as [string, ...string[]])
+      .optional()
+      .or(z.literal('')),
+    contactPhone: z
+      .string()
+      .regex(SRI_LANKA_PHONE, 'Enter a valid Sri Lankan phone number.')
+      .optional()
+      .or(z.literal('')),
+  }),
+
+  /**
+   * The people to invite. Nobody is added directly — see `FirmInvitation` in
+   * schema.prisma for why joining a practice has to be something a person
+   * agrees to rather than something done to them.
+   */
+  invitations: z
+    .array(
+      z.object({
+        email: z.string().email('Enter a valid email address.'),
+        role: FirmRoleEnum,
+        title: optionalText(80),
+      })
+    )
+    .max(50, 'Invite up to 50 people at a time.')
+    .default([]),
+
+  /**
+   * The founder confirming what they are registering.
+   *
+   * Not a dark-pattern checkbox: registering a practice tells clients that a
+   * firm exists at an address with named attorneys in it, and the person
+   * asserting that has to be doing so knowingly.
+   */
+  declarationAccepted: z.literal(true, {
+    message: 'Confirm the declaration before registering the practice.',
+  }),
+});
+
+export type RegisterFirmValues = z.infer<typeof RegisterFirmSchema>;
+
+/** Inviting someone into an existing firm. */
+export const CreateFirmInvitationSchema = z.object({
+  email: z.string().email("Enter the person's email address."),
+  role: FirmRoleEnum,
+  title: optionalText(80),
+});
+
+export const RespondToFirmInvitationSchema = z.object({
+  token: z.string().min(16, 'That invitation link is not valid.'),
+  action: z.enum(['accept', 'decline']),
+});
+
+export const RevokeFirmInvitationSchema = z.object({
+  invitationId: z.string().uuid(),
+});
+
 /** Reassigning a matter to another attorney at the same firm. */
 export const AssignMatterSchema = z.object({
   attorneyProfileId: z.string().uuid('Choose an attorney.'),

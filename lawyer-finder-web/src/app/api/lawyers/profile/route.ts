@@ -14,7 +14,6 @@ export async function GET() {
     const profile = await prisma.lawyerProfile.findFirst({
       where: { userId: session.userId },
       include: {
-        inquiries: { orderBy: { createdAt: 'desc' } },
         articles: { orderBy: { createdAt: 'desc' } },
       },
     });
@@ -23,7 +22,28 @@ export async function GET() {
       return NextResponse.json({ error: 'Profile not found.' }, { status: 404 });
     }
 
-    return NextResponse.json(profile, { status: 200 });
+    // Replaces the `inquiries` include removed in Phase 7 with the `Inquiry`
+    // model. A COUNT, not the rows: the dashboard shows a number, and loading
+    // every matter to compute one put the client's subject line and description
+    // into a payload that only ever displayed a total.
+    const openMatters = await prisma.booking.count({
+      where: {
+        lawyerId: profile.id,
+        status: {
+          notIn: [
+            'COMPLETED',
+            'DECLINED',
+            'QUOTE_EXPIRED',
+            'CLIENT_DECLINED',
+            'CANCELLED_BY_CLIENT',
+            'CANCELLED_BY_FIRM',
+            'NO_SHOW',
+          ],
+        },
+      },
+    });
+
+    return NextResponse.json({ ...profile, openMatters }, { status: 200 });
   } catch {
     return NextResponse.json({ error: 'Internal server error.' }, { status: 500 });
   }

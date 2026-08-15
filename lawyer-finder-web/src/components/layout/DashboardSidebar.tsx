@@ -23,7 +23,6 @@ export default function DashboardSidebar({ role, locale }: DashboardSidebarProps
     { href: `/${locale}/dashboard/lawyer`, label: 'Overview', icon: LayoutDashboard },
     { href: `/${locale}/dashboard/lawyer/profile`, label: 'My Profile', icon: User },
     { href: `/${locale}/dashboard/lawyer/firm`, label: 'My Firm', icon: Building2 },
-    { href: `/${locale}/dashboard/lawyer/inquiries`, label: 'Inquiries', icon: Inbox },
     { href: `/${locale}/dashboard/lawyer/articles`, label: 'Articles', icon: FileText },
     { href: `/${locale}/dashboard/lawyer/consultations/earnings`, label: 'Consultation Income', icon: Banknote },
     { href: `/${locale}/dashboard/lawyer/consultations/refunds`, label: 'Refunds', icon: Banknote },

@@ -30,7 +30,7 @@ the AI chatbot, read in this order:**
 7. `docs/restructure/COUNSEL-MEETING-BRIEF.md` — the five questions to put to an
    attorney, in plain language
 
-Phases 0–6 are complete. Phase 7 (growth) is next.
+Phases 0–7 are complete. Phase 8 (growth) is next.
 
 ### The seven hard rules (full detail in LEGAL-GUARDRAILS.md)
 
@@ -74,5 +74,14 @@ bound by that limit — no fee ranges, no ratings, no promotional copy.
   prove that an "erasure" erases anything. **We are controller for our own data and
   processor for the firm's matter data at once: never delete, export, or seek consent
   for anything under `Booking`. And never add a content column to `DataAccessLog`**
+- Run `npm run check:firm` after touching `src/lib/firms/invitations.ts` — a green build
+  does not prove that an unverified attorney cannot become a partner, or that an attorney
+  cannot carry a client's live matter into a different practice
+- **Privileged matter fields are encrypted at rest** (`src/lib/privacy/encryption.ts`).
+  Never read `Booking.description`, `ConflictCheck.notes`, `Quote.scopeOfWork`,
+  `EngagementLetter.body` or `Message.content` directly — go through `disclose*()` in
+  `src/lib/firms/access.ts`. **A disclosure path must never return ciphertext:** the
+  outcomes are the plaintext or a marker, and a fallback that returns the stored value
+  hands a withheld reader an offline-attackable copy of a client's legal problem
 - **Never break a working flow to make a legal fix** — replace before removing
 - Update `docs/restructure/PROGRESS.md` at the end of every session

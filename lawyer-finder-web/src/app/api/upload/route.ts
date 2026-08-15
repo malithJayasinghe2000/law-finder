@@ -36,6 +36,12 @@ export async function POST(req: Request) {
 
     const formData = await req.formData();
     const file = formData.get('file') as File | null;
+    /**
+     * What the file is for. `identity` means a practising certificate or a
+     * photograph of the applicant — tier 3 personal data under
+     * docs/restructure/DATA-INVENTORY.md §5.
+     */
+    const purpose = String(formData.get('purpose') ?? 'general');
 
     if (!file) {
       return NextResponse.json({ error: 'No file provided.' }, { status: 400 });
@@ -70,8 +76,35 @@ export async function POST(req: Request) {
 
     // Fallback to local storage if Cloudinary is not configured
     if (!process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_CLOUD_NAME) {
+      /**
+       * The fallback writes into `public/uploads`, which Next serves to anyone
+       * who knows the path. That is acceptable for a profile photograph and is
+       * NOT acceptable for an identity document: a practising certificate and a
+       * photograph of someone's face, reachable without signing in, on a
+       * guessable `/uploads/<timestamp>-<filename>` URL.
+       *
+       * So an identity upload fails loudly rather than degrading quietly. A
+       * misconfigured deploy that silently publishes attorneys' identity
+       * documents is a worse outcome than an applicant seeing an error.
+       *
+       * The proper fix is an authenticated file-serving route for tier 3
+       * documents — recorded in PROGRESS.md as a follow-up, because it is a new
+       * subsystem rather than a guard.
+       */
+      if (purpose === 'identity') {
+        return NextResponse.json(
+          {
+            error:
+              'Document storage is not configured on this server, and identity documents ' +
+              'are not written to a publicly readable folder. Ask an administrator to ' +
+              'configure image storage before submitting your application.',
+          },
+          { status: 503 }
+        );
+      }
+
       console.log('[UPLOAD] Cloudinary not configured, falling back to local storage.');
-      
+
       const uploadDir = path.join(process.cwd(), 'public', 'uploads');
       if (!existsSync(uploadDir)) {
         await mkdir(uploadDir, { recursive: true });
