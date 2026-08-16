@@ -18,7 +18,8 @@
 | 5 | AI compliance | 🟢 **Done** |
 | 6 | PDPA compliance | 🟢 **Done** |
 | 7 | Encryption at rest · firm onboarding · the three open inventory findings | 🟢 **Done** |
-| 8 | Growth features | ⚪ Not started |
+| 8 | Privacy notice + data-rights screens ([brief](./PHASE-8-BRIEF.md)) | ⚪ Not started |
+| 9 | Growth features | ⚪ Not started |
 
 Legend: ⚪ not started · 🟡 in progress · 🟢 done · 🔴 blocked
 

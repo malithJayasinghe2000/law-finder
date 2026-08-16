@@ -32,7 +32,8 @@ the AI chatbot, read in this order:**
 8. `docs/restructure/SYSTEM-REVIEW.md` — a whole-codebase review: what to remove,
    restructure and add, and what is good and must not be "cleaned up"
 
-Phases 0–7 are complete. Phase 8 (growth) is next.
+Phases 0–7 are complete. **Phase 8 (privacy notice + data-rights screens) is next —
+see `docs/restructure/PHASE-8-BRIEF.md`.**
 
 ### The seven hard rules (full detail in LEGAL-GUARDRAILS.md)
 
