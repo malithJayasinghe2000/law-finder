@@ -118,6 +118,14 @@ export default function RegisterFirmPage({ params }: { params: Promise<{ locale:
           ? `${form.name} registered. ${data.invitationsSent} invitation${data.invitationsSent === 1 ? '' : 's'} sent.`
           : `${form.name} registered.`
       );
+
+      // Registration can succeed while the invitations do not — a firm without
+      // a licence has no seat for anyone to join into. Say so loudly rather
+      // than letting the principal believe their partners were emailed.
+      if (data.warning) {
+        toast.warning(data.warning, { duration: 12000 });
+      }
+
       router.push(`/${locale}/dashboard/lawyer/firm`);
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Something went wrong.');

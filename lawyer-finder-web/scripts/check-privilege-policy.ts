@@ -105,14 +105,19 @@ const CASES: Case[] = [
       'Someone must be able to move a matter when an attorney is ill, leaves, or hits a conflict — but quoting and conflict-checking belong to whoever will do the work.',
   },
   {
-    who: 'Practice manager (FIRM_ADMIN, not an attorney)',
+    // NOTE THE PLATFORM ROLE. A practice manager need not be an admitted
+    // attorney, so their platform `Role` is CLIENT. This case said 'LAWYER'
+    // until Phase 7, which described a person who cannot exist — and hid a real
+    // bug: the rule refused every non-attorney firm member outright, so a
+    // FIRM_ADMIN got 403 on the diary they are employed to run.
+    who: 'Practice manager (FIRM_ADMIN, not an attorney — platform role CLIENT)',
     actor: {
-      actorUserId: 'u-M', actorRole: 'LAWYER', actorProfileId: null,
+      actorUserId: 'u-M', actorRole: 'CLIENT', actorProfileId: null,
       membership: membership('FIRM_ADMIN'), matter: MATTER,
     },
     expect: { read: true, detail: true, act: false, assign: true },
     because:
-      'Runs the diary and the queue, so needs the matter. Whether a non-attorney may see matter detail at all is counsel question 8(b) — if the answer is no, THIS is the case that must change.',
+      'Runs the diary and the queue, so needs the matter. Authority inside a firm comes from MEMBERSHIP, not from the platform role — gating on the platform role locks out every non-attorney member. Whether a non-attorney may see matter detail at all is counsel question 8(b); if the answer is no, THIS is the case that must change.',
   },
   {
     who: 'A different attorney at the same firm',
@@ -125,13 +130,32 @@ const CASES: Case[] = [
       'Being in the same firm is not a reason to read a colleague\'s client\'s problem. Access is need-based and minimal.',
   },
   {
-    who: 'A paralegal at the same firm',
+    who: 'A paralegal at the same firm (platform role CLIENT)',
     actor: {
-      actorUserId: 'u-P', actorRole: 'LAWYER', actorProfileId: null,
+      actorUserId: 'u-P', actorRole: 'CLIENT', actorProfileId: null,
       membership: membership('PARALEGAL'), matter: MATTER,
     },
     expect: { read: true, detail: false, act: false, assign: false },
-    because: 'Can see that an appointment exists. Never what it concerns.',
+    because: 'Can see that an appointment exists. Never what it concerns. Their platform role is CLIENT, because a paralegal is not an admitted attorney.',
+  },
+  {
+    who: 'A CLIENT-role user with NO firm membership',
+    actor: {
+      actorUserId: 'u-stranger', actorRole: 'CLIENT', actorProfileId: null,
+      membership: null, matter: MATTER,
+    },
+    expect: { read: false, detail: false, act: false, assign: false },
+    because:
+      'The other half of the membership rule. Loosening the platform-role guard must not let an ordinary signed-in client reach a firm\'s matters — membership is what separates a member from a stranger.',
+  },
+  {
+    who: 'A paralegal at a DIFFERENT firm (platform role CLIENT)',
+    actor: {
+      actorUserId: 'u-P2', actorRole: 'CLIENT', actorProfileId: null,
+      membership: membership('PARALEGAL', 'firm-2'), matter: MATTER,
+    },
+    expect: { read: false, detail: false, act: false, assign: false },
+    because: 'A matter never crosses firms, for non-attorney staff either.',
   },
   {
     who: 'An attorney at a DIFFERENT firm',

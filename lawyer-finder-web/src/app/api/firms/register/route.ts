@@ -150,14 +150,37 @@ export async function POST(req: Request) {
       );
     }
 
-    // Seats. Inviting people is not the same as them joining, but a principal
-    // should be told now rather than discovering it when the first partner
-    // accepts. This counts SEATS — people who can sign in — and never matters,
-    // clients or enquiries. See LEGAL-GUARDRAILS.md (rule 1).
+    /**
+     * Seats gate the INVITATIONS, not the registration.
+     *
+     * ─────────────────────────────────────────────────────────────────────────
+     * This started as a hard 402 on the whole request, and driving the real flow
+     * showed why that was wrong. A firm with no licence yet — which is every
+     * firm before it chooses a plan — tried to register its practice and got
+     * *"This firm has no active software licence, so no further people can be
+     * given access."* They were not giving anyone access. They were typing in
+     * the name of their firm.
+     *
+     * Registering is naming and describing the practice the attorney is already
+     * working in. It consumes no seat: the founder already occupies theirs. So
+     * registration proceeds, and any invitations are reported back as *not
+     * sent*, with the reason.
+     *
+     * Silently dropping them would be worse than the 402 was — the principal
+     * would believe their partners had been emailed. Hence `invitationsBlocked`
+     * in the response and a warning the UI surfaces.
+     *
+     * The hard seat rule still bites where it means something: at ACCEPTANCE,
+     * in /api/firms/invitations/respond, because a seat is consumed by a person
+     * joining. Seats count PEOPLE WHO CAN SIGN IN, never matters, clients or
+     * enquiries — see LEGAL-GUARDRAILS.md (rule 1).
+     * ─────────────────────────────────────────────────────────────────────────
+     */
     const seatCheck = await canAddFirmMember(firmId);
-    if (data.invitations.length > 0 && !seatCheck.allowed) {
-      return NextResponse.json({ error: seatCheck.reason }, { status: 402 });
-    }
+    const seatsAvailable = seatCheck.allowed;
+    // Captured while the discriminated union still narrows; `seatCheck.reason`
+    // only exists on the refusing branch.
+    const seatRefusalReason = seatCheck.allowed ? null : seatCheck.reason;
 
     // Pre-flight every invitee so the principal gets one clear list of problems
     // rather than discovering them one acceptance at a time.
@@ -260,7 +283,9 @@ export async function POST(req: Request) {
       // until they have said yes.
       const created: { email: string; token: string; role: string }[] = [];
 
-      for (const invite of data.invitations) {
+      // Skipped entirely when the firm has no seat capacity, so that a practice
+      // without a licence can still register itself. See the note above.
+      for (const invite of seatsAvailable ? data.invitations : []) {
         const email = invite.email.toLowerCase().trim();
         const token = newInvitationToken();
 
@@ -310,12 +335,25 @@ export async function POST(req: Request) {
       }
     }
 
+    const blocked = seatsAvailable ? [] : data.invitations.map((i) => i.email);
+
     return NextResponse.json(
       {
         success: true,
         firmId,
         slug: result.slug,
         invitationsSent: result.created.length,
+        // Named explicitly rather than inferred from a count, so the UI cannot
+        // quietly report success for people who were never emailed.
+        invitationsBlocked: blocked,
+        // `seatCheck.reason` already ends with what to do about it, so it is not
+        // followed by a second instruction saying the same thing.
+        warning:
+          blocked.length > 0
+            ? `Your practice is registered, but ${blocked.length} invitation${
+                blocked.length === 1 ? ' was' : 's were'
+              } not sent. ${seatRefusalReason ?? ''}`.trim()
+            : null,
         verificationStatus: 'PENDING',
         note:
           'Your practice is registered and waiting to be verified. It will appear in the ' +

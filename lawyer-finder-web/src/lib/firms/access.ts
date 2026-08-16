@@ -177,7 +177,26 @@ export function resolveMatterAccess(params: {
     };
   }
 
-  if (actorRole !== 'LAWYER') return NO_ACCESS;
+  // ───────────────────────────────────────────────────────────────────────────
+  // AUTHORITY INSIDE A FIRM COMES FROM MEMBERSHIP, NOT FROM THE PLATFORM ROLE.
+  //
+  // This used to read `if (actorRole !== 'LAWYER') return NO_ACCESS;`, and that
+  // was wrong in a way nothing caught until the flow was driven in a browser.
+  //
+  // A practice manager or a paralegal is usually NOT an admitted attorney, so
+  // their platform `Role` is `CLIENT`. The guard therefore refused every
+  // non-attorney firm member outright — a `FIRM_ADMIN` who is meant to run the
+  // diary got 403 on the diary. Non-attorney membership did nothing at all.
+  //
+  // `check:privilege` passed throughout, because its fixtures described the
+  // paralegal as `actorRole: 'LAWYER'` — a combination that cannot occur. The
+  // test asserted a rule about a person who does not exist. There are now cases
+  // below for the roles as they really are.
+  //
+  // The platform role is still what separates a stranger from a member: without
+  // an ACTIVE membership of this matter's firm, there is no way past here.
+  // ───────────────────────────────────────────────────────────────────────────
+  if (actorRole !== 'LAWYER' && !membership) return NO_ACCESS;
 
   // The attorney the client chose, or the attorney the firm has since assigned.
   // Guarded on matter.lawyerId being set so that an unassigned matter cannot be
@@ -231,10 +250,18 @@ export async function getMatterAccess(params: {
   actorProfileId?: string | null;
   matter: MatterOwnership;
 }): Promise<MatterAccess> {
+  // Membership is loaded for everyone except platform staff.
+  //
+  // It used to be loaded only for `LAWYER`, which meant a practice manager or
+  // paralegal — whose platform role is `CLIENT`, because they are not admitted
+  // attorneys — arrived at the rule with `membership: null` and could never
+  // match their own firm. Skipping the lookup for ADMIN is not an optimisation:
+  // platform staff have no firm membership that could grant them anything, and
+  // the rule refuses them before it looks.
   const membership =
-    params.actorRole === 'LAWYER'
-      ? await getFirmMembership(params.actorUserId)
-      : null;
+    params.actorRole === 'ADMIN'
+      ? null
+      : await getFirmMembership(params.actorUserId);
 
   return resolveMatterAccess({ ...params, membership });
 }
@@ -577,10 +604,12 @@ export async function getConversationAccess(params: {
   actorRole: 'ADMIN' | 'LAWYER' | 'CLIENT';
   conversation: ConversationOwnership;
 }): Promise<ConversationAccess> {
+  // Same reasoning as `getMatterAccess`: a firm-side participant need not be an
+  // admitted attorney, so membership cannot be gated on the platform role.
   const membership =
-    params.actorRole === 'LAWYER'
-      ? await getFirmMembership(params.actorUserId)
-      : null;
+    params.actorRole === 'ADMIN'
+      ? null
+      : await getFirmMembership(params.actorUserId);
 
   return resolveConversationAccess({ ...params, membership });
 }

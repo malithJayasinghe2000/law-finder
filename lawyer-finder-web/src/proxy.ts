@@ -36,9 +36,22 @@ export default async function proxy(request: NextRequest) {
       return NextResponse.redirect(new URL(`/${locale}/dashboard/lawyer`, request.url));
     }
 
-    if (pathname.includes('/dashboard/lawyer') && payload.role !== 'LAWYER' && payload.role !== 'ADMIN') {
-      return NextResponse.redirect(new URL(`/${locale}`, request.url));
-    }
+    // NOTE: /dashboard/lawyer is deliberately NOT gated on role here.
+    //
+    // The firm-side dashboard is for everyone who works at a law firm, and a
+    // practice manager or paralegal is not an admitted attorney — their platform
+    // role is CLIENT. Deciding that here is impossible anyway: membership lives
+    // in the database and this middleware runs on the Edge, where there is no
+    // Prisma client.
+    //
+    // So this stays coarse (are you signed in at all?) and the real check runs
+    // in src/app/[locale]/dashboard/lawyer/layout.tsx, which queries the live
+    // membership and redirects anyone who is not firm-side. That is the same
+    // split this file already uses for role changes — the layout reads the
+    // database precisely so a stale JWT claim cannot decide anything.
+    //
+    // Nothing is loosened by this: the layout redirects, and every /api/firms
+    // route resolves authority through src/lib/firms/access.ts independently.
   }
 
   // Protect API routes that require auth

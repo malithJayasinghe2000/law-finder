@@ -1296,6 +1296,65 @@ shape; what is weak now is ordinary software. There is a large permissions subsy
 is almost entirely unenforced (and is where two guardrail violations have hidden), several
 things exist twice, and the finished DSAR engine has no interface at all.
 
+### 2026-08-16 — Phase 7 smoke test (and the two bugs it found)
+
+The backend was well covered — 39 privilege assertions, 15 firm assertions, three
+migrations tested against breaking data — but **no screen had ever been rendered and no
+route had ever been called**. Driving the real flow in a running app found two defects
+that every check had passed over.
+
+**1. Registering a practice was blocked by a seat check.**
+
+A firm with no licence — which is *every* firm before it chooses a plan — tried to
+register and got *"This firm has no active software licence, so no further people can be
+given access."* They were not giving anyone access. They were typing in the name of their
+firm.
+
+Registration is naming the practice the attorney already works in; it consumes no seat,
+because the founder already occupies theirs. Seats now gate the **invitations** only:
+registration proceeds and any invitations are reported back as `invitationsBlocked` with
+the reason, which the wizard shows as a warning. Silently dropping them would have been
+worse than the 402 — the principal would have believed their partners were emailed. The
+hard seat rule still bites at **acceptance**, where a person actually joins.
+
+**2. Non-attorney firm membership did nothing at all. This is the serious one.**
+
+A practice manager and a paralegal are not admitted attorneys, so their platform `Role`
+is `CLIENT`. Four separate layers gated on the platform role instead of on membership:
+
+- `resolveMatterAccess` — `if (actorRole !== 'LAWYER') return NO_ACCESS`
+- `getMatterAccess` / `getConversationAccess` — only loaded membership for `LAWYER`
+- eight `/api/firms/*` route guards
+- `/dashboard/lawyer/layout.tsx` **and** the Edge middleware in `proxy.ts`
+
+So a firm could invite its practice manager, the invitation would be accepted, the
+membership row would be written — and every screen would bounce them to the client
+dashboard while every matter returned 403. **Membership that grants nothing is worse than
+no membership, because the firm believes its staff have access.**
+
+Fixed at every layer: authority inside a firm comes from an ACTIVE `FirmMember` row, not
+from the platform role. The middleware stays coarse (it runs on the Edge and cannot query
+Prisma) and the layout does the live membership check — the same split this codebase
+already uses so a stale JWT claim cannot decide anything.
+
+**Why `check:privilege` did not catch it, which is the lesson.** Its fixtures described
+the paralegal and the practice manager as `actorRole: 'LAWYER'`. The test asserted a rule
+about a person who cannot exist, and passed for five phases. Three cases were added for
+the roles as they really are, plus one proving that loosening the platform-role guard does
+**not** let an ordinary signed-in client reach a firm's matters. 39 → 41 assertions.
+
+**What the smoke test confirmed working**, end to end against a running server and a real
+database: the seeded attorney's auto-named firm ("Kavindu Perera") converted to "Perera &
+Associates, Attorneys-at-Law" keeping its id; it dropped to PENDING and left the public
+directory; an administrator verified it and it reappeared; a partner with **no account**
+was invited, registered, verified their email, and accepted; the token was refused for the
+wrong signed-in user and refused again on reuse; a client engaged the firm; the matter
+description was written to the database as `enc.v1.k1.…`; and the four readers came back
+exactly as the privilege table says — client and principal in words, paralegal and `ADMIN`
+`[Withheld — privileged]`, with neither receiving the ciphertext. Message content likewise
+encrypted at rest, readable by both participants, `Forbidden` for `ADMIN` and for a
+paralegal who is not in the thread.
+
 **A note for the next session on a thing that wasted time.** The first `tsc` run after
 deleting a route failed on `.next/types/validator.ts` referencing the deleted file. That
 is a stale generated artefact, not a code error — `rm -rf .next` fixes it, exactly as

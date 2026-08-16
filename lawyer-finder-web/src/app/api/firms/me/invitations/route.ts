@@ -31,8 +31,15 @@ import { EmailService } from '@/lib/email/EmailService';
 /** GET: the firm's outstanding and past invitations. */
 export async function GET() {
   try {
+    // Deliberately NOT gated on `session.role === 'LAWYER'`.
+    //
+    // A practice manager or paralegal is not an admitted attorney, so their
+    // platform role is CLIENT. Gating here locked every non-attorney member out
+    // of their own firm's screens — the same defect as in `resolveMatterAccess`,
+    // one layer up. Authority comes from MEMBERSHIP, which is loaded below and
+    // then narrowed by `canManageFirm` / `canManageMembers`.
     const session = await getSession();
-    if (!session || session.role !== 'LAWYER') {
+    if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -74,7 +81,7 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     const session = await getSession();
-    if (!session || session.role !== 'LAWYER') {
+    if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -167,7 +174,7 @@ export async function POST(req: Request) {
 export async function DELETE(req: Request) {
   try {
     const session = await getSession();
-    if (!session || session.role !== 'LAWYER') {
+    if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
