@@ -1,11 +1,11 @@
 import { NextResponse, NextRequest } from 'next/server';
 import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { CONSENT_PURPOSES, mayRelyOnConsentFor } from '@/lib/privacy/policy';
 import {
-  CONSENT_PURPOSES,
-  PRIVACY_NOTICE_VERSION,
-  mayRelyOnConsentFor,
-} from '@/lib/privacy/policy';
+  getPublishedNotice,
+  requirePublishedVersionForConsent,
+} from '@/lib/privacy/notice';
 import { ConsentUpdateSchema } from '@/schemas/privacy.schema';
 
 /**
@@ -33,10 +33,26 @@ export async function GET() {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const records = await prisma.consentRecord.findMany({
-    where: { userId: session.userId },
-    orderBy: { createdAt: 'desc' },
-  });
+  const [records, notice] = await Promise.all([
+    prisma.consentRecord.findMany({
+      where: { userId: session.userId },
+      orderBy: { createdAt: 'desc' },
+    }),
+    getPublishedNotice(),
+  ]);
+
+  // Which versions the person's own consent records point at, and whether each
+  // one still resolves to a document. A version that does not resolve is shown
+  // as such rather than hidden: it is a defect in our evidence, not theirs.
+  const referenced = [...new Set(records.map((r) => r.noticeVersion))];
+  const resolvable = new Set(
+    (
+      await prisma.privacyNotice.findMany({
+        where: { version: { in: referenced } },
+        select: { version: true },
+      })
+    ).map((n) => n.version)
+  );
 
   // Latest row per purpose wins; a row is never updated in place, so the newest
   // grant or withdrawal is the current state and the rest is the evidence.
@@ -44,7 +60,8 @@ export async function GET() {
   for (const r of records) if (!current.has(r.purpose)) current.set(r.purpose, r);
 
   return NextResponse.json({
-    noticeVersion: PRIVACY_NOTICE_VERSION,
+    noticeVersion: notice?.version ?? null,
+    noticePublished: !!notice,
     purposes: Object.entries(CONSENT_PURPOSES).map(([purpose, meta]) => {
       const latest = current.get(purpose);
       return {
@@ -53,6 +70,10 @@ export async function GET() {
         granted: !!latest && !latest.withdrawnAt,
         decidedAt: latest?.withdrawnAt?.toISOString() ?? latest?.grantedAt.toISOString() ?? null,
         noticeVersionAgreed: latest?.noticeVersion ?? null,
+        // The point of recording a version is being able to open it. A link
+        // that goes nowhere would manufacture the same false assurance a dead
+        // citation does in an AI answer.
+        noticeVersionResolves: latest ? resolvable.has(latest.noticeVersion) : null,
       };
     }),
   });
@@ -73,11 +94,23 @@ export async function POST(req: NextRequest) {
   const { purpose, granted } = parsed.data;
 
   if (granted) {
+    // Fails closed. Recording a grant against a version that resolves to no
+    // document is unprovable consent — the exact defect the notice register
+    // exists to remove — so it is refused rather than written and discovered
+    // later by somebody auditing us. Withdrawal below is never blocked this
+    // way: that is the person exercising a right, and a gap in our own
+    // paperwork is not a reason to refuse it.
+    const version = await requirePublishedVersionForConsent();
+
+    if (!version.ok) {
+      return NextResponse.json({ error: version.reason }, { status: 409 });
+    }
+
     await prisma.consentRecord.create({
       data: {
         userId: session.userId,
         purpose,
-        noticeVersion: PRIVACY_NOTICE_VERSION,
+        noticeVersion: version.version,
         sourceIp: req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || null,
         userAgent: req.headers.get('user-agent') || null,
       },

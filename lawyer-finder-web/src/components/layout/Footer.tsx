@@ -107,22 +107,51 @@ export default function Footer({ locale }: { locale: string }) {
             </div>
           </div>
 
-          {/* Newsletter */}
+          {/*
+            A newsletter sign-up box stood here: an email field and a send
+            button with no handler on either. Removed in Phase 8 rather than
+            wired up, for two reasons.
+
+            It was a false statement about what we do with your data — it looked
+            like it collected your address and silently discarded it, which is
+            the same defect as the `ChatWidget` input removed in Phase 5.
+
+            And making it work would have been worse. Marketing email is one of
+            the three purposes that genuinely rest on consent, and consent has
+            to be recorded against a person and the version of the notice they
+            were shown. A footer box collecting a bare address from someone with
+            no account cannot do either, so it would have been marketing consent
+            with no record behind it. The place to opt in is the "Your data"
+            screen, where the record is written properly.
+          */}
+
+          {/* Your data */}
           <div className="space-y-6">
-            <h4 className="text-base font-serif text-white tracking-wider">Newsletter</h4>
+            <h4 className="text-base font-serif text-white tracking-wider">Your data</h4>
             <p className="text-sm text-neutral-400 leading-relaxed font-light">
-              Sign up for the latest legal tech updates, SaaS product releases and news.
+              What we collect, why, who can reach it, and how long we keep it — including
+              why our own staff cannot read what you tell your attorney.
             </p>
-            <div className="flex max-w-sm items-center bg-white/5 border border-white/10 p-1">
-              <input
-                type="email"
-                placeholder="Enter Your Email"
-                className="w-full bg-transparent text-sm text-white placeholder:text-neutral-500 outline-none px-3 font-light"
-              />
-              <button className="bg-[#bfa37a] hover:bg-[#bfa37a]/90 text-white p-3 transition-colors">
-                <Send className="h-4 w-4" />
-              </button>
-            </div>
+            <ul className="space-y-3">
+              <li>
+                <Link
+                  href={`/${locale}/privacy`}
+                  className="text-sm text-neutral-400 hover:text-[#bfa37a] transition-colors flex items-center gap-2"
+                >
+                  <span className="w-1 h-1 bg-[#bfa37a] rounded-full"></span>
+                  Privacy Notice
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href={`/${locale}/dashboard/profile/privacy`}
+                  className="text-sm text-neutral-400 hover:text-[#bfa37a] transition-colors flex items-center gap-2"
+                >
+                  <span className="w-1 h-1 bg-[#bfa37a] rounded-full"></span>
+                  Your data: consents, export, deletion
+                </Link>
+              </li>
+            </ul>
           </div>
         </div>
       </div>

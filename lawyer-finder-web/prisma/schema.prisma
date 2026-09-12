@@ -466,6 +466,8 @@ model LawFirm {
   conversations Conversation[]
   invitations   FirmInvitation[]
 
+  subjectRequestResponses SubjectRequestFirmResponse[]
+
   @@index([verificationStatus])
   @@index([district])
   @@index([slug])
@@ -2024,6 +2026,72 @@ model ConsentRecord {
   @@index([userId, purpose, withdrawnAt])
 }
 
+/// The lifecycle of a privacy-notice version.
+///
+/// There is no `ARCHIVED`/`DELETED` state and there must never be one. A
+/// published version is evidence of what a person was shown, and evidence that
+/// can be taken off the shelf is not evidence.
+enum PrivacyNoticeStatus {
+  /// Being written. Not visible to anyone but an administrator, and the only
+  /// state in which the text may be edited.
+  DRAFT
+  /// The version currently in force. At most one row is ever in this state.
+  PUBLISHED
+  /// Was in force; replaced by a later version. Still readable at its own URL,
+  /// forever, because consent records point at it.
+  SUPERSEDED
+}
+
+/// A published version of the privacy notice.
+///
+/// ───────────────────────────────────────────────────────────────────────────
+/// WHY THIS IS VERSIONED RATHER THAN A ROW SOMEBODY EDITS.
+///
+/// `ConsentRecord.noticeVersion` records which notice a person was shown when
+/// they agreed. Consent under the PDPA must be **demonstrable**, which means
+/// producing the exact words — so if an administrator edited the notice in
+/// place, every past consent record would silently start pointing at wording
+/// that person never saw, and the evidence would be destroyed by an ordinary
+/// content edit with no error anywhere.
+///
+/// So publishing writes a NEW row and supersedes the old one. Nothing updates
+/// the `body` of a PUBLISHED or SUPERSEDED version; `assertEditable()` in
+/// `src/lib/privacy/notice.ts` refuses it and `npm run check:pdpa` asserts it.
+///
+/// This is the same snapshot rule already used for `EngagementLetter.body` and
+/// `FeeNote.content`, for the same reason: a document that says what a person
+/// agreed to has to keep saying it after the business changes its mind.
+/// ───────────────────────────────────────────────────────────────────────────
+model PrivacyNotice {
+  id String @id @default(uuid())
+
+  /// The label consent records point at, e.g. `2026-08-03`. Unique, and never
+  /// reused: a dangling reference is not repaired by relabelling the target.
+  version String @unique
+
+  title String @default("Privacy Notice")
+
+  /// Markdown. The whole notice, self-contained — never assembled at read time
+  /// from fragments that can drift.
+  body String
+
+  /// What changed since the previous version, in plain language. Shown at the
+  /// top of a superseded version so a reader can see why they are looking at it.
+  changeSummary String?
+
+  status PrivacyNoticeStatus @default(DRAFT)
+
+  publishedAt   DateTime?
+  /// Who published it. Not a relation to `User`: this must survive the erasure
+  /// of that administrator's account, exactly like `DataAccessLog.actorUserId`.
+  publishedById String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status, publishedAt])
+}
+
 /// What kind of record an access-log entry refers to.
 enum AuditedResource {
   BOOKING
@@ -2148,6 +2216,78 @@ model DataSubjectRequest {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  /// What each referred firm decided. One row per firm — see the comment on
+  /// `SubjectRequestFirmResponse`.
+  firmResponses SubjectRequestFirmResponse[]
+
   @@index([userId, status])
   @@index([status, dueBy])
+}
+
+/// What a law firm decided about the part of a subject request that touches
+/// its own matter file.
+enum FirmSubjectResponseOutcome {
+  /// The firm gave the person their matter data.
+  RELEASED
+  /// The firm deleted it.
+  ERASED
+  /// The firm holds a matter for this person and is keeping it. `reason` must
+  /// name the duty — a refusal that does not is not a defensible refusal.
+  REFUSED_RETAINED
+  /// Some released or erased, some kept.
+  PARTIAL
+  /// The firm holds nothing for this person.
+  NO_DATA
+}
+
+/// One law firm's decision on one data-subject request.
+///
+/// ───────────────────────────────────────────────────────────────────────────
+/// WHY THIS IS A SEPARATE ROW PER FIRM RATHER THAN A FIELD ON THE REQUEST.
+///
+/// `DataSubjectRequest` has one `status` and one `outcomeNote`, but
+/// `referredFirmIds` is a LIST: a person who has engaged two practices has one
+/// request that two different controllers must each answer. If a firm wrote its
+/// decision onto the shared row, the first firm to respond would close the
+/// request for the second, and its words would be published to the subject as
+/// though they were ours.
+///
+/// So each firm answers for itself, here, and the parent request advances only
+/// when every referred firm has responded — computed in
+/// `src/lib/privacy/firmResponse.ts`, never guessed from the first reply.
+///
+/// A firm can only ever see and write its OWN row. Telling firm A that firm B
+/// also holds a matter for this client would disclose the existence of the
+/// other retainer, which is not ours to disclose.
+///
+/// NOTE WHAT IS NOT HERE: no matter content. `reason` is the firm's message to
+/// its own client about what it decided and which duty required it. It is not a
+/// place to copy the file into, for the same reason `DataAccessLog` has no
+/// content column.
+/// ───────────────────────────────────────────────────────────────────────────
+model SubjectRequestFirmResponse {
+  id String @id @default(uuid())
+
+  requestId String
+  request   DataSubjectRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  firmId String
+  firm   LawFirm @relation(fields: [firmId], references: [id])
+
+  outcome FirmSubjectResponseOutcome
+
+  /// The firm's own words to the person, naming the duty where it is keeping
+  /// something. Required: an outcome with no reason is not an answer.
+  reason String
+
+  /// Who at the firm decided. Not a relation: this must survive the erasure of
+  /// that person's account, exactly like `DataAccessLog.actorUserId`.
+  respondedById String?
+
+  respondedAt DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  /// A firm answers a given request once. Re-deciding updates its own row.
+  @@unique([requestId, firmId])
+  @@index([firmId, respondedAt])
 }

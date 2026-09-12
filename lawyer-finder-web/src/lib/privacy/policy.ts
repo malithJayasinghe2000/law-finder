@@ -38,11 +38,19 @@ import { AI_CONVERSATION_RETENTION_DAYS } from '@/lib/ai/policy';
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * The version of the privacy notice currently shown.
+ * The label of the FIRST published version of the privacy notice.
  *
- * Stamped onto every `ConsentRecord`. Without it, "they consented" is a claim
- * about a document nobody can produce — which is not demonstrable consent.
- * Bump this whenever the notice text changes materially.
+ * ⚠️ This is no longer "the current version". Phase 8 turned that into a lookup:
+ * ask `resolveNoticeVersion()` in `./notice.ts`, which reads the version
+ * actually in force from `PrivacyNotice`. Do not bump this constant when the
+ * notice changes — publish a new version instead, or every consent record
+ * written under the old label will point at a document that has moved.
+ *
+ * It survives for two reasons. It is the version stamped on every consent
+ * record written before the register existed, and the migration that created
+ * the register seeds a document under exactly this label so those records
+ * resolve. And it is the last-resort label if the register is somehow empty —
+ * a stable, greppable value rather than an empty string.
  */
 export const PRIVACY_NOTICE_VERSION = '2026-08-03';
 

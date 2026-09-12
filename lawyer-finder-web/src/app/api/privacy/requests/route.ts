@@ -7,6 +7,7 @@ import {
   SUBJECT_REQUEST_DUE_DAYS,
 } from '@/lib/privacy/policy';
 import { eraseSubject, erasurePreview } from '@/lib/privacy/subject';
+import { firmResponsesForSubject } from '@/lib/privacy/firmResponse';
 import { SubjectRequestCreateSchema } from '@/schemas/privacy.schema';
 
 /**
@@ -39,13 +40,22 @@ export async function GET() {
     orderBy: { createdAt: 'desc' },
   });
 
+  // What each firm decided about the matter half of the request. Referring a
+  // request onward and never showing the person the answer would make the
+  // referral a black hole from their side — they would see AWAITING_FIRM and
+  // never learn what the firm said.
+  const firmAnswers = await Promise.all(
+    requests.map((r) => firmResponsesForSubject(r.id))
+  );
+
   return NextResponse.json({
-    requests: requests.map((r) => ({
+    requests: requests.map((r, i) => ({
       ...r,
       dueBy: r.dueBy.toISOString(),
       createdAt: r.createdAt.toISOString(),
       updatedAt: r.updatedAt.toISOString(),
       completedAt: r.completedAt?.toISOString() ?? null,
+      firmResponses: firmAnswers[i],
     })),
     responseTargetDays: SUBJECT_REQUEST_DUE_DAYS,
     erasurePreview: erasurePreview(),
