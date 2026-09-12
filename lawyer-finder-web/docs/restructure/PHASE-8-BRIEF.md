@@ -238,4 +238,4 @@ A green build proves none of it. In addition to the five checks:
 | Existing DSAR endpoints (no callers) | `src/app/api/privacy/{requests,export,consents,me}` |
 | Firm-side referrals (no callers) | `src/app/api/firms/me/subject-requests` |
 | What we hold, and whose it is | `docs/restructure/DATA-INVENTORY.md` |
-| Encryption at rest | `src/lib/privacy/encryption.ts`, inventory §11 |
+| Encryption at rest | `src/lib/privacy/encryption.ts`, inventory §12 |

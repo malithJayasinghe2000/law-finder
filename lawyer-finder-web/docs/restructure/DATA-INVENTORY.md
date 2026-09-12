@@ -75,7 +75,7 @@ asserted by `npm run check:privilege`.
 
 **Fields marked 🔒 are encrypted at rest** (AES-256-GCM, bound to their row and column).
 Plaintext is only ever produced inside the disclosure gate in `firms/access.ts` — see
-[§11 Encryption at rest](#11-encryption-at-rest).
+[§12 Encryption at rest](#12-encryption-at-rest).
 
 **`screenedParties` is the sharpest edge in the schema.** It names *other people's*
 clients and opposing parties. A subject-access request from one client must never
@@ -137,6 +137,8 @@ auto-deleted; the purge refuses to touch matter data rather than guess.
 | `FeatureUsage` | Usage counters per subscription — **counts software, never clients** | Contract | Life of subscription + 12 months |
 | `AdAnalytics`, `AdSlotBooking` | Impressions and clicks, **aggregate per campaign per day**. No user identifier, no per-person tracking | Legitimate interest | 24 months (proposed) |
 | `LegalDocument` | `uploadedById` — an admin's identity | Contract | Life of document |
+| `PrivacyNotice` | `publishedById` — which administrator published a version. No subject data at all | Our own accountability | **Permanent.** A published version is the evidence of what a person was shown when they consented, so it is never deleted or edited — see §12 |
+| `SubjectRequestFirmResponse` | `respondedById`, and the firm's `reason` written to its own client | Legitimate interest (answering a statutory request) | With the subject request |
 
 **On "anonymous" community posts.** `Post.isAnonymous` and `Comment.isAnonymous` hide the
 author *from readers* — `/api/posts` and `/api/comments` substitute the author on read.
@@ -313,11 +315,77 @@ purpose, and each would be a finding if it reappeared.
   `data/chat_logs/` is gitignored
 - **No unauthenticated intake** — `Inquiry` was deleted in Phase 7, model and rows
 - **No content column on `DataAccessLog`**, and none may be added
-- **No plaintext in the tier 1 columns listed in §11** — asserted, not assumed
+- **No plaintext in the tier 1 columns listed in §12** — asserted, not assumed
+- **No content column on `SubjectRequestFirmResponse`** — a firm's answer to a subject
+  request says what it decided and which duty required it. It is not a place to copy the
+  matter file into. Same reasoning as `DataAccessLog`
+- **No way to edit or delete a published `PrivacyNotice`** — not an admin override, not a
+  soft-delete flag. `assertEditable()` refuses it and `check:pdpa` asserts the refusal
 
 ---
 
-## 10. Where the rules live
+## 10. The privacy notice register
+
+Added 2026-09-06, Phase 8. Implemented in
+[`src/lib/privacy/notice.ts`](../../src/lib/privacy/notice.ts); asserted by
+`npm run check:pdpa`.
+
+### The defect it closes
+
+`ConsentRecord.noticeVersion` has stamped every consent since Phase 6 — and until
+Phase 8 there was **no document anywhere that the version referred to**. It was a
+constant in `policy.ts` reading `'2026-08-03'`, pointing at nothing. Every consent record
+in the system was a claim about wording nobody could produce, which is not demonstrable
+consent.
+
+### Why versioned rather than editable
+
+If an administrator edits the notice in place, every past consent record silently starts
+pointing at wording that person never saw. **Nothing errors.** The evidence is destroyed
+by an ordinary content edit, and the loss is discovered when somebody asks you to prove
+consent — which is the moment you cannot.
+
+So publishing writes a **new row** and supersedes the old one, and a superseded version
+keeps its own permanent URL for ever. Evidence you can take off the shelf is not evidence.
+It is the same snapshot rule as `EngagementLetter.body` and `FeeNote.content`, for the
+same reason.
+
+| Rule | Where |
+| --- | --- |
+| A published or superseded version can never be edited | `assertEditable()` |
+| A published or superseded version can never be deleted | The `DELETE` route refuses anything but a `DRAFT` |
+| At most one version is in force | `publishNotice()`, in one transaction |
+| A draft is never served at a public URL | `getNoticeByVersion()` returns null for `DRAFT` |
+| The version stamped on a consent is a **lookup**, not a constant | `resolveNoticeVersion()` |
+
+### Consent fails closed
+
+Granting a consent when no notice is published is **refused**
+(`requirePublishedVersionForConsent`). Recording "they agreed to version X" where X
+resolves to nothing recreates the exact defect the register exists to remove, and doing it
+silently is worse than an error.
+
+**Withdrawal is never blocked this way.** That is the person exercising a right, and a gap
+in our own paperwork is not a reason to refuse it.
+
+### The firm answers its own half
+
+`SubjectRequestFirmResponse` is one row per (request, firm). Phase 6 referred requests to
+firms and gave them nowhere to answer, so a referred request sat in `AWAITING_FIRM` for
+ever — the same "right that cannot be exercised" defect as the client's, at the firm's end.
+
+Two rules that are not obvious:
+
+- **A firm answers only for itself.** One request can be referred to several firms. If the
+  first to reply closed it, the second firm's client would be told their matter had been
+  dealt with by a practice that never looked at it.
+- **The parent request closes only when every referred firm has replied**, and reports
+  `PARTIALLY_FULFILLED` whenever any firm retained the file. A clean `COMPLETED` over a
+  firm still holding the file is a false answer to a statutory request.
+
+---
+
+## 11. Where the rules live
 
 | Concern | File |
 | --- | --- |
@@ -326,13 +394,15 @@ purpose, and each would be a finding if it reappeared.
 | **Encryption at rest** | [`src/lib/privacy/encryption.ts`](../../src/lib/privacy/encryption.ts) → `npm run check:privilege`, backfilled by `npm run privacy:encrypt` |
 | Who may **join a firm** | [`src/lib/firms/invitations.ts`](../../src/lib/firms/invitations.ts) → `npm run check:firm` |
 | **Retention and subject rights** | [`src/lib/privacy/policy.ts`](../../src/lib/privacy/policy.ts) → `npm run check:pdpa` |
+| The **privacy notice register** | [`src/lib/privacy/notice.ts`](../../src/lib/privacy/notice.ts) → `npm run check:pdpa` |
+| A **firm answering a subject request** | [`src/lib/privacy/firmResponse.ts`](../../src/lib/privacy/firmResponse.ts) → `npm run check:pdpa` |
 | What the AI may say | [`src/lib/ai/policy.ts`](../../src/lib/ai/policy.ts) → `npm run check:ai` |
 | What a firm is licensed for | [`src/lib/firms/billing.ts`](../../src/lib/firms/billing.ts) → `npm run check:billing` |
 | Who may advertise | [`src/lib/ads/eligibility.ts`](../../src/lib/ads/eligibility.ts) |
 
 ---
 
-## 11. Encryption at rest
+## 12. Encryption at rest
 
 Added 2026-08-16, Phase 7. Implemented in
 [`src/lib/privacy/encryption.ts`](../../src/lib/privacy/encryption.ts); disclosed only

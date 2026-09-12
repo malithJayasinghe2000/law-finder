@@ -73,7 +73,23 @@ would reasonably expect to set fees on.
 **Recommendation:** fold the remaining fields onto `LawyerProfile` (or `LawFirm`) and
 delete the model and the page. The name alone invites someone to put a price back.
 
-### 1.4 Dead and duplicated odds and ends
+### 1.4 `DashboardSidebar.tsx` is dead — and Phase 7 fixed it anyway
+
+**Found in Phase 8.** `src/components/layout/DashboardSidebar.tsx` is imported by
+nothing. The rendered sidebar is `AppSidebar`, wired in `dashboard/layout.tsx`.
+
+That matters more than an unused file usually would: Phase 7's sidebar repair — the one
+recorded as *"all 18 links now resolve, and every one was opened"* — went into **this**
+file. Its careful `If you add a link here, open it` comment sits in a component nobody
+renders, while the sidebar users actually see was not audited at all.
+
+Phase 8 checked `AppSidebar`'s links: all of them resolve. But the lesson is that the
+Phase 7 note overstates what was verified.
+
+**Recommendation:** delete `DashboardSidebar.tsx`, and move that comment into
+`AppSidebar.tsx` where it applies.
+
+### 1.5 Dead and duplicated odds and ends
 
 - `src/app/api/chat/route.ts` — a stub returning `{status:'ok'}`. **DONE:** deleted.
 - `/api/ads/expire` and `/api/ads/availability` — no callers. Either schedule the first
@@ -137,7 +153,7 @@ inference rather than new work.
 
 ## 3. Things to ADD
 
-### 3.1 A data-protection screen — the biggest gap in the system
+### 3.1 A data-protection screen — the biggest gap in the system — **DONE (Phase 8)**
 
 Phase 6 built a complete DSAR engine: `/api/privacy/requests`, `/api/privacy/export`,
 `/api/privacy/consents`, `/api/privacy/me`, and `/api/firms/me/subject-requests` for the
@@ -147,17 +163,25 @@ There is no page where a person can export their data, withdraw a consent, or as
 erasure, and no screen where a firm sees a request referred to it. The PDPA rights exist
 in code and are unusable by any actual user.
 
-This is the worst possible position: the work is done, the cost is paid, and the
-compliance posture is unchanged — a regulator would see rights that were built and never
-offered. It needs roughly two screens:
+This was the worst possible position: the work done, the cost paid, and the compliance
+posture unchanged — a regulator would have seen rights that were built and never offered.
 
-- `/dashboard/profile/privacy` — what we hold, the three consents with toggles, "download
-  my data", "ask for erasure", and an honest explanation that erasure is **partial** and
-  why (`summariseErasure()` already produces exactly this).
-- `/dashboard/lawyer/firm/requests` — subject requests referred to the firm, since the
-  firm decides on matter data and not us.
+**Built in Phase 8:**
 
-### 3.2 Scheduled jobs — nothing runs on a timer
+- `/dashboard/profile/privacy` — what we hold by tier, the three consents with toggles,
+  "download my data", correction, and erasure with the partial preview shown *before*
+  confirming.
+- `/dashboard/lawyer/firm/requests` — subject requests referred to the firm, **and a way
+  for the firm to answer them**. The referral endpoint was read-only, so a referred
+  request sat in `AWAITING_FIRM` for ever: the same defect at the firm's end.
+- `/dashboard/admin/privacy-notices` — the versioned notice register.
+
+### 3.2 Scheduled jobs — nothing runs on a timer — **DONE (Phase 8)**
+
+`npm run jobs:daily` now runs the retention purge and advert expiry together, and
+[docs/scheduled-jobs.md](../scheduled-jobs.md) documents the cadence, the wiring and what
+to alert on. The job still prints what it refused to touch on every run.
+
 
 `privacy:purge`, `ai:purge` and `ads/expire` all exist and are all manual. A retention
 schedule nobody runs is a retention *document*, not a retention *policy*, and the PDPA
@@ -172,7 +196,13 @@ URL. Phase 7 made an `identity` upload **refuse** that fallback, which closes th
 but does not build the right thing: tier 3 documents should be served through a route that
 checks who is asking.
 
-### 3.4 Somewhere to put the encryption key that is not a `.env` file
+### 3.4 Somewhere to put the encryption key that is not a `.env` file — **DOCUMENTED (Phase 8)**
+
+[docs/encryption-key-custody.md](../encryption-key-custody.md) now covers custody,
+backup, restore testing, the rotation order and what to do if the key is lost or
+exposed. The *infrastructure* is still somebody's to build; the procedure is no longer
+undefined.
+
 
 `MATTER_ENCRYPTION_KEYS` now protects every matter description, conflict check, quote
 scope, engagement letter and client message. **Losing it destroys all of them.** It needs
@@ -195,13 +225,27 @@ found a break by driving the flow by hand; that is a test waiting to be written.
 ### 3.7 Two things counsel may force, worth designing for now
 
 - **If questions 16–18 come back badly, the consumer directory must be withdrawn.**
-  `PROJECT-PLAN.md` describes the B2B shape that survives that. It would be cheap now to
+  [DIRECTION.md](../DIRECTION.md) describes the B2B shape that survives that. It would be cheap now to
   keep the directory behind one feature flag so withdrawal is a config change rather than
   a release.
 - **The AI enforces its rules in English only** while the platform ships Sinhala and
   Tamil. A question in either bypasses the pre-generation check entirely. Counsel question
   5(h) asks whether that is defensible in the interim; if it is not, the honest interim fix
   is to close the non-English locales of the assistant rather than run it unguarded.
+
+---
+
+### 2.6 `notFound()` renders the 404 page with a **200** status
+
+**Found in Phase 8**, and pre-existing. `/en/privacy/<unknown-version>` returns the
+not-found page with `HTTP 200`. So does `/en/firms/<unknown>` and
+`/en/lawyers/<unknown>`. A genuinely unrouted path (`/en/totally-made-up-route`) correctly
+returns 404, so this is specific to `notFound()` called from inside a matched route.
+
+The body is right and the user sees the right thing; the status line lies to everything
+that is not a person — search indexers, uptime monitors, link checkers. Not introduced by
+Phase 8 and not fixed by it, because it is an app-wide behaviour that deserves its own
+change rather than a patch on one route.
 
 ---
 
@@ -228,11 +272,13 @@ Worth writing down so a future refactor does not helpfully undo it.
 
 ## 5. If you only do five things
 
-1. **Build the privacy screens** (3.1). Rights that exist and cannot be exercised are the
-   largest single gap.
-2. **Delete the permissions system** (1.1). It is where guardrail violations hide.
-3. **Schedule the purge jobs** (3.2). A retention policy nobody runs is not one.
-4. **Sort out key custody** (3.4). This risk was created deliberately in Phase 7 and the
-   operational half is missing.
+1. ~~**Build the privacy screens** (3.1).~~ **Done in Phase 8.**
+2. **Delete the permissions system** (1.1). It is where guardrail violations hide. Now the
+   largest remaining item.
+3. ~~**Schedule the purge jobs** (3.2).~~ **Done in Phase 8** — `npm run jobs:daily`.
+4. ~~**Sort out key custody** (3.4).~~ **Procedure documented in Phase 8**; the
+   infrastructure is still to be provisioned.
 5. **Rename `Booking` to `Matter`** (2.2). Boring, and it removes the most common source
    of confusion in the codebase.
+6. **Delete `DashboardSidebar.tsx`** (1.4) — and note what its existence says about what
+   Phase 7 actually verified.

@@ -18,7 +18,7 @@
 | 5 | AI compliance | 🟢 **Done** |
 | 6 | PDPA compliance | 🟢 **Done** |
 | 7 | Encryption at rest · firm onboarding · the three open inventory findings | 🟢 **Done** |
-| 8 | Privacy notice + data-rights screens ([brief](./PHASE-8-BRIEF.md)) | ⚪ Not started |
+| 8 | Privacy notice + data-rights screens ([brief](./PHASE-8-BRIEF.md)) | 🟢 **Done** |
 | 9 | Growth features | ⚪ Not started |
 
 Legend: ⚪ not started · 🟡 in progress · 🟢 done · 🔴 blocked
@@ -31,29 +31,27 @@ Everything after this builds on an answer we do not have.
 
 **Then, in order of how much they matter:**
 
-1. **Build the data-subject-rights interface.** Phase 6 built the whole DSAR engine —
-   `/api/privacy/requests`, `/export`, `/consents`, `/me` and
-   `/api/firms/me/subject-requests` — and **not one of them has a caller**. There is no
-   page from which a person can export their data, withdraw a consent, or ask for
-   erasure, and no screen where a firm sees a request referred to it. The PDPA rights
-   exist in code and are unusable by any actual user, which is the worst of both: the
-   work is done and the compliance position is unchanged. This is the single largest gap
-   in the system.
-2. **An authenticated file-serving route for identity documents.** `/api/upload` falls
+1. **An authenticated file-serving route for identity documents.** `/api/upload` falls
    back to `public/uploads` when object storage is not configured, which serves a
    practising certificate and a photograph of someone's face on a guessable URL. Phase 7
    made an `identity` upload **refuse** that fallback rather than degrade into it, which
-   closes the hole but does not build the right thing.
-3. **Back up `MATTER_ENCRYPTION_KEYS` somewhere real.** Losing it destroys every matter
-   description, conflict check, quote scope, engagement letter and client message.
-   Not this repository, and not the same host as the database.
-4. **Register the three missing Acts in the legal library.** Unchanged from Phase 6. The
+   closes the hole but does not build the right thing. **Now the largest open gap.**
+2. **Actually provision the encryption-key custody.** Phase 8 wrote the procedure
+   ([encryption-key-custody.md](../encryption-key-custody.md)) — a secrets manager, a
+   second copy in different custody, a tested restore, and the rotation order. None of it
+   is provisioned. The document is not the control.
+3. **Schedule `npm run jobs:daily` on a real timer.** Phase 8 built the entry point and
+   [documented the cadence](../scheduled-jobs.md); nothing is calling it yet. A retention
+   schedule nobody runs is still a document.
+4. **Delete the permissions system** (SYSTEM-REVIEW §1.1) — now the largest cleanup, and
+   the place two guardrail violations have hidden.
+5. **Register the three missing Acts in the legal library.** Unchanged from Phase 6. The
    vector store holds the Civil Procedure Code, Companies Act and Motor Traffic Act with
    no `LegalDocument` row, so their citations show "Not yet in the library" instead of a
    link. Upload the PDFs through `/dashboard/admin/legal-documents`. Do not hand-edit
    `ragDocumentName` — guessing which Act a row refers to is how you cite the wrong
    statute.
-5. **The AI refusal patterns are English-only** while the platform ships `si` and `ta`.
+6. **The AI refusal patterns are English-only** while the platform ships `si` and `ta`.
    Counsel question 5(h) asks whether that is defensible in the interim.
 
 **Still unanswered and still blocking their own areas:** counsel question 7(c) (matter
@@ -106,6 +104,12 @@ DPO designation, which are documents rather than code.
 | 2026-08-16 | An attorney **holding open matters cannot move practice** | The client engaged *that* firm — it is the party to the retainer. Carrying the file across would change who the client is retained by without telling them. Mirrors the rule the member-removal path already enforced. Put to counsel as question 8(e), because it may be heavier than the profession expects |
 | 2026-08-16 | Approval **refuses** an incomplete application instead of inventing values | `baslNumber: … \|\| \`BASL-MANUAL-${Date.now()}\`` ran in the same statement that set `isVerified: true`. "Verified" means we checked this person's BASL registration; an invented number makes that claim false on the one field it is a claim about |
 | 2026-08-16 | Identity documents upload through `/api/upload` and are stored as URLs; an `identity` upload **refuses** the public-folder fallback | They were base64 `data:` URLs inside `draftData`, bypassing the magic-byte check, MIME allow-list, size limit and rate limit — and the fallback would have served a practising certificate and a face photograph on a guessable public URL |
+| 2026-09-06 | The privacy notice is a **versioned register**, not an editable page | `ConsentRecord.noticeVersion` had stamped every consent since Phase 6 against a document that did not exist. Editing a notice in place would silently re-point every past consent record at wording that person never saw, with no error anywhere — the evidence destroyed by an ordinary content edit. Publishing writes a new version and supersedes the old one; a published version can never be edited or deleted |
+| 2026-09-06 | `PRIVACY_NOTICE_VERSION` became a **lookup**, and the constant was kept | It is the label on every consent record written before the register existed, and the migration seeds a document under exactly that label so those records resolve. Bumping the constant instead of publishing a version would re-create the drift it was changed to remove |
+| 2026-09-06 | Recording a consent **grant** fails closed when no notice is published; **withdrawal never does** | A grant against a version that resolves to nothing is unprovable consent — the defect the register exists to remove — and writing it silently is worse than an error. Withdrawal is the person exercising a right, and a gap in our own paperwork is not a reason to refuse it |
+| 2026-09-06 | A firm answers a referred subject request on **its own row**, and the request closes only when **every** referred firm has answered | One request can be referred to several firms. If the first to reply closed it, the second firm's client would be told their matter had been dealt with by a practice that never looked at it. It reports PARTIALLY_FULFILLED whenever any firm retained the file — a clean COMPLETED over a retained file is a false answer to a statutory request |
+| 2026-09-06 | The firm's answer is **required to carry a reason** and is shown to the person verbatim | A refusal that does not name the duty requiring retention is not a defensible refusal. The outcome that matters most here is the refusal, so the reason is not optional |
+| 2026-09-06 | Sidebar navigation follows **firm membership**, not platform role | Phase 7 fixed this in four layers and missed the fifth. A practice manager's platform role is CLIENT, so they were admitted by the layout and then shown the client menu with no link to their own firm — reachable only by typing a URL. Membership that grants nothing is worse than no membership |
 | 2026-08-03 | `Booking.clientRating` / `clientFeedback` **dropped**, not disabled | Phase 2 reported ratings "gone entirely" and they were not. A column that exists is a column a future decision can populate, and `clientRating` was one `orderBy` away from being ranking |
 
 ## Session log
@@ -1373,3 +1377,162 @@ is not automatically a failing rule.**
 - The AI refusal patterns are English-only while the platform ships `si` and `ta`
 - Advertiser billing has no module
 - Three Acts are in the vector store with no library row
+
+### 2026-09-06 — Phase 8 (the privacy notice and the data-rights screens)
+
+Phase 6 built a complete PDPA rights engine and gave it no interface. Phase 8 is mostly
+about that sentence: **a right nobody can reach has not been offered**, and a regulator
+does not credit an endpoint.
+
+**A note on where this started.** The working tree already contained uncommitted Phase 8
+work covering the notice model, `privacy/notice.ts`, the admin API and the two public
+pages. It was in good shape and was kept. What was missing was everything with a *user*
+attached: the admin screen, the "your data" screen, the firm-side screen, and any check
+covering the register.
+
+**1. The notice register — why versioned rather than editable.**
+
+`ConsentRecord.noticeVersion` had stamped every consent since Phase 6 and pointed at a
+constant in `policy.ts` — **no document, anywhere**. Every consent record on the system
+was a claim about wording nobody could produce, which is not demonstrable consent.
+
+The rule that makes it evidence: **publishing writes a NEW version and supersedes the old
+one, and a published version can never be edited or deleted.** If an administrator could
+edit it in place, every past consent record would silently start pointing at wording that
+person never saw. Nothing errors. The evidence is destroyed by an ordinary content edit,
+and you discover it at the moment you are asked to prove consent. Same snapshot rule as
+`EngagementLetter.body` and `FeeNote.content`.
+
+`PRIVACY_NOTICE_VERSION` became a lookup (`resolveNoticeVersion()`), and the constant was
+kept deliberately: it is the label on every pre-register consent record, and the migration
+seeds a document under exactly that label so those records resolve.
+
+**Consent fails closed.** A *grant* is refused when nothing is published; a *withdrawal*
+never is. Driven over HTTP: `409` with the reason on the grant, `200` on the withdrawal.
+
+**2. The screens.**
+
+- `/dashboard/profile/privacy` — what we hold grouped by tier (**counts, never content**),
+  the three consents with toggles, correction, export, and erasure with the partial
+  preview shown *before* confirming and a typed confirmation.
+- `/dashboard/admin/privacy-notices` — draft, preview, publish, discard. The preview
+  renders through the **same component as the public page**: an admin who approves a
+  preview built from different markup has approved something else.
+- `/dashboard/lawyer/firm/requests` — referred requests, **and a way to answer them**.
+
+`GET /api/privacy/me` was added; only `PATCH` existed, so there was no "what we hold"
+source at all.
+
+**3. The firm end, which was the same defect wearing different clothes.**
+
+`/api/firms/me/subject-requests` was **read-only**. A request referred to a firm sat in
+`AWAITING_FIRM` for ever — the firm could see it and had no way to decide it. Phase 6
+built the client's right and could not exercise it; it also built the firm's duty and
+could not discharge it.
+
+New `SubjectRequestFirmResponse`, one row per (request, firm), because
+`DataSubjectRequest` has one status and `referredFirmIds` is a **list**. If a firm wrote
+onto the shared row, the first to reply would close the request for the others and its
+words would reach the subject as though they were ours. The parent closes only when every
+referred firm has answered, as `PARTIALLY_FULFILLED` if any firm retained the file.
+
+The firm still never sees the person's request note, or that any *other* firm holds a
+matter for them. Verified live, not assumed.
+
+**4. Found while doing it: the sidebar was the fifth layer of the Phase 7 defect.**
+
+Phase 7 fixed "authority comes from firm membership, not platform role" in
+`resolveMatterAccess`, the `/api/firms/*` guards, the lawyer layout and the Edge
+middleware. `AppSidebar` still chose its menu from the platform role alone — so a practice
+manager (platform role `CLIENT`) was admitted by the layout and then shown the **client**
+menu, with no link to their own firm. The pages worked and were reachable only by typing a
+URL. The top bar said "Client Portal" while they managed a practice.
+
+Fixed by passing membership from the layout. **Verified against a real practice manager**
+— a `CLIENT`-role user with an ACTIVE `FIRM_ADMIN` membership — not by reasoning about it.
+
+**5. `DashboardSidebar.tsx` is dead, and Phase 7 fixed it anyway.**
+
+It is imported by nothing; the rendered sidebar is `AppSidebar`. Phase 7's sidebar repair —
+recorded here as *"all 18 links now resolve, and every one was opened"* — went into the
+**unused** file, including its `If you add a link here, open it` comment. `AppSidebar`'s
+links were checked in this phase and do all resolve, but the Phase 7 note overstates what
+was verified. Recorded in SYSTEM-REVIEW §1.4 rather than deleted mid-phase.
+
+**6. Also delivered:** [encryption-key-custody.md](../encryption-key-custody.md) (custody,
+backup, tested restore, rotation order, and what to do when a key is lost or exposed) and
+[scheduled-jobs.md](../scheduled-jobs.md) with `npm run jobs:daily`. Neither is
+provisioned — see *Next up*. The document is not the control.
+
+**Verification — and what only running it found**
+
+`npm run build`, `npx tsc --noEmit`, `check:privilege` 41/41, `check:firm` 15/15,
+`check:ai` 49/49, `check:billing` 21/21, and **`check:pdpa` 48 → 67** (19 new cases
+covering the register and the firm-response rule).
+
+**The new checks were proved by breaking the code and watching them go red.** An
+`assertEditable` that permits anything and a `publishNotice` that DELETED the version in
+force instead of superseding it: four failures, including *"the superseded version still
+exists and is still readable at its own URL"*. **That break really did destroy the seeded
+notice row in the dev database** — the exact harm the rule exists to prevent, reproduced
+by accident. Restored from the migration so the text is byte-identical.
+
+That also exposed a weakness in the check itself: it temporarily supersedes the live
+notice, so a crash mid-run left the database with **no published notice** and consent
+grants then failing closed for everyone. Now wrapped in `try/finally` with a single
+restore path, and confirmed by running it twice.
+
+Driven against a running app on port 3210 as all three seeded users, plus a purpose-built
+practice manager:
+
+- Published a **second version**; the first stayed readable at its own URL, was marked
+  SUPERSEDED not deleted, and a consent record agreed under it **still resolved**
+- Editing and deleting the published version were both refused with the reason
+- The export was downloaded and opened: **no matter data** — no `Booking.description`, no
+  `ConflictCheck`, no engagement letter — `Cache-Control: no-store`, and it names the
+  firms to ask instead
+- Erasure driven on a throwaway user **who had a matter**: identity overwritten, AI
+  conversations deleted, and **the matter survived** with the retained models each naming
+  the duty
+- A referral answered by one of three firms left the request `AWAITING_FIRM`, and the
+  client saw that firm's words verbatim
+
+**A scare worth recording.** The erased user's matter description read as plaintext, which
+would have meant Phase 7's encryption was not applied on write. It was **my fixture** —
+created directly through Prisma, bypassing the application. Checking every row proved every
+matter created *through the app* (`BK-2026-000x`) is `enc.v1.k1.…` and only test fixtures
+written directly were plaintext. All such fixtures were then removed from the dev database,
+including two orphans the deliberately-broken run left behind. **Verify before believing a
+finding, and before believing a fixture.**
+
+`npm run db:reset` was not run — it is destructive and was declined. Instead the migrations
+were deployed to a **scratch database**, which is the stronger test anyway: all 17
+migrations applied cleanly, the notice data-migration seeded its document on a fresh
+database, `migrate diff` reported *No difference detected*, the seed ran clean, and all
+four database-backed checks passed against it.
+
+**Two findings recorded rather than fixed**
+
+- **`notFound()` returns HTTP 200.** `/en/privacy/<unknown>` renders the not-found page
+  with a `200` status — and so do `/en/firms/<unknown>` and `/en/lawyers/<unknown>`. A
+  genuinely unrouted path correctly 404s, so this is `notFound()` from inside a matched
+  route. Pre-existing and app-wide; it deserves its own change, not a patch on one route.
+  SYSTEM-REVIEW §2.6.
+- **Two consent records point at `test-v1`**, a version not in the register. Dev-only data
+  from an earlier session. The admin screen surfaces exactly this as `danglingVersions`,
+  which is how it was noticed.
+
+**New counsel questions:** 9(f)–(j) — whether a versioned notice satisfies *demonstrable*
+consent, whether 21 days is the right response target, whether the referral model is the
+correct allocation, whether erasure-as-anonymisation is a lawful erasure, and whether
+publishing a notice that admits an undesignated DPO and unsettled cross-border hosting is
+the right course.
+
+**Still open**
+- Counsel questions 16–18 — **blocks everything**
+- Counsel questions 4(f)–(i), 8(e)–(g), 9(f)–(j), 7(c), 19
+- No authenticated file-serving route for identity documents — now the largest gap
+- Key custody and the scheduled jobs are **documented but not provisioned**
+- The permissions system (SYSTEM-REVIEW §1.1) is still the largest cleanup
+- The AI refusal patterns are English-only while the platform ships `si` and `ta`
+- Advertiser billing has no module; three Acts still have no library row

@@ -378,6 +378,42 @@ and two flows in this system may do so without any documented basis:
 
 ---
 
+### Q9(f)–(j). The privacy notice, consent evidence, and who answers a request — added Phase 8
+
+**What we built.** A versioned privacy notice: publishing writes a new version and
+supersedes the old one, every version keeps a permanent public URL, and a published
+version can never be edited or deleted. Each `ConsentRecord` stamps the version in force
+at that moment, so the exact wording a person agreed to can always be produced. Consent
+**fails closed** — if no notice is published we refuse to record a *grant*, though never a
+withdrawal. A "your data" screen lets a person see what we hold, toggle the three
+consents, export, correct, and request erasure. Where a request touches matter data we
+refer it to each firm, and the firm records its own decision, which we relay to the person
+verbatim.
+
+**Confirm:**
+- (f) Does a versioned notice, with the version stamped on each consent record and the
+  document permanently retrievable, satisfy the PDPA's requirement that consent be
+  **demonstrable**? Is anything else needed — a copy of the rendered document per consent,
+  a signature, an IP/timestamp beyond what we hold?
+- (g) Is **21 days** an appropriate service standard for answering a subject request? We
+  set it deliberately below any statutory maximum so a slipping request is visible before
+  it is late in law — but we would like the statutory figure confirmed.
+- (h) Is our **referral model** the correct allocation? For matter data we tell the person
+  which firm holds it, pass the request to that firm, and publish the firm's own answer to
+  them. We do not decide, because we are the processor. Is anything more required of us —
+  and is it acceptable that the platform relays the firm's words rather than the firm
+  contacting the person directly?
+- (i) Our erasure is **anonymisation**: the `User` row survives with identifying fields
+  overwritten, because matters reference the client for years. Is that a lawful erasure
+  under the PDPA, and is naming the retained models with the duty for each one a
+  sufficient response?
+- (j) The notice says plainly that we have **not yet designated a data protection
+  officer** and that cross-border hosting is unsettled (§8). Is stating an unresolved
+  position in a published notice the right course, or does either of those need to be
+  resolved before the platform holds a real client's matter?
+
+---
+
 ## Priority 3 — Future features to sanity-check
 
 ### Q11. Advertising to non-legal advertisers
@@ -489,7 +525,7 @@ informational lawyer websites.
 | 6 | Payment role | | | |
 | 7 | Conflict checks | | | |
 | 8 | Firm structure | | | |
-| 9 | PDPA | | | |
+| 9 | PDPA (incl. 9(f)–(j), added Phase 8) | | | |
 | 10 | Tax (now load-bearing: fee notes compute VAT — see Phase 3) | | | |
 | 11 | Third-party advertising | | | |
 | 12 | Pro bono module | | | |
@@ -502,3 +538,4 @@ informational lawyer websites.
 | 19 | Cross-border transfer (Neon hosting, model provider) — added Phase 6 | | | |
 | **4(f)–(i)** | **Encryption at rest, key custody, participants-only chat — added Phase 7** | | | |
 | **8(e)–(g)** | **Attorneys moving practice, matter-file ownership, firm verification — added Phase 7** | | | |
+| **9(f)–(j)** | **Notice versioning as consent evidence, DSAR response time, firm referral model, erasure-as-anonymisation, undesignated DPO — added Phase 8** | | | |

@@ -460,7 +460,7 @@ adjusted.** The good news is that Phase 2 is what makes that survivable: now tha
 removable layer rather than the foundation. The same engine underneath serves a
 business-to-business product — companies managing law firms they have already
 hired — which raises no touting question at all, and which is the shape described
-in `PROJECT-PLAN.md` at the repository root.
+in [DIRECTION.md](../DIRECTION.md).
 
 ---
 

@@ -315,8 +315,8 @@ referral fee        ·  per lead           ·  commission   ·  finder's fee
 
 ### The safer business, for the record
 
-The research in `PROJECT-PLAN.md` at the repository root describes the same market
-approached from the other end: a **B2B system of record** where companies manage law
+The B2B shape is described in [DIRECTION.md](../DIRECTION.md): the same market approached
+from the other end, a **B2B system of record** where companies manage law
 firms they have *already* retained. No directory, no consumer users, no introduction
 — and therefore no touting question at all. Provakil (India) and LawVu (New Zealand)
 built real businesses on exactly that shape with no regulatory friction.
@@ -467,7 +467,7 @@ mistake available here is applying one role's rule to the other role's data.
 ### Encryption at rest, and the trap it nearly shipped
 
 Added 2026-08-16, Phase 7. Full detail in
-[DATA-INVENTORY.md §11](./DATA-INVENTORY.md#11-encryption-at-rest).
+[DATA-INVENTORY.md §12](./DATA-INVENTORY.md#12-encryption-at-rest).
 
 The client's account of their legal problem, the conflict-check record, the quoted
 scope, the engagement letter and every client↔attorney message are **encrypted at rest**
@@ -532,6 +532,49 @@ firm. The socket server had the same defect and was fixed with it.
    The unauthenticated `Inquiry` intake was deleted in Phase 7 — model and rows. If you
    are asked to add a "quick contact a lawyer" form, that is this coming back.
 
+### The privacy notice is versioned, and consent fails closed
+
+Added 2026-09-06, Phase 8. Enforced in
+[`src/lib/privacy/notice.ts`](../../src/lib/privacy/notice.ts); asserted by
+`npm run check:pdpa`.
+
+`ConsentRecord.noticeVersion` has stamped every consent since Phase 6 — and until Phase 8
+there was **no document that the version referred to.** Every consent record on the system
+was a claim about wording nobody could produce.
+
+> **The rule: a published version is never edited and never deleted.** Publishing writes a
+> NEW version and supersedes the old one, and every version keeps a permanent public URL.
+> If an administrator could edit the notice in place, every past consent record would
+> silently start pointing at wording that person never saw — **with no error anywhere** —
+> and the evidence would be destroyed by an ordinary content edit.
+
+Same snapshot rule as `EngagementLetter.body` and `FeeNote.content`, for the same reason.
+
+**Consent fails closed.** Granting a consent when no notice is published is refused:
+recording "they agreed to version X" where X resolves to nothing recreates the exact
+defect the register exists to remove. **Withdrawal is never blocked** — that is the person
+exercising a right, and a gap in our own paperwork is not a reason to refuse it.
+
+### A right that cannot be exercised has not been offered
+
+Added 2026-09-06, Phase 8.
+
+Phase 6 built the entire PDPA rights engine and gave it **no interface at all** — no
+screen from which anyone could export, withdraw a consent, or ask for erasure, and no
+screen where a firm could see a request referred to it. That is the worst available
+position: the work done, the cost paid, and the compliance posture unchanged.
+
+The same defect existed at the firm's end and was less obvious: the referral endpoint was
+**read-only**, so a request referred to a firm sat in `AWAITING_FIRM` for ever. The firm
+could look at it and had no way to decide it.
+
+> **If you build a right, build the screen. A regulator does not credit an endpoint.**
+
+When a request is referred to more than one firm, each firm answers **only for itself**
+(`SubjectRequestFirmResponse`, one row per firm), and the request closes only when every
+referred firm has answered — as `PARTIALLY_FULFILLED` if any firm retained the file. The
+first firm to reply must never close a request the others have not seen.
+
 ### Consent is for three things, and matter data is not one of them
 
 `MARKETING_EMAIL`, `PRODUCT_ANALYTICS`, `AI_HISTORY_RETENTION`. Nothing else, and none is
@@ -592,6 +635,9 @@ Before merging anything that touches booking, payments, advertising, ranking, or
 - [ ] No disclosure path can return ciphertext — plaintext or a marker, never the stored value
 - [ ] Nothing collects a description of a legal problem outside the engagement flow
 - [ ] Only a verified attorney can found or be a partner in a practice
+- [ ] No published privacy-notice version can be edited or deleted; publishing creates a new one
+- [ ] Nothing records a consent grant against a notice version that does not resolve
+- [ ] Every data-protection right built has a screen a real person can reach
 - [ ] `npm run check:pdpa` passes
 - [ ] `npm run check:firm` passes
 - [ ] `npm run build` passes

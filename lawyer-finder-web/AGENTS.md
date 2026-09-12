@@ -15,6 +15,14 @@ The platform is being repositioned from a **legal-services marketplace** (which 
 cannot legally be in Sri Lanka) into **software that law firms run on**. Booking,
 payments, advertising, and AI output are all mid-restructure.
 
+**Lost the thread, or new here? Read `docs/THE-PROJECT.md` first** — what this is, how a
+matter flows, who may read what, and what state everything is in. Then `docs/DIRECTION.md`
+for what happens next, and `docs/OPEN-ITEMS.md` for everything outstanding.
+
+> ⚠️ The four planning documents at the **repository root** describe the pre-restructure
+> marketplace (sponsored listings, commission on fees, reviews, lead generation). They are
+> marked superseded. **Do not build from them.**
+
 **Before writing any code that touches booking, payments, advertising, ranking, or
 the AI chatbot, read in this order:**
 
@@ -32,8 +40,10 @@ the AI chatbot, read in this order:**
 8. `docs/restructure/SYSTEM-REVIEW.md` — a whole-codebase review: what to remove,
    restructure and add, and what is good and must not be "cleaned up"
 
-Phases 0–7 are complete. **Phase 8 (privacy notice + data-rights screens) is next —
-see `docs/restructure/PHASE-8-BRIEF.md`.**
+Phases 0–8 are complete. **See `docs/restructure/PROGRESS.md` for what is next** — the
+largest open items are an authenticated file-serving route for identity documents, and
+provisioning the encryption-key custody and scheduled jobs that Phase 8 documented but did
+not build.
 
 ### The seven hard rules (full detail in LEGAL-GUARDRAILS.md)
 
@@ -77,6 +87,17 @@ bound by that limit — no fee ranges, no ratings, no promotional copy.
   prove that an "erasure" erases anything. **We are controller for our own data and
   processor for the firm's matter data at once: never delete, export, or seek consent
   for anything under `Booking`. And never add a content column to `DataAccessLog`**
+- **A published privacy notice is never edited or deleted.** Publishing writes a NEW
+  version (`src/lib/privacy/notice.ts`); consent records point at the exact wording a
+  person was shown, and editing in place destroys that evidence silently. Recording a
+  consent *grant* fails closed when no notice is published — a *withdrawal* never does
+- **If you build a right, build the screen.** Phase 6 shipped the whole PDPA rights engine
+  with no caller and the compliance position was unchanged. The same applies to the firm
+  side: a referral endpoint a firm cannot answer leaves the request open for ever
+- **Authority inside a firm comes from an ACTIVE `FirmMember` row, never the platform
+  role.** A practice manager's role is `CLIENT`. This has now been got wrong in five
+  separate layers — access resolution, route guards, the lawyer layout, the middleware and
+  the sidebar — so check membership, not role
 - Run `npm run check:firm` after touching `src/lib/firms/invitations.ts` — a green build
   does not prove that an unverified attorney cannot become a partner, or that an attorney
   cannot carry a client's live matter into a different practice
