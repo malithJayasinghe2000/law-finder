@@ -221,6 +221,7 @@ Nine phases, ~60,000 lines, 116 API routes, 73 pages, 56 database models, 17 mig
 
 | I want to… | Read |
 | --- | --- |
+| **Go through the whole system, feature by feature** | **[TOUR.md](./TOUR.md)** — the long walk. Every screen, every rule, and why each is built that way |
 | Understand *why* a rule exists | [HOW-IT-WORKS.md](./restructure/HOW-IT-WORKS.md) — start here, it is written for an engineer with no legal background |
 | Know the hard constraints | [LEGAL-GUARDRAILS.md](./restructure/LEGAL-GUARDRAILS.md) |
 | Know what is done and what happened when | [PROGRESS.md](./restructure/PROGRESS.md) |

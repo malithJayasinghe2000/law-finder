@@ -14,6 +14,7 @@ this is, how a matter flows, who can read what, and what state everything is in.
 | --- | --- |
 | **[NEXT-SESSION-BRIEF.md](./NEXT-SESSION-BRIEF.md)** | **Starting a new chat? Copy §1.** Context + the current task |
 | **[THE-PROJECT.md](./THE-PROJECT.md)** | What is this, how does it work, what is built? |
+| **[TOUR.md](./TOUR.md)** | **The whole system, one stop at a time.** Every feature, why it exists, and why it is built that way. Two hours to read, a day to do properly. Start here if you want to actually know the system rather than a summary of it |
 | **[DIRECTION.md](./DIRECTION.md)** | What do we do next, and in what order? |
 | **[OPEN-ITEMS.md](./OPEN-ITEMS.md)** | What is still outstanding — everything, with a decision each |
 | **[REVENUE-MODEL.md](./REVENUE-MODEL.md)** | How does this make money, and what should change? |

@@ -15,6 +15,9 @@ The platform is being repositioned from a **legal-services marketplace** (which 
 cannot legally be in Sri Lanka) into **software that law firms run on**. Booking,
 payments, advertising, and AI output are all mid-restructure.
 
+**Want the whole system feature by feature? Read `docs/TOUR.md`** — the guided walk through
+every screen and why it is built that way.
+
 **Lost the thread, or new here? Read `docs/THE-PROJECT.md` first** — what this is, how a
 matter flows, who may read what, and what state everything is in. Then `docs/DIRECTION.md`
 for what happens next, and `docs/OPEN-ITEMS.md` for everything outstanding.
