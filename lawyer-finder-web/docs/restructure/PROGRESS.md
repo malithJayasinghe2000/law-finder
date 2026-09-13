@@ -1868,3 +1868,82 @@ Stage 1.3. Recorded as `RAG-REVIEW.md` §4.15.
 46/46 `check_security`, **41 / 15 / 52 / 21 / 67** on the five policy checks, `npm run
 build`, `npx tsc --noEmit`, and the full 76-question set re-run end to end.
 `lawyer-rag/data/` restored to its committed state.
+
+---
+
+## Multi-turn chat — a Stage 1.2 regression, found by a user — ✅ 2026-09-13
+
+**Reported by Malith, not by any test.** The clearest example in this project of a fix
+creating a bug, and of a test suite being deep and narrow at the same time.
+
+```
+turn 1   "What does the Companies Act say about removing a director?"
+         -> answered correctly, citing s.206
+
+turn 2   "tell me more about that"
+         -> "I could not find this in the legislation I hold, so I am not
+             going to answer it."
+```
+
+### Two separate faults, compounding
+
+**1. The gate searched the literal words.** Stage 1.2 added a relevance floor, and *"tell
+me more about that"* carries none of its own meaning — searched as written it scores
+**0.350**, below the 0.62 floor. So the service declared the corpus empty one turn after
+quoting the very section being asked about.
+
+Rewritten against the conversation it becomes *"What specific provisions of the Companies
+Act relate to the removal of a director from office?"* and scores **0.761**. The machinery
+already existed; it only ran when the router said `follow_up`, **and the router classified
+this one as `legal_query`.**
+
+Fixed by rewriting on **evidence rather than classification** — if the literal question
+finds nothing and there is history, rewrite and retry before giving up. Deliberately not
+gated on intent, because the router is the unreliable part.
+
+**2. A guest has no conversation at all.** `/api/ai/ask` reads history from the database
+for a signed-in user — deliberately, so a client cannot fabricate a conversation to steer
+the model — so a signed-out visitor's every question is a first turn and `conversationId`
+comes back `null`. The user was signed out, so **no history was ever sent** and the
+service-side fix alone would not have helped them.
+
+Worse, the message they got was **false**. `NO_CITABLE_SOURCE` says *"I could not find this
+in the legislation I hold"* when the corpus holds the subject perfectly well and the real
+problem is an unresolvable *"that"*. They reasonably read it as the assistant having lost
+the legislation it had just quoted.
+
+New refusal category **`FOLLOW_UP_WITHOUT_CONTEXT`** says the true thing and offers the way
+forward. The service supplies only the **signal** (`needs_context`); the words come from
+`REFUSAL_MESSAGES` like every other refusal, so the model service can never put its own
+prose in front of a reader. `check:ai` is now **55**.
+
+### Why no test caught it
+
+**Every question in the evaluation set was single-turn.** 76 questions deep, one turn wide.
+Seven multi-turn cases were added with the fix, including the two that guard the edges:
+
+- `fu-006` — own-matter advice arriving *as a follow-up*, which must still be refused. The
+  relevance floor cannot help: retrieval legitimately finds s.206, and what makes it a
+  violation is who the question is about.
+- `fu-007` — a follow-up that leaves the corpus, which must still be declined. The rescue
+  rewrite must not drag an out-of-corpus question over the floor just because the previous
+  turn was answerable.
+
+`eval.py` gained `follow_up_to`, which asks the parent question **for real** and uses the
+service's actual answer as the conversation — a canned assistant reply would test the
+scorer rather than the system.
+
+### Verified
+
+Comparing only the 76 questions present in both runs: **67/76 before, 67/76 after, nothing
+regressed.** 6 of the 7 new multi-turn cases pass (`fu-002`, "explain more", is flaky and
+depends on the 3B model's rewrite). 46/46 `check_security`, **41 / 15 / 55 / 21 / 67**,
+`npm run build`, `npx tsc --noEmit`. Driven end to end through the real app, signed in and
+signed out.
+
+### Open — a product decision, not a bug
+
+**Should a signed-out guest be able to hold a conversation?** Today they cannot, and the
+honest message is a mitigation rather than a fix. Storing guest conversations server-side
+needs a schema change; accepting client-supplied history would reopen the steering risk the
+current design exists to close. **Needs a decision.**

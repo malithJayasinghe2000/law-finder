@@ -79,7 +79,8 @@ export type RefusalCategory =
   | 'NO_CITABLE_SOURCE'
   | 'ADVICE_IN_ANSWER'
   | 'PRACTITIONER_STEERING'
-  | 'UNSUPPORTED_CITATION';
+  | 'UNSUPPORTED_CITATION'
+  | 'FOLLOW_UP_WITHOUT_CONTEXT';
 
 export type RequestRuling =
   | { allowed: true }
@@ -105,6 +106,12 @@ export type AnswerRuling =
  * model said it rather than a salesperson.
  */
 export const REFUSAL_MESSAGES: Record<RefusalCategory, string> = {
+  FOLLOW_UP_WITHOUT_CONTEXT:
+    'I am not sure what "that" refers to — I do not have the earlier part of this conversation.\n\n' +
+    'Could you ask the whole question in one go? For example, instead of *"tell me more about that"*, ' +
+    'try *"tell me more about removing a company director under the Companies Act"*.\n\n' +
+    'If you sign in, I can follow a conversation across several questions.',
+
   OWN_MATTER_ADVICE:
     'I can explain what the law says, but I cannot advise you on your own situation — ' +
     'that is legal advice, and it can only come from an attorney-at-law who has taken you on as a client ' +

@@ -31,6 +31,7 @@ import {
   isCitableSource,
   resolveCitations,
   findAdviceLanguage,
+  REFUSAL_MESSAGES,
   findSteeringLanguage,
   findUnsupportedProseCitations,
   normaliseLibraryKey,
@@ -375,6 +376,34 @@ for (const [answer, because] of ADVICE_ANSWERS) {
     verdict.outcome === 'PUBLISH',
     'It describes what the Act requires of "a director", not what the reader should do. ' +
       'Over-refusing here would make the assistant useless on the legislation it actually holds.'
+  );
+}
+
+// A follow-up asked with no conversation behind it.
+//
+// Reported by a user on 2026-09-13: a signed-out visitor asked "tell me more about
+// that" and was told "I could not find this in the legislation I hold" — which is
+// FALSE. The corpus held the subject perfectly well; what was missing was any way
+// to know what "that" referred to. A guest has no stored conversation, so a guest
+// hits this on every follow-up.
+{
+  const message = REFUSAL_MESSAGES.FOLLOW_UP_WITHOUT_CONTEXT;
+
+  check(
+    'FOLLOW_UP_WITHOUT_CONTEXT does NOT claim the legislation is missing',
+    !/legislation I hold|could not find this in the legislation|do not hold/i.test(message),
+    'That was the bug. Saying the corpus lacks the law, when the real problem is an ' +
+      'unresolvable reference, teaches the user the assistant has lost material it just quoted.'
+  );
+  check(
+    'FOLLOW_UP_WITHOUT_CONTEXT tells the user what to do instead',
+    /ask the whole question|in one go/i.test(message),
+    'A refusal that does not offer the way forward teaches people to rephrase until they get past it.'
+  );
+  check(
+    'FOLLOW_UP_WITHOUT_CONTEXT names no attorney or firm',
+    findSteeringLanguage(message).length === 0,
+    'No refusal message may steer toward a practitioner — 1894 Ordinance.'
   );
 }
 

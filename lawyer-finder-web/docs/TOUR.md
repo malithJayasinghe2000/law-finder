@@ -483,7 +483,17 @@ and **the order of operations is the compliance measure**:
 Citations come from **retrieval metadata, never the model**, so the model cannot invent a
 source entry.
 
-`npm run check:ai` asserts 52 cases. And see
+### One limitation worth knowing before you test it
+
+**A signed-out visitor has no conversation.** History is read from the database for a
+signed-in user — deliberately, so a client cannot fabricate a conversation to steer the
+model — which means a guest's every question is a first turn.
+
+So if you test follow-ups while logged out, *"tell me more about that"* will not work, and
+it is not a bug in the retrieval. **Sign in before testing a multi-turn conversation.**
+Whether guests *should* get a conversation is an open product decision (OPEN-ITEMS E0b).
+
+`npm run check:ai` asserts 55 cases. And see
 [lawyer-rag/eval/](../../lawyer-rag/eval/) for the 76-question exam that measures whether
 the answers are any good — a separate question from whether they are lawful.
 

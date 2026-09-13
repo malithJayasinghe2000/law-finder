@@ -16,6 +16,7 @@ attorneys to show the user). See lawyer-finder-web/docs/restructure/.
 """
 
 import logging
+import re
 from typing import Optional
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.messages import HumanMessage, AIMessage
@@ -373,6 +374,61 @@ def _corpus_titles() -> list[str]:
     return _CORPUS_CACHE
 
 
+# A question that cannot stand on its own: "tell me more about that", "explain
+# more", "what about it". Short, and leaning on something said earlier.
+#
+# Kept deliberately tight — it must not catch a real question that happens to
+# contain "that", so it requires the question to be SHORT as well as anaphoric.
+_ANAPHORIC = re.compile(
+    r"^\s*(and\s+)?(tell me more|explain( more| further)?|more( detail| info| about)?|"
+    r"go on|continue|what about (that|it|this)|elaborate|expand|why( is)? (that|it)|"
+    r"(tell me )?more about (that|it|this))\b",
+    re.IGNORECASE,
+)
+
+
+def looks_anaphoric(question: str) -> bool:
+    """True when a question only makes sense as a follow-up."""
+    q = (question or "").strip()
+    return len(q.split()) <= 8 and bool(_ANAPHORIC.match(q))
+
+
+def no_history_response(intent: str) -> dict:
+    """
+    The answer to a follow-up asked with no conversation behind it.
+
+    Without this, such a question fell through to no_context_response and was
+    told "I do not hold legislation covering that" — which is FALSE and
+    confusing. The corpus may hold the subject perfectly well; what is missing
+    is any way to know what "that" refers to.
+
+    This happens for real: a signed-out visitor has no stored conversation (see
+    the history note in src/app/api/ai/ask/route.ts — history is read from the
+    database for a signed-in user so a client cannot fabricate a conversation to
+    steer the model), so every question a guest asks is a first turn. Reported by
+    a user on 2026-09-13, who quite reasonably read the old message as the
+    assistant having lost the legislation it had just quoted.
+
+    Saying the true thing costs nothing and removes the confusion.
+    """
+    return {
+        "answer": (
+            "I am not sure what \"that\" refers to — I do not have the earlier part of "
+            "this conversation.\n\n"
+            "Could you ask the whole question in one go? For example, instead of "
+            "*\"tell me more about that\"*, try *\"tell me more about removing a company "
+            "director under the Companies Act\"*.\n\n"
+            "If you sign in, I can follow a conversation across several questions."
+        ),
+        "sources": [],
+        "chunks_retrieved": 0,
+        "intent": intent,
+        "needs_context": True,
+        "graph_entities": [],
+        "related_documents": [],
+    }
+
+
 def no_context_response(intent: str) -> dict:
     """The answer when nothing in the corpus clears the relevance floor."""
     held = _corpus_titles()
@@ -516,7 +572,50 @@ def query_rag(
     # an Act, and Stage 1.3 removes the duplication by carrying results through.
     gate_hits = search_documents(query=search_query, top_k=top_k)
 
+    # ── Second chance for a follow-up ─────────────────────────────────────
+    #
+    # "tell me more about that" carries none of its own meaning. Searched
+    # literally it scores 0.350 and the floor correctly rejects it; rewritten
+    # against the conversation it becomes "What specific provisions of the
+    # Companies Act relate to the removal of a director from office?" and scores
+    # 0.761.
+    #
+    # This is NOT gated on intent == "follow_up", deliberately. The router is a
+    # 3B model and it classified exactly this question as `legal_query`, so
+    # trusting it here would leave the bug in place for the cases that matter
+    # most — the ones where it guesses wrong. The test is evidence instead: we
+    # have history, the literal question found nothing, so try the question the
+    # conversation implies before declaring the corpus empty.
+    #
+    # It costs an extra LLM call ONLY when a search has already failed, so a
+    # question that stands on its own pays nothing.
+    #
+    # Found by a user, not by the evaluation set: every question in
+    # eval/questions.yaml was single-turn, so multi-turn was untested. Follow-up
+    # cases were added at the same time as this fix.
+    if not gate_hits and chat_history and search_query == question:
+        rewritten = rewrite_query(question, chat_history)
+        if rewritten and rewritten.strip() and rewritten != question:
+            retry_hits = search_documents(query=rewritten, top_k=top_k)
+            if retry_hits:
+                logger.info(
+                    "Follow-up rescued: %r found nothing, %r found %d chunks",
+                    question[:60], rewritten[:60], len(retry_hits),
+                )
+                gate_hits = retry_hits
+                search_query = rewritten
+                # It WAS a follow-up, whatever the router said.
+                intent = "follow_up"
+
     if not gate_hits:
+        # A follow-up with nothing behind it. Say the true thing — that the
+        # reference cannot be resolved — rather than claiming not to hold the
+        # legislation, which may be false and is what a user reported as
+        # confusing.
+        if looks_anaphoric(question) and not chat_history:
+            logger.info("Anaphoric question with no history — asking for the full question")
+            return no_history_response(intent)
+
         if intent == "clarification_needed":
             logger.info("No context and the question was vague — asking for specifics")
             return {**generate_clarification_response(question, chat_history),

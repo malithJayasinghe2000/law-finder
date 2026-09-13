@@ -204,6 +204,22 @@ it reached the user. The advice pattern missed twice: no room for the adverb in
 "personally liable", and it required liable *to* where the answer said liable *for*. Fixed
 and asserted; `check:ai` is now 52, testing both sides of the line.
 
+### 1.2c Multi-turn — ✅ **DONE 2026-09-13** (a regression, found by a user)
+
+Stage 1.2's gate searched the literal words of a question, so *"tell me more about that"*
+scored 0.350, failed the floor, and got "I do not hold that legislation" — one turn after
+quoting the section being asked about. `rewrite_query` already existed but only ran when
+the router said `follow_up`, and the router said `legal_query`.
+
+Fixed by rewriting on evidence rather than classification: if the literal question finds
+nothing and there is history, rewrite and retry before declaring the corpus empty.
+
+**The eval set could not have caught this — all 76 questions were single-turn.** Seven
+multi-turn cases added (`fu-001`..`fu-007`), including a follow-up that must still be
+refused and one that must still be declined. `eval.py` gained `follow_up_to`, which asks
+the parent question for real rather than canning an assistant reply. Full write-up:
+`RAG-REVIEW.md` §4.16 and §4.17.
+
 ### 1.3 Fix the citation chain
 
 Have the tools return structured results carried through to the response, instead of

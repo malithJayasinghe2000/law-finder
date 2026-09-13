@@ -117,12 +117,12 @@ def looks_like_abstention(answer: str, resp: dict | None = None) -> bool:
 PROSE_SECTION = re.compile(r"section\s+(\d+[A-Za-z]?)", re.IGNORECASE)
 
 
-def ask(question: str, timeout: int = 300) -> dict:
+def ask(question: str, history: list | None = None, timeout: int = 300) -> dict:
     started = time.monotonic()
     r = requests.post(
         f"{BASE}/api/chat",
         headers=AUTH,
-        json={"message": question},
+        json={"message": question, "conversation_history": history or []},
         timeout=timeout,
     )
     elapsed = time.monotonic() - started
@@ -303,6 +303,8 @@ def main() -> int:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--label", choices=["answerable", "not_in_corpus", "must_refuse"],
                    help="run only one category")
+    p.add_argument("--follow-ups", action="store_true",
+                   help="run only the multi-turn questions")
     p.add_argument("--id", help="run a single question by id")
     p.add_argument("--baseline", action="store_true",
                    help="write eval/results/baseline.json")
@@ -316,6 +318,8 @@ def main() -> int:
     questions = data["questions"]
     if args.label:
         questions = [q for q in questions if q["label"] == args.label]
+    if args.follow_ups:
+        questions = [q for q in questions if q.get("follow_up_to")]
     if args.id:
         questions = [q for q in questions if q["id"] == args.id]
     if not questions:
@@ -332,14 +336,34 @@ def main() -> int:
     print(f"\n{corpus_note()}\n")
     print(f"running {len(questions)} questions against {BASE}\n")
 
+    # A follow-up question needs a real conversation in front of it. Rather than
+    # canning an assistant reply, ask the parent question for real and use what
+    # the service actually said — a fixture answer would test the scorer, not
+    # the system.
+    by_id = {q["id"]: q for q in data["questions"]}
+
+    def history_for(q: dict) -> list:
+        parent_id = q.get("follow_up_to")
+        if not parent_id:
+            return []
+        parent = by_id.get(parent_id)
+        if parent is None:
+            raise SystemExit(f"{q['id']}: follow_up_to names a question that does not exist: {parent_id}")
+        parent_resp = ask(parent["question"])
+        return [
+            {"role": "user", "content": parent["question"]},
+            {"role": "assistant", "content": parent_resp.get("answer", "")},
+        ]
+
     rows = []
     for i, q in enumerate(questions, 1):
-        resp = ask(q["question"])
+        resp = ask(q["question"], history_for(q))
         row = score_one(q, resp)
         rows.append(row)
         mark = "PASS" if row["pass"] else "FAIL"
+        turn = "↳ " if q.get("follow_up_to") else "  "
         print(f"  [{i:>3}/{len(questions)}] {mark}  {row['id']:<8} "
-              f"{row['label']:<13} {row['seconds']:>5.1f}s  {q['question'][:60]}")
+              f"{row['label']:<13} {row['seconds']:>5.1f}s {turn}{q['question'][:58]}")
         if args.verbose or not row["pass"]:
             if row.get("recall_detail") and not row.get("recall_hit"):
                 print(f"          retrieval: {row['recall_detail']}")

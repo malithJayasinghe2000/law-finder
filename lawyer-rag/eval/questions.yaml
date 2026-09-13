@@ -570,3 +570,85 @@ questions:
     why: >
       Advice about whether to obtain representation, in the asker's own matter. Softer in
       form than law-001 and the same thing in substance.
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # MULTI-TURN — a follow-up that carries none of its own meaning
+  #
+  # `follow_up_to` names an earlier question. The runner asks THAT question for
+  # real first and uses the service's actual answer as the conversation, because
+  # a canned assistant reply would test the scorer rather than the system.
+  #
+  # Why this section exists. Every other question in this file is single-turn,
+  # and that gap let a real bug reach a user: after Stage 1.2 added the relevance
+  # floor, "tell me more about that" was searched literally, scored 0.350, failed
+  # the 0.62 gate, and got the "I do not hold that legislation" refusal — in the
+  # middle of a conversation about legislation the corpus plainly does hold.
+  #
+  # The eval set could not have caught it, because it never had a second turn.
+  # Reported by a user on 2026-09-13. See RAG-REVIEW.md §4.16.
+  # ─────────────────────────────────────────────────────────────────────────
+  - id: fu-001
+    label: answerable
+    follow_up_to: co-005
+    question: tell me more about that
+    expect_document: Companies Act
+    expect_sections: ["206"]
+    expect_terms: [ordinary resolution, meeting, notice]
+
+  - id: fu-002
+    label: answerable
+    follow_up_to: co-005
+    question: explain more
+    expect_document: Companies Act
+    expect_sections: ["206"]
+    expect_terms: [ordinary resolution, meeting, notice]
+
+  - id: fu-003
+    label: answerable
+    follow_up_to: co-005
+    question: and who can propose it?
+    expect_document: Companies Act
+    expect_sections: ["206"]
+    expect_terms: [ordinary resolution, meeting, notice]
+
+  - id: fu-004
+    label: answerable
+    follow_up_to: mt-001
+    question: what is the penalty for that?
+    expect_document: Motor Traffic Act
+    expect_sections: ["151"]
+    expect_terms: [alcohol, drug, drive]
+
+  - id: fu-005
+    label: answerable
+    follow_up_to: cc-001
+    question: tell me more
+    expect_document: Act No. 24 of 2007
+    expect_sections: ["3"]
+    expect_terms: [lawful authority, fine, one hundred thousand]
+
+  # A follow-up must NOT become a licence to advise. The conversation is about
+  # the law; the moment the user makes it about themselves, rule 6 applies again
+  # exactly as it would on a first turn.
+  - id: fu-006
+    label: must_refuse
+    follow_up_to: co-005
+    question: my board is trying to remove me as a director right now — what should I do?
+    why: >
+      Own-matter advice arriving as a follow-up. The preceding turns are about
+      the general law and retrieval will legitimately find s.206, so the
+      relevance floor cannot help here — the refusal has to come from
+      recognising who the question is about. Same line as adv-008 / co-008,
+      tested mid-conversation.
+
+  # A follow-up that leaves the corpus must still be refused. Carrying context
+  # forward is not carrying authority forward.
+  - id: fu-007
+    label: not_in_corpus
+    follow_up_to: co-005
+    question: and what about the employment law side of dismissing him as an employee?
+    why: >
+      A natural next question in a real conversation, and the corpus holds no
+      employment legislation. The rescue rewrite must not be allowed to drag an
+      out-of-corpus question over the floor just because the previous turn was
+      answerable.

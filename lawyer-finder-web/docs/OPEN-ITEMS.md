@@ -269,6 +269,30 @@ produced it. `RAG-REVIEW.md` §4.10 has the transcript.
 > the difference between changing the system and improving it.
 > *(Done 2026-09-13. The two paragraphs above record what it found.)*
 
+### E0b. 🟠 A signed-out guest cannot hold a conversation — decide what to do
+
+`/api/ai/ask` reads chat history from the database for a signed-in user only, so a guest's
+every question is a first turn and `conversationId` comes back `null`. That is deliberate:
+history read from the database cannot be fabricated by a client to steer the model.
+
+The cost is that the guest chat is not a conversation. Ask a question, then ask "tell me
+more about that", and the second question has nothing behind it. A user hit exactly this on
+2026-09-13 and was told *"I could not find this in the legislation I hold"* — which was
+false, and read as the assistant having lost the legislation it had just quoted.
+
+The false message is fixed (`FOLLOW_UP_WITHOUT_CONTEXT` now says the true thing and invites
+them to sign in). The underlying limitation is not.
+
+> **DECISION NEEDED — this is a product call, not an engineering one.** Three options:
+> **(a)** leave it, and let the honest message do the work — cheapest, and the guest chat
+> stays a single-shot lookup; **(b)** store guest conversations server-side against a
+> cookie id — needs a schema change and a retention rule, since an anonymous chat is still
+> personal data under the PDPA; **(c)** accept client-supplied history for guests — do NOT
+> do this without thought, it reopens the steering risk the current design exists to close.
+>
+> My recommendation is **(a) until there is evidence guests want a conversation**, then
+> **(b)**. Never (c).
+
 ### E1. 🟠 Three different models are configured in three files
 
 | File | Model |

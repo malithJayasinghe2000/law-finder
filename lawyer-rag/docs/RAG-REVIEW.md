@@ -656,6 +656,74 @@ judgement, and both are where this service loses answers.
 
 ---
 
+### 4.16 🔴 A follow-up question was refused as if the corpus were empty — **regression, fixed**
+
+**Reported by a user, not found by any test**, on 2026-09-13. The clearest example in this
+document of a fix creating a bug and an evaluation set failing to catch it.
+
+```
+turn 1   "What does the Companies Act say about removing a director?"
+         -> answered correctly, citing s.206
+
+turn 2   "tell me more about that"
+         -> "I could not find this in the legislation I hold, so I am not
+             going to answer it."
+```
+
+**Cause.** Stage 1.2's gate search ran on the literal words of the question. *"tell me more
+about that"* carries none of its own meaning: searched as written it scores **0.350**,
+below the 0.62 floor, so the gate declared the corpus empty — one turn after quoting the
+very section being asked about.
+
+Rewritten against the conversation, the same question becomes *"What specific provisions of
+the Companies Act relate to the removal of a director from office?"* and scores **0.761**.
+The machinery to do that (`rewrite_query`) already existed — it was only called when the
+router classified the question as `follow_up`, **and the router classified this one as
+`legal_query`.**
+
+**Fix.** Not gated on intent, deliberately, because the router is the unreliable part
+(§4.14). If the literal question finds nothing *and* there is history, rewrite and try
+again before declaring the corpus empty. Evidence over classification. It costs an extra
+model call only when a search has already failed, so a question that stands on its own pays
+nothing.
+
+**Why no test caught it: every question in `eval/questions.yaml` was single-turn.** The set
+was 76 questions deep and one turn wide. Seven multi-turn cases were added with the fix —
+including one that must still be **refused** mid-conversation (`fu-006`, own-matter advice
+arriving as a follow-up) and one that must still be **declined** (`fu-007`, a follow-up that
+leaves the corpus), because the rescue must not drag an out-of-corpus question over the
+floor just because the previous turn was answerable.
+
+### 4.17 🟠 A follow-up with no conversation was told the wrong thing
+
+Found while fixing §4.16, and it is the half the user actually hit.
+
+A **signed-out visitor has no stored conversation at all**. `src/app/api/ai/ask/route.ts`
+reads history from the database for a signed-in user — deliberately, so a client cannot
+fabricate a conversation to steer the model — which means a guest's every question is a
+first turn and `conversationId` comes back `null` every time.
+
+So a guest asking a follow-up sent no history, and the application answered with
+`NO_CITABLE_SOURCE`: *"I could not find this in the legislation I hold."* **That statement
+is false.** The corpus may hold the subject perfectly well. What is missing is any way to
+know what *"that"* refers to — and a user reasonably read it as the assistant having lost
+the legislation it had just quoted.
+
+The service now detects a short anaphoric question with no history and reports
+`needs_context`. The application turns that into a new refusal category,
+`FOLLOW_UP_WITHOUT_CONTEXT`, which says the true thing and offers the way forward. **The
+service supplies only the signal; the words come from `REFUSAL_MESSAGES` like every other
+refusal**, so the model service can never put its own prose in front of a reader. Three
+assertions in `check:ai`, which is now 55.
+
+> **Still open, and it is a product decision rather than a bug:** should a signed-out guest
+> be able to hold a conversation at all? Today they cannot, and the honest message above is
+> a mitigation rather than a fix. Storing guest conversations server-side needs a schema
+> change; accepting client-supplied history would reopen the steering risk the current
+> design exists to close.
+
+---
+
 ## 5. 💸 Token and cost waste — where the money goes
 
 The user asked specifically. Here is every wasteful path found.
@@ -816,6 +884,8 @@ Worth recording so a future refactor does not undo it:
 | 4.8 | English-only routing on a trilingual platform | 🟡 | ⬜ Stage 4.3 |
 | 4.9 | Filter dict mutated in place | 🟡 | ✅ fixed |
 | 4.15 | The ReAct agent writes worse search queries than the user | 🟠 | ⚠️ mitigated; 1.3 fixes properly |
+| 4.16 | Follow-ups refused as if the corpus were empty — Stage 1.2 regression | 🔴 | ✅ fixed + 7 multi-turn tests |
+| 4.17 | A follow-up with no history was told the legislation was missing | 🟠 | ✅ fixed; guest conversations still a product decision |
 | 4.10 | Own-matter advice on the wrong Act — caught by the application | 🟠 | ⬜ Stage 1.1/1.2 |
 | 4.11 | Deleting a document strips graph entities from **other** Acts | 🟠 | ⬜ unscheduled — data loss |
 | 4.12 | Two Acts stored as "Act No. 24 of 2007/2025" — unfilterable, uncitable | 🟠 | ⬜ Stage 1.5 |

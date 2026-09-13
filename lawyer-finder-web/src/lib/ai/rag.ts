@@ -49,6 +49,13 @@ type RagResponse = {
    */
   intent?: string;
   chunks_retrieved?: number;
+  /**
+   * The service could not resolve what the question referred to, because no
+   * conversation was sent with it. A SIGNAL, not an answer: the words shown to
+   * the user come from REFUSAL_MESSAGES in policy.ts, like every other refusal,
+   * so the service can never put its own prose in front of a reader.
+   */
+  needs_context?: boolean;
 };
 
 export type RagResult = {
@@ -56,6 +63,8 @@ export type RagResult = {
   sources: AiSource[];
   /** True when the question was small talk, so no legislation is expected. */
   isConversational: boolean;
+  /** True when the question was a follow-up with no conversation behind it. */
+  needsContext: boolean;
 };
 
 export class RagUnavailableError extends Error {}
@@ -102,6 +111,7 @@ export async function askRag(context: ModelContext): Promise<RagResult> {
     answer: typeof payload.answer === 'string' ? payload.answer : '',
     sources: (payload.sources ?? []).map(normaliseSource),
     isConversational: payload.intent === 'conversational',
+    needsContext: payload.needs_context === true,
   };
 }
 
