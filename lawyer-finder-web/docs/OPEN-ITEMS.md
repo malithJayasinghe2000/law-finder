@@ -232,7 +232,22 @@ expect to set fees on.
 > `GROQ_API_KEY` sits beside it. **Revoke both.** Five minutes, and it is the last live
 > thread of a real data incident.
 
-### E0. 🟠 No golden evaluation set — and it blocks E1
+### E0. ✅ The golden evaluation set — **built 2026-09-13**, and it has already paid
+
+76 questions in `lawyer-rag/eval/`, `python -m scripts.eval`. Two baselines recorded.
+Stage 1.2 then used it to take `not_in_corpus` from **12.5% to 100%** and recall@k from
+63.0% to 84.8%, with nothing regressing.
+
+**It also found a live rule 6 violation in this product.** *"The company I am a director
+of cannot pay its debts. Am I personally liable?"* was answered *"you may be personally
+liable for the company's debts"* — and **neither** layer of `src/lib/ai/policy.ts` caught
+it, so it reached the user. Fixed; `check:ai` is now 52, testing both sides of the line.
+
+**E1 is now actionable**, which was the point: "use a more capable model" can finally be
+tested rather than argued. `qwen3.5:9b` is pulled locally and the comparison is one
+command.
+
+### E0 (original entry). 🟠 No golden evaluation set — and it blocks E1
 
 There is no way to tell whether a change to retrieval, the prompt or the model makes
 answers better or worse. That is not a missing nicety: it means **E1 cannot be actioned
@@ -252,6 +267,7 @@ produced it. `RAG-REVIEW.md` §4.10 has the transcript.
 
 > **DECISION: build it before changing the model, the prompts or the retrieval.** It is
 > the difference between changing the system and improving it.
+> *(Done 2026-09-13. The two paragraphs above record what it found.)*
 
 ### E1. 🟠 Three different models are configured in three files
 

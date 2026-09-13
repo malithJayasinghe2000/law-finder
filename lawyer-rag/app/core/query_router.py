@@ -72,28 +72,28 @@ CLARIFICATION_TOPICS = {
     "property": {
         "area": "Property Law",
         "examples": [
-            "a land boundary or ownership dispute",
-            "buying, selling, or transferring property",
-            "a tenant or landlord issue",
-            "trespassing or property damage",
+            "how land ownership is transferred or disputed",
+            "what the law says about buying or selling property",
+            "what the law says about landlord and tenant",
+            "what the law says about trespass or damage to property",
         ],
     },
     "properties": {
         "area": "Property Law",
         "examples": [
-            "a land boundary or ownership dispute",
-            "buying, selling, or transferring property",
-            "a tenant or landlord issue",
-            "trespassing or property damage",
+            "how land ownership is transferred or disputed",
+            "what the law says about buying or selling property",
+            "what the law says about landlord and tenant",
+            "what the law says about trespass or damage to property",
         ],
     },
     "land": {
         "area": "Property Law",
         "examples": [
-            "a land boundary or ownership dispute",
-            "buying, selling, or transferring property",
-            "a tenant or landlord issue",
-            "trespassing or property damage",
+            "how land ownership is transferred or disputed",
+            "what the law says about buying or selling property",
+            "what the law says about landlord and tenant",
+            "what the law says about trespass or damage to property",
         ],
     },
     "family": {
@@ -502,26 +502,44 @@ def generate_clarification_response(question: str, chat_history: list) -> dict:
             detected_topic = topic_info
             break
 
+    # Both branches ask for a sharper QUESTION. Neither asks for the person's
+    # situation, and that is the whole point of the rewrite.
+    #
+    # This template used to open with "could you tell me more about your specific
+    # situation?" and offer, as its worked example, *"my employer fired me
+    # without notice"* — inviting the user to restate an answerable legal
+    # question as an account of their own matter. That routes to
+    # situation_report, which is the input this service handles worst
+    # (RAG-REVIEW.md §4.10) and which the application then has to withhold under
+    # rule 6 anyway. The clarification path was converting an answerable question
+    # into an unanswerable one.
+    #
+    # The application's own refusal messages had this right all along: they offer
+    # the general form — *"instead of 'what should I do about my landlord', try
+    # 'what does Sri Lankan law say about a landlord ending a tenancy'"*. Same
+    # move here.
     if detected_topic:
         area = detected_topic["area"]
         examples = detected_topic["examples"]
         examples_text = "\n".join(f"  • {ex}" for ex in examples)
 
         answer = (
-            f"I can help you with **{area}** matters! To give you the most relevant information, "
-            f"could you tell me more about your specific situation?\n\n"
-            f"For example, are you dealing with:\n{examples_text}\n\n"
-            f"The more details you share, the better I can assist you."
+            f"I can explain what Sri Lankan law says about **{area}** — I just need a "
+            f"more specific question to look up.\n\n"
+            f"Which of these is closest to what you want to know?\n{examples_text}\n\n"
+            f"Ask it as a question about the law rather than about your own case, and "
+            f"I can point you at the section that governs it."
         )
     else:
         answer = (
-            "I'd be happy to help! Could you tell me a bit more about your specific legal "
-            "situation or question?\n\n"
+            "I can help, but I need a more specific question to look up.\n\n"
             "For example:\n"
-            "  • Describe a situation you're facing (e.g., *\"my employer fired me without notice\"*)\n"
-            "  • Ask about a specific law (e.g., *\"What does Section 14 of the Motor Traffic Act say?\"*)\n"
-            "  • Ask about a legal procedure (e.g., *\"How do I file a civil case in Sri Lanka?\"*)\n\n"
-            "The more specific you are, the better I can help you."
+            "  • *\"What does Section 151 of the Motor Traffic Act say?\"*\n"
+            "  • *\"What does Sri Lankan law say about removing a company director?\"*\n"
+            "  • *\"How is a civil action started in Sri Lanka?\"*\n\n"
+            "Ask about the law rather than about your own situation — I can explain what "
+            "the law says, but only an attorney-at-law who has taken you on as a client "
+            "can advise you on your own case."
         )
 
     return {
@@ -529,6 +547,12 @@ def generate_clarification_response(question: str, chat_history: list) -> dict:
         "sources": [],
         "web_sources": [],
         "chunks_retrieved": 0,
+        # Both branches above decline to advise on the asker's own case and
+        # redirect to the general form of the question. Reported structurally so
+        # a caller does not have to infer it from the prose — the evaluation
+        # scorer had a growing list of phrase markers for exactly this, and a
+        # marker list is a thing you tune until it agrees with you.
+        "declined_advice": True,
         "detected_practice_areas": [],
         "graph_entities": [],
         "related_documents": [],

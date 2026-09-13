@@ -162,29 +162,47 @@ be written honestly. `scripts/eval.py` reports this at the top of every run, and
 becomes writable the moment an amendment is processed. Meanwhile
 `scripts/check_security.py` asserts that retrieval never drops the `Active` filter.
 
-### 1.2 Add a relevance floor and abstain
+### 1.2 Add a relevance floor and abstain — ✅ **DONE 2026-09-13**
+### 1.2b Stop the router clarifying answerable questions — ✅ **DONE 2026-09-13**
 
-Drop chunks below a threshold tuned against the golden set. If nothing survives, return a
-structured `no_context` result and let the model say so. This closes the *"having sources
-is not the same as being sourced"* gap directly.
+Full write-up and the before/after in [eval/results/STAGE-1.2.md](../eval/results/STAGE-1.2.md).
 
-### 1.2b Stop the router clarifying answerable questions (§4.14) — **do with 1.2**
+```
+                      baseline    now
+retrieval recall@k      63.0%    84.8%   +21.8
+citation accuracy       0.663    0.891   +0.228
+grounding               91.8%    95.9%   +4.1
+refusal correctness     33.3%    96.7%   +63.4
 
-Measured, not suspected: **13 of the 18 `answerable` failures never reached retrieval**.
-The router classified them `clarification_needed` and returned a canned template with zero
-sources. Nine were Companies Act questions, which is the entire reason that Act scores
-5/16 — a routing defect, so Stage 2's reranking would not touch it.
+answerable            60.9%    82.6%
+must_refuse           57.1%    92.9%
+not_in_corpus         12.5%   100.0%
+```
 
-Two parts, and the first falls out of 1.2 for free:
+**Nothing regressed** — the thing to watch was a floor buying `not_in_corpus` by refusing
+everything. `answerable` rose instead.
 
-1. **Search first, clarify only if nothing clears the floor.** Once 1.2 exists, "I found
-   nothing relevant" is a real signal, and clarification stops being a guess made before
-   looking.
-2. **Rewrite the template.** It currently asks the user to *"tell me more about your
-   specific situation"* and offers *"my employer fired me without notice"* as the worked
-   example — converting an answerable question into a `situation_report`, which is the
-   input this service handles worst. Offer the **general form** of the question instead,
-   the way the application's refusal messages already do.
+Two thresholds, not one: `RETRIEVAL_MIN_SCORE` (0.62) on the best result decides whether
+the corpus answers the question at all; `RETRIEVAL_CHUNK_FLOOR` (0.50) decides which
+chunks are worth the context once it does. Both tuned against the evaluation set — the
+sweep is recorded in `config.py`. When nothing clears the gate, a **fixed string** says so
+and names the legislation actually held, read at runtime rather than hardcoded.
+
+1.2b fell out of it as predicted: the gate search runs before the clarification decision,
+so the router's caution is overruled by evidence. The template was also rewritten to stop
+asking for the user's situation.
+
+**What the floor exposed:** the ReAct agent writes worse search queries than the user
+does — it turned a question scoring 0.747 into a paraphrase scoring 0.604. That was always
+true and was hidden by retrieval always returning *k* results. Mitigated by falling back to
+the linear pipeline on the user's own wording; properly fixed by 1.3.
+
+**A live guardrail gap in the main product, found here:** *"The company I am a director of
+cannot pay its debts. Am I personally liable?"* was answered *"you may be personally liable
+for the company's debts"* — and **neither** layer of `src/lib/ai/policy.ts` caught it, so
+it reached the user. The advice pattern missed twice: no room for the adverb in
+"personally liable", and it required liable *to* where the answer said liable *for*. Fixed
+and asserted; `check:ai` is now 52, testing both sides of the line.
 
 ### 1.3 Fix the citation chain
 

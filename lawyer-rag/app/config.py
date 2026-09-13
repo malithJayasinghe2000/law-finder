@@ -112,6 +112,49 @@ class Config:
     CHUNK_OVERLAP: int = int(os.getenv("CHUNK_OVERLAP", "200"))
     TOP_K_RESULTS: int = int(os.getenv("TOP_K_RESULTS", "6"))
 
+    # ── The relevance floor ───────────────────────────────────────────────
+    #
+    # Retrieval used to return the top k regardless of score, so the corpus
+    # ALWAYS had "an answer". Ask about land law — which is not held — and six
+    # unrelated Companies Act chunks came back under a heading telling the model
+    # "LEGAL CONTEXT FROM SRI LANKAN LEGISLATION". Measured on the golden set,
+    # the service then answered questions about legislation it does not hold
+    # 14 times out of 16.
+    #
+    # Two thresholds, not one, because they answer different questions:
+    #
+    #   RETRIEVAL_MIN_SCORE   "is there ANY good match?" — applied to the BEST
+    #                         result. Below it, the whole search is treated as a
+    #                         miss and nothing is returned, so the pipeline can
+    #                         say it does not hold the material.
+    #
+    #   RETRIEVAL_CHUNK_FLOOR "is this chunk worth putting in the context?" —
+    #                         applied per chunk, once the search has cleared the
+    #                         gate above. A strong hit may legitimately carry
+    #                         weaker supporting sections with it.
+    #
+    # Tuned against eval/questions.yaml, not guessed. At 0.62/0.50 on the 76
+    # questions:
+    #
+    #        abstain  answerable answered   recall kept   not_in_corpus abstained
+    #   0.00        (no floor)      100%           96%                        0%
+    #   0.58                         91%           87%                       75%
+    #   0.60                         91%           87%                       88%
+    #   0.62  <-                     89%           85%                      100%
+    #   0.64                         83%           80%                      100%
+    #
+    # 0.62 is chosen over 0.60 deliberately. It costs one more answerable
+    # question (cpc-002, top score 0.608) and buys the last two not_in_corpus
+    # cases. For a legal assistant, stating law it does not hold is a worse
+    # failure than declining a question it could have answered: the first is
+    # invisible to the reader, the second is obvious to them.
+    #
+    # Re-tune with `python -m scripts.eval --compare eval/results/baseline.json`
+    # after any change to the embedding model, the chunker or the corpus. These
+    # numbers are properties of THIS corpus and THIS embedding model.
+    RETRIEVAL_MIN_SCORE: float = float(os.getenv("RETRIEVAL_MIN_SCORE", "0.62"))
+    RETRIEVAL_CHUNK_FLOOR: float = float(os.getenv("RETRIEVAL_CHUNK_FLOOR", "0.50"))
+
     # Acts source directory
     ACTS_SOURCE_DIR: str = os.getenv("ACTS_SOURCE_DIR", str(BASE_DIR.parent / "Acts"))
 

@@ -29,6 +29,12 @@
 > fixes: deleting one document strips knowledge-graph entities belonging to other Acts.
 > See [RAG-ROADMAP.md](./RAG-ROADMAP.md) Stage 1.
 >
+> **Stage 1.2 is done too (2026-09-13).** The relevance floor and the routing fix took
+> `not_in_corpus` from 12.5% to **100%**, recall@k from 63.0% to **84.8%**, and refusal
+> correctness from 33.3% to **96.7%** — with nothing regressing. §4.4 and §4.14 are closed.
+> `eval/results/STAGE-1.2.md` has the detail, including a live guardrail gap in the main
+> product that this work found and fixed.
+>
 > **Stage 1.1 is also done (2026-09-13): there is now a golden evaluation set** — 76
 > questions in `eval/`, `python -m scripts.eval` to run them. The first baseline is in
 > `eval/results/BASELINE.md`, and it measures what §4.4 predicted: asked about
@@ -334,6 +340,11 @@ repealed legislation, correctly cited.
 
 ### 4.4 🟠 No relevance threshold — the corpus always "has an answer"
 
+> ✅ **Fixed 2026-09-13.** Two thresholds — `RETRIEVAL_MIN_SCORE` on the best result,
+> `RETRIEVAL_CHUNK_FLOOR` per chunk — tuned against the evaluation set, with a fixed
+> string when nothing clears the gate. `not_in_corpus` went from **12.5% to 100%**, and
+> `answerable` ROSE from 60.9% to 82.6%. See `eval/results/STAGE-1.2.md`.
+
 `search_documents` returns the top *k* regardless of score. Ask about family law — which
 is **not in the corpus** — and six unrelated Companies Act chunks come back, formatted
 under a heading that tells the model *"LEGAL CONTEXT FROM SRI LANKAN LEGISLATION"* with a
@@ -558,6 +569,10 @@ metadata behind it: every displayed citation comes from this field.
 
 ### 4.14 🟠 The router sends answerable questions to a "tell me more" template — and the template makes it worse
 
+> ✅ **Fixed 2026-09-13.** The gate search now runs before the clarification decision, so
+> evidence overrules the router; and the template asks for a sharper question rather than
+> for the user's situation. Most of the `answerable` gain from 60.9% to 82.6% is this.
+
 Measured by the Stage 1.1 evaluation set. Of 18 `answerable` questions the service got
 wrong, **13 never reached retrieval at all**: `classify_intent` returned
 `clarification_needed`, which is a fast exit returning a canned template with zero sources.
@@ -608,6 +623,36 @@ fixed by editing the keyword list.
 >    about a landlord ending a tenancy'."* The application already had this right.
 > 3. **Measure it against the evaluation set**, not by trying phrasings by hand.
 >    `answerable` was 60.9% at baseline, and 13 of the 18 failures are here.
+
+---
+
+### 4.15 🟠 The ReAct agent writes worse search queries than the user does
+
+Exposed by the Stage 1.2 relevance floor, and **it was always true** — retrieval returning
+*k* results regardless of score had simply hidden it.
+
+```
+user asks   "Within what time must an application be made to have a
+             deceased person's will proved?"        -> scores 0.747 against s.524
+
+agent searches for
+            "time limit to prove a deceased person"  -> scores 0.604, rejected
+```
+
+The agent's paraphrase drops "application", "will" and "proved" — the three words that
+carry the query. Before the floor, the weak query still returned six chunks and s.524
+happened to be among them, so the answer came out right for the wrong reason.
+
+This is the same class of problem as §4.7: a 3-billion-parameter model making a judgement
+call it is too small to make reliably. Query rewriting and intent classification are both
+judgement, and both are where this service loses answers.
+
+> **Mitigated, not fixed.** When the agent returns no sources though the gate search did
+> find material, the pipeline falls back to the linear path, which searches on the user's
+> own wording. That recovers the answer and costs a third search.
+>
+> **The real fix is Stage 1.3** — carry the gate's results through instead of searching
+> again — and **Stage 1.6**, a model that paraphrases competently.
 
 ---
 
@@ -761,7 +806,7 @@ Worth recording so a future refactor does not undo it:
 | 4.1 | `num_ctx=8192` overflows silently; safety prompt may be truncated | 🔴 | ✅ fixed |
 | 4.2 | `verify_answer_tool` manufactures false assurance | 🔴 | ⬜ Stage 1.4 |
 | 4.3 | Filter-failure fallback can return repealed law | 🔴 | ✅ fixed |
-| 4.4 | No relevance threshold — always "finds" an answer | 🟠 | ⬜ Stage 1.2 — see §4.10 |
+| 4.4 | No relevance threshold — always "finds" an answer | 🟠 | ✅ fixed |
 | 4.5 | Displayed citations are re-run, not recorded | 🟠 | ⬜ Stage 1.3 |
 | 4.6 | Corpus hardcoded in 4 places; drifts on ingest | 🟠 | ⬜ Stage 1.5 |
 | 2.5 | Error detail leak | 🟠 | ✅ fixed |
@@ -770,11 +815,12 @@ Worth recording so a future refactor does not undo it:
 | 4.7 | Four model names across five files | 🟡 | ⬜ Stage 1.6 — one *source* now, still to settle |
 | 4.8 | English-only routing on a trilingual platform | 🟡 | ⬜ Stage 4.3 |
 | 4.9 | Filter dict mutated in place | 🟡 | ✅ fixed |
+| 4.15 | The ReAct agent writes worse search queries than the user | 🟠 | ⚠️ mitigated; 1.3 fixes properly |
 | 4.10 | Own-matter advice on the wrong Act — caught by the application | 🟠 | ⬜ Stage 1.1/1.2 |
 | 4.11 | Deleting a document strips graph entities from **other** Acts | 🟠 | ⬜ unscheduled — data loss |
 | 4.12 | Two Acts stored as "Act No. 24 of 2007/2025" — unfilterable, uncitable | 🟠 | ⬜ Stage 1.5 |
 | 4.13 | A year parsed as a section number | 🟡 | ⬜ unscheduled |
-| 4.14 | Router sends answerable questions to a clarification template that then solicits own-matter facts | 🟠 | ⬜ do with Stage 1.2 |
+| 4.14 | Router sends answerable questions to a clarification template that then solicits own-matter facts | 🟠 | ✅ fixed |
 
 ~~**Do not deploy this service until §2 and §3 are fixed.**~~ **Done, 2026-09-13.**
 The blocking security and privacy defects are closed and asserted by

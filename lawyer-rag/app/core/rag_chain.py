@@ -319,6 +319,87 @@ def _graph_expand_retrieval(question: str, initial_docs: list) -> tuple[list, li
         return [], []
 
 
+# ---------------------------------------------------------------------------
+# What it says when the corpus does not hold the answer
+# ---------------------------------------------------------------------------
+# A FIXED STRING, deliberately, for the same reason LAWYER_REQUEST_REFUSAL is
+# one: a refusal that a model composes is a refusal that a model can compose its
+# way out of. Measured on the golden set before the relevance floor existed, the
+# service answered questions about legislation it does not hold 14 times out of
+# 16 — describing the powers of the Prevention of Terrorism Act, attributing
+# trademark registration to the Companies Act, and inventing a residence
+# requirement for citizenship. None of that law is in the corpus.
+#
+# Note what this message does NOT do: it does not ask the person to describe
+# their situation. The clarification template did, offering "my employer fired
+# me without notice" as its worked example, which walked users straight into the
+# own-matter path this service handles worst. It offers the general form of the
+# question instead, the way the application's own refusals do.
+
+_CORPUS_CACHE: Optional[list[str]] = None
+
+# Display names for documents whose stored document_name is unusable.
+#
+# STOPGAP, and display-only. "Act No. 24 of 2007" is what build_metadata_from_filename
+# derived from 24-2007_E.pdf; it is not a name anybody would ask for and not a
+# citation anybody could look up (RAG-REVIEW.md §4.12). The real fix is to
+# re-ingest with the Act's long title, which is in the first chunk of each PDF.
+# This map only affects the sentence below, never a citation.
+_DISPLAY_NAMES = {
+    "Act No. 24 of 2007": "Computer Crime Act, No. 24 of 2007",
+    "Act No. 24 of 2025": "Social Security Contribution Levy (Amendment) Act, No. 24 of 2025",
+}
+
+
+def _corpus_titles() -> list[str]:
+    """
+    The legislation actually held, read from the vector store and cached.
+
+    Derived rather than hardcoded. The available Acts are currently written into
+    four separate places (RAG-REVIEW.md §4.6) and ingesting a new one updates
+    none of them, so a hardcoded list here would be a fifth thing to drift.
+    """
+    global _CORPUS_CACHE
+    if _CORPUS_CACHE is None:
+        try:
+            from app.core.vectorstore import get_all_document_names
+            names = [d.get("document_name", "") for d in get_all_document_names()]
+            _CORPUS_CACHE = sorted(
+                {_DISPLAY_NAMES.get(n, n) for n in names if n and n != "Unknown"}
+            )
+        except Exception as e:
+            logger.warning(f"Could not read corpus names: {e}")
+            return []
+    return _CORPUS_CACHE
+
+
+def no_context_response(intent: str) -> dict:
+    """The answer when nothing in the corpus clears the relevance floor."""
+    held = _corpus_titles()
+    holdings = (
+        "\n\nThe legislation I hold is:\n"
+        + "\n".join(f"  • {t}" for t in held)
+        if held else ""
+    )
+    return {
+        "answer": (
+            "I do not hold legislation covering that, so I cannot answer it from a "
+            "source — and I will not answer it from memory, because an answer I "
+            "cannot cite is one you cannot check."
+            + holdings
+            + "\n\nIf your question is about one of those, try asking it directly — "
+            "for example *\"what does the law say about removing a company "
+            "director\"* rather than a general topic."
+        ),
+        "sources": [],
+        "chunks_retrieved": 0,
+        "intent": intent,
+        "no_context": True,
+        "graph_entities": [],
+        "related_documents": [],
+    }
+
+
 @traceable(name="RAG Query Dispatcher")
 def query_rag(
     question: str,
@@ -375,9 +456,19 @@ def query_rag(
             "related_documents": [],
         }
 
-    if intent == "clarification_needed":
-        logger.info("Handling clarification_needed — asking user for specifics")
-        return {**generate_clarification_response(question, chat_history), "intent": intent}
+    # clarification_needed is handled AFTER the search below, not here.
+    #
+    # It used to return immediately, before retrieval ever ran. Measured on the
+    # golden set, that discarded 13 of the 18 answerable questions the service
+    # got wrong: "What standard of skill and care must a company director
+    # exercise?" was met with "could you tell me more about your specific
+    # situation?" while the near-identical "What does the Companies Act say
+    # about the duties of a director?" was answered correctly from s.189.
+    # Nine of the thirteen were Companies Act questions, which is the whole
+    # reason that Act scored 5/16 (RAG-REVIEW.md §4.14).
+    #
+    # Now the search runs first. Asking for clarification is a decision made
+    # AFTER looking, not a guess made before.
 
     if intent == "lawyer_request":
         # Deleted in Phase 5: this used to run generate_lawyer_response(), which
@@ -405,8 +496,40 @@ def query_rag(
         search_query = rewrite_query(question, chat_history)
         logger.info(f"Follow-up rewritten: '{search_query[:80]}'")
     else:
-        # Both legal_query and situation_report use the original question
+        # legal_query, situation_report and clarification_needed all search on
+        # the original question.
         search_query = question
+
+    # ── The gate: look before deciding whether there is anything to say ───
+    #
+    # One search, with the relevance floor applied. Three outcomes:
+    #
+    #   nothing clears the floor          -> say so, in a fixed string, and stop.
+    #                                        No model call at all.
+    #   material found, intent was vague  -> answer it. The router's caution is
+    #                                        overruled by evidence.
+    #   material found, intent was clear  -> carry on as before.
+    #
+    # This costs one embedding that the agentic path will then repeat, which is
+    # the duplicate-retrieval waste already noted in RAG-REVIEW.md §5.3. Paid
+    # knowingly: it is the difference between declining to answer and inventing
+    # an Act, and Stage 1.3 removes the duplication by carrying results through.
+    gate_hits = search_documents(query=search_query, top_k=top_k)
+
+    if not gate_hits:
+        if intent == "clarification_needed":
+            logger.info("No context and the question was vague — asking for specifics")
+            return {**generate_clarification_response(question, chat_history),
+                    "intent": intent}
+        logger.info("No context cleared the relevance floor — declining to answer")
+        return no_context_response(intent)
+
+    if intent == "clarification_needed":
+        logger.info(
+            "Router said clarification_needed, but retrieval found %d relevant "
+            "chunks — answering instead of asking", len(gate_hits),
+        )
+        intent = "legal_query"
 
     # Run the RAG pipeline
     if config.ENABLE_AGENTIC_RAG:
@@ -473,6 +596,39 @@ def _query_rag_agentic(
 
         # Strip internal debug keys before returning to the API
         result.pop("_agent_tool_calls", None)
+
+        # If the agent found nothing but the gate did, use the linear path.
+        #
+        # The agent writes its own search query, and a 3B model writes worse
+        # queries than the user does. Measured: asked "Within what time must an
+        # application be made to have a deceased person's will proved?" — which
+        # scores 0.747 against s.524 — the agent searched for "time limit to
+        # prove a deceased person", scoring 0.604, and the relevance floor
+        # correctly rejected its paraphrase.
+        #
+        # Before the floor, that bad query still returned six chunks and the
+        # right section happened to be among them, so the weakness was invisible.
+        # It was always there. The floor did not cause it; it revealed it.
+        #
+        # The gate search in query_rag used the USER'S OWN WORDS and did find
+        # material, so falling back to the linear pipeline — which searches on
+        # the user's question rather than the agent's rewrite — recovers the
+        # answer. The proper fix is Stage 1.3, carrying the gate's results
+        # through instead of searching three times.
+        if not result.get("sources"):
+            logger.info(
+                "Agent returned no sources though the gate found material — "
+                "falling back to the linear pipeline on the user's own wording"
+            )
+            return _query_rag_linear(
+                question=question,
+                search_query=search_query,
+                chat_history=chat_history,
+                document_filter=document_filter,
+                top_k=config.TOP_K_RESULTS,
+                filter_metadata=None,
+            )
+
         return result
 
     except Exception as e:

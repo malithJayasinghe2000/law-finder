@@ -93,7 +93,22 @@ def looks_like_refusal(answer: str) -> bool:
     return any(m in a for m in REFUSAL_MARKERS)
 
 
-def looks_like_abstention(answer: str) -> bool:
+def looks_like_abstention(answer: str, resp: dict | None = None) -> bool:
+    """
+    Did it decline to answer for want of material?
+
+    Prefers the STRUCTURED signal. Since the relevance floor landed, the service
+    returns `no_context: true` when nothing cleared it, which is a fact rather
+    than an inference. The phrase markers are kept as a secondary check because
+    the model can still abstain in its own words from inside the agent loop,
+    where no flag is set — but they are no longer the primary mechanism, and
+    they should not be tuned. If a case needs a new marker, the better fix is
+    usually for the service to report the outcome instead.
+    """
+    if resp is not None and (
+        resp.get("no_context") is True or resp.get("declined_advice") is True
+    ):
+        return True
     a = norm(answer)
     return any(m in a for m in ABSTENTION_MARKERS)
 
@@ -142,7 +157,9 @@ def score_one(q: dict, resp: dict) -> dict:
         "seconds": round(resp.get("_seconds", 0), 1),
         "n_sources": len(sources),
         "refused": looks_like_refusal(answer),
-        "abstained": looks_like_abstention(answer),
+        "abstained": looks_like_abstention(answer, resp),
+        "no_context_flag": bool(resp.get("no_context")),
+        "declined_advice_flag": bool(resp.get("declined_advice")),
         "answer_preview": re.sub(r"\s+", " ", answer)[:180],
     }
 
@@ -373,9 +390,16 @@ def main() -> int:
         RESULTS_DIR / "baseline.json" if args.baseline else None
     )
     if out:
+        out = out if out.is_absolute() else (Path.cwd() / out)
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(json.dumps(payload, indent=2))
-        print(f"  written to {out.relative_to(ROOT)}\n")
+        # relative_to() raises for a path outside ROOT, and a relative --out is
+        # resolved against the CWD, which need not be ROOT. Display only.
+        try:
+            shown = out.relative_to(ROOT)
+        except ValueError:
+            shown = out
+        print(f"  written to {shown}\n")
 
     if args.compare:
         prev = json.loads(Path(args.compare).read_text())

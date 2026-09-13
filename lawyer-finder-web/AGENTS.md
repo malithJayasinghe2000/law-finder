@@ -79,6 +79,13 @@ bound by that limit — no fee ranges, no ratings, no promotional copy.
   not prove the assistant refuses to advise on someone's own case. **Every AI answer
   is generated server-side through `/api/ai/ask` and passes that policy file. The
   browser must never call a model service directly**
+- **An advice pattern that looks right can still miss.** *"you may be personally liable
+  for the company's debts"* was published to a user in Stage 1.2: the pattern meant to
+  catch it had no room for the adverb and required liable *to*, not *for*. Reading the
+  regex, you would have said the case was covered. **When you touch these patterns, add
+  a case for the general form too** — *"what must a director do if the company cannot pay
+  its debts"* must still be ANSWERED while *"am I personally liable"* is refused. A check
+  that refuses both is as broken as one that answers both
 - Run `npm run check:billing` after touching `src/lib/consultations/feeNote.ts` or
   `src/lib/firms/billing.ts` — a green build does not prove a fee note is free of a
   platform fee. **The licence belongs to the `LawFirm`; a seat is a person who can

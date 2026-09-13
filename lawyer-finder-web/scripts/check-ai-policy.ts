@@ -328,6 +328,17 @@ const ADVICE_ANSWERS: Array<[string, string]> = [
     '1. Review your employment contract for notice provisions.\n2. Contact the Labour Department.',
     'A numbered instruction list addressed to the reader is advice however the sentences are worded.',
   ],
+  [
+    'As a director of a company that is unable to pay its debts, you may be personally liable for the company\'s debts, under Section 219 of the Companies Act.',
+    'Found live by the RAG evaluation set on 2026-09-13, and PUBLISHED to the user at the time. ' +
+      'The pattern meant to catch it missed twice: "personally" sits between "be" and "liable", ' +
+      'and the answer says liable FOR rather than liable TO. A legal conclusion about the reader\'s ' +
+      'own exposure is advice however hedged.',
+  ],
+  [
+    'Based on the Act, you would be entitled to compensation for the loss you described.',
+    'The original form of the same pattern, kept so widening it for the adverb did not lose the plain case.',
+  ],
 ];
 
 for (const [answer, because] of ADVICE_ANSWERS) {
@@ -341,6 +352,29 @@ for (const [answer, because] of ADVICE_ANSWERS) {
     `withholds advice: "${answer.slice(0, 46)}..."`,
     verdict.outcome === 'REFUSE' && verdict.category === 'ADVICE_IN_ANSWER',
     because
+  );
+}
+
+// The other side of the line. The general form of the SAME legal question must
+// still be answered — a check that refuses both is as broken as one that
+// answers both, and widening the advice pattern is exactly the change that
+// could break it.
+{
+  const answer =
+    'Under Section 219 of the Companies Act, a director who believes the company ' +
+    'is unable to pay its debts as they fall due must forthwith call a meeting of ' +
+    'the board to consider whether to apply for winding up.';
+  const verdict = evaluateAnswer({
+    answer,
+    sources: [companiesAct],
+    library: LIBRARY,
+    requiresCitation: true,
+  });
+  check(
+    'the general statement of the same duty is published, not withheld',
+    verdict.outcome === 'PUBLISH',
+    'It describes what the Act requires of "a director", not what the reader should do. ' +
+      'Over-refusing here would make the assistant useless on the legislation it actually holds.'
   );
 }
 

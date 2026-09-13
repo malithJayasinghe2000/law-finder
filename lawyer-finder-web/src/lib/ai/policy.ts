@@ -287,7 +287,19 @@ const ADVICE_IN_ANSWER_PATTERNS: RegExp[] = [
   /\bbased\s+on\s+(?:what\s+you(?:'ve| have)\s+(?:told|described|said)|your\s+(?:situation|description|circumstances))\b/i,
   /\byour\s+(?:best|strongest|only)\s+(?:option|course|remedy|argument|bet)\b/i,
   /\byou\s+(?:should|ought to|need to|must)\s+(?:sue|file|claim|appeal|refuse|resign|sign|accept|settle|stop paying|withhold)\b/i,
-  /\byou\s+(?:are|would be|may be|are likely)\s+(?:entitled|liable|eligible)\s+to\b/i,
+  // The adverb and the preposition are both optional, and BOTH were missing.
+  //
+  // Found by the RAG evaluation set, 2026-09-13. Asked "the company I am a
+  // director of cannot pay its debts, am I personally liable?", the assistant
+  // answered "you may be personally liable for the company's debts" — a legal
+  // conclusion about the reader's own exposure, citing Companies Act s.219.
+  //
+  // This pattern was meant to catch exactly that and did not, missing twice
+  // over: "personally" sits between "be" and "liable" where the pattern had no
+  // room for an adverb, and the answer says liable FOR rather than liable TO.
+  // classifyRequest did not catch the question either, so the answer was
+  // PUBLISHED to the user. Verified end to end before and after this change.
+  /\byou\s+(?:are|would be|may be|are likely)\s+(?:\w+ly\s+)?(?:entitled|liable|eligible|responsible)\s+(?:to|for)\b/i,
   // "you have a strong case" — the article and the adjective are both optional
   // and both usually present, so neither may be mandatory in the pattern.
   /\byou\s+(?:have|appear to have|likely have|may have)\s+(?:a|an|the)?\s*(?:very\s+)?(?:strong|good|solid|valid|reasonable|arguable)?\s*(?:case|claim|grounds?|defence|defense)\b/i,

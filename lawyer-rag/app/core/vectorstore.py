@@ -59,11 +59,54 @@ def add_documents(documents: list, batch_size: int = 50) -> int:
     return total_added
 
 
+def apply_relevance_floor(results: list, *, query: str = "") -> list:
+    """
+    Drop a result set that nothing in the corpus actually answers.
+
+    Two gates, because they answer different questions (see config.py):
+
+      RETRIEVAL_MIN_SCORE    applied to the BEST result. If the strongest match
+                             is below it, the whole search is a miss and NOTHING
+                             is returned — so the pipeline can say it does not
+                             hold the material rather than reasoning over six
+                             unrelated sections.
+      RETRIEVAL_CHUNK_FLOOR  applied per chunk once the gate is cleared. A
+                             strong hit may legitimately carry weaker supporting
+                             sections along with it.
+
+    Why returning nothing is the point. `search_documents` used to return the
+    top k regardless of score, so the corpus always had "an answer". Asked about
+    land law, which is not in the corpus, it returned six Companies Act chunks
+    under a heading reading "LEGAL CONTEXT FROM SRI LANKAN LEGISLATION" with a
+    relevance figure of 8%, and the model dutifully answered. Having sources is
+    not the same as being sourced.
+    """
+    if not results:
+        return results
+
+    best = max(score for _, score in results)
+    if best < config.RETRIEVAL_MIN_SCORE:
+        logger.info(
+            "[floor] no result cleared %.2f (best %.3f) for %r — returning nothing",
+            config.RETRIEVAL_MIN_SCORE, best, query[:60],
+        )
+        return []
+
+    kept = [(doc, score) for doc, score in results if score >= config.RETRIEVAL_CHUNK_FLOOR]
+    if len(kept) < len(results):
+        logger.info(
+            "[floor] dropped %d/%d chunks below %.2f",
+            len(results) - len(kept), len(results), config.RETRIEVAL_CHUNK_FLOOR,
+        )
+    return kept
+
+
 @traceable(name="Vector Store Search")
 def search_documents(
     query: str,
     top_k: int = None,
     filter_metadata: Optional[dict] = None,
+    apply_floor: bool = True,
 ) -> list:
     """
     Search the vector store with optional metadata filtering.
@@ -72,9 +115,15 @@ def search_documents(
         query: Search query text
         top_k: Number of results to return
         filter_metadata: ChromaDB metadata filter dict
+        apply_floor: Drop results that nothing really answers (default True).
+                     Pass False ONLY for an exact-metadata lookup, where the
+                     caller has already decided WHICH section it wants and the
+                     similarity score is not the thing being judged — see
+                     section_lookup_tool.
 
     Returns:
-        List of (Document, score) tuples
+        List of (Document, score) tuples. **May be empty**, and an empty list is
+        a real answer meaning "the corpus does not hold this", not an error.
     """
     if top_k is None:
         top_k = config.TOP_K_RESULTS
@@ -98,11 +147,12 @@ def search_documents(
             filter_metadata = {"$and": [{k: v} for k, v in filter_metadata.items()]}
 
     try:
-        return vs.similarity_search_with_relevance_scores(
+        results = vs.similarity_search_with_relevance_scores(
             query=query,
             k=top_k,
             filter=filter_metadata,
         )
+        return apply_relevance_floor(results, query=query) if apply_floor else results
     except Exception as e:
         # The status filter is NEVER dropped.
         #
@@ -128,11 +178,12 @@ def search_documents(
             f"Filtered search failed ({e}); retrying with the status filter only"
         )
         try:
-            return vs.similarity_search_with_relevance_scores(
+            results = vs.similarity_search_with_relevance_scores(
                 query=query,
                 k=top_k,
                 filter={"status": "Active"},
             )
+            return apply_relevance_floor(results, query=query) if apply_floor else results
         except Exception as e2:
             logger.error(
                 f"Status-filtered search also failed ({e2}); returning no results "

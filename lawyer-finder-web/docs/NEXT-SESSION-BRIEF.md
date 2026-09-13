@@ -10,9 +10,9 @@
 
 ```
 I'm working on law-finder, a Sri Lankan legal platform under a legal restructure.
-Phases 0-8 are complete. On the AI service, RAG Stage 0 (security and privacy)
-and Stage 1.1 (the golden evaluation set) are complete. I need you to pick up
-where the last session left off.
+Phases 0-8 are complete. On the AI service, RAG Stage 0 (security and privacy),
+Stage 1.1 (the golden evaluation set) and Stage 1.2 (the relevance floor and the
+router) are complete. I need you to pick up where the last session left off.
 
 REPOSITORY LAYOUT
   law-finder/
@@ -30,9 +30,10 @@ READ THESE FIRST, IN THIS ORDER:
   5. lawyer-rag/docs/RUNNING.md                 how to run the AI service — read
                                                 this before starting it, the
                                                 service token trips everyone up
-  6. lawyer-rag/eval/results/BASELINE.md        the first measurement of answer
-                                                quality, and what it found
-  7. lawyer-rag/eval/README.md                  how the evaluation set works
+  6. lawyer-rag/eval/results/STAGE-1.2.md       where answer quality stands now,
+                                                and the guardrail gap it found
+  7. lawyer-rag/eval/results/BASELINE.md        where it started
+  8. lawyer-rag/eval/README.md                  how the evaluation set works
 
 Read further only as needed:
   - lawyer-finder-web/docs/restructure/HOW-IT-WORKS.md   why each legal rule exists,
@@ -55,78 +56,54 @@ Nothing is pushed. Ask me before any destructive git command.
 
 YOUR TASK THIS SESSION
 
-Stage 1.2 of lawyer-rag/docs/RAG-ROADMAP.md — a relevance floor, and abstain.
+Stage 1.6 of lawyer-rag/docs/RAG-ROADMAP.md — settle the model, measured.
 
-WHY THIS ONE. Stage 1.1 built the golden evaluation set (76 questions,
-`python -m scripts.eval`) and took the first baseline. Read
-lawyer-rag/eval/results/BASELINE.md first — it is short. The headline:
+WHY NOW. Stage 1.2 fixed retrieval and routing, and the numbers moved a
+long way (read lawyer-rag/eval/results/STAGE-1.2.md, it is short):
 
-  not_in_corpus   2/16  =  12.5%
+                      baseline    now
+  retrieval recall@k    63.0%    84.8%
+  citation accuracy     0.663    0.891
+  refusal correctness   33.3%    96.7%
+  not_in_corpus         12.5%   100.0%
 
-Asked about legislation the corpus does NOT hold, the service answers
-confidently 14 times out of 16. It described the powers of the Prevention
-of Terrorism Act, said trademark registration follows the Companies Act,
-and invented a five-year residence requirement for citizenship. None of
-that law is in the corpus.
+What is left is judgement, and judgement is where a 3-billion-parameter
+model fails. Both remaining problem areas are the model thinking, not the
+retrieval:
 
-The cause is in RAG-REVIEW.md §4.4: search_documents returns the top k
-regardless of score, so there is always "context", and the prompt hands
-it to the model under a heading saying LEGAL CONTEXT FROM SRI LANKAN
-LEGISLATION. The system cannot say "I do not have that" because nothing
-ever tells it that it does not.
+  - The ReAct agent rewrites the user's question into a worse one. A
+    question scoring 0.747 became a paraphrase scoring 0.604 (§4.15).
+  - The intent router still misclassifies some questions.
 
-WHAT TO BUILD
+WHAT TO DO
 
-  1. A relevance threshold in app/core/vectorstore.py, tuned AGAINST the
-     evaluation set — not guessed. Raise it until not_in_corpus improves
-     without answerable regressing. Both numbers are printed every run,
-     which is the whole point of having built the set first.
-  2. When nothing survives the floor, return a structured no-context
-     result rather than an empty list, and let the pipeline say so
-     plainly. Right now a caller has to infer a refusal from prose; the
-     eval scorer has a list of phrase markers precisely because the
-     service returns no structured outcome. Return one and delete those
-     markers rather than tuning them.
-  3. Re-run and compare every time:
-       ./venv/bin/python -m scripts.eval --compare eval/results/baseline.json
-     It prints better/WORSE per measure. Do not tune against one number:
-     recall@k 63.0%, citation accuracy 0.663, grounding 91.8% and
-     refusal correctness 33.3% all move together.
+  1. `ollama pull qwen3.5:9b` is already done — it is on the machine.
+     Set LLM_MODEL=qwen3.5:9b in lawyer-rag/.env, restart, and run:
+       ./venv/bin/python -m scripts.eval --compare eval/results/stage-1.2.json
+     Watch latency as well as quality: a 9B model on this hardware may be
+     too slow for the Next.js caller's 60s timeout. Both numbers are
+     printed.
+  2. Try at least one hosted model too (Stage 3 wants hosted inference
+     anyway — local Ollama needs a GPU host and is a second thing to
+     operate). The policy gate runs server-side and the browser never
+     calls a model, so the provider is an implementation detail — but
+     answer quality is not.
+  3. WHICHEVER WINS: name it in ONE place. config.py reads LLM_MODEL and
+     app/core/llm.py builds the client; do not add a model name to a
+     README or a docstring. There were four different ones in five files.
+  4. Record the numbers as eval/results/<model>.json and write up the
+     comparison the way STAGE-1.2.md does.
 
-AND WHILE YOU ARE IN THERE — item 1.2b, which falls out of 1.2 for free.
+DO NOT re-tune RETRIEVAL_MIN_SCORE for a new model without re-running the
+sweep. The thresholds (0.62 / 0.50) are properties of THIS embedding
+model and THIS corpus. Changing the LLM does not move them; changing the
+embedding model or the chunker does. The sweep is recorded in config.py.
 
-13 of the 18 `answerable` failures never reached retrieval at all: the
-router classified them `clarification_needed` and returned a canned
-template with zero sources. Nine were Companies Act questions, which is
-the whole reason that Act scores 5/16.
-
-  "What does the Companies Act say about the duties of a director?"
-    -> legal_query, 6 sources, correct answer
-
-  "What standard of skill and care must a company director exercise?"
-    -> clarification_needed, 0 sources, "tell me more about your
-       specific situation"
-
-Same question. Section 189 answers it in one sentence. Once you have a
-relevance floor, clarify only when nothing clears it — searching first
-makes this mostly disappear. Also rewrite the template: it currently
-asks the person to describe their own situation and offers "my employer
-fired me without notice" as the example, which routes them straight into
-the situation_report path that the application then has to withhold. Offer
-the GENERAL form of their question instead, the way policy.ts already
-does. See RAG-REVIEW.md §4.14.
-
-WATCH FOR: over-refusing. The set is built to catch it. cpc-009 to
-cpc-013 ask about matrimonial and testamentary PROCEDURE, which the Civil
-Procedure Code genuinely holds, and must still be answered. nic-001 and
-nic-009 ask for the SUBSTANTIVE law underneath, which it does not hold,
-and must be refused. A floor that refuses all seven is as broken as
-today's system that answers all seven.
-
-IF THERE IS TIME AFTERWARDS, Stage 1.6: re-run the set against a larger
-model (qwen3.5:9b is already pulled locally) and compare. That comparison
-was impossible last week and is one command now. A 3B model is unlikely
-to survive it.
+AFTER THAT, in roadmap order: 1.3 (carry retrieval results through —
+removes the duplicate searches Stage 1.2 knowingly added), 1.4 (delete
+verify_answer_tool), 1.4b (the knowledge-graph delete bug, §4.11), 1.5
+(derive the corpus list at runtime, which also fixes §4.12 — two Acts are
+stored as "Act No. 24 of 2007/2025" and cost two answers outright).
 
 ALSO, NOT CODE, FIVE MINUTES: revoke the old LangSmith API key. It is
 preserved commented out in lawyer-rag/.env marked REVOKE-ME. Tracing is
@@ -159,7 +136,7 @@ WORKING STYLE — learned the hard way over nine phases and one RAG stage
   - Run all five checks after every change set, from lawyer-finder-web/:
       npm run check:privilege   (41)
       npm run check:firm        (15)
-      npm run check:ai          (49)
+      npm run check:ai          (52)
       npm run check:billing     (21)
       npm run check:pdpa        (67)
     plus npm run build and npx tsc --noEmit. A green build proves none of the
@@ -171,6 +148,13 @@ WORKING STYLE — learned the hard way over nine phases and one RAG stage
     Building the eval set caught two of my own labels being wrong: the Civil
     Procedure Code holds matrimonial and testamentary PROCEDURE, so "grounds
     for divorce" is subtler than "not in the corpus". Read the section first.
+  - A guardrail pattern that LOOKS right can still miss. Stage 1.2 found
+    "you may be personally liable for the company's debts" reaching a real
+    user: the regex meant to catch it had no room for the adverb and required
+    liable "to", not "for". Reading it, you would have said it was covered.
+    When you widen one of these, add a case for the general form too — a
+    check that refuses both sides of the line is as broken as one that
+    answers both.
   - npm run db:reset is destructive and has been declined before. Use a scratch
     database instead (lawyer-finder-web/scripts/tmp/mkdb.js creates one).
   - Update the relevant docs at the end of the session: PROGRESS.md for the main
@@ -185,40 +169,37 @@ explain the reasoning in plain words afterwards.
 
 ## 2. Why this is the next task
 
-Stage 1.1 replaced opinion with numbers. The worst of them is `not_in_corpus` at
-**12.5%** — asked about law the corpus does not contain, the service answers anyway,
-with citations, 14 times out of 16.
+Stage 1.2 took the fixable retrieval and routing problems off the table. What remains is
+**judgement**, and judgement is what a 3-billion-parameter model is worst at. The agent
+rewrites a good question into a bad one (§4.15); the router still misreads some questions.
+Both are the model thinking, not the pipeline around it.
 
-That is not a polish item. It is the system stating Sri Lankan law it does not have, to
-people who cannot tell the difference, and it is the same mechanism that produced the
-invented *"Employment (Amendment) Ordinance No. 14 of 2017"* in Phase 5. The application's
-policy layer catches the subset that reads as advice — it refused the unfair-dismissal
-question at both ends — but a plainly-worded question about the Prevention of Terrorism
-Act is not advice-shaped, and nothing stops it.
+That has been the known weak link since the review — *"nobody can say which model answers
+a legal question, and the one actually running is a 3B"* — and until 2026-09-13 it could
+not be acted on, because there was no way to tell whether a swap helped. Now there is, and
+it is one command.
 
-The relevance floor is the direct fix, and it is now measurable rather than arguable.
+**A caution carried forward.** Stage 1.2 found a live rule 6 violation in the main product:
+*"you may be personally liable for the company's debts"* was **published to a user**,
+because the advice pattern had no room for an adverb and required liable *to* rather than
+*for*. Neither policy layer caught it. It is fixed and asserted, but the lesson generalises
+— **`check:ai` passing does not mean the rule holds; it means the cases someone thought of
+hold.** The evaluation set found this one precisely because it drives real questions
+through the real gate rather than fixtures.
 
-**One caution carried forward from the baseline.** A wrong answer passed the grounding
-check, and would have passed `policy.ts` too: asked for the grounds for divorce, the model
-cited Civil Procedure Code s.597 — real, retrieved, and procedural, expressly deferring
-the grounds to law the corpus does not hold. **Citation-matching is the ceiling of what
-either layer can currently verify.** Claim-level faithfulness needs a judge model. Do not
-read a green `grounding` number as "the answer is correct".
-
-## 3. What comes after Stage 1.2
+## 3. What comes after Stage 1.6
 
 1. **Book the counsel meeting.** Questions 16–18 have been top of "Next up" since Phase 2
    — seven phases — and nobody has asked.
    [COUNSEL-MEETING-BRIEF.md](./restructure/COUNSEL-MEETING-BRIEF.md) is ready to send.
 2. **Talk to ten Sri Lankan law firms.** Nine phases of reasoning, zero users.
-3. **Stage 1.6 — settle the model**, measured against the baseline. Then 1.3 (the citation
-   chain), 1.4 (delete `verify_answer_tool`), 1.4b (the knowledge-graph delete bug,
-   RAG-REVIEW §4.11), 1.5 (derive the corpus list at runtime, which also fixes §4.12).
+3. **RAG 1.3 → 1.5**, in that order, all measured against `stage-1.2.json`.
 4. **Deploy the main product**, with backups and a *tested* restore, and move
    `MATTER_ENCRYPTION_KEYS` into a secrets manager. Back up `lawyer-rag/data/` at the same
    time — it is tracked in git today, which is luck rather than a backup.
-5. **Load more legislation** (Stage 4.1). Land, Labour, Family, Penal Code. The baseline
-   shows what the system does instead of admitting it lacks them.
+5. **Load more legislation** (Stage 4.1). Land, Labour, Family, Penal Code. The assistant
+   now says honestly that it does not hold them, which is correct and is also a product a
+   lawyer stops opening.
 
 Items 1 and 2 cannot be done by writing code, which is exactly why they keep not happening.
 
