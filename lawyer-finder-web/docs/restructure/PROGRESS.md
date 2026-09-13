@@ -1664,3 +1664,121 @@ be tracked in git, which is luck rather than a backup.
 - Everything in `RAG-REVIEW.md` §4 beyond 4.1/4.3/4.9. **Stage 1 starts with the golden
   evaluation set**, because without it there is no way to tell whether a change to the
   retrieval or the model makes answers better.
+
+---
+
+## RAG Stage 1.1 — the golden evaluation set — ✅ 2026-09-13
+
+**The first measurement ever taken of the assistant's answer quality.** Everything before
+this was opinion, including every claim in the review.
+
+`lawyer-rag/eval/questions.yaml` holds **76 questions** — 46 `answerable`, 16
+`not_in_corpus`, 14 `must_refuse` — and `python -m scripts.eval` scores four numbers
+against a running service. Every expected section was **read in the vector store before
+its question was written**, and a validator asserts each one exists and contains its
+expected terms. An answer key derived from what the retriever returns would score 100% by
+construction and measure nothing.
+
+### The baseline
+
+```
+model llama3.2:3b · num_ctx 32768 · top_k 6 · agentic ReAct · 2,368 chunks
+
+retrieval recall@k    63.0%      citation accuracy    0.663
+grounding             91.8%      refusal correctness  33.3%
+median latency         6.1s
+
+answerable    28/46  60.9%
+must_refuse    8/14  57.1%
+not_in_corpus  2/16  12.5%   ← the finding
+```
+
+**Asked about legislation the corpus does not hold, it answers confidently 14 times out
+of 16.** It set out the powers of the Prevention of Terrorism Act (not held), said
+trademark registration follows the Companies Act, and invented a five-year residence
+requirement for citizenship. The honest answer — *"I do not hold that legislation"* — is
+the most common correct answer this system can give, and it gives it one time in eight.
+
+The **Companies Act is the weakest Act, 5/16**, despite being the second largest document
+and the one most relevant to a product sold to firms. That is retrieval failing to find
+material that is present, not a coverage gap.
+
+### Two things building it taught
+
+**I got two labels wrong, and reading the corpus caught it.** The Civil Procedure Code
+holds Chapter XLII (Matrimonial Actions) and Chapter XXXVIII (Testamentary Actions) — so
+"grounds for divorce" and "what makes a will valid" are not simply absent. The
+**procedure** is held; the **substantive law** is not. Five `answerable` questions were
+added on that procedure, so the set now tests the *line* rather than one side of it: a
+system that refuses all seven is as broken as one that answers all seven.
+
+**A wrong answer passed the grounding check — and would have passed `policy.ts` too.**
+Asked for the grounds for divorce, the model cited Civil Procedure Code s.597. That
+section is real and was genuinely retrieved, so `findUnsupportedProseCitations` has
+nothing to object to. But s.597 is procedural: it says a spouse may sue for dissolution
+"on any ground for which marriage may, **by the law applicable in Sri Lanka**, be
+dissolved" — it expressly declines to state the grounds, and the model attributed them to
+it anyway.
+
+> **This is the ceiling of every citation-matching check we have, ours included.** Our
+> AI gate verifies that a citation corresponds to retrieved text. It cannot verify that
+> the cited section *supports the claim*. Catching that needs a judge model. The scorer
+> deliberately does not pretend otherwise — a number that sounded like faithfulness but
+> was not would be worse than no number.
+
+### Two more defects found while building it
+
+- **§4.12 — two Acts are stored under unusable names.** The Computer Crime Act is
+  `Act No. 24 of 2007` and the Social Security Contribution Levy (Amendment) Act is
+  `Act No. 24 of 2025`, taken from their filenames. The router cannot filter to them, the
+  citation shown to a user names no Act they could look up, and it costs two evaluation
+  answers outright. **Do not hand-edit `ragDocumentName` to paper over this** — re-ingest
+  with the long title, and read §4.11 first.
+- **§4.13 — a year is stored as a section number.** `Section 1887`, matched from "1887 is
+  due and unpaid" inside an illustration. One instance, but every displayed citation comes
+  from that field.
+
+### The one case that still cannot be written
+
+A question whose answer lies in a **repealed** section. **All 2,368 chunks are
+`status: Active`** — there is no repealed content in the corpus at all, so the case cannot
+be written honestly. `eval.py` reports this at the top of every run and the case becomes
+writable the moment an amendment is processed. `check_security.py` asserts the protection
+itself meanwhile.
+
+### The finding I got wrong first, and the data corrected
+
+My first reading of the Companies Act's 5/16 was "retrieval is failing to find material
+that is present". **The data does not support that, and checking it changed the
+recommendation.** Of the 18 answerable failures, **13 never reached retrieval at all** —
+the intent router classified them `clarification_needed`, a fast exit that returns a canned
+template with zero sources. Nine of the thirteen are Companies Act questions.
+
+Two phrasings of the same question, seconds apart:
+
+```
+"What does the Companies Act say about the duties of a director?"
+  -> legal_query · 6 sources · correct, citing ss.189, 186, 206
+
+"What standard of skill and care must a company director exercise?"
+  -> clarification_needed · 0 sources · "could you tell me more about your
+     specific situation?"
+```
+
+The second is a clean general question that s.189 answers in a sentence. **And the template
+is the worse half**: it asks the person to describe their own situation, and offers *"my
+employer fired me without notice"* as the example — routing them into `situation_report`,
+the input this service handles worst and the one the application then has to withhold.
+**The clarification path converts an answerable question into an unanswerable one.**
+
+Recorded as `RAG-REVIEW.md` §4.14 and roadmap item 1.2b. It is a routing defect, so
+Stage 2's hybrid search and reranking — the obvious fix for a retrieval problem — would not
+have touched it. That is the argument for measuring before optimising, in one example.
+
+### Next
+
+Stage 1.2, the relevance floor, aimed at the 12.5% — the highest-harm number, because it
+is the system stating law it does not hold. Item 1.2b (the router) falls out of it for
+free: once there is a floor, "I found nothing relevant" is a real signal and clarification
+stops being a guess made before looking. Then Stage 1.6 — re-run the set against a larger
+model, a comparison that was impossible before this existed and is now one command.

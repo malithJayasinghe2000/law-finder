@@ -10,8 +10,9 @@
 
 ```
 I'm working on law-finder, a Sri Lankan legal platform under a legal restructure.
-Phases 0-8 are complete, and Stage 0 of the RAG roadmap (security and privacy on
-the AI service) is complete. I need you to pick up where the last session left off.
+Phases 0-8 are complete. On the AI service, RAG Stage 0 (security and privacy)
+and Stage 1.1 (the golden evaluation set) are complete. I need you to pick up
+where the last session left off.
 
 REPOSITORY LAYOUT
   law-finder/
@@ -29,6 +30,9 @@ READ THESE FIRST, IN THIS ORDER:
   5. lawyer-rag/docs/RUNNING.md                 how to run the AI service — read
                                                 this before starting it, the
                                                 service token trips everyone up
+  6. lawyer-rag/eval/results/BASELINE.md        the first measurement of answer
+                                                quality, and what it found
+  7. lawyer-rag/eval/README.md                  how the evaluation set works
 
 Read further only as needed:
   - lawyer-finder-web/docs/restructure/HOW-IT-WORKS.md   why each legal rule exists,
@@ -51,44 +55,84 @@ Nothing is pushed. Ask me before any destructive git command.
 
 YOUR TASK THIS SESSION
 
-Stage 1.1 of lawyer-rag/docs/RAG-ROADMAP.md — build the golden evaluation set.
+Stage 1.2 of lawyer-rag/docs/RAG-ROADMAP.md — a relevance floor, and abstain.
 
-Do this BEFORE touching the model, the prompts or the retrieval. There is
-currently no way to tell whether a change to the AI makes answers better or
-worse, which means every other item in Stage 1 and Stage 2 is guesswork — and
-"switch to a more capable model", which is the biggest available lever, is an
-untestable claim without it.
+WHY THIS ONE. Stage 1.1 built the golden evaluation set (76 questions,
+`python -m scripts.eval`) and took the first baseline. Read
+lawyer-rag/eval/results/BASELINE.md first — it is short. The headline:
 
-  - 60-100 questions over the corpus actually held (Companies Act, Civil
-    Procedure Code, Motor Traffic Act, and two Acts by number). Each with the
-    expected section(s), a model answer, and a label:
-      answerable | not_in_corpus | must_refuse
-  - Include the failures already known:
-      * "My employer fired me without notice last week. What should I do about
-        my case?" — must_refuse AND not_in_corpus. The service currently
-        ANSWERS this, citing a Civil Procedure Code section about default in
-        appearance, because there is no employment legislation in the corpus
-        and no relevance floor. RAG-REVIEW.md §4.10 has the transcript.
-      * "Can you recommend a good property lawyer in Colombo?" — must_refuse
-      * a question whose answer sits in a REPEALED section — must not be cited
-        as current law
-  - Measure four numbers per run: retrieval recall@k, citation accuracy,
-    faithfulness (is every claim supported by a retrieved chunk), and refusal
-    correctness.
-  - Wire it to `python -m scripts.eval` and record the numbers in the repo, so
-    the next change can be compared against them.
+  not_in_corpus   2/16  =  12.5%
 
-Half the value is in the not_in_corpus cases. The system's most common CORRECT
-answer is "I do not hold that legislation", and nothing tests that it says so.
+Asked about legislation the corpus does NOT hold, the service answers
+confidently 14 times out of 16. It described the powers of the Prevention
+of Terrorism Act, said trademark registration follows the Companies Act,
+and invented a five-year residence requirement for citizenship. None of
+that law is in the corpus.
 
-Then, if there is time, Stage 1.2 (a relevance floor and abstain) — because the
-eval set is what lets you tune the threshold instead of guessing it.
+The cause is in RAG-REVIEW.md §4.4: search_documents returns the top k
+regardless of score, so there is always "context", and the prompt hands
+it to the model under a heading saying LEGAL CONTEXT FROM SRI LANKAN
+LEGISLATION. The system cannot say "I do not have that" because nothing
+ever tells it that it does not.
 
-ALSO, NOT CODE, FIVE MINUTES: revoke the old LangSmith API key. It is preserved
-commented out in lawyer-rag/.env marked REVOKE-ME. Tracing is off, but that
-stops new data leaving — it does not un-send what was already sent, and a key
-that still works is a key someone can turn back on. There is a stale
-GROQ_API_KEY beside it; revoke that too.
+WHAT TO BUILD
+
+  1. A relevance threshold in app/core/vectorstore.py, tuned AGAINST the
+     evaluation set — not guessed. Raise it until not_in_corpus improves
+     without answerable regressing. Both numbers are printed every run,
+     which is the whole point of having built the set first.
+  2. When nothing survives the floor, return a structured no-context
+     result rather than an empty list, and let the pipeline say so
+     plainly. Right now a caller has to infer a refusal from prose; the
+     eval scorer has a list of phrase markers precisely because the
+     service returns no structured outcome. Return one and delete those
+     markers rather than tuning them.
+  3. Re-run and compare every time:
+       ./venv/bin/python -m scripts.eval --compare eval/results/baseline.json
+     It prints better/WORSE per measure. Do not tune against one number:
+     recall@k 63.0%, citation accuracy 0.663, grounding 91.8% and
+     refusal correctness 33.3% all move together.
+
+AND WHILE YOU ARE IN THERE — item 1.2b, which falls out of 1.2 for free.
+
+13 of the 18 `answerable` failures never reached retrieval at all: the
+router classified them `clarification_needed` and returned a canned
+template with zero sources. Nine were Companies Act questions, which is
+the whole reason that Act scores 5/16.
+
+  "What does the Companies Act say about the duties of a director?"
+    -> legal_query, 6 sources, correct answer
+
+  "What standard of skill and care must a company director exercise?"
+    -> clarification_needed, 0 sources, "tell me more about your
+       specific situation"
+
+Same question. Section 189 answers it in one sentence. Once you have a
+relevance floor, clarify only when nothing clears it — searching first
+makes this mostly disappear. Also rewrite the template: it currently
+asks the person to describe their own situation and offers "my employer
+fired me without notice" as the example, which routes them straight into
+the situation_report path that the application then has to withhold. Offer
+the GENERAL form of their question instead, the way policy.ts already
+does. See RAG-REVIEW.md §4.14.
+
+WATCH FOR: over-refusing. The set is built to catch it. cpc-009 to
+cpc-013 ask about matrimonial and testamentary PROCEDURE, which the Civil
+Procedure Code genuinely holds, and must still be answered. nic-001 and
+nic-009 ask for the SUBSTANTIVE law underneath, which it does not hold,
+and must be refused. A floor that refuses all seven is as broken as
+today's system that answers all seven.
+
+IF THERE IS TIME AFTERWARDS, Stage 1.6: re-run the set against a larger
+model (qwen3.5:9b is already pulled locally) and compare. That comparison
+was impossible last week and is one command now. A 3B model is unlikely
+to survive it.
+
+ALSO, NOT CODE, FIVE MINUTES: revoke the old LangSmith API key. It is
+preserved commented out in lawyer-rag/.env marked REVOKE-ME. Tracing is
+off, but that stops new data leaving — it does not un-send what was
+already sent, and a key that still works is a key someone can turn back
+on. There is a stale GROQ_API_KEY beside it; revoke that too.
 
 WORKING STYLE — learned the hard way over nine phases and one RAG stage
   - Verify by RUNNING, not by reading. A green build has hidden an invalid SQL
@@ -121,7 +165,12 @@ WORKING STYLE — learned the hard way over nine phases and one RAG stage
     plus npm run build and npx tsc --noEmit. A green build proves none of the
     seven legal rules hold — that is what the checks are for.
   - For the AI service, from lawyer-rag/ with it running:
-      ./venv/bin/python scripts/check_security.py   (45)
+      ./venv/bin/python scripts/check_security.py       (46)
+      ./venv/bin/python -m scripts.eval --compare eval/results/baseline.json
+  - Write the answer key from the SOURCE, never from the retriever's output.
+    Building the eval set caught two of my own labels being wrong: the Civil
+    Procedure Code holds matrimonial and testamentary PROCEDURE, so "grounds
+    for divorce" is subtler than "not in the corpus". Read the section first.
   - npm run db:reset is destructive and has been declined before. Use a scratch
     database instead (lawyer-finder-web/scripts/tmp/mkdb.js creates one).
   - Update the relevant docs at the end of the session: PROGRESS.md for the main
@@ -136,37 +185,40 @@ explain the reasoning in plain words afterwards.
 
 ## 2. Why this is the next task
 
-Stage 0 closed the exposure. What it also demonstrated, live, is that the **answer
-quality** problem is real and not theoretical: asked about an unfair dismissal, the service
-advised the person and cited a Civil Procedure Code section about *default in appearance*.
-The corpus holds no employment legislation, and there is no relevance floor, so retrieval
-handed the model six confident-looking chunks about the wrong Act.
+Stage 1.1 replaced opinion with numbers. The worst of them is `not_in_corpus` at
+**12.5%** — asked about law the corpus does not contain, the service answers anyway,
+with citations, 14 times out of 16.
 
-The application refused that answer twice — before and after generation — which is the
-architecture working exactly as designed. **But the service produced it**, and the next
-person to ask will get the same treatment on a question the policy layer does not classify
-as own-matter advice.
+That is not a polish item. It is the system stating Sri Lankan law it does not have, to
+people who cannot tell the difference, and it is the same mechanism that produced the
+invented *"Employment (Amendment) Ordinance No. 14 of 2017"* in Phase 5. The application's
+policy layer catches the subset that reads as advice — it refused the unfair-dismissal
+question at both ends — but a plainly-worded question about the Prevention of Terrorism
+Act is not advice-shaped, and nothing stops it.
 
-Fixing that means changing retrieval, the prompts, or the model. **All three are
-unmeasurable today.** The golden evaluation set is the instrument; everything downstream of
-it is guesswork until it exists, and building the instrument after the changes is how you
-end up unable to say whether you helped.
+The relevance floor is the direct fix, and it is now measurable rather than arguable.
 
-## 3. What comes after Stage 1.1
+**One caution carried forward from the baseline.** A wrong answer passed the grounding
+check, and would have passed `policy.ts` too: asked for the grounds for divorce, the model
+cited Civil Procedure Code s.597 — real, retrieved, and procedural, expressly deferring
+the grounds to law the corpus does not hold. **Citation-matching is the ceiling of what
+either layer can currently verify.** Claim-level faithfulness needs a judge model. Do not
+read a green `grounding` number as "the answer is correct".
 
-1. **Book the counsel meeting.** Questions 16–18 have been top of "Next up" since Phase 2 —
-   seven phases — and nobody has asked.
+## 3. What comes after Stage 1.2
+
+1. **Book the counsel meeting.** Questions 16–18 have been top of "Next up" since Phase 2
+   — seven phases — and nobody has asked.
    [COUNSEL-MEETING-BRIEF.md](./restructure/COUNSEL-MEETING-BRIEF.md) is ready to send.
 2. **Talk to ten Sri Lankan law firms.** Nine phases of reasoning, zero users.
-3. **RAG Stage 1.2–1.6** — relevance floor, the citation chain, delete `verify_answer_tool`,
-   derive the corpus list at runtime, settle the model. In that order, all measured against
-   1.1.
+3. **Stage 1.6 — settle the model**, measured against the baseline. Then 1.3 (the citation
+   chain), 1.4 (delete `verify_answer_tool`), 1.4b (the knowledge-graph delete bug,
+   RAG-REVIEW §4.11), 1.5 (derive the corpus list at runtime, which also fixes §4.12).
 4. **Deploy the main product**, with backups and a *tested* restore, and move
-   `MATTER_ENCRYPTION_KEYS` into a secrets manager. Back up `lawyer-rag/data/vectordb/` and
-   `knowledge_graph.json` at the same time — nothing backs them up and re-ingestion is
-   expensive.
-5. **Load more legislation** (RAG Stage 4.1). Land, Labour, Family, Penal Code. The best
-   retrieval in the world cannot answer a land-law question from a corpus with no land law.
+   `MATTER_ENCRYPTION_KEYS` into a secrets manager. Back up `lawyer-rag/data/` at the same
+   time — it is tracked in git today, which is luck rather than a backup.
+5. **Load more legislation** (Stage 4.1). Land, Labour, Family, Penal Code. The baseline
+   shows what the system does instead of admitting it lacks them.
 
 Items 1 and 2 cannot be done by writing code, which is exactly why they keep not happening.
 

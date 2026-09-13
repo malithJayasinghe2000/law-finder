@@ -28,6 +28,12 @@
 > from a user's seat, and §4.11 is a **new data-loss bug** found while testing the Stage 0
 > fixes: deleting one document strips knowledge-graph entities belonging to other Acts.
 > See [RAG-ROADMAP.md](./RAG-ROADMAP.md) Stage 1.
+>
+> **Stage 1.1 is also done (2026-09-13): there is now a golden evaluation set** — 76
+> questions in `eval/`, `python -m scripts.eval` to run them. The first baseline is in
+> `eval/results/BASELINE.md`, and it measures what §4.4 predicted: asked about
+> legislation the corpus does not hold, the service answers confidently **14 times out of
+> 16**. §4.12 and §4.13 were found by building it.
 
 ---
 
@@ -510,6 +516,101 @@ make its test uploads valid PDFs, for exactly this reason.
 
 ---
 
+### 4.12 🟠 Two Acts are stored under names nobody would ever ask for
+
+The corpus holds five documents. Two of them are named by their number alone:
+
+| Stored `document_name` | What it actually is |
+| --- | --- |
+| `Act No. 24 of 2007` | **Computer Crime Act**, No. 24 of 2007 |
+| `Act No. 24 of 2025` | **Social Security Contribution Levy (Amendment) Act**, No. 24 of 2025 |
+
+Both names come from `build_metadata_from_filename` reading `24-2007_E.pdf` and
+`24-2025_E.pdf`. Three consequences, all live:
+
+1. **The router cannot filter to them.** `valid_filters` lists Acts by name, so a question
+   about computer crime cannot be narrowed to the Act that answers it.
+2. **The citation shown to the user is not a usable citation.** "Act No. 24 of 2007,
+   Section 3" does not tell a reader which Act they are being pointed at, and two
+   different Acts can share a number across years.
+3. **It measurably costs answers.** Both evaluation questions naming the Social Security
+   Contribution Levy Act fail, because nothing matches a query that calls the Act what it
+   is called (`eval/results/BASELINE.md`).
+
+> **Fix: set `document_name` from the Act's long title, not the filename.** The title is
+> in the first chunk of every one of these PDFs — *"COMPUTER CRIME ACT, No. 24 OF 2007"*.
+> **Do not hand-edit `ragDocumentName` in the application database to paper over it**;
+> guessing which Act a row refers to is how you cite the wrong statute. Re-ingest instead
+> — and note §4.11 first, because deleting the old rows will strip graph entities from
+> unrelated Acts.
+
+### 4.13 🟡 A year is being stored as a section number
+
+The Civil Procedure Code has a chunk whose `section_number` is `Section 1887`, from body
+text reading *"...1887 is due and unpaid. A sues B only for the rent due for one of those
+years..."* — the section-detecting regex matched a year inside an illustration.
+
+One instance, so the practical harm is small. It is recorded because it says the section
+parser keys on a bare number in running text, and a citation is only as good as the
+metadata behind it: every displayed citation comes from this field.
+
+---
+
+### 4.14 🟠 The router sends answerable questions to a "tell me more" template — and the template makes it worse
+
+Measured by the Stage 1.1 evaluation set. Of 18 `answerable` questions the service got
+wrong, **13 never reached retrieval at all**: `classify_intent` returned
+`clarification_needed`, which is a fast exit returning a canned template with zero sources.
+
+```
+answerable failures by intent:   clarification_needed  13
+                                 legal_query            5
+```
+
+Two phrasings of one question, both sent to the live service:
+
+```
+"What does the Companies Act say about the duties of a director?"
+  -> legal_query · 6 sources · a correct answer citing ss.189, 186, 206, 203
+
+"What standard of skill and care must a company director exercise?"
+  -> clarification_needed · 0 sources
+     "I can help you with Corporate Law matters! To give you the most relevant
+      information, could you tell me more about your specific situation?"
+```
+
+The second is a clean general question that section 189 answers in one sentence. Nine of
+the thirteen are Companies Act questions, which is the whole reason that Act scores 5/16 —
+**it is a routing defect, not a retrieval one, and Stage 2's reranking would not touch
+it.**
+
+**The template is the worse half.** It asks the user to *"tell me more about your specific
+situation"*, and `generate_clarification_response`'s generic branch offers as its worked
+example *"my employer fired me without notice"*. So a person who asked an answerable
+question about the law is invited to re-ask it as a description of their own matter — which
+routes to `situation_report`, which is the input this service handles worst (§4.10), and
+which the application then has to withhold. **The clarification path converts an
+answerable question into an unanswerable one.**
+
+Note what the keyword list does and does not do. `CLARIFICATION_TOPICS` — `company`,
+`land`, `family`, `tax`, `motor`, `traffic`, `insurance`, `criminal`, `cyber`, `employ`,
+`labour`, `immigration`, `property`, `properties`, `corporate` — only chooses **which
+canned text is shown**. The decision to clarify is the 3B router LLM's, so this is not
+fixed by editing the keyword list.
+
+> **Fix, in order of cost:**
+> 1. **Never clarify when retrieval would have found something.** Run the search first and
+>    only fall back to clarification when nothing clears the relevance floor — which makes
+>    this fix land naturally with Stage 1.2 rather than as separate work.
+> 2. **Rewrite the template so it does not solicit a personal situation.** Offer the
+>    general form of the question instead, the way the application's refusal messages do:
+>    *"instead of 'what should I do about my landlord', try 'what does Sri Lankan law say
+>    about a landlord ending a tenancy'."* The application already had this right.
+> 3. **Measure it against the evaluation set**, not by trying phrasings by hand.
+>    `answerable` was 60.9% at baseline, and 13 of the 18 failures are here.
+
+---
+
 ## 5. 💸 Token and cost waste — where the money goes
 
 The user asked specifically. Here is every wasteful path found.
@@ -671,6 +772,9 @@ Worth recording so a future refactor does not undo it:
 | 4.9 | Filter dict mutated in place | 🟡 | ✅ fixed |
 | 4.10 | Own-matter advice on the wrong Act — caught by the application | 🟠 | ⬜ Stage 1.1/1.2 |
 | 4.11 | Deleting a document strips graph entities from **other** Acts | 🟠 | ⬜ unscheduled — data loss |
+| 4.12 | Two Acts stored as "Act No. 24 of 2007/2025" — unfilterable, uncitable | 🟠 | ⬜ Stage 1.5 |
+| 4.13 | A year parsed as a section number | 🟡 | ⬜ unscheduled |
+| 4.14 | Router sends answerable questions to a clarification template that then solicits own-matter facts | 🟠 | ⬜ do with Stage 1.2 |
 
 ~~**Do not deploy this service until §2 and §3 are fixed.**~~ **Done, 2026-09-13.**
 The blocking security and privacy defects are closed and asserted by

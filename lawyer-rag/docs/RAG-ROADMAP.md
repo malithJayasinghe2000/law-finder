@@ -101,29 +101,90 @@ parsing and every route catches `Exception`. `error_response()` now re-raises
 
 This is the stage that decides whether a lawyer would use the thing twice.
 
-### 1.1 Build a golden evaluation set — **do this first**
+### 1.1 Build a golden evaluation set — ✅ **DONE 2026-09-13**
 
-**You cannot safely change anything else until this exists**, including acting on the rest
-of this document. Today there is no way to tell whether a change makes answers better.
+`eval/questions.yaml` — **76 questions**, `41 answerable / 16 not_in_corpus / 14
+must_refuse` at first draft, corrected to **46 / 16 / 14** after reading the corpus
+properly (see below). `python -m scripts.eval` runs them; `eval/README.md` explains every
+measure and what `grounding` deliberately does **not** claim.
 
-- 60–100 questions across the corpus you actually hold, each with: the expected section(s),
-  a model answer, and a label (`answerable` / `not_in_corpus` / `must_refuse`).
-- Include the failures already known: *"my employer fired me without notice"* (must refuse
-  — advice, and no employment legislation held), *"recommend a lawyer"* (must refuse), and
-  questions whose answer is in a **repealed** section (must not be cited as current).
-- Measure four numbers per run: **retrieval recall@k**, **citation accuracy**,
-  **faithfulness** (is every claim supported by a retrieved chunk), and **refusal
-  correctness**.
-- Wire it to a command — `python -m scripts.eval` — and record the numbers in the repo.
+**Every expected section was read in the vector store before its question was written**,
+and a validator asserts that each one exists and contains its expected terms. An answer
+key derived from what the retriever returns would score 100% by construction and measure
+nothing.
 
-> Half of the value here is the `not_in_corpus` cases. The system's most common correct
-> answer is *"I do not hold that legislation"*, and nothing currently tests that it says so.
+#### The first baseline — `eval/results/BASELINE.md`
+
+```
+model llama3.2:3b · num_ctx 32768 · top_k 6 · agentic ReAct
+
+retrieval recall@k    63.0%     citation accuracy   0.663
+grounding             91.8%     refusal correctness 33.3%
+
+answerable   28/46  60.9%
+must_refuse   8/14  57.1%
+not_in_corpus 2/16  12.5%   ← the finding
+```
+
+**Asked about legislation the corpus does not contain, it answers confidently 14 times
+out of 16.** It described the powers of the Prevention of Terrorism Act (not held), said
+trademark registration follows the Companies Act, and invented a five-year residence
+requirement for citizenship. Section 4.4 of the review predicted exactly this; it is now
+a number.
+
+Also measured: **the Companies Act is the weakest Act by a distance — 5/16** — despite
+being the second largest document and the one most relevant to a product sold to firms.
+That is a retrieval failure, not a coverage gap, and it is what 1.2 and Stage 2 are for.
+
+#### What building it taught
+
+- **Two of my own labels were wrong**, and reading the corpus caught it. The Civil
+  Procedure Code holds Chapter XLII (Matrimonial Actions) and Chapter XXXVIII
+  (Testamentary Actions), so "grounds for divorce" and "what makes a will valid" are not
+  simply absent — the *procedure* is there and the *substantive law* is not. Five
+  `answerable` questions were added on that procedure so the set now tests the **line**
+  rather than one side of it. A system that refuses all seven is as broken as one that
+  answers all seven.
+- **Grounding passed a wrong answer, and would have passed the application's gate too.**
+  Asked for the grounds for divorce, the model cited s.597 — real, genuinely retrieved,
+  and procedural. It says the grounds come from "the law applicable in Sri Lanka", i.e.
+  not from itself. Citation-matching cannot catch that. Claim-level faithfulness needs a
+  judge model and is deliberately not faked in the scorer.
+- Two new defects fell out: **§4.12** (two Acts stored as "Act No. 24 of 2007/2025",
+  unfilterable and uncitable — it costs two evaluation answers outright) and **§4.13**
+  (a year parsed as a section number).
+
+#### The one case that still cannot be written
+
+A question whose answer lies in a **repealed** section. **All 2,368 chunks are
+`status: Active`** — there is no repealed content in the corpus at all, so the case cannot
+be written honestly. `scripts/eval.py` reports this at the top of every run, and the case
+becomes writable the moment an amendment is processed. Meanwhile
+`scripts/check_security.py` asserts that retrieval never drops the `Active` filter.
 
 ### 1.2 Add a relevance floor and abstain
 
 Drop chunks below a threshold tuned against the golden set. If nothing survives, return a
 structured `no_context` result and let the model say so. This closes the *"having sources
 is not the same as being sourced"* gap directly.
+
+### 1.2b Stop the router clarifying answerable questions (§4.14) — **do with 1.2**
+
+Measured, not suspected: **13 of the 18 `answerable` failures never reached retrieval**.
+The router classified them `clarification_needed` and returned a canned template with zero
+sources. Nine were Companies Act questions, which is the entire reason that Act scores
+5/16 — a routing defect, so Stage 2's reranking would not touch it.
+
+Two parts, and the first falls out of 1.2 for free:
+
+1. **Search first, clarify only if nothing clears the floor.** Once 1.2 exists, "I found
+   nothing relevant" is a real signal, and clarification stops being a guess made before
+   looking.
+2. **Rewrite the template.** It currently asks the user to *"tell me more about your
+   specific situation"* and offers *"my employer fired me without notice"* as the worked
+   example — converting an answerable question into a `situation_report`, which is the
+   input this service handles worst. Offer the **general form** of the question instead,
+   the way the application's refusal messages already do.
 
 ### 1.3 Fix the citation chain
 
@@ -269,17 +330,17 @@ feature.
 
 ```
 Stage 0  Security + the LangSmith leak                ✅ DONE 2026-09-13
-Stage 1  Evaluation set, then trust fixes             1 week     ← 1.1 before 1.2–1.6
+Stage 1  Evaluation set ✅ DONE; trust fixes 1.2-1.6 remain
 Stage 2  Hybrid search + reranking                    1–2 weeks
 Stage 3  Production serving                           1 week
 Stage 4  Corpus breadth, then the rest                ongoing
 ```
 
-**If you only do two things now that Stage 0 is done:**
+**If you only do two things now that Stage 0 and 1.1 are done:**
 
-1. **Build the golden evaluation set** (Stage 1.1). Everything else is guesswork without
-   it, and it is the difference between changing the system and improving it. It is also
-   the prerequisite for settling the model, which is the single biggest quality lever
-   available — see the transcript in `RAG-REVIEW.md` §4.10.
+1. **Stage 1.2 — the relevance floor.** `not_in_corpus` sits at **12.5%**. Everything
+   else on this page is a refinement; this is the system stating law it does not have.
+   And it is now a number you can watch move, which it was not last week.
 2. **Load more legislation** (Stage 4.1). The most sophisticated retrieval in the world
-   cannot answer a question about land law from a corpus that contains no land law.
+   cannot answer a question about land law from a corpus that contains no land law — and
+   the baseline shows what the system does instead of admitting that.
