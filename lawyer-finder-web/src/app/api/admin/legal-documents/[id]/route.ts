@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import prisma from '@/lib/db';
-
-const RAG_API_URL = process.env.RAG_API_URL || 'http://localhost:5001';
+import { ragFetch } from '@/lib/ai/ragService';
 
 // GET: Get single document details
 export async function GET(
@@ -24,8 +23,8 @@ export async function GET(
 
     if (doc.ragDocumentName) {
       try {
-        const ragRes = await fetch(
-          `${RAG_API_URL}/api/documents/${encodeURIComponent(doc.ragDocumentName)}`,
+        const ragRes = await ragFetch(
+          `/api/documents/${encodeURIComponent(doc.ragDocumentName)}`,
           { signal: AbortSignal.timeout(5000) }
         );
         if (ragRes.ok) {
@@ -68,8 +67,8 @@ export async function DELETE(
     // Delete from RAG backend
     if (doc.ragDocumentName) {
       try {
-        await fetch(
-          `${RAG_API_URL}/api/documents/${encodeURIComponent(doc.ragDocumentName)}`,
+        await ragFetch(
+          `/api/documents/${encodeURIComponent(doc.ragDocumentName)}`,
           { method: 'DELETE', signal: AbortSignal.timeout(10000) }
         );
       } catch {

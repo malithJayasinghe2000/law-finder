@@ -13,8 +13,10 @@ import logging
 import traceback
 from pathlib import Path
 from flask import Blueprint, request, jsonify
+from werkzeug.utils import secure_filename
 
 from app.config import config
+from app.utils.errors import error_response
 from app.core.chunker import smart_legal_chunk
 from app.core.vectorstore import add_documents, delete_document_by_name
 from app.core.graph_store import get_knowledge_graph
@@ -32,6 +34,68 @@ from app.core.llm import get_llm
 logger = logging.getLogger(__name__)
 
 ingest_bp = Blueprint("ingest", __name__)
+
+
+class UnsafeUpload(Exception):
+    """Raised when an uploaded filename cannot be made safe."""
+
+
+def _save_upload(file, *, require_pdf: bool = True) -> str:
+    """
+    Save an uploaded file into UPLOADS_DIR, and nowhere else.
+
+    Every upload route used to do this:
+
+        pdf_path = str(uploads_dir / file.filename)   # attacker-controlled
+        file.save(pdf_path)
+
+    secure_filename was not imported anywhere in this service, and werkzeug's
+    save() does not sanitise. A filename of '../../app/core/llm.py' therefore
+    wrote wherever the process could write — including over this service's own
+    source, which is arbitrary code execution on the next restart. That was
+    reproduced against the running service, not inferred: a POST with the
+    filename '../../PWNED-PROOF.pdf' landed the file two directories above the
+    uploads folder.
+
+    Two checks, deliberately, because they fail differently:
+
+      secure_filename()  flattens the traversal into a harmless name, so
+                         '../../../../tmp/pwned.pdf' becomes 'tmp_pwned.pdf'.
+                         It has had bypasses historically, so it is not trusted
+                         on its own.
+      resolve + is_relative_to  is the actual guarantee. Whatever the name ends
+                         up as, the resolved destination must sit inside
+                         UPLOADS_DIR or nothing is written.
+
+    The extension check runs against the SANITISED name, never the raw one.
+    The old check was `file.filename.lower().endswith('.pdf')`, which
+    '../../../evil.pdf' satisfies perfectly.
+    """
+    uploads_dir = Path(config.UPLOADS_DIR).resolve()
+    uploads_dir.mkdir(parents=True, exist_ok=True)
+
+    raw_name = file.filename or ""
+    safe = secure_filename(raw_name)
+
+    if not safe:
+        # secure_filename returns '' for names that are entirely separators,
+        # dots or control characters.
+        raise UnsafeUpload("Invalid filename")
+
+    if require_pdf and not safe.lower().endswith(".pdf"):
+        raise UnsafeUpload("Only PDF files are supported")
+
+    dest = (uploads_dir / safe).resolve()
+    if not dest.is_relative_to(uploads_dir):
+        raise UnsafeUpload("Invalid filename")
+
+    file.save(str(dest))
+    if raw_name != safe:
+        logger.warning(
+            "Upload filename sanitised: %r -> %r", raw_name[:120], safe
+        )
+    logger.info(f"Saved uploaded file to: {dest}")
+    return str(dest)
 
 
 def _generate_document_outline(pdf_path: str, title: str) -> list[dict]:
@@ -234,12 +298,12 @@ def ingest_document():
             if file.filename == "":
                 return jsonify({"error": "No file selected"}), 400
 
-            # Save uploaded file to data/uploads directory
-            uploads_dir = Path(config.UPLOADS_DIR)
-            uploads_dir.mkdir(parents=True, exist_ok=True)
-            pdf_path = str(uploads_dir / file.filename)
-            file.save(pdf_path)
-            logger.info(f"Saved uploaded file to: {pdf_path}")
+            # Save uploaded file to data/uploads directory.
+            # This route had no extension check at all before Stage 0.
+            try:
+                pdf_path = _save_upload(file)
+            except UnsafeUpload as e:
+                return jsonify({"error": str(e)}), 400
 
             # Get metadata from form fields
             for field_name in ("document_name", "document_type", "status",
@@ -322,8 +386,7 @@ def ingest_document():
         return jsonify(result), 200
 
     except Exception as e:
-        logger.error(f"Ingestion error: {e}\n{traceback.format_exc()}")
-        return jsonify({"error": str(e)}), 500
+        return error_response(e, "Ingestion failed", 500, context="ingestion")
 
 
 @ingest_bp.route("/api/ingest/upload", methods=["POST"])
@@ -353,8 +416,9 @@ def upload_and_ingest():
         if file.filename == "":
             return jsonify({"error": "No file selected"}), 400
 
-        if not file.filename.lower().endswith(".pdf"):
-            return jsonify({"error": "Only PDF files are supported"}), 400
+        # Note: the extension is checked inside _save_upload, against the
+        # SANITISED name. The check that used to live here ran against the raw
+        # filename, which '../../../evil.pdf' satisfies.
 
         # Get required fields
         title = request.form.get("title", "").strip()
@@ -366,10 +430,15 @@ def upload_and_ingest():
             return jsonify({"error": "Document category is required"}), 400
 
         # Save file
-        uploads_dir = Path(config.UPLOADS_DIR)
-        uploads_dir.mkdir(parents=True, exist_ok=True)
-        pdf_path = str(uploads_dir / file.filename)
-        file.save(pdf_path)
+        try:
+            pdf_path = _save_upload(file)
+        except UnsafeUpload as e:
+            return jsonify({"error": str(e)}), 400
+
+        # The stored file name, not the one the caller sent. They can differ:
+        # secure_filename rewrites anything unsafe, and source_file has to name
+        # the file that is actually on disk or the citation points at nothing.
+        stored_name = Path(pdf_path).name
 
         # Get optional metadata
         year_str = request.form.get("year", "")
@@ -382,7 +451,7 @@ def upload_and_ingest():
             status="Active",
             last_updated_year=year,
             act_number=request.form.get("act_number", "Unknown"),
-            source_file=file.filename,
+            source_file=stored_name,
         )
         metadata["category"] = category
         metadata["description"] = request.form.get("description", "")
@@ -434,8 +503,7 @@ def upload_and_ingest():
         }), 200
 
     except Exception as e:
-        logger.error(f"Upload ingestion error: {e}\n{traceback.format_exc()}")
-        return jsonify({"error": str(e)}), 500
+        return error_response(e, "Upload ingestion failed", 500, context="upload ingestion")
 
 
 def _category_to_doc_type(category: str) -> str:
@@ -479,10 +547,12 @@ def ingest_amendment():
             if file.filename == "":
                 return jsonify({"error": "No file selected"}), 400
 
-            uploads_dir = Path(config.UPLOADS_DIR)
-            uploads_dir.mkdir(parents=True, exist_ok=True)
-            pdf_path = str(uploads_dir / file.filename)
-            file.save(pdf_path)
+            # The roadmap called this "both upload paths". There are three —
+            # this one saves an attacker-controlled filename too.
+            try:
+                pdf_path = _save_upload(file)
+            except UnsafeUpload as e:
+                return jsonify({"error": str(e)}), 400
             principal_act_name = request.form.get("principal_act_name")
         else:
             data = request.get_json(silent=True) or {}
@@ -513,8 +583,7 @@ def ingest_amendment():
         }), 200
 
     except Exception as e:
-        logger.error(f"Amendment processing error: {e}\n{traceback.format_exc()}")
-        return jsonify({"error": str(e)}), 500
+        return error_response(e, "Amendment processing failed", 500, context="amendment")
 
 
 @ingest_bp.route("/api/ingest/batch", methods=["POST"])
@@ -604,11 +673,11 @@ def ingest_batch():
                 })
 
             except Exception as e:
-                logger.error(f"Error processing {pdf_file.name}: {e}")
+                logger.error(f"Error processing {pdf_file.name}: {e}", exc_info=True)
                 results.append({
                     "file": pdf_file.name,
                     "status": "error",
-                    "error": str(e),
+                    "error": "Processing failed; see the service log",
                 })
 
         return jsonify({
@@ -620,5 +689,4 @@ def ingest_batch():
         }), 200
 
     except Exception as e:
-        logger.error(f"Batch ingestion error: {e}\n{traceback.format_exc()}")
-        return jsonify({"error": str(e)}), 500
+        return error_response(e, "Batch ingestion failed", 500, context="batch ingestion")

@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
-
-const RAG_API_URL = process.env.RAG_API_URL || 'http://localhost:5000';
+import { ragFetch } from '@/lib/ai/ragService';
 
 const CATEGORY_MAP: Record<string, string> = {
   'SRI_LANKA_LAW_REPORTS': 'Sri Lanka Law Reports',
@@ -32,8 +31,8 @@ export async function GET(
 
     if (doc.ragDocumentName) {
       try {
-        const ragRes = await fetch(
-          `${RAG_API_URL}/api/documents/${encodeURIComponent(doc.ragDocumentName)}`,
+        const ragRes = await ragFetch(
+          `/api/documents/${encodeURIComponent(doc.ragDocumentName)}`,
           { signal: AbortSignal.timeout(5000) }
         );
         if (ragRes.ok) {

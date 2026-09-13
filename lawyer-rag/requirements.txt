@@ -1,6 +1,6 @@
 # Core
 flask>=3.0.0
-flask-cors>=5.0.0
+gunicorn>=23.0.0
 python-dotenv>=1.0.0
 requests>=2.31.0
 
@@ -24,4 +24,16 @@ networkx>=3.0
 
 # Utilities
 pydantic>=2.0.0
+
+# flask-cors was here. Nothing in a browser calls this service any more — every
+# caller is a Next.js server route — and CORS was removed from main.py in Phase
+# 5, so the dependency went with it.
+#
+# duckduckgo-search is kept ONLY because app/core/web_search.py still imports
+# it at module level and app/core/agent_tools.web_search_tool still imports
+# that. Phase 5 removed web-search grounding — a search result is not a legal
+# authority — and AGENT_TOOLS deliberately omits the tool, so neither file is
+# reachable from any running path. Delete both files in Stage 1 and this line
+# goes with them. Not done here: Stage 0 is security, and deleting a dependency
+# whose importer still exists is how a dormant path turns into an ImportError.
 duckduckgo-search

@@ -1536,3 +1536,131 @@ the right course.
 - The permissions system (SYSTEM-REVIEW §1.1) is still the largest cleanup
 - The AI refusal patterns are English-only while the platform ships `si` and `ta`
 - Advertiser billing has no module; three Acts still have no library row
+
+---
+
+## Stage 0 of the RAG roadmap — security and privacy on the AI service — ✅ 2026-09-13
+
+Not a phase of the main product. The AI service, `lawyer-rag`, had never been reviewed
+until 2026-09-12, and the review found the worst defects in the repository: an
+unauthenticated remote file write on a service bound to every network interface with the
+Flask debugger on, and every user's legal question being transmitted to a US cloud.
+
+**Before fixing anything, the three headline findings were reproduced against the
+running service.** A fix for a bug nobody demonstrated is a fix nobody can trust:
+
+```
+POST /api/ingest/upload  filename="../../PWNED-PROOF.pdf"   no credential
+  -> the file was written to lawyer-rag/PWNED-PROOF.pdf, two directories above
+     data/uploads. The save happens before content is validated, so the 500 that
+     followed was irrelevant — the write had landed. The same request naming
+     "../../app/core/llm.py" overwrites the service's own source, which is
+     arbitrary code execution on the next restart.
+
+error body, no credential
+  -> {"error": "Failed to open file '/Users/…/lawyer-rag/data/uploads/x.pdf'."}
+
+DELETE /api/documents/<name>, no credential
+  -> reached the handler
+
+startup log
+  -> "Running on http://192.168.1.47:5001"   the LAN address, not just loopback
+```
+
+### What changed
+
+| # | Fix |
+| --- | --- |
+| 1 | **LangSmith tracing off.** `config.py` now writes `LANGCHAIN_TRACING_V2=false` back into `os.environ` and **removes the API key**, because langchain reads the environment and never consults our config object |
+| 2 | **`secure_filename()` + resolve-and-verify** on all **three** upload paths — the roadmap said two |
+| 3 | **A shared secret in a `before_request` hook**, so every route is covered including ones added later. Set in all four Next.js callers through one new module, `src/lib/ai/ragService.ts` |
+| 4 | **`host=127.0.0.1`**, `FLASK_DEBUG` default false, and gunicorn with `wsgi.py` + `gunicorn.conf.py` |
+| 5 | **Caps** — message 4,000 chars, history 10 turns, body 50 MB |
+| 6 | **Opaque `error_id`** in the body, detail in the log |
+| 7 | **`{"status": "Active"}` is never dropped.** A filter error used to re-run the search unfiltered, making repealed sections eligible to be cited as current law |
+| 8 | **`num_ctx` 8192 → 32768** and `num_predict` capped. At 8192 the agent's context overflowed silently, and what could be truncated away included the system prompt carrying *"you never advise a person about their own case"* |
+
+`lawyer-rag/scripts/check_security.py` asserts all of it — **45 assertions against a
+running service**, in the same spirit as the five policy checks here. Two of them (the
+bind address, and which routes the hook actually covers) cannot be observed any other way.
+
+### Two defects the fix itself introduced, both caught by running it
+
+- **`preload_app = True` segfaults gunicorn.** Added so that a missing service token would
+  fail at the master rather than crash-loop workers behind an open port. Gunicorn then
+  logged `Listening at http://127.0.0.1:5001` and killed every worker with `SIGSEGV` on
+  first request — preloading imports ChromaDB's native stack in the master and then
+  `fork()`s. **The service looked healthy and answered nothing.** Reverted; the fail-fast
+  is now an assertion in the gunicorn config module, which the master imports before it
+  binds.
+- **A broad `except Exception` swallowed werkzeug's own HTTP errors**, so the 50 MB cap
+  returned 500 instead of 413. `error_response()` re-raises `HTTPException`.
+
+### The AI policy layer earning its keep
+
+Driven end to end, browser → `/api/ai/ask` → policy → token → gunicorn → answer:
+
+- *"What does the Companies Act say about the duties of a director?"* — published, 6
+  citations, Sections 189/186/206/203, all `Active`, 12 seconds.
+- *"Can you recommend a good property lawyer in Colombo?"* — the fixed
+  `LAWYER_REQUEST_REFUSAL`.
+- *"My employer fired me without notice last week. What should I do about my case?"* — the
+  service advised the person, citing a **Civil Procedure Code section about default in
+  appearance**, because the corpus holds no employment legislation and there is no
+  relevance floor. Run through the real `policy.ts`, that answer is refused **twice**:
+  `classifyRequest` → `OWN_MATTER_ADVICE` before the model is called at all, and
+  `evaluateAnswer` → `ADVICE_IN_ANSWER` after.
+
+That third case is worth keeping in view. **The architecture held against a real failure
+rather than a constructed one** — but it also shows that the service on its own is not
+safe to expose to anything except this application, which is why the service token is not
+belt-and-braces. It is `RAG-REVIEW.md` §4.10, and it is the first case that belongs in the
+golden evaluation set.
+
+### Also fixed, found along the way
+
+- `src/app/api/legal-documents/[id]/route.ts` defaulted to port **5000** while every other
+  caller used 5001 — and on macOS port 5000 is AirPlay Receiver, which *answers*. Its
+  corpus enrichment had silently never worked. The default now lives in one module.
+- `scripts/test_chat.py` in the RAG service pointed at 5000 too, so it had been failing to
+  connect rather than passing.
+- `scripts/test_langsmith.py` **deleted** — it existed to send a real Sri Lankan legal
+  question to LangSmith and print a link to the trace.
+- `search_documents` no longer mutates its caller's filter dict.
+- `flask-cors` removed from requirements; nothing has imported it since Phase 5.
+
+### Verified
+
+All five checks green — 41 / 15 / 49 / 21 / 67 — plus `npm run build`, `npx tsc --noEmit`,
+and 45/45 on `check_security.py`. The corpus was left byte-identical: 2,368 chunks before
+and after, and the probe document ingested during testing was deleted.
+
+### A data-loss bug found by testing the fix
+
+Testing the ingestion path end to end ingested a PDF and deleted it again. The vector
+store came back exactly right — 2,368 chunks before and after. **The knowledge graph did
+not:** 487 nodes → 478, 479 edges → 474, and every lost node belonged to a *different*
+document, the Criminal Procedure Code — `court::high_court`, `court::district_court`,
+`act::ordinance` among them.
+
+Entity ids are global while `document_name` is a single attribute, so ingesting any
+document steals the shared entities from whatever Act held them, and deleting it then
+removes them outright. **`DELETE /api/documents/<name>` is lossy for the entire graph and
+says nothing.** Recorded as `RAG-REVIEW.md` §4.11 and roadmap item 1.4b; the graph was
+restored from git, verified back at 487/479.
+
+The lesson is the familiar one in a new place: **the probe that verifies a fix is itself a
+change to production data.** It was only recoverable because `lawyer-rag/data/` happens to
+be tracked in git, which is luck rather than a backup.
+
+### Still open on the AI service
+
+- **The old LangSmith API key has not been revoked.** It is preserved commented out in
+  `lawyer-rag/.env` marked `REVOKE-ME` for exactly that purpose. Turning tracing off does
+  not un-send what was already sent. A stale `GROQ_API_KEY` is preserved the same way.
+- No rate limiting on the service itself — the caps bound one request, not a thousand.
+- `file_path` on `/api/ingest` is still an arbitrary local path. Behind the token it is no
+  longer anonymous, and the ingestion scripts depend on it.
+- Everything in `RAG-REVIEW.md` §4 beyond 4.1/4.3/4.9. **Stage 1 starts with the golden
+  evaluation set**, because without it there is no way to tell whether a change to the
+  retrieval or the model makes answers better.

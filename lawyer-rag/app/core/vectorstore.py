@@ -81,11 +81,16 @@ def search_documents(
 
     vs = get_vectorstore()
 
-    # Always filter for Active documents unless explicitly overridden
+    # Always filter for Active documents unless explicitly overridden.
+    #
+    # Copy rather than mutate. This used to write status into the dict the
+    # CALLER passed, so a caller reusing one filter across several searches
+    # accumulated keys it never set.
     if filter_metadata is None:
         filter_metadata = {"status": "Active"}
-    elif "status" not in filter_metadata:
-        filter_metadata["status"] = "Active"
+    else:
+        filter_metadata = dict(filter_metadata)
+        filter_metadata.setdefault("status", "Active")
 
     # Fix for ChromaDB multiple conditions
     if filter_metadata and len(filter_metadata) > 1:
@@ -93,20 +98,47 @@ def search_documents(
             filter_metadata = {"$and": [{k: v} for k, v in filter_metadata.items()]}
 
     try:
-        results = vs.similarity_search_with_relevance_scores(
+        return vs.similarity_search_with_relevance_scores(
             query=query,
             k=top_k,
             filter=filter_metadata,
         )
-        return results
     except Exception as e:
-        logger.warning(f"Filtered search failed ({e}), falling back to unfiltered search")
-        # Fallback: search without filter if collection is empty or filter fails
-        results = vs.similarity_search_with_relevance_scores(
-            query=query,
-            k=top_k,
+        # The status filter is NEVER dropped.
+        #
+        # This fallback used to re-run the search with no filter at all. The
+        # default filter is {"status": "Active"}, so any filter error — a
+        # malformed document_name, an empty collection, a Chroma version
+        # difference in how $and is parsed — made REPEALED sections eligible to
+        # be retrieved and cited.
+        #
+        # For a legal assistant that is the worst failure available. Not a wrong
+        # answer that looks wrong: a confident statement of law that was
+        # repealed, correctly cited to a section that really exists, which
+        # neither the model nor the downstream citation check can catch. The
+        # application's UNSUPPORTED_CITATION check in src/lib/ai/policy.ts
+        # verifies that a citation matches what retrieval returned — and
+        # repealed text that retrieval returned matches perfectly.
+        #
+        # So the retry drops the caller's document filter (the usual cause) and
+        # keeps status. If that fails too, return nothing: no context is a
+        # correct answer here, because the pipeline reports "I do not hold that"
+        # rather than inventing one.
+        logger.warning(
+            f"Filtered search failed ({e}); retrying with the status filter only"
         )
-        return results
+        try:
+            return vs.similarity_search_with_relevance_scores(
+                query=query,
+                k=top_k,
+                filter={"status": "Active"},
+            )
+        except Exception as e2:
+            logger.error(
+                f"Status-filtered search also failed ({e2}); returning no results "
+                "rather than searching unfiltered, which could surface repealed law"
+            )
+            return []
 
 
 def get_all_document_names() -> list[dict]:

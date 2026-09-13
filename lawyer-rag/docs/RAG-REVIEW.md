@@ -11,6 +11,26 @@
 
 ---
 
+> ## ✅ Update, 2026-09-13 — Stage 0 is done
+>
+> **Everything in §2 and §3 is fixed**, plus §4.1, §4.3, §4.9 and the `num_predict` half
+> of §5.6. The findings below are left in the past tense they were written in, because
+> the reasoning is the point and a struck-through document is unreadable — but the
+> service today authenticates every route, binds loopback, contains its uploads, runs
+> under gunicorn with debug off, caps its inputs, returns opaque errors, and sends
+> nothing to LangSmith.
+>
+> Each fixed finding carries a ✅ line saying what was done. `scripts/check_security.py`
+> asserts all of it against a **running** service — 45 assertions, and it is the thing
+> to run rather than this document to re-read.
+>
+> **Nothing in §4 beyond 4.1/4.3/4.9 is fixed.** §4.10 records what that still looks like
+> from a user's seat, and §4.11 is a **new data-loss bug** found while testing the Stage 0
+> fixes: deleting one document strips knowledge-graph entities belonging to other Acts.
+> See [RAG-ROADMAP.md](./RAG-ROADMAP.md) Stage 1.
+
+---
+
 ## 1. What the system does
 
 ```
@@ -50,6 +70,12 @@ These four findings combine into remote code execution by an unauthenticated att
 
 ### 2.1 🔴 Path traversal on document upload
 
+> ✅ **Fixed.** `secure_filename()` plus resolve-and-`is_relative_to`, in one
+> `_save_upload()` helper used by all **three** upload routes. The extension check now
+> runs against the sanitised name. Reproduced live first: a POST with filename
+> `../../PWNED-PROOF.pdf` wrote two directories above `data/uploads`.
+
+
 ```python
 # app/api/ingest.py:241 and :372
 pdf_path = str(uploads_dir / file.filename)   # filename is attacker-controlled
@@ -79,6 +105,11 @@ debugger at all.
 
 ### 2.2 🔴 No authentication on any endpoint
 
+> ✅ **Fixed.** A shared secret in a `before_request` hook, so it covers every route on
+> every blueprint including ones added later. `/api/health` is the only exemption. Set
+> in all four Next.js callers through `src/lib/ai/ragService.ts`.
+
+
 A grep for auth, token, api_key, bearer or Authorization across `app/` returns nothing but
 unrelated prose. Every route is open:
 
@@ -97,6 +128,10 @@ policy layer.
 
 ### 2.3 🔴 Binds to every interface, contradicting its own comment
 
+> ✅ **Fixed.** `FLASK_HOST`, default `127.0.0.1`, and the comment now describes the
+> code. Asserted live: the service does not answer on the machine's LAN address.
+
+
 `main.py` carries a careful comment — *"This service should not be reachable from the
 public internet at all. Bind it to a private interface"* — directly above:
 
@@ -108,6 +143,10 @@ app.run(host="0.0.0.0", port=config.FLASK_PORT, debug=config.FLASK_DEBUG)
 opposite**, which is worse than no comment: a reviewer reads the comment and moves on.
 
 ### 2.4 🔴 Flask debug defaults to on, and is on in `.env`
+
+> ✅ **Fixed.** Default `false`, `.env` set `false`, a warning logged if it is ever on,
+> and production runs `gunicorn -c gunicorn.conf.py wsgi:app`.
+
 
 `FLASK_DEBUG: bool = os.getenv("FLASK_DEBUG", "true")` — the **default is true**, and
 `.env` sets `FLASK_DEBUG=true`.
@@ -121,6 +160,11 @@ production hardening. It should never serve traffic.
 
 ### 2.5 🟠 Internal errors returned to the caller
 
+> ✅ **Fixed.** `app/utils/errors.py` returns `{"error": ..., "error_id": ...}` and logs
+> the traceback under that id. The health check no longer lists installed models or the
+> Ollama URL either.
+
+
 ```python
 return jsonify({"error": "...", "details": str(e)}), 500
 ```
@@ -128,6 +172,11 @@ return jsonify({"error": "...", "details": str(e)}), 500
 `str(e)` leaks file paths, model names and library internals.
 
 ### 2.6 🟠 No request limits anywhere
+
+> ✅ **Partly fixed.** Message capped at 4,000 chars, history trimmed to 10 turns, body
+> capped at 50 MB. **Rate limiting is still absent** — the caps bound one request, not a
+> thousand.
+
 
 No cap on `message` length, no cap on `conversation_history` length, no
 `MAX_CONTENT_LENGTH` on uploads, no rate limiting. A single caller can send a 10 MB
@@ -144,6 +193,18 @@ message or a 500-turn history and occupy the model indefinitely.
 ---
 
 ## 3. 🔴 Privacy — every legal question is being sent to LangSmith
+
+> ✅ **Fixed.** `RAG_TRACING_ENABLED=false`, and `app/config.py` does not merely read the
+> flag — it writes `LANGCHAIN_TRACING_V2=false` back into `os.environ` and **removes any
+> LangSmith API key from the environment**, because langchain and langsmith read
+> `os.environ` directly and never consult our config object. Verified with `.env` still
+> containing the old `true`: `langsmith.utils.tracing_is_enabled()` returns `False` and
+> there is no credential to transmit under. `scripts/test_langsmith.py`, which existed to
+> send a real legal question to LangSmith, is deleted.
+>
+> **The old key is preserved commented out in `.env` marked `REVOKE-ME`, and has not been
+> revoked.** Turning tracing off does not un-send what was already sent. Revoking it at
+> smith.langchain.com is a manual step and it is still outstanding.
 
 ```
 .env:  LANGCHAIN_TRACING_V2=true
@@ -181,6 +242,11 @@ Concretely this is:
 ## 4. 🔴 Answer quality — the defects that produce wrong law
 
 ### 4.1 🔴 The context window is too small for the pipeline, and overflow is silent
+
+> ✅ **Fixed.** `num_ctx` 8192 → 32768 and `num_predict` capped at 1536, both
+> env-overridable, both asserted on the live client. Bounding what *enters* the context
+> (§4.4, §5.4) is still Stage 1–2.
+
 
 ```
 LLM_NUM_CTX = 8192          # the model's whole working memory
@@ -240,6 +306,12 @@ that did not exist. The tool now exists and still does not verify.
 > a model compare the claim against the text, returning a structured verdict.
 
 ### 4.3 🔴 A failed filter can return repealed law
+
+> ✅ **Fixed.** The retry keeps `{"status": "Active"}` and drops only the caller's
+> document filter. If that fails too it returns `[]` — no context is a correct answer,
+> because the pipeline then says it does not hold the material. Four assertions cover it,
+> including that no retrieval call ever runs with `filter=None`.
+
 
 ```python
 except Exception as e:
@@ -326,8 +398,115 @@ English wording (`"could you tell me more"`), so changing that copy silently dis
 
 ### 4.9 🟡 `search_documents` mutates its caller's dict
 
+> ✅ **Fixed.** It copies the filter before adding `status`.
+
+
 `filter_metadata["status"] = "Active"` writes into the dict the caller passed. Callers that
 reuse a filter across calls will accumulate keys.
+
+---
+
+### 4.10 🟠 What §4.2–4.8 still look like from a user's seat — a live transcript
+
+Recorded 2026-09-13, against the Stage 0 service, with `llama3.2:3b`. Three questions,
+straight to `/api/chat` with no application policy in the way:
+
+```
+Q  "What does the Companies Act say about the duties of a director?"
+   intent legal_query · 6 sources, all Active · Sections 189, 186, 206, 203
+   -> A good answer. Accurate, properly cited, 12 seconds. This is the system
+      working, and it is worth saying so.
+
+Q  "Can you recommend a good property lawyer in Colombo?"
+   intent lawyer_request · 0 sources
+   -> The fixed LAWYER_REQUEST_REFUSAL. Correct, and correct because it is a
+      constant rather than something a model composed.
+
+Q  "My employer fired me without notice last week. What should I do about my case?"
+   intent situation_report · 6 sources
+   -> "Based on the search results, it appears that your employer may have violated
+       the Civil Procedure Code by firing you without notice. According to Section 87
+       of the Civil Procedure Code..."
+```
+
+The third is the whole of §4.4 in one sentence. The corpus holds **no employment
+legislation**, so retrieval returned the nearest thing it had — a Civil Procedure Code
+section about **default in appearance** — and the model advised a person about their own
+dismissal on the strength of it. Cited, confident, and about the wrong law entirely.
+
+**The application caught it, at both ends.** Run through the real `src/lib/ai/policy.ts`:
+
+```
+classifyRequest  -> { allowed: false, category: "OWN_MATTER_ADVICE" }
+                    so in the real product the question never reaches the model,
+                    and the person's account of their dismissal is never transmitted
+
+evaluateAnswer   -> { outcome: "REFUSE", category: "ADVICE_IN_ANSWER" }
+                    detail: "I recommend that you | you may want to consider the
+                             following | consider the following steps"
+```
+
+Two conclusions, and they point in opposite directions:
+
+1. **The architecture is right.** "The prompt is not the guardrail; enforcement lives in
+   the application, after generation" is not a slogan here — it is load-bearing, and it
+   held against a real failure rather than a constructed one.
+2. **The service on its own is not safe to expose to anything but that application.**
+   Which is exactly why §2.2 mattered, and why the service token is not belt-and-braces.
+
+It also sets the bar for Stage 1.1: this exact question belongs in the golden set as a
+`must_refuse` / `not_in_corpus` case, and a relevance floor (Stage 1.2) is what stops
+retrieval handing the model six confident-looking chunks about the wrong Act.
+
+---
+
+### 4.11 🟠 Deleting a document silently removes graph entities belonging to other Acts
+
+**Found by accident during Stage 0, and it is a data-loss bug.** A test ingested a PDF
+under the name `Stage 0 probe` and then deleted it. The vector store came back exactly
+right — 2,368 chunks before, 2,368 after. The knowledge graph did not:
+
+```
+nodes  487 -> 478        edges  479 -> 474
+
+lost:  act::ordinance          act::this_act        act::regulation
+       act::banking_act        act::documents_ordinance
+       act::mental_diseases_ordinance
+       court::high_court       court::district_court
+       court::court_of_appeal
+
+every one of them belonging to Code-of-Criminal-Proceduer-Consolidated-2024
+```
+
+The cause is that **entity ids are global while `document_name` is a single attribute**:
+
+```python
+kg.add_entity(entity_id="act::ordinance", ..., document_name=document_name)
+```
+
+`act::ordinance`, `court::high_court` and `act::this_act` are exactly the entities that
+appear in *every* piece of legislation. Ingesting any new document overwrites the
+`document_name` on those shared nodes to the newcomer, and
+`remove_document_entities(name)` then deletes them outright — taking the association the
+Criminal Procedure Code had with the High Court with it.
+
+So `DELETE /api/documents/<name>` is **lossy for documents other than the one named**, and
+the loss is invisible: nothing errors, the vector store is untouched, and the response
+reports a cheerful `graph_entities_removed` count. `graph_lookup` then simply finds less
+for the unrelated Act, and no one can tell why.
+
+It also means **re-ingesting an Act is not idempotent** with respect to the graph: it
+quietly transfers shared entities away from whatever held them.
+
+> **Fix: entity-to-document has to be many-to-many.** Either give each node a *set* of
+> document names and have removal drop only the membership (deleting the node only when
+> the set empties), or namespace document-specific entities by document and keep the
+> genuinely global ones (courts, generic instruments) unowned. Until then, treat
+> `DELETE /api/documents/<name>` as destructive to the whole graph and back
+> `knowledge_graph.json` up before calling it.
+
+Stage 0's `scripts/check_security.py` carries a comment warning anyone extending it not to
+make its test uploads valid PDFs, for exactly this reason.
 
 ---
 
@@ -471,25 +650,34 @@ Worth recording so a future refactor does not undo it:
 
 ## 9. Findings by severity
 
-| # | Finding | Sev |
-| --- | --- | --- |
-| 2.1 | Path traversal on upload; `secure_filename` never imported | 🔴 |
-| 2.2 | No authentication on any endpoint; corpus injection defeats the downstream citation check | 🔴 |
-| 2.3 | Binds `0.0.0.0`, contradicting its own comment | 🔴 |
-| 2.4 | Flask debug on by default and in `.env` → RCE | 🔴 |
-| 3 | Every question and answer traced to LangSmith cloud | 🔴 |
-| 4.1 | `num_ctx=8192` overflows silently; safety prompt may be truncated | 🔴 |
-| 4.2 | `verify_answer_tool` manufactures false assurance | 🔴 |
-| 4.3 | Filter-failure fallback can return repealed law | 🔴 |
-| 4.4 | No relevance threshold — always "finds" an answer | 🟠 |
-| 4.5 | Displayed citations are re-run, not recorded | 🟠 |
-| 4.6 | Corpus hardcoded in 4 places; drifts on ingest | 🟠 |
-| 2.5 / 2.6 | Error detail leak; no request limits | 🟠 |
-| 5.x | ~8 LLM calls, duplicate retrieval, decoration tokens | 🟠 |
-| 4.7 | Four model names across five files | 🟡 |
-| 4.8 | English-only routing on a trilingual platform | 🟡 |
-| 4.9 | Filter dict mutated in place | 🟡 |
+| # | Finding | Sev | State |
+| --- | --- | --- | --- |
+| 2.1 | Path traversal on upload; `secure_filename` never imported | 🔴 | ✅ fixed |
+| 2.2 | No authentication on any endpoint; corpus injection defeats the downstream citation check | 🔴 | ✅ fixed |
+| 2.3 | Binds `0.0.0.0`, contradicting its own comment | 🔴 | ✅ fixed |
+| 2.4 | Flask debug on by default and in `.env` → RCE | 🔴 | ✅ fixed |
+| 3 | Every question and answer traced to LangSmith cloud | 🔴 | ✅ fixed — **key still to revoke** |
+| 4.1 | `num_ctx=8192` overflows silently; safety prompt may be truncated | 🔴 | ✅ fixed |
+| 4.2 | `verify_answer_tool` manufactures false assurance | 🔴 | ⬜ Stage 1.4 |
+| 4.3 | Filter-failure fallback can return repealed law | 🔴 | ✅ fixed |
+| 4.4 | No relevance threshold — always "finds" an answer | 🟠 | ⬜ Stage 1.2 — see §4.10 |
+| 4.5 | Displayed citations are re-run, not recorded | 🟠 | ⬜ Stage 1.3 |
+| 4.6 | Corpus hardcoded in 4 places; drifts on ingest | 🟠 | ⬜ Stage 1.5 |
+| 2.5 | Error detail leak | 🟠 | ✅ fixed |
+| 2.6 | No request limits | 🟠 | ✅ caps done; ⬜ rate limiting |
+| 5.x | ~8 LLM calls, duplicate retrieval, decoration tokens | 🟠 | ⬜ Stage 1–2 (`num_predict` done) |
+| 4.7 | Four model names across five files | 🟡 | ⬜ Stage 1.6 — one *source* now, still to settle |
+| 4.8 | English-only routing on a trilingual platform | 🟡 | ⬜ Stage 4.3 |
+| 4.9 | Filter dict mutated in place | 🟡 | ✅ fixed |
+| 4.10 | Own-matter advice on the wrong Act — caught by the application | 🟠 | ⬜ Stage 1.1/1.2 |
+| 4.11 | Deleting a document strips graph entities from **other** Acts | 🟠 | ⬜ unscheduled — data loss |
 
-**Do not deploy this service until §2 and §3 are fixed.** Everything else can follow.
+~~**Do not deploy this service until §2 and §3 are fixed.**~~ **Done, 2026-09-13.**
+The blocking security and privacy defects are closed and asserted by
+`scripts/check_security.py` (45 assertions, against a running service).
 
-Next: [RAG-ROADMAP.md](./RAG-ROADMAP.md).
+**What now blocks deployment is elsewhere:** the service has never been deployed, there
+is no backup of `data/vectordb/` or `knowledge_graph.json`, and the answer-quality
+findings in §4 are untouched. §4.10 shows what that means in practice.
+
+Next: [RAG-ROADMAP.md](./RAG-ROADMAP.md) Stage 1, and [RUNNING.md](./RUNNING.md) to run it.

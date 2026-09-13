@@ -1,11 +1,53 @@
 """LawyerAI RAG System - Configuration Management"""
 
 import os
+import secrets
 from pathlib import Path
 from dotenv import load_dotenv
 
 # Load environment variables
 load_dotenv()
+
+
+# ---------------------------------------------------------------------------
+# Tracing — off, and held off
+# ---------------------------------------------------------------------------
+# Until Stage 0 this service ran with LANGCHAIN_TRACING_V2=true and a live
+# LangSmith API key in .env. @traceable decorates query_rag(question=...),
+# search_documents(query=...) and both pipeline functions, and LangSmith traces
+# function inputs and outputs — so the full text of every question a person
+# asked a legal assistant, the legislation retrieved for it, and the generated
+# answer were transmitted to a US cloud service.
+#
+# That is sensitive personal data with no documented lawful basis, an
+# undocumented cross-border transfer (counsel question 19, happening in
+# production rather than in theory), and a sub-processor that no firm was told
+# about and no processor agreement covers.
+#
+# app/utils/chat_logger.py had already reasoned this through and stopped writing
+# question text to a LOCAL file, on the grounds that a second unmanaged copy of
+# someone's legal problem is a liability with no matching benefit. The same
+# content was leaving the country by environment variable at the same time.
+#
+# Why this is not simply a .env edit. Everything downstream — langchain,
+# langsmith, the @traceable decorator — reads os.environ directly and never
+# consults this Config object, and load_dotenv() has already pushed whatever
+# .env says into os.environ by the line above. So config resolves the intent
+# once and then writes the answer back into the environment, which is the thing
+# the libraries actually obey.
+#
+# Turning this back on is a decision with a legal precondition, not a config
+# tweak: self-host the collector (Langfuse), or mask inputs and outputs, and
+# record the sub-processor in DATA-INVENTORY.md first.
+_TRACING_ENABLED: bool = os.getenv("RAG_TRACING_ENABLED", "false").lower() == "true"
+
+if not _TRACING_ENABLED:
+    for _var in ("LANGCHAIN_TRACING_V2", "LANGSMITH_TRACING", "LANGCHAIN_TRACING"):
+        os.environ[_var] = "false"
+    # Belt and braces: with no API key in the environment there is no credential
+    # to transmit under, even if some future import flips a tracing flag back on.
+    for _var in ("LANGCHAIN_API_KEY", "LANGSMITH_API_KEY"):
+        os.environ.pop(_var, None)
 
 # Base paths
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -36,8 +78,34 @@ class Config:
     CHROMA_COLLECTION_NAME: str = os.getenv("CHROMA_COLLECTION_NAME", "sri_lanka_legal_acts")
 
     # Flask
+    #
+    # FLASK_HOST defaults to loopback. main.py used to bind 0.0.0.0 directly
+    # beneath a comment saying the service must not be reachable from the public
+    # internet — the comment said one thing and the code did the opposite, which
+    # is worse than no comment because a reviewer reads the comment and moves on.
+    #
+    # FLASK_DEBUG defaults to FALSE. It used to default to true, and .env set it
+    # true as well. The Werkzeug debugger opens an interactive Python console on
+    # any unhandled exception; on a 0.0.0.0 bind that is remote code execution as
+    # the service user, reachable by anyone who can make the app throw.
+    FLASK_HOST: str = os.getenv("FLASK_HOST", "127.0.0.1")
     FLASK_PORT: int = int(os.getenv("FLASK_PORT", "5000"))
-    FLASK_DEBUG: bool = os.getenv("FLASK_DEBUG", "true").lower() == "true"
+    FLASK_DEBUG: bool = os.getenv("FLASK_DEBUG", "false").lower() == "true"
+
+    # The shared secret every caller must present as X-Service-Token.
+    #
+    # There is exactly one legitimate caller — the Next.js server — so a shared
+    # secret is the right weight of mechanism. It is read here rather than at
+    # request time so that a missing token is a startup failure (see
+    # require_service_token in main.py) instead of a service that silently
+    # accepts everyone.
+    RAG_SERVICE_TOKEN: str = os.getenv("RAG_SERVICE_TOKEN", "")
+
+    # Request limits. Without these one caller can send a 10 MB question or a
+    # 500-turn history and hold the model indefinitely.
+    MAX_MESSAGE_CHARS: int = int(os.getenv("MAX_MESSAGE_CHARS", "4000"))
+    MAX_HISTORY_TURNS: int = int(os.getenv("MAX_HISTORY_TURNS", "10"))
+    MAX_CONTENT_LENGTH: int = int(os.getenv("MAX_CONTENT_LENGTH_MB", "50")) * 1024 * 1024
 
     # RAG
     CHUNK_SIZE: int = int(os.getenv("CHUNK_SIZE", "1500"))
@@ -50,7 +118,28 @@ class Config:
     # LLM Parameters
     LLM_TEMPERATURE: float = 0.1  # Low temperature for factual legal responses
     LLM_TOP_P: float = 0.9
-    LLM_NUM_CTX: int = 8192  # Context window size
+
+    # Context window.
+    #
+    # This was 8192, and the pipeline does not fit in 8192. One vector_search
+    # returns TOP_K_RESULTS x CHUNK_SIZE = 6 x 1500 = ~9,000 characters, about
+    # 2,300 tokens — and a ReAct agent re-sends the entire message list on every
+    # step, so after three tool calls the conversation carries three full tool
+    # results. Adding the agent system prompt, chat history and reasoning turns
+    # put a typical question at ~9,400-10,300 tokens before the answer was even
+    # generated.
+    #
+    # Ollama does not raise on overflow; it silently truncates. Nobody chooses
+    # what survives, and what may be dropped includes the system prompt carrying
+    # "you never advise a person about their own case" and the citation rules.
+    # A safety instruction that disappears without a log line is not a control.
+    LLM_NUM_CTX: int = int(os.getenv("LLM_NUM_CTX", "32768"))
+
+    # Maximum tokens in a single generation. There was no cap at all, so a model
+    # that started repeating itself ran until the caller's 60s timeout, having
+    # consumed the whole window on the way. A legal answer with citations does
+    # not need more than this; running past it means something has gone wrong.
+    LLM_NUM_PREDICT: int = int(os.getenv("LLM_NUM_PREDICT", "1536"))
 
     # Graph RAG
     ENABLE_GRAPH_RAG: bool = os.getenv("ENABLE_GRAPH_RAG", "true").lower() == "true"
@@ -71,8 +160,9 @@ class Config:
     # Chat Log Directory
     CHAT_LOG_DIR: str = os.getenv("CHAT_LOG_DIR", str(CHAT_LOG_DIR))
 
-    # LangSmith Tracing
-    LANGCHAIN_TRACING_V2: bool = os.getenv("LANGCHAIN_TRACING_V2", "false").lower() == "true"
+    # Tracing. Resolved at module import above, where the environment the
+    # libraries actually read is set. Exposed here so /api/health can report it.
+    TRACING_ENABLED: bool = _TRACING_ENABLED
     LANGCHAIN_PROJECT: str = os.getenv("LANGCHAIN_PROJECT", "lawyer-rag")
 
     # Legal Document Categories

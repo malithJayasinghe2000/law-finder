@@ -7,57 +7,93 @@
 
 ---
 
-## Stage 0 — Stop the bleeding (1–2 days)
+## Stage 0 — Stop the bleeding — ✅ **DONE 2026-09-13**
 
-**Nothing else should be started before these.** All are small.
+All eight items are fixed, verified against the running service, and asserted by
+`scripts/check_security.py` (45 assertions). Three of them were reproduced as live
+defects first, because a fix for a bug nobody demonstrated is a fix nobody can trust.
 
-| # | Fix | Effort |
+| # | Fix | State |
 | --- | --- | --- |
-| 1 | `LANGCHAIN_TRACING_V2=false`. Every legal question is currently leaving the country | 5 min |
-| 2 | `secure_filename()` on both upload paths, then resolve the final path and assert it is inside `UPLOADS_DIR` | 30 min |
-| 3 | Shared-secret header checked in a `before_request` hook on every route; set it in the Next.js caller | 1 h |
-| 4 | `host="127.0.0.1"`; `FLASK_DEBUG` default `false`; run under gunicorn | 1 h |
-| 5 | Cap `message` (say 4,000 chars), `conversation_history` (say 10 turns), and `MAX_CONTENT_LENGTH` (say 50 MB) | 1 h |
-| 6 | Return an opaque error id; log the detail server-side | 30 min |
-| 7 | Never drop `{"status": "Active"}` in the retrieval fallback | 15 min |
-| 8 | `num_ctx` → 32768, and `num_predict` → a real cap | 15 min |
+| 1 | Tracing off — `RAG_TRACING_ENABLED=false`, and `config.py` forces the env vars off and removes the API key | ✅ |
+| 2 | `secure_filename()` + resolve-and-verify, on **three** upload paths (the roadmap said two) | ✅ |
+| 3 | Shared-secret header in a `before_request` hook; set in all **four** Next.js callers via one module | ✅ |
+| 4 | `host=127.0.0.1`, `FLASK_DEBUG` default false, gunicorn + `wsgi.py` + `gunicorn.conf.py` | ✅ |
+| 5 | Caps on message (4,000 chars), history (10 turns) and body (50 MB) | ✅ |
+| 6 | Opaque `error_id` in the body, detail in the log | ✅ |
+| 7 | `{"status": "Active"}` never dropped in any fallback | ✅ |
+| 8 | `num_ctx` 8192 → 32768, `num_predict` capped at 1536 | ✅ |
 
-```python
-# 2 — the whole fix
-from werkzeug.utils import secure_filename
+### What was reproduced before it was fixed
 
-safe = secure_filename(file.filename)
-if not safe.lower().endswith(".pdf"):
-    return jsonify({"error": "Only PDF files are supported"}), 400
-dest = (uploads_dir / safe).resolve()
-if not dest.is_relative_to(uploads_dir.resolve()):
-    return jsonify({"error": "Invalid filename"}), 400
-file.save(str(dest))
-```
-
-Verified against the live `werkzeug` in `venv/`:
+Not inferred from reading — run against the live service:
 
 ```
-'report.pdf'                -> 'report.pdf'        accepted=True
-'../../app/core/llm.py'     -> 'app_core_llm.py'   accepted=False   (extension)
-'../../../../tmp/pwned.pdf' -> 'tmp_pwned.pdf'     accepted=True    (traversal neutralised)
-'evil.pdf.py'               -> 'evil.pdf.py'       accepted=False   (extension)
+POST /api/ingest/upload  filename="../../PWNED-PROOF.pdf"   no credential
+  -> HTTP 500 (the PDF parse failed)
+  -> and the file was written to lawyer-rag/PWNED-PROOF.pdf
+
+     Two directories above data/uploads. The save happens before any validation
+     of content, so the 500 is irrelevant — the write already landed. The same
+     request with "../../app/core/llm.py" overwrites the service's own source,
+     which is arbitrary code execution on the next restart.
+
+GET  error body, no credential
+  -> {"error": "Failed to open file
+       '/Users/…/Developer/law-finder/lawyer-rag/data/uploads/x.pdf'."}
+
+DELETE /api/documents/<name>  no credential
+  -> reached the handler; 404 only because the document did not exist
+
+Startup log
+  -> "Running on http://192.168.1.47:5001"   the LAN address, not just loopback
 ```
 
-Note the third case: the traversal is flattened into a harmless name inside the uploads
-directory, which is the correct outcome. Keep **both** checks — `secure_filename` has had
-bypasses historically, and the `is_relative_to` assertion is what makes the guarantee.
+### Two things the fix itself taught, both found by running it
 
-```python
-# 3 — the whole fix
-@app.before_request
-def _require_service_token():
-    if request.path == "/api/health":
-        return
-    expected = os.environ["RAG_SERVICE_TOKEN"]          # fail loudly if unset
-    if not hmac.compare_digest(request.headers.get("X-Service-Token", ""), expected):
-        return jsonify({"error": "Unauthorized"}), 401
-```
+**`preload_app = True` segfaults gunicorn.** It was added to make a missing
+`RAG_SERVICE_TOKEN` fail at the master rather than crash-loop workers behind an open
+port. Gunicorn then logged `Listening at http://127.0.0.1:5001` and killed every worker
+with `SIGSEGV` on first request: preloading imports ChromaDB's native stack in the
+master and then `fork()`s. **The service looked healthy and answered nothing.** Reverted,
+with the reasoning in `gunicorn.conf.py`; the fail-fast is now an assertion in the
+gunicorn config module, which the master imports before it binds.
+
+**A broad `except Exception` swallowed werkzeug's own HTTP errors.** The 50 MB body cap
+returned 500 instead of 413, because `RequestEntityTooLarge` is raised during body
+parsing and every route catches `Exception`. `error_response()` now re-raises
+`HTTPException` so Flask's handlers answer.
+
+### Also done, as part of the above
+
+- `scripts/check_security.py` — 45 assertions against a **live** service. Two of them
+  (the bind address, and which routes the hook actually covers) cannot be observed any
+  other way.
+- `scripts/test_langsmith.py` **deleted**. It existed to send a real Sri Lankan legal
+  question to LangSmith and print a link to the trace.
+- `scripts/test_chat.py` repaired — it pointed at port 5000, so it had been failing to
+  connect rather than passing.
+- `src/lib/ai/ragService.ts` — one module holding the service address and the
+  credential. It also fixes `src/app/api/legal-documents/[id]/route.ts`, which defaulted
+  to port **5000** while everything else used 5001, so its corpus enrichment had
+  silently never worked.
+- `docs/RUNNING.md` — how to run it, and the four things that will confuse you.
+- The health check no longer enumerates the host's installed models or its Ollama URL
+  to an anonymous caller, and reports `tracing_enabled` so the §3 leak is visible
+  without reading code.
+- `search_documents` no longer mutates the caller's filter dict (§4.9).
+
+### Still open from §2, deliberately
+
+- **`file_path` in the JSON body of `/api/ingest` and `source_dir` in `/api/ingest/batch`
+  are arbitrary local paths.** An authenticated caller can ingest any readable file on
+  the host into the corpus and read it back through `/api/documents`. Behind the service
+  token this is no longer anonymous, and the scripts depend on it — but it should become
+  an allow-listed directory in Stage 3.
+- **No rate limiting.** The caps bound one request; they do not bound a thousand. The
+  application rate-limits `/api/ai/ask` upstream, which is the path a user reaches.
+- **`verify_answer_tool` still manufactures false assurance** (§4.2). It is Stage 1.4,
+  and it is a *quality* defect rather than a security one.
 
 ---
 
@@ -102,6 +138,20 @@ entirely. **Delete it in Stage 1.** If it comes back, it must fetch the section 
 metadata match and have a model judge whether the text supports the specific claim,
 returning a structured verdict — and it should run *after* generation, in the application's
 policy layer, where the existing evaluation already lives.
+
+### 1.4b Fix the knowledge-graph delete (new — `RAG-REVIEW.md` §4.11)
+
+Found while testing the Stage 0 fixes. Ingesting a document and deleting it again removed
+**nine nodes and five edges belonging to a different Act**, because entity ids like
+`act::ordinance` and `court::high_court` are global while `document_name` is a single
+attribute. `DELETE /api/documents/<name>` is therefore lossy for the whole graph, silently.
+
+Make entity-to-document many-to-many: a set of document names per node, with removal
+dropping only the membership and deleting the node when the set empties.
+
+**Until this is fixed, back up `data/graph/knowledge_graph.json` before any delete or
+re-ingest.** In this repository `data/` is tracked in git, which is what made the loss
+recoverable — that is luck, not a backup strategy. See Stage 3.
 
 ### 1.5 Derive the corpus list at runtime
 
@@ -218,18 +268,18 @@ feature.
 ## Summary — the order
 
 ```
-Stage 0  Security + the LangSmith leak                1–2 days   ← nothing before this
+Stage 0  Security + the LangSmith leak                ✅ DONE 2026-09-13
 Stage 1  Evaluation set, then trust fixes             1 week     ← 1.1 before 1.2–1.6
 Stage 2  Hybrid search + reranking                    1–2 weeks
 Stage 3  Production serving                           1 week
 Stage 4  Corpus breadth, then the rest                ongoing
 ```
 
-**If you only do three things:**
+**If you only do two things now that Stage 0 is done:**
 
-1. **Turn off LangSmith tracing and fix the upload path.** Today. One is a live data
-   breach and the other is a remote file write.
-2. **Build the golden evaluation set.** Everything else is guesswork without it, and it is
-   the difference between changing the system and improving it.
-3. **Load more legislation.** The most sophisticated retrieval in the world cannot answer
-   a question about land law from a corpus that contains no land law.
+1. **Build the golden evaluation set** (Stage 1.1). Everything else is guesswork without
+   it, and it is the difference between changing the system and improving it. It is also
+   the prerequisite for settling the model, which is the single biggest quality lever
+   available — see the transcript in `RAG-REVIEW.md` §4.10.
+2. **Load more legislation** (Stage 4.1). The most sophisticated retrieval in the world
+   cannot answer a question about land law from a corpus that contains no land law.

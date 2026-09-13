@@ -218,6 +218,41 @@ expect to set fees on.
 
 ## E. The AI
 
+> **Stage 0 of the RAG roadmap was completed on 2026-09-13.** The security and privacy
+> findings that used to head this section — an unauthenticated remote file write, a
+> `0.0.0.0` bind with the Flask debugger on, and every legal question being traced to
+> LangSmith's US cloud — are **fixed and asserted** by `lawyer-rag/scripts/check_security.py`
+> (45 assertions, against a running service). The items below are what remains, and they
+> are all about **answer quality**, not exposure.
+>
+> One thing from Stage 0 is **not** code and is still outstanding: **the old LangSmith API
+> key has not been revoked.** It is preserved commented out in `lawyer-rag/.env` marked
+> `REVOKE-ME`. Turning tracing off stops new data leaving; it does not un-send what was
+> already sent, and a key that still works is a key that can be turned back on. A stale
+> `GROQ_API_KEY` sits beside it. **Revoke both.** Five minutes, and it is the last live
+> thread of a real data incident.
+
+### E0. 🟠 No golden evaluation set — and it blocks E1
+
+There is no way to tell whether a change to retrieval, the prompt or the model makes
+answers better or worse. That is not a missing nicety: it means **E1 cannot be actioned
+responsibly**, because "use a more capable model" is an untestable claim without it.
+
+The shape is in [RAG-ROADMAP.md](../../lawyer-rag/docs/RAG-ROADMAP.md) Stage 1.1 — 60–100
+questions labelled `answerable` / `not_in_corpus` / `must_refuse`, measuring retrieval
+recall, citation accuracy, faithfulness and refusal correctness.
+
+The first case is already written for you. Asked *"My employer fired me without notice last
+week. What should I do about my case?"*, the service advised the person, citing a **Civil
+Procedure Code section about default in appearance** — because the corpus holds no
+employment legislation and there is no relevance floor, so retrieval returned the nearest
+six chunks it had and the model treated them as an answer. The application refused it
+twice, before and after generation, which is the architecture working. But the service
+produced it. `RAG-REVIEW.md` §4.10 has the transcript.
+
+> **DECISION: build it before changing the model, the prompts or the retrieval.** It is
+> the difference between changing the system and improving it.
+
 ### E1. 🟠 Three different models are configured in three files
 
 | File | Model |
@@ -243,7 +278,8 @@ rather than unsafe.
 
 ### E2. 🟠 Local Ollama inference will not deploy
 
-The RAG service runs Ollama locally. That needs a GPU-bearing host, and it is a second
+The RAG service runs Ollama locally. It now runs under gunicorn (Stage 0), so the *serving*
+half is done; the *inference* half is not. That needs a GPU-bearing host, and it is a second
 service to operate, monitor and keep online.
 
 > **DECISION: use a hosted inference API in production.** Cheaper than a GPU host at this
@@ -309,3 +345,8 @@ not the B2B product.
 4. **Revenue Decisions 1 and 2** — per-seat pricing and a gateway for subscriptions.
    See [REVENUE-MODEL.md](./REVENUE-MODEL.md).
 5. **D1 — Delete the permissions system.** It is where violations hide, twice over.
+
+> **One item closed since this page was written:** the RAG service's security and privacy
+> defects (Stage 0, 2026-09-13). They were the most urgent thing in the repository and they
+> are done — but **revoke the old LangSmith key**, which is the one part of that incident a
+> code change could not close.
