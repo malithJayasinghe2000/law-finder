@@ -260,7 +260,12 @@ const OWN_MATTER_PATTERNS: RegExp[] = [
   // law that happens to touch the asker's affairs answerable.
   new RegExp(
     String.raw`(?=[\s\S]*\b(?:my|our)\s+(?:own\s+)?(?:propert(?:y|ies)|land|house|home|flat|apartment|vehicle|car|business|compan(?:y|ies)|firm|shop|employer|employee|landlord|tenant|neighbou?rs?|spouse|husband|wife|marriage|divorce|contract|agreement|lease|deed|title|case|matter|claim|dispute|child|children)\b)` +
-      String.raw`(?=[\s\S]*\b(?:legal\s+action|take\s+action|what\s+action|court\s+action|remed(?:y|ies)|recourse|compensation|damages|sue|prosecute|file\s+a\s+(?:case|claim|suit)|next\s+steps?)\b)`,
+      // Every noun here is plural-tolerant, and that is not tidiness.
+      // "legal action" was written without the `s?` and a real user asked
+      // "what are the legal actionS can get when someone cut a tree in my own
+      // property" — one letter, and it sailed through, while the singular of
+      // the same sentence was refused. Third miss of this exact shape.
+      String.raw`(?=[\s\S]*\b(?:legal\s+actions?|take\s+actions?|what\s+actions?|court\s+actions?|remed(?:y|ies)|recourse|compensations?|damages|claims?|sue|suing|prosecute|file\s+a\s+(?:case|claim|suit)|next\s+steps?)\b)`,
     'i'
   ),
 ];
