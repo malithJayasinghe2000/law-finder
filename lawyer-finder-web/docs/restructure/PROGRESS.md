@@ -2181,3 +2181,34 @@ law. Retrieval, routing and the floor all worked; what the user wanted was not i
 **Corpus breadth (RAG roadmap 4.1) is now the limiting factor, not the code.**
 
 Verified: **41 / 15 / 63 / 21 / 67**, `npx tsc --noEmit` clean, 46/46 `check_security`.
+
+### And the follow-on: the refusal recommended a question it could not answer
+
+Same session, found the same way — by using the app. The new own-matter refusal ends with a
+worked example, and it said:
+
+> *instead of "what should I do about my landlord", try "what does Sri Lankan law say about
+> a landlord ending a tenancy"*
+
+The user followed that advice and got *"I could not find this in the legislation I hold."*
+**There is no landlord-and-tenant law in the corpus at all** — the Rent Act is on the Stage
+4.1 wish list, not in the vector store. The assistant walked the user into a dead end it had
+invented itself, which is worse than a plain refusal: the first refusal was correct, and the
+second made the whole thing look broken.
+
+Same defect as the Stage 1.2 clarification template, which offered *"my employer fired me
+without notice"* as its example and walked people into the own-matter path. **Canned
+examples go stale against the corpus silently, because nothing was looking at them.**
+
+> **Fixed.** The example is now company director duties — territory the golden set pins five
+> times over (co-004 s.189, co-005 s.206, co-006 s.203, co-007 s.192, co-008 s.219) and
+> which RAG-REVIEW §4.10 records as a verified good answer.
+>
+> **And now something does look at them.** `check:ai` scrapes every `try "..."` suggestion
+> out of `REFUSAL_MESSAGES` and asserts each one is itself allowed by `classifyRequest` — a
+> refusal that recommends a question the same guardrail refuses is a loop with no exit. It
+> also asserts the scraper still finds them, so the check cannot go blind if the wording
+> changes. **`check:ai` is now 66.**
+>
+> The corpus half cannot be asserted from the app, which has no access to the vector store.
+> The rule instead: **a worked example must name a topic the golden set tests.**

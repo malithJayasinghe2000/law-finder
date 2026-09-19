@@ -202,7 +202,7 @@ WORKING STYLE — learned the hard way over nine phases and five RAG stages
   - Run all five checks after every change set, from lawyer-finder-web/:
       npm run check:privilege   (41)
       npm run check:firm        (15)
-      npm run check:ai          (63)
+      npm run check:ai          (66)
       npm run check:billing     (21)
       npm run check:pdpa        (67)
     plus npm run build and npx tsc --noEmit. A green build proves none of

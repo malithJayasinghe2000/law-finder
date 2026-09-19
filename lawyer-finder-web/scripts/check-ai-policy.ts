@@ -209,6 +209,47 @@ const MUST_ALLOW = [
   'What does the law say about removing a director from my company\'s board?',
 ];
 
+// ─────────────────────────────────────────────────────────────────────────
+// Every question a refusal message TELLS the user to ask must itself be allowed
+// ─────────────────────────────────────────────────────────────────────────
+// A refusal that suggests a rephrasing the guardrail would also refuse sends the
+// user round a loop with no exit. Scraped from the messages rather than listed
+// by hand, so a new example is covered the moment somebody writes one.
+//
+// This does NOT check the example is answerable from the corpus, and the case
+// that prompted it slipped past exactly there: OWN_MATTER_ADVICE used to suggest
+// "what does Sri Lankan law say about a landlord ending a tenancy", a user
+// followed it, and got "I could not find this in the legislation I hold" —
+// there is no landlord-and-tenant law in the vector store.
+//
+// The corpus half cannot be asserted from here: this process has no access to
+// the vector store. It is covered instead by keeping every example inside
+// territory the golden set already pins — the replacement example is company
+// director duties, which lawyer-rag/eval/questions.yaml covers five times over
+// (co-004 s.189, co-005 s.206, co-006 s.203, co-007 s.192, co-008 s.219), and
+// which RAG-REVIEW §4.10 records as a verified good answer. If the Companies
+// Act ever left the corpus, those five would fail loudly.
+//
+// **So the rule for anyone editing a refusal message: the worked example must
+// name a topic the golden set tests.** A canned example goes stale silently,
+// because until this check existed nothing looked at it at all.
+const SUGGESTED = Object.values(REFUSAL_MESSAGES)
+  .flatMap((m) => [...String(m).matchAll(/try \*"([^"]+)"\*/g)].map((x) => x[1]));
+
+check(
+  'every refusal message that suggests a rephrasing was found by the scraper',
+  SUGGESTED.length >= 2,
+  `found ${SUGGESTED.length} — if a message stopped using the try *"..."* form, this check went blind`
+);
+
+for (const suggestion of SUGGESTED) {
+  check(
+    `its own suggested rephrasing is allowed: "${suggestion}"`,
+    classifyRequest(suggestion).allowed,
+    'A refusal that recommends a question the same guardrail refuses is a loop with no way out.'
+  );
+}
+
 for (const question of MUST_ALLOW) {
   check(
     `allows: "${question}"`,

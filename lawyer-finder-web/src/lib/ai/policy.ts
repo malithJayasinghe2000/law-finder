@@ -116,8 +116,29 @@ export const REFUSAL_MESSAGES: Record<RefusalCategory, string> = {
     'I can explain what the law says, but I cannot advise you on your own situation — ' +
     'that is legal advice, and it can only come from an attorney-at-law who has taken you on as a client ' +
     'and knows the full facts.\n\n' +
+    // The worked example must name a topic the corpus ACTUALLY HOLDS.
+    //
+    // This said: instead of "what should I do about my landlord", try "what
+    // does Sri Lankan law say about a landlord ending a tenancy". A real user
+    // followed that advice on 2026-09-19 and got "I could not find this in the
+    // legislation I hold" — because there is no landlord-and-tenant law in the
+    // corpus at all. The Rent Act is on the Stage 4.1 wish list, not in the
+    // vector store. **The assistant walked the user into a dead end it had
+    // invented itself**, which is worse than a plain refusal: the first
+    // refusal was correct and the second made it look broken.
+    //
+    // Same defect as the Stage 1.2 clarification template, which offered "my
+    // employer fired me without notice" as its worked example and walked people
+    // from an answerable question into the own-matter path. Canned examples go
+    // stale against the corpus silently, because nothing checks them.
+    //
+    // Company law is the safest ground available: it is the largest held Act
+    // and the one this product is sold around. Keep the example inside
+    // Companies / Civil Procedure / Motor Traffic / Computer Crimes until the
+    // corpus list is derived at runtime (RAG-REVIEW §4.6, Stage 1.5) — at which
+    // point this example should come from that list rather than from here.
     'What I can do is answer the general question underneath it. For example, instead of ' +
-    '*"what should I do about my landlord"*, try *"what does Sri Lankan law say about a landlord ending a tenancy"*.\n\n' +
+    '*"can I sue my business partner"*, try *"what does the Companies Act say about the duties of a director"*.\n\n' +
     'If you want advice on your actual matter, you can browse practices in the directory and approach one yourself.',
 
   OUTCOME_PREDICTION:
