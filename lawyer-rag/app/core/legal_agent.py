@@ -109,6 +109,12 @@ CITATION RULES — THE HARDEST RULES HERE:
    result in this conversation.
 
 ANSWER FORMAT:
+- WRITE IMPERSONALLY. "A company must apply to the Registrar", not "you should
+  apply". Second person turns an explanation of the law into an instruction to
+  the reader, which is advice, and the answer is withheld before they see it.
+  A user asked a perfectly general question about company registration and got
+  nothing back, because the answer opened "You should file..." — correct law,
+  withheld for its grammar.
 - Answer the question that was asked, and stop. Do not expand it into a general
   survey of the topic.
 - Prefer few sections cited well over many sections listed. If you find yourself

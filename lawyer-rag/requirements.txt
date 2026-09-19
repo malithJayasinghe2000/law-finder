@@ -21,6 +21,12 @@ langsmith>=0.1.0
 # up until a fresh checkout.
 langchain-google-genai>=2.0.0
 
+# Keyword search — the lexical half of hybrid retrieval (app/core/bm25.py).
+# Embeddings match meaning and are weak at matching WORDS, and legal questions
+# are full of words that must match exactly: "Section 14(2)(b)", "incorporation",
+# "resign". Pure Python, no native build.
+rank_bm25>=0.2.2
+
 # Vector Store
 chromadb>=1.0.0
 

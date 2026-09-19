@@ -23,7 +23,7 @@ from langchain_core.messages import HumanMessage, AIMessage
 from langsmith import traceable
 
 from app.core.llm import get_llm, message_text
-from app.core.vectorstore import search_documents
+from app.core.vectorstore import search_documents, hybrid_search
 from app.core.synonyms import expand_query
 from app.core.graph_store import get_knowledge_graph
 from app.core.entity_extractor import extract_entities_regex
@@ -110,6 +110,15 @@ CITATION RULES:
 STYLE:
 - Plain language a non-lawyer can follow, without losing legal accuracy.
 - Proper paragraph breaks.
+- WRITE IMPERSONALLY. Describe what the law requires of a person in general —
+  "a company must apply to the Registrar", "an applicant must file" — never
+  "you should" or "you must". Second person turns an explanation of the law into
+  an instruction to the reader, which is advice, and the answer will be withheld
+  before they see it. Same sentence, different subject:
+    WITHHELD:  "You should file the application with the Registrar."
+    PUBLISHED: "An applicant must file the application with the Registrar."
+  This is not a style preference. It is the difference between explaining the
+  law and telling somebody what to do about their case.
 - Be calm and clear. The person may be under real stress, and the most useful
   thing you can give them is an accurate account of the law and an honest
   statement of where your usefulness ends.
@@ -580,7 +589,7 @@ def query_rag(
     # the duplicate-retrieval waste already noted in RAG-REVIEW.md §5.3. Paid
     # knowingly: it is the difference between declining to answer and inventing
     # an Act, and Stage 1.3 removes the duplication by carrying results through.
-    gate_hits = search_documents(query=search_query, top_k=top_k)
+    gate_hits = hybrid_search(query=search_query, top_k=top_k)
 
     # ── Second chance for a follow-up ─────────────────────────────────────
     #
@@ -606,7 +615,7 @@ def query_rag(
     if not gate_hits and chat_history and search_query == question:
         rewritten = rewrite_query(question, chat_history)
         if rewritten and rewritten.strip() and rewritten != question:
-            retry_hits = search_documents(query=rewritten, top_k=top_k)
+            retry_hits = hybrid_search(query=rewritten, top_k=top_k)
             if retry_hits:
                 logger.info(
                     "Follow-up rescued: %r found nothing, %r found %d chunks",
@@ -638,7 +647,7 @@ def query_rag(
     if not gate_hits:
         expanded = expand_query(search_query)
         if expanded:
-            expanded_hits = search_documents(query=expanded, top_k=top_k)
+            expanded_hits = hybrid_search(query=expanded, top_k=top_k)
             if expanded_hits:
                 logger.info(
                     "Vocabulary rescued: %r found nothing, %r found %d chunks",

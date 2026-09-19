@@ -199,6 +199,55 @@ class Config:
     RETRIEVAL_MIN_SCORE: float = float(os.getenv("RETRIEVAL_MIN_SCORE", "0.62"))
     RETRIEVAL_CHUNK_FLOOR: float = float(os.getenv("RETRIEVAL_CHUNK_FLOOR", "0.50"))
 
+    # ── Hybrid retrieval: dense + BM25 keyword ────────────────────────────
+    #
+    # Embeddings match meaning and are weak at matching WORDS, and legal
+    # questions are full of words that must match exactly. Three user reports in
+    # one evening were the same failure — "company registration", "legal
+    # actions", "resign from the company" each found nothing while the corpus
+    # held the answer under different wording.
+    #
+    # **The thresholds above did NOT need re-tuning, and that is by design.**
+    # BM25 only proposes CANDIDATES; every candidate is then scored by the same
+    # dense metric and passed through the same floor. So RETRIEVAL_MIN_SCORE
+    # still means what it always meant — a property of the embedding model and
+    # the corpus, not of how a candidate was found. BM25 decides what is
+    # findable; dense similarity still decides what is relevant.
+    #
+    # ⚠️ DEFAULT OFF, BECAUSE AS BUILT IT DOES NOTHING. Measured 2026-09-20 with
+    # scripts/sweep_retrieval.py over the golden set: the numbers with it on and
+    # off are IDENTICAL at every threshold, and on five lay-worded probes the
+    # best score was unchanged to three decimal places in every case.
+    #
+    # The reason is a design mistake, and it is worth stating plainly so nobody
+    # re-implements it the same way. BM25 candidates are scored by DENSE
+    # similarity and then ranked by DENSE similarity, so a keyword hit can only
+    # win if dense already scored it highly — and if dense scored it highly it
+    # was already in dense's own top HYBRID_FETCH_K. "BM25 proposes, dense
+    # disposes" sounded principled and gave the lexical half no vote.
+    #
+    # Making it work means letting keyword evidence actually count: rank by
+    # fusion (RRF) rather than by dense score alone, and let a strong lexical
+    # match clear the gate at a lower dense score. That changes what the
+    # relevance floor means, so it has to be measured against not_in_corpus
+    # before it is trusted — sweep_retrieval.py does that in seconds, free.
+    #
+    # And note what the golden set CANNOT tell you here: its questions were
+    # written by reading the corpus, so they use statutory vocabulary. The whole
+    # point of keyword search is lay vocabulary. The instrument is blind to the
+    # benefit, the same way it was blind to multi-turn until a user found it.
+    # Lay-worded probes need adding before any of this is measurable.
+    #
+    # The index and scoring machinery are kept because they are the foundation
+    # that fix needs. They are OFF, not deleted, and they are not a feature yet.
+    ENABLE_HYBRID_SEARCH: bool = os.getenv("ENABLE_HYBRID_SEARCH", "false").lower() == "true"
+
+    # How many candidates each half proposes before fusion and the floor. The
+    # roadmap's shape is "retrieve 30, rerank, keep 6": this is the 30. Only
+    # TOP_K_RESULTS survive into the model's context, so raising it costs
+    # retrieval time, not tokens.
+    HYBRID_FETCH_K: int = int(os.getenv("HYBRID_FETCH_K", "30"))
+
     # Acts source directory
     ACTS_SOURCE_DIR: str = os.getenv("ACTS_SOURCE_DIR", str(BASE_DIR.parent / "Acts"))
 

@@ -379,12 +379,64 @@ largest quality gains here.
 
 | # | Change | Why |
 | --- | --- | --- |
-| 1 | **Hybrid search** — BM25 alongside dense, fused with Reciprocal Rank Fusion | Legal queries are full of exact strings: `"Section 14(2)(b)"`, `"Act No. 24 of 2007"`. Dense embeddings are weak at exactly this, and it is what lawyers type |
+| 1 | **Hybrid search** — BM25 alongside dense, fused with Reciprocal Rank Fusion | Legal queries are full of exact strings: `"Section 14(2)(b)"`, `"Act No. 24 of 2007"`. Dense embeddings are weak at exactly this, and it is what lawyers type. ⚠️ **Attempted 2026-09-20 and it did nothing — read the note below before trying again** |
 | 2 | **Cross-encoder reranking** — retrieve 30, rerank, keep 6 | Usually the single biggest quality jump in a RAG system. Also *reduces* tokens: fewer, better chunks |
 | 3 | **Parent-document retrieval** — match small, return the enclosing section | Fixes mid-section truncation without raising chunk size |
 | 4 | **Query expansion** for legal synonyms (`plaint`/`complaint`, `decree`/`judgment`) | Vocabulary mismatch is a known failure mode in legal IR |
 | 5 | **Semantic cache** on question embeddings | Repeated questions are common; a hit costs nothing |
 | 6 | **Amendment-aware retrieval** — surface the amending provision with the amended section | Already half-built: `amendment_processor.py` and the graph exist. Citing a section without its amendment is a wrong answer that looks right |
+
+---
+
+### ⚠️ A first attempt at 2.1, and why it failed — 2026-09-20
+
+The machinery is built and **switched off**: `app/core/bm25.py` (index over Active
+chunks), `hybrid_search` in `vectorstore.py`, `ENABLE_HYBRID_SEARCH=false`, and
+`scripts/sweep_retrieval.py` to measure it. It does not help, and the reason is
+worth inheriting.
+
+**The design was "BM25 proposes, dense disposes".** Keyword search suggested
+candidates; every candidate was then scored by dense similarity and passed
+through the existing relevance floor, so `RETRIEVAL_MIN_SCORE` would keep its
+exact meaning and would not need re-tuning. That reasoning is sound and the
+result is useless: candidates are then also *ranked* by dense score, so a
+keyword hit can only win if dense already scored it high — and if it did, the
+chunk was already in dense's own top `HYBRID_FETCH_K`. **The lexical half was
+given no vote.**
+
+Measured, not assumed. `scripts/sweep_retrieval.py` over the golden set produces
+**identical numbers at every threshold** with it on and off, and on five
+lay-worded probes the best score was unchanged to three decimals:
+
+```
+                                             dense   hybrid
+resigning from a company                     0.620   0.620
+process of company registration              0.601   0.601
+how do I close a company                     0.535   0.535
+someone hacks my computer                    0.575   0.575
+how do I start a court case                  0.546   0.546
+```
+
+**To do it properly, two things have to change together:**
+
+1. **Rank by fusion, not by dense score.** Reciprocal Rank Fusion over the two
+   rankings, so a chunk BM25 puts first can rise even where dense puts it 25th.
+2. **Let lexical evidence clear the gate.** Today a candidate needs dense ≥ 0.62
+   whatever BM25 thinks. A strong keyword match should clear at a lower dense
+   score — which changes what the floor means, so it must be measured against
+   `not_in_corpus` before it is believed. The sweep does that in seconds and
+   costs nothing.
+
+**And fix the instrument first.** The golden set cannot see this benefit: its
+questions were written by reading the corpus, so they use statutory vocabulary,
+and keyword search exists for *lay* vocabulary. The set is blind here in exactly
+the way it was blind to multi-turn until a user found it. **Add lay-worded
+probes with the same expected sections before tuning anything**, or the sweep
+will keep reporting that a working fix changed nothing.
+
+The floor itself was re-swept and **0.62 is still right**: it is the lowest
+value that holds `not_in_corpus` at 100%, and 0.61 trades one of those for one
+answerable — the wrong trade for a legal assistant.
 
 ---
 

@@ -70,7 +70,28 @@ def add_documents(documents: list, batch_size: int = 50) -> int:
         total_added += len(batch)
         logger.info(f"Added batch {i // batch_size + 1}: {len(batch)} chunks (total: {total_added})")
 
+    _invalidate_keyword_index()
     return total_added
+
+
+def _invalidate_keyword_index() -> None:
+    """
+    Drop the BM25 index after the collection changes.
+
+    Deliberately here, at the mutation, rather than at the four call sites that
+    ingest or delete. The keyword index is a snapshot taken at first use, so a
+    newly ingested Act would otherwise be findable by meaning and invisible to
+    keyword search until someone restarted the service — a half-working state
+    that costs a day to diagnose and that nobody would think to look for.
+
+    Imported locally because bm25 imports this module.
+    """
+    try:
+        from app.core.bm25 import reset_bm25_index
+
+        reset_bm25_index()
+    except Exception as e:  # never let index bookkeeping fail an ingest
+        logger.warning("Could not invalidate the keyword index (%s)", e)
 
 
 def apply_relevance_floor(results: list, *, query: str = "") -> list:
@@ -246,6 +267,135 @@ def search_documents(
             ) from e2
 
 
+def _chunk_key(meta: dict) -> tuple:
+    """Identity of a chunk, for de-duplicating dense and keyword hits."""
+    return (
+        str(meta.get("source_file") or ""),
+        str(meta.get("section_number") or ""),
+        meta.get("chunk_index"),
+    )
+
+
+def hybrid_search(
+    query: str,
+    top_k: int = None,
+    filter_metadata: Optional[dict] = None,
+    apply_floor: bool = True,
+) -> list:
+    """
+    Dense retrieval widened by BM25 keyword candidates.
+
+    ── The design, and the one line that matters ─────────────────────────────
+    **BM25 decides what is findable. Dense similarity still decides what is
+    relevant.**
+
+    Keyword search is good at the thing embeddings are worst at — matching the
+    user's actual words — and bad at the thing the relevance floor depends on.
+    A question about land law will always match *some* chunk on a common word,
+    and admitting those on BM25's own score would undo the floor that took
+    `not_in_corpus` from 12.5% to 100%.
+
+    So BM25 only proposes candidates. Every candidate is then scored by the SAME
+    dense metric, through the same collection, and passed through the SAME
+    `apply_relevance_floor`. `RETRIEVAL_MIN_SCORE` therefore means exactly what
+    it meant before this function existed, and did not need re-tuning: it is a
+    property of the embedding model and the corpus, not of how candidates were
+    found.
+
+    Chroma's relevance for this collection is `1 - distance / sqrt(2)` (l2
+    space). That is not an assumption — it was verified against
+    `similarity_search_with_relevance_scores` on the same chunks and matched to
+    six decimal places.
+
+    ── Why this exists ──────────────────────────────────────────────────────
+    Three user reports in one evening, all the same failure: "company
+    registration", "legal actions", "resign from the company" each found nothing
+    while the corpus held the answer under different wording. `synonyms.py`
+    patches the pairs somebody wrote down; this fixes the class.
+
+    Degrades to dense-only if the keyword index is unavailable, which is the
+    behaviour that shipped before.
+    """
+    if top_k is None:
+        top_k = config.TOP_K_RESULTS
+
+    dense = search_documents(
+        query=query,
+        top_k=config.HYBRID_FETCH_K,
+        filter_metadata=filter_metadata,
+        apply_floor=False,
+    )
+
+    if not config.ENABLE_HYBRID_SEARCH:
+        trimmed = dense[:top_k]
+        return apply_relevance_floor(trimmed, query=query) if apply_floor else trimmed
+
+    merged = list(dense)
+    try:
+        from app.core.bm25 import get_bm25_index
+
+        index = get_bm25_index()
+        if index is not None:
+            document_filter = filter_metadata.get("document_name") if filter_metadata else None
+            candidate_ids = index.search(
+                query, n=config.HYBRID_FETCH_K, document_filter=document_filter
+            )
+            if candidate_ids:
+                seen = {_chunk_key(doc.metadata) for doc, _ in dense}
+                merged.extend(_score_candidates(query, candidate_ids, seen))
+    except Exception as e:
+        # Never let the lexical half break the semantic half.
+        logger.warning("Hybrid search fell back to dense-only (%s)", e)
+
+    merged.sort(key=lambda pair: pair[1], reverse=True)
+    merged = merged[:top_k]
+    return apply_relevance_floor(merged, query=query) if apply_floor else merged
+
+
+def _score_candidates(query: str, candidate_ids: list, seen: set) -> list:
+    """
+    Score BM25 candidates with the same dense metric, skipping ones already found.
+
+    Uses the raw Chroma collection because langchain's wrapper cannot restrict a
+    scored query to a set of ids. The status filter is applied again here even
+    though the index holds only Active chunks — belt and braces on the one
+    property that must never slip.
+    """
+    import math
+
+    from langchain_core.documents import Document
+
+    from app.core.embeddings import get_embeddings
+
+    collection = get_vectorstore()._collection
+    result = collection.query(
+        query_embeddings=[get_embeddings().embed_query(query)],
+        ids=list(candidate_ids),
+        n_results=len(candidate_ids),
+        where={"status": "Active"},
+        include=["documents", "metadatas", "distances"],
+    )
+
+    scored = []
+    for text, meta, distance in zip(
+        result["documents"][0], result["metadatas"][0], result["distances"][0]
+    ):
+        meta = meta or {}
+        key = _chunk_key(meta)
+        if key in seen:
+            continue
+        seen.add(key)
+        scored.append(
+            (Document(page_content=text or "", metadata=meta), 1.0 - distance / math.sqrt(2))
+        )
+
+    if scored:
+        logger.info(
+            "[hybrid] keyword search added %d candidate(s) dense retrieval missed", len(scored)
+        )
+    return scored
+
+
 def get_all_document_names() -> list[dict]:
     """
     Get a list of all unique document names and their metadata in the store.
@@ -311,6 +461,7 @@ def delete_document_by_name(document_name: str) -> int:
     ids_to_delete = results["ids"]
     collection.delete(ids=ids_to_delete)
     logger.info(f"Deleted {len(ids_to_delete)} chunks for document: '{document_name}'")
+    _invalidate_keyword_index()
     return len(ids_to_delete)
 
 
@@ -360,6 +511,13 @@ def update_chunk_status(
         f"Updated {len(results['ids'])} chunks: "
         f"'{document_name}' / '{section_number}' → status='{new_status}'"
     )
+    # CRITICAL, not housekeeping. This is the call that marks a section
+    # Repealed, and the keyword index holds only Active chunks as a snapshot.
+    # Without this, a section repealed a moment ago stays keyword-findable and
+    # can be cited as current law — the one failure this service must never
+    # produce, and the exact reason the dense path never drops the status
+    # filter.
+    _invalidate_keyword_index()
     return len(results["ids"])
 
 

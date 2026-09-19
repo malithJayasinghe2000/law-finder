@@ -2281,3 +2281,61 @@ staying on the machine and leaving Sri Lanka.
 
 Verified: 41 / 15 / 76 / 21 / 67, 46/46 `check_security`, `npx tsc --noEmit` clean,
 `not_in_corpus` 17/17, `must_refuse` 14/15, and the reported question answers with 4 sources.
+
+---
+
+## Hybrid search — built, measured, and it does nothing — 2026-09-20
+
+Three user reports in one evening were the same failure: *"company registration"*,
+*"legal actions"*, *"resign from the company"* each found nothing while the corpus held
+the answer under different wording. A synonym map (`synonyms.py`) patched the first; the
+owner correctly said that fixing word pairs one at a time does not scale, and asked for the
+real fix — BM25 keyword search, RAG roadmap Stage 2.1.
+
+**It is built, it is switched off, and it does not help.** The reason is worth keeping.
+
+### The design, and why it was self-defeating
+
+*"BM25 proposes, dense disposes."* Keyword search suggests candidates; every candidate is
+then scored by dense similarity and passed through the existing relevance floor, so
+`RETRIEVAL_MIN_SCORE` keeps its exact meaning and needs no re-tuning.
+
+The reasoning is sound. The result is useless: candidates are also **ranked** by dense
+score, so a keyword hit can only win if dense already scored it high — and if it did, the
+chunk was already in dense's own top 30. **The lexical half was given no vote.**
+
+Measured with a new tool, `scripts/sweep_retrieval.py`, which sweeps the floor using
+retrieval only — no model, so it runs in seconds and costs nothing, where measuring the
+same thing through `scripts.eval` would be half an hour and a dollar per point.
+
+**Identical numbers at every threshold, on and off.** And on five lay-worded probes the
+best score was unchanged to three decimal places — `0.620/0.620`, `0.601/0.601`,
+`0.535/0.535`, `0.575/0.575`, `0.546/0.546`.
+
+### What the sweep did settle
+
+**0.62 is still the right floor.** It is the lowest value holding `not_in_corpus` at 100%;
+0.61 trades one of those for one answerable, which is the wrong trade for a legal
+assistant. It did not need re-tuning after all — for the right reason this time, because it
+was measured rather than assumed.
+
+### And a blind spot in the instrument
+
+**The golden set cannot see this benefit.** Its questions were written by reading the
+corpus, so they use statutory vocabulary — and keyword search exists for *lay* vocabulary.
+The set is blind here in exactly the way it was blind to multi-turn until a user found that.
+Lay-worded probes with the same expected sections need adding **before** tuning anything,
+or the sweep will keep reporting that a working fix changed nothing.
+
+> **Kept, not deleted, and OFF.** The index, the scoring and the invalidation are the
+> foundation the proper fix needs — rank by Reciprocal Rank Fusion rather than dense score,
+> and let a strong keyword match clear the gate at a lower dense score. Both are recorded
+> in RAG-ROADMAP.md §2.1. **It is not a feature yet and is not presented as one.**
+
+Also done here: BM25 index invalidation lives at the three mutation points in
+`vectorstore.py` — `add_documents`, `delete_document_by_name` and `update_chunk_status` —
+rather than at the four call sites that ingest. The last of those is the one that marks a
+section Repealed, and a stale keyword index would keep a repealed section findable.
+
+Verified: 46/46 `check_security`, 41 / 15 / 76 / 21 / 67, and the questions reported by the
+owner still behave — company registration answers with 4 sources, land law still refuses.
