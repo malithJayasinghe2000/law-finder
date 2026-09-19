@@ -113,9 +113,24 @@ export const REFUSAL_MESSAGES: Record<RefusalCategory, string> = {
     'If you sign in, I can follow a conversation across several questions.',
 
   OWN_MATTER_ADVICE:
-    'I can explain what the law says, but I cannot advise you on your own situation — ' +
-    'that is legal advice, and it can only come from an attorney-at-law who has taken you on as a client ' +
-    'and knows the full facts.\n\n' +
+    // No worked example. This message is read by people with a real problem,
+    // and a canned example is a non-sequitur to almost all of them.
+    //
+    // It has now been wrong twice, in opposite directions. First it suggested
+    // "what does Sri Lankan law say about a landlord ending a tenancy" — a
+    // topic the corpus does not hold, so the user followed the advice and was
+    // refused again. Replacing it with a Companies Act example fixed that and
+    // produced this, reported by the owner: somebody asked about a tree cut
+    // down on their land and was told to ask about a business partner and the
+    // duties of a company director. Accurate, answerable, and nonsense to the
+    // person reading it.
+    //
+    // **A fixed example cannot be relevant to an unknown question.** The way to
+    // be concrete here is to point at the legal library, which lists what is
+    // actually held and is a real page the reader can open — not to invent a
+    // scenario and hope it lands near theirs.
+    'I cannot advise you on your own situation. That is legal advice, and it can only come from ' +
+    'an attorney-at-law who has taken you on as a client and knows the full facts.\n\n' +
     // The worked example must name a topic the corpus ACTUALLY HOLDS.
     //
     // This said: instead of "what should I do about my landlord", try "what
@@ -137,9 +152,15 @@ export const REFUSAL_MESSAGES: Record<RefusalCategory, string> = {
     // Companies / Civil Procedure / Motor Traffic / Computer Crimes until the
     // corpus list is derived at runtime (RAG-REVIEW §4.6, Stage 1.5) — at which
     // point this example should come from that list rather than from here.
-    'What I can do is answer the general question underneath it. For example, instead of ' +
-    '*"can I sue my business partner"*, try *"what does the Companies Act say about the duties of a director"*.\n\n' +
-    'If you want advice on your actual matter, you can browse practices in the directory and approach one yourself.',
+    // No markdown link. Every route on this platform is locale-prefixed
+    // (/en/..., /si/..., /ta/...) and this module has no locale, so a hardcoded
+    // "/legal-library" would be wrong in at least two of the three languages.
+    // The page is named in words; the disclaimer under the chat box already
+    // carries the real links, built where the locale is known.
+    'What I can do is explain what the law itself says. Ask about the rule rather than your own case — ' +
+    'what an Act requires, or how a procedure works. The Legal Library page lists every piece of ' +
+    'legislation I hold.\n\n' +
+    'For advice on your actual matter, you can browse practices in the directory and approach one yourself.',
 
   OUTCOME_PREDICTION:
     'I cannot tell you how a case would turn out. Nobody can — an outcome depends on evidence, procedure, ' +

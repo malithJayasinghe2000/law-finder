@@ -237,10 +237,30 @@ const SUGGESTED = Object.values(REFUSAL_MESSAGES)
   .flatMap((m) => [...String(m).matchAll(/try \*"([^"]+)"\*/g)].map((x) => x[1]));
 
 check(
-  'every refusal message that suggests a rephrasing was found by the scraper',
-  SUGGESTED.length >= 2,
-  `found ${SUGGESTED.length} — if a message stopped using the try *"..."* form, this check went blind`
+  'the scraper still finds the refusal messages that suggest a rephrasing',
+  SUGGESTED.length >= 1,
+  `found ${SUGGESTED.length} — if every message stopped using the try *"..."* form, this check went blind`
 );
+
+// Only ONE message should carry a worked example, and it is
+// FOLLOW_UP_WITHOUT_CONTEXT. The distinction is worth holding on to:
+//
+//   that message teaches FORM — "name the subject in your question", because
+//   the user wrote "tell me more about that" and there is no conversation to
+//   resolve "that" against. An example of a self-contained question helps
+//   whatever the topic was.
+//
+//   OWN_MATTER_ADVICE used to teach TOPIC, and could not. It fires on
+//   questions whose subject is unknown to it, so any fixed example is a
+//   non-sequitur to most readers. It was wrong twice in opposite directions —
+//   first suggesting a tenancy question the corpus cannot answer, then
+//   suggesting a company-director question to somebody asking about a tree cut
+//   down on their land. It now points at the legal library instead, which is a
+//   real page listing what is actually held.
+//
+// **If you add a worked example to a refusal message, ask first whether the
+// message knows what the user was asking about.** If it does not, the example
+// will read as nonsense to them.
 
 for (const suggestion of SUGGESTED) {
   check(
