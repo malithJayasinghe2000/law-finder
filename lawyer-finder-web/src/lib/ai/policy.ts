@@ -131,27 +131,6 @@ export const REFUSAL_MESSAGES: Record<RefusalCategory, string> = {
     // scenario and hope it lands near theirs.
     'I cannot advise you on your own situation. That is legal advice, and it can only come from ' +
     'an attorney-at-law who has taken you on as a client and knows the full facts.\n\n' +
-    // The worked example must name a topic the corpus ACTUALLY HOLDS.
-    //
-    // This said: instead of "what should I do about my landlord", try "what
-    // does Sri Lankan law say about a landlord ending a tenancy". A real user
-    // followed that advice on 2026-09-19 and got "I could not find this in the
-    // legislation I hold" — because there is no landlord-and-tenant law in the
-    // corpus at all. The Rent Act is on the Stage 4.1 wish list, not in the
-    // vector store. **The assistant walked the user into a dead end it had
-    // invented itself**, which is worse than a plain refusal: the first
-    // refusal was correct and the second made it look broken.
-    //
-    // Same defect as the Stage 1.2 clarification template, which offered "my
-    // employer fired me without notice" as its worked example and walked people
-    // from an answerable question into the own-matter path. Canned examples go
-    // stale against the corpus silently, because nothing checks them.
-    //
-    // Company law is the safest ground available: it is the largest held Act
-    // and the one this product is sold around. Keep the example inside
-    // Companies / Civil Procedure / Motor Traffic / Computer Crimes until the
-    // corpus list is derived at runtime (RAG-REVIEW §4.6, Stage 1.5) — at which
-    // point this example should come from that list rather than from here.
     // No markdown link. Every route on this platform is locale-prefixed
     // (/en/..., /si/..., /ta/...) and this module has no locale, so a hardcoded
     // "/legal-library" would be wrong in at least two of the three languages.
@@ -217,15 +196,30 @@ export const REFUSAL_MESSAGES: Record<RefusalCategory, string> = {
  * The test in HOW-IT-WORKS.md: is the answer about the law, or about them?
  */
 const OWN_MATTER_PATTERNS: RegExp[] = [
-  /\bwhat\s+(?:should|shall|ought|do|can|could|must)\s+i\s+do\b/i,
+  /\bwhat\s+(?:should|shall|ought|do|can|could|must)\s+i\s+(?:\w+ly\s+)?do\b/i,
   /\bwhat\s+(?:are|is)\s+my\s+(?:option|choice|right|next step|best|remedie|recourse)/i,
   /\bwhat\s+would\s+you\s+do\b/i,
   /\bwhat\s+do\s+you\s+(?:advise|suggest|recommend)\b/i,
   /\b(?:advise|advice)\s+me\b/i,
   /\bgive\s+me\s+(?:legal\s+)?advice\b/i,
-  /\bdo\s+i\s+have\s+(?:a|any)\s+(?:case|claim|right|defence|defense|ground)/i,
-  /\b(?:can|could|should|may)\s+i\s+(?:sue|claim|appeal|file|prosecute|counterclaim)/i,
-  /\bam\s+i\s+(?:liable|entitled|guilty|responsible|allowed|obliged|required)\b/i,
+  // ADV = an optional adverb. "am I liable" was written without it, so
+  // "am I PERSONALLY liable" — the exact wording of evaluation case adv-008 —
+  // walked past this layer and reached the model.
+  //
+  // This is the Stage 1.2 bug in its other half. That fix widened the
+  // post-generation ADVICE pattern, which had "no room for the adverb" and
+  // required liable "to" rather than "for". The same hole in the PRE-generation
+  // classifier was never closed, so for eighteen months the only thing catching
+  // "am I personally liable" was the answer gate.
+  //
+  // The answer gate does catch it, so nobody was misled. What was lost is the
+  // privacy property the pre-generation check exists for: a question refused
+  // here is never transmitted at all. With a hosted provider configured, that
+  // is the difference between a person's account of their own legal problem
+  // staying on this machine and leaving Sri Lanka.
+  /\bdo\s+i\s+(?:\w+ly\s+)?have\s+(?:a|any)\s+(?:case|claim|right|defence|defense|ground)/i,
+  /\b(?:can|could|should|may)\s+i\s+(?:\w+ly\s+)?(?:sue|claim|appeal|file|prosecute|counterclaim)/i,
+  /\bam\s+i\s+(?:\w+ly\s+)?(?:liable|entitled|guilty|responsible|allowed|obliged|required)\b/i,
   /\bhow\s+(?:much|long)\s+(?:can|could|would|will)\s+i\s+(?:claim|get|recover|receive)/i,
   /\bhelp\s+me\s+(?:win|fight|sue|beat|get out of)\b/i,
   /\bhow\s+do\s+i\s+(?:win|beat|get out of|avoid paying)\b/i,

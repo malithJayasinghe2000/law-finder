@@ -24,6 +24,7 @@ from langsmith import traceable
 
 from app.core.llm import get_llm, message_text
 from app.core.vectorstore import search_documents
+from app.core.synonyms import expand_query
 from app.core.graph_store import get_knowledge_graph
 from app.core.entity_extractor import extract_entities_regex
 from app.core.query_router import (
@@ -615,6 +616,42 @@ def query_rag(
                 search_query = rewritten
                 # It WAS a follow-up, whatever the router said.
                 intent = "follow_up"
+
+    # ── Third chance: the user's words, in the statute's vocabulary ───────
+    #
+    # Lay language and statutory language are different registers for the same
+    # thing, and the gap is wide enough to fail the relevance floor. A user
+    # asked "what is the process of company registration" and was told the
+    # service holds no legislation covering it — while holding the Companies
+    # Act, which says "incorporation" 108 times, "company registration" once,
+    # and "register a company" never.
+    #
+    # Deliberately LAST, and deliberately conditional on having found nothing:
+    # a question that already retrieves is never touched, so this cannot make a
+    # working query worse. It can only add one more attempt to one that has
+    # already failed, and it costs a single embedding when it runs at all.
+    #
+    # This is a patch over a retrieval weakness, not a fix for it. Stage 2.1
+    # (hybrid search with BM25) matches literal words without anyone
+    # maintaining a word list, and would have caught "registration" on the
+    # first attempt. See app/core/synonyms.py.
+    if not gate_hits:
+        expanded = expand_query(search_query)
+        if expanded:
+            expanded_hits = search_documents(query=expanded, top_k=top_k)
+            if expanded_hits:
+                logger.info(
+                    "Vocabulary rescued: %r found nothing, %r found %d chunks",
+                    search_query[:60], expanded[:60], len(expanded_hits),
+                )
+                gate_hits = expanded_hits
+                search_query = expanded
+                # The router may have called this vague because IT did not
+                # recognise the lay wording either. Retrieval has now found
+                # material, and evidence outranks the router — the same
+                # reasoning as the clarification gate above (§4.14).
+                if intent == "clarification_needed":
+                    intent = "legal_query"
 
     if not gate_hits:
         # A follow-up with nothing behind it. Say the true thing — that the
