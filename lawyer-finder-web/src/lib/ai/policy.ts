@@ -188,6 +188,39 @@ const OWN_MATTER_PATTERNS: RegExp[] = [
   /\bhelp\s+me\s+(?:win|fight|sue|beat|get out of)\b/i,
   /\bhow\s+do\s+i\s+(?:win|beat|get out of|avoid paying)\b/i,
   /\bmy\s+(?:best|only)\s+(?:option|chance|bet|course)\b/i,
+
+  // The matter is identified by a first-person POSSESSIVE, not a first-person
+  // verb — and the question asks what may be DONE about it.
+  //
+  // Every pattern above needs "I" as the subject of a verb: "what should I do",
+  // "can I sue", "am I liable". A real user asked:
+  //
+  //   "I need to know about what is teh legal action can get when cut a tree
+  //    in my own property from someone else"
+  //
+  // which is unmistakably about their own matter — "my own property", done to
+  // them by "someone else" — and matched NOTHING, while "Someone cut a tree on
+  // my property. What can I do?" was refused. The guardrail turned on grammar
+  // rather than on substance.
+  //
+  // It reached the assistant. It was declined only because the corpus holds no
+  // land law and the relevance floor caught it — luck standing in for a
+  // control, and luck that expires the moment Stage 4.1 loads land law.
+  //
+  // Two conditions, in either order, because one alone over-refuses:
+  //   - a first-person possessive naming the matter, AND
+  //   - language seeking action, remedy or compensation.
+  //
+  // "my company" alone must NOT refuse: the evaluation set deliberately holds
+  // both sides of that line — co-008 "what must a director do if the company
+  // cannot pay its debts" is ANSWERED, adv-008 "am I personally liable" is
+  // REFUSED. Requiring the remedy-seeking half keeps general questions about
+  // law that happens to touch the asker's affairs answerable.
+  new RegExp(
+    String.raw`(?=[\s\S]*\b(?:my|our)\s+(?:own\s+)?(?:propert(?:y|ies)|land|house|home|flat|apartment|vehicle|car|business|compan(?:y|ies)|firm|shop|employer|employee|landlord|tenant|neighbou?rs?|spouse|husband|wife|marriage|divorce|contract|agreement|lease|deed|title|case|matter|claim|dispute|child|children)\b)` +
+      String.raw`(?=[\s\S]*\b(?:legal\s+action|take\s+action|what\s+action|court\s+action|remed(?:y|ies)|recourse|compensation|damages|sue|prosecute|file\s+a\s+(?:case|claim|suit)|next\s+steps?)\b)`,
+    'i'
+  ),
 ];
 
 /** Asking the assistant to predict how a matter would end. */

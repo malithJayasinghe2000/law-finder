@@ -223,10 +223,13 @@ def message_text(response) -> str:
     """
     text = getattr(response, "text", None)
     if text is not None:
-        # `.text` migrated from a method to a property; the transitional
-        # TextAccessor is both, so this works either way without a deprecation
-        # warning path we would have to chase on the next upgrade.
-        return str(text() if callable(text) else text)
+        # str(), never text(). `.text` migrated from a method to a property and
+        # the transitional TextAccessor is both — but CALLING it emits
+        # LangChainDeprecationWarning on every model reply, which showed up
+        # twice per question in the service log. str() reads the property and is
+        # correct for the method-era value too, so this works on both without
+        # the warning.
+        return str(text)
 
     content = getattr(response, "content", response)
     if isinstance(content, str):

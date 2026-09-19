@@ -1,6 +1,6 @@
 # Next Session Brief
 
-> Updated 2026-09-14. **Copy §1 into a new chat as your first message.**
+> Updated 2026-09-19. **Copy §1 into a new chat as your first message.**
 >
 > Update this file at the end of every session. A brief that points at work already done is
 > worse than no brief — the next session will trust it.
@@ -12,8 +12,8 @@
 ```
 I'm working on law-finder, a Sri Lankan legal platform under a legal restructure.
 Phases 0-8 are complete. On the AI service, RAG Stages 0, 1.1, 1.2 and 1.2c are
-complete, and Stage 1.6 is HALF done. I need you to pick up where the last
-session left off.
+complete. Stage 1.6 is MEASURED but not settled. I need you to pick up where
+the last session left off.
 
 REPOSITORY LAYOUT
   law-finder/
@@ -45,11 +45,12 @@ is unlawful in Sri Lanka and was removed. They are marked superseded. Building
 from them rebuilds the illegal product.
 
 GIT STATE
-Branch restructure-booking-flow. Three commits are NOT yet pushed, AND there are
-UNCOMMITTED changes in the working tree from the Stage 1.6 session (10 files in
-lawyer-rag/ plus docs in lawyer-finder-web/docs/). Nothing is committed for
-Stage 1.6 — review the diff before you build on it. Ask me before any
-destructive git command, and before pushing.
+Branch restructure-booking-flow, tree clean. FOUR commits are NOT yet pushed.
+Ask me before any destructive git command, and before pushing.
+
+⚠️ lawyer-rag/.env currently has LLM_PROVIDER=google, LLM_MODEL=gemini-3.6-flash.
+That is the WORSE model by measurement — see below. To go back:
+LLM_PROVIDER=ollama, LLM_MODEL=llama3.2:3b.
 
 ⚠️ MY MACHINE OVERHEATS UNDER SUSTAINED LOCAL INFERENCE. I stopped Ollama
 mid-run last session for exactly this reason. Do NOT start a 30-50 minute local
@@ -69,38 +70,53 @@ HOW TO RUN IT
 
 YOUR TASK THIS SESSION
 
-Finish Stage 1.6 of lawyer-rag/docs/RAG-ROADMAP.md — the MEASUREMENT half.
+Pick up after Stage 1.6. Read lawyer-rag/eval/results/STAGE-1.6.md FIRST — it
+holds both Gemini runs and the verdict.
 
-WHAT IS ALREADY DONE (do not redo it)
-  - One model, named in ONE place: LLM_PROVIDER + LLM_MODEL in lawyer-rag/.env.
-    config.py reads them, app/core/llm.py builds the client. An unknown
-    provider or a missing key is a STARTUP failure in the gunicorn master.
-    README.md and RUNNING.md now read the name out of .env instead of
-    repeating it. Do not reintroduce a model name anywhere else.
-  - A hosted provider seam for Google Gemini (_build_google in llm.py).
-    It is marked UNTESTED because it is — no key existed, so it has never
-    answered a question.
-  - check_security.py is provider-aware: 46 passed, 0 failed.
+WHAT WAS MEASURED (do not redo it)
+  gemini-3.6-flash, two full runs of the 83-question golden set. IT IS WORSE
+  than the llama3.2:3b it would replace:
 
-WHAT IS NOT DONE
-  NOTHING HAS BEEN MEASURED. No candidate has been run against the golden set.
+                        llama3.2:3b   gemini run 1   run 2 (tighter prompts)
+    grounding              96.3%         82.9%           86.6%
+    ungrounded citations      —          28.4%           21.4%
+    answerable             82.4%         78.4%           82.4%
+    must_refuse            93.3%         86.7%           86.7%
+    median latency          5.0s         16.4s           14.4s
 
-  1. The control run. The old reference file was DELETED because an outage
-     had contaminated it, and the scorer has since been fixed, so old results
-     are not comparable anyway. Re-establish it:
-       ./venv/bin/python -m scripts.eval --out eval/results/control-llama3.2-3b.json
-     ~15-25 min of local inference. ASK ME FIRST (see the heat warning).
+  Gemini cites sections that were never retrieved — 21.4% of everything it
+  names, even after the prompt fix. The failures are the LONG answers: a
+  stronger model writes a more thorough reply and the thoroughness comes out
+  of its own memory. The policy gate withholds them, so nobody is misled, but
+  the feature degrades.
 
-  2. qwen3.5:9b — pulled locally. LLM_PROVIDER=ollama, LLM_MODEL=qwen3.5:9b,
-     restart, then --compare against the control. ~30-50 min. ASK ME FIRST.
+  Also done: one model named in one place (LLM_PROVIDER + LLM_MODEL, no
+  default for LLM_MODEL at all); message_text() in llm.py because Gemini 3.x
+  returns content as a LIST not a string (every answer would have rendered
+  EMPTY); AGENT_MAX_ITERATIONS raised to 18 because 10 was tuned for llama.
 
-  3. Gemini — I will add GOOGLE_API_KEY to lawyer-rag/.env. It is a Generative
-     Language API key, NOT the OAuth/Maps credential already in
-     lawyer-finder-web/.env. Costs my machine nothing, so prefer this one.
-     CHECK WHICH TIER THE KEY IS ON FIRST — Google's free tier is documented
-     as training on submitted prompts, which for this service would turn real
-     legal questions into training data. Worse than the LangSmith leak: that
-     was retention, this would be absorption.
+WHAT IS STILL OWED
+  1. THE LLAMA CONTROL RUN — the one real risk outstanding. The tightened
+     citation prompts in legal_agent.py and rag_chain.py are now the SHIPPED
+     prompts and have ONLY ever been measured on Gemini. If the system is
+     pointed back at Ollama it runs a prompt nobody has tested on it.
+     20 questions (~5 min) is enough:
+       ./venv/bin/python -m scripts.eval --label answerable --out eval/results/control-llama.json
+     ASK ME FIRST — see the heat warning.
+
+  2. Decide the model properly once 1 is done. The measurement says llama.
+
+  3. Add an `errored` category to the eval scorer, so "Sorry, need more steps"
+     stops counting as a refusal (it currently scores as an abstention, which
+     for must_refuse/not_in_corpus is a PASS).
+
+  4. Store `sources` in the eval result rows — their absence is why fu-006
+     could not be replayed through the real policy gate offline.
+
+  5. Corpus breadth (Stage 4.1) is now the highest-value item. A real user
+     asked about someone cutting a tree on their property and got a correct
+     "I do not hold that" — the corpus has no land, property or tort law. The
+     refusal was right; the product was useless. That is content, not code.
 
 BEFORE YOU TRUST ANY COMPARISON — read RAG-REVIEW.md §4.19 and §4.20
   The eval harness had two defects that would have corrupted this exact
@@ -186,7 +202,7 @@ WORKING STYLE — learned the hard way over nine phases and five RAG stages
   - Run all five checks after every change set, from lawyer-finder-web/:
       npm run check:privilege   (41)
       npm run check:firm        (15)
-      npm run check:ai          (55)
+      npm run check:ai          (63)
       npm run check:billing     (21)
       npm run check:pdpa        (67)
     plus npm run build and npx tsc --noEmit. A green build proves none of

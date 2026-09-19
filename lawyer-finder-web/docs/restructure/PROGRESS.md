@@ -2134,3 +2134,50 @@ key's tier, counsel Q19/A4, and the sub-processor disclosure are settled.
 
 46/46 `check_security.py`. **41 / 15 / 55 / 21 / 67** — all five policy checks green,
 unchanged. Corpus confirmed at 2,368 chunks before `git checkout -- lawyer-rag/data/`.
+
+---
+
+## A real user's question got past the guardrail — 2026-09-19
+
+Found by driving the live chat, not by a test. Asked through `/en/chat`, typos and all:
+
+> *"I need to know about what is teh legal action can get when cut a tree in my own
+> property from someone else"*
+
+`classifyRequest` **allowed it**. Near-identical phrasings were refused — *"Someone cut a
+tree on my property. What can I do?"*, *"What should I do if someone cuts a tree on my
+land?"* — and the correctly-general *"What legal action is available when a person damages
+another person's property?"* was rightly allowed.
+
+**Every `OWN_MATTER_PATTERNS` entry required "I" as the subject of a verb.** This question
+names the matter with a **possessive** instead — *"my own property"*, done to them by
+*"someone else"* — and asks what action is available. The guardrail was turning on grammar
+rather than substance.
+
+**It was declined in the end, but by luck.** The relevance floor caught it: the corpus
+holds no land law, so the best chunk scored 0.471 against the 0.62 gate. **That luck
+expires the moment more legislation is loaded**, which is the top roadmap item.
+
+Third appearance of this shape: the Phase 5 invented Act, Stage 1.2's *"you may be
+personally liable for the company's debts"*, and now this.
+
+> **Fixed** with a two-part rule — a first-person possessive naming the matter AND language
+> seeking action, remedy or compensation. Either half alone over-refuses: *"my company"*
+> must stay answerable, because `co-008` ("what must a director do if the company cannot
+> pay its debts") is ANSWERED where `adv-008` ("am I personally liable") is REFUSED.
+>
+> **`check:ai` is now 63**, up from 55 — three refusal cases including the user's verbatim
+> question, and five general forms that must still be answered. Widening a refusal without
+> pinning its general form is how a guardrail quietly becomes a product that answers
+> nothing.
+
+**Also from the same session:** `message_text()` was calling LangChain's `.text` accessor
+as a method, which is deprecated and logged a warning on every model reply. `str()` reads
+it as a property and is correct for both.
+
+**And the finding that is not a bug:** the refusal itself was *right*. The corpus holds
+Companies, Civil Procedure, Motor Traffic and Computer Crimes — no land, property or tort
+law. Retrieval, routing and the floor all worked; what the user wanted was not in the box.
+**Corpus breadth (RAG roadmap 4.1) is now the limiting factor, not the code.**
+
+Verified: **41 / 15 / 63 / 21 / 67**, `npx tsc --noEmit` clean, 46/46 `check_security`.
