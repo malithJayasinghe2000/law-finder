@@ -283,38 +283,99 @@ false, and read as the assistant having lost the legislation it had just quoted.
 The false message is fixed (`FOLLOW_UP_WITHOUT_CONTEXT` now says the true thing and invites
 them to sign in). The underlying limitation is not.
 
-> **DECISION NEEDED — this is a product call, not an engineering one.** Three options:
-> **(a)** leave it, and let the honest message do the work — cheapest, and the guest chat
-> stays a single-shot lookup; **(b)** store guest conversations server-side against a
-> cookie id — needs a schema change and a retention rule, since an anonymous chat is still
-> personal data under the PDPA; **(c)** accept client-supplied history for guests — do NOT
-> do this without thought, it reopens the steering risk the current design exists to close.
+> **DECIDED 2026-09-14 — (a), leave it.** The owner made the call: the guest chat stays a
+> single-shot lookup and the honest `FOLLOW_UP_WITHOUT_CONTEXT` message does the work.
 >
-> My recommendation is **(a) until there is evidence guests want a conversation**, then
-> **(b)**. Never (c).
+> The two roads not taken, recorded so the decision does not have to be re-argued:
+> **(b)** store guest conversations server-side against a cookie id — a real conversation,
+> but it needs a schema change, a retention rule and a privacy-notice line, because an
+> anonymous chat about a legal problem is still personal data under the PDPA;
+> **(c)** accept client-supplied history for guests — **never do this.** It reopens the
+> exact steering risk the current design exists to close: a client that can fabricate
+> history can walk the model past its own refusals.
+>
+> **Revisit at (b) if there is ever evidence guests want a conversation.** There is none
+> today — one user hit the limitation once, and what they actually hit was the false
+> message, which is fixed.
 
-### E1. 🟠 Three different models are configured in three files
+### E1. 🟠 Settle the AI model — **half done 2026-09-14**
 
-| File | Model |
-| --- | --- |
-| `app/config.py` default | `qwen3.5:9b` |
-| `.env.example` | `gemma4:e2b` |
-| `.env` (actual) | `llama3.2:3b`, with `USE_GROQ=false` |
+The old version of this item said three files named three different models and nobody could
+say which one answered a legal question. **That half is fixed.**
 
-**Nobody can say which model answers a legal question**, and the one actually running is a
-**3-billion-parameter local model**. This is the weakest link in the AI story: it is
-precisely this class of model that produced the invented *"Employment (Amendment) Ordinance
-No. 14 of 2017"* caught in Phase 5.
+`LLM_PROVIDER` and `LLM_MODEL` in `lawyer-rag/.env` are now the only place either is named.
+`config.py` reads them, `app/core/llm.py` builds the client, and an unknown provider or a
+missing key is a **startup** failure in the gunicorn master rather than a failure on the
+first question a user asks. `README.md` and `RUNNING.md` now read the name out of `.env`
+rather than repeating it, so they cannot drift again.
 
-The policy layer does its job — it withholds uncited and advice-shaped answers server-side.
-But a weak model means most answers get withheld, and the feature quietly becomes useless
-rather than unsafe.
+**The other half — measuring — has not happened.** No candidate has been run against the
+golden evaluation set. `qwen3.5:9b` was deferred (30–50 minutes of sustained local
+inference, on a machine that was overheating), and the hosted provider has never answered
+a single question, because there was no API key. `_build_google` is marked UNTESTED in its
+own docstring. **Building the seam is not measuring the candidate**, and this project has
+been bitten twice by work that existed with no caller.
 
-> **DECISION: settle on one model, configured in one place, and use a substantially more
-> capable hosted one.** The policy gate already runs server-side and the browser never
-> calls a model, so the provider is an implementation detail — but answer quality is not.
-> Measure it: run the 49 `check:ai` cases plus a set of real Sri Lankan legal questions
-> against candidates and compare withholding rates.
+The hosted provider is **Google Gemini**. Three preconditions before any real user reaches
+it, none of which is code — they are set out in full in
+`lawyer-rag/app/core/llm.py._build_google`:
+
+1. **Check which Gemini tier the key is on.** Google's free API tier is documented as using
+   submitted prompts to improve its products. That would make the text of real Sri Lankan
+   legal questions into training data — a worse outcome than the LangSmith leak Stage 0
+   closed, because that was *retention* by a vendor and this would be *absorption* into a
+   model.
+2. **A4 / counsel Q19** — the cross-border transfer basis is still unresolved.
+3. **Record the sub-processor** in [DATA-INVENTORY.md](./restructure/DATA-INVENTORY.md) and
+   disclose it in the privacy notice. Google is already a sub-processor here for OAuth and
+   Maps, and that does **not** carry over: an email address for a login and the facts of
+   someone's legal problem are different data for a different purpose.
+
+> **DECISION: finish the measurement before choosing.** Commands are in
+> [RAG-ROADMAP.md](../../lawyer-rag/docs/RAG-ROADMAP.md) §1.6. Running the 83-question set
+> through a hosted candidate is fine today and needs none of the three preconditions above
+> — they are authored test questions with no real person's data in them. **Measuring a
+> candidate is not deploying it.**
+>
+> Read `RAG-REVIEW.md` §4.19 and §4.20 before trusting any comparison: the evaluation
+> harness had two defects that would have corrupted this exact measurement, and it has a
+> noise floor of about ±2 questions that had never been quantified.
+
+### E1b. 🔴 Running on Gemini, against the measurement — two risks accepted 2026-09-19
+
+Stage 1.6 measured `gemini-3.6-flash` twice against the 83-question golden set. It came out
+**worse** than the `llama3.2:3b` it would replace: grounding 86.6% against 96.3%, 21.4% of
+the section numbers it cites were never retrieved, and it is ~3× slower (14.4s vs 5.0s
+median). Full numbers: [STAGE-1.6.md](../../lawyer-rag/eval/results/STAGE-1.6.md).
+
+**The decision was nonetheless to stay on Gemini for now and defer the llama control run.**
+That is the owner's call, made with the numbers in front of them, and it is recorded here
+rather than argued again. Two consequences follow, and neither is resolved:
+
+**(a) 🟠 The shipped system prompts have never been run against `llama3.2:3b`.**
+The citation rules in `legal_agent.AGENT_SYSTEM_PROMPT` and `rag_chain.SYSTEM_PROMPT` were
+tightened *because of* the Gemini result and measured only on Gemini. They are now the
+prompts the product ships. Point `LLM_PROVIDER` back at `ollama` and the live system runs a
+prompt nobody has measured on it. **A 20-question subset settles this in about five
+minutes.**
+
+**(b) 🔴 Gemini must not reach real users until three things are true**, none of which is
+code. They are set out in full in `lawyer-rag/app/core/llm.py._build_google`:
+
+1. **The key's tier is confirmed.** Google's free API tier is documented as using submitted
+   prompts to improve its products — which would turn the text of real Sri Lankan legal
+   questions into training data. Worse than the LangSmith leak Stage 0 closed: that was
+   *retention* by a vendor, this would be *absorption* into a model.
+2. **A4 / counsel Q19** — the cross-border transfer basis is unresolved.
+3. **The sub-processor is recorded** in [DATA-INVENTORY.md](./restructure/DATA-INVENTORY.md)
+   and disclosed in the privacy notice. Google is already a sub-processor here for OAuth and
+   Maps; that does **not** carry over. An email address for a login and the facts of
+   someone's legal problem are different data for a different purpose.
+
+> **DECISION: acceptable while this runs on localhost with authored test questions. Not
+> acceptable the day a real person asks it a real question.** Whichever way the model
+> question finally lands, (b) is the blocker — and (a) is thirty minutes of work that
+> removes an unknown from the system that is actually running today.
 
 ### E2. 🟠 Local Ollama inference will not deploy
 

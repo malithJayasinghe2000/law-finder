@@ -22,7 +22,7 @@ from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.messages import HumanMessage, AIMessage
 from langsmith import traceable
 
-from app.core.llm import get_llm
+from app.core.llm import get_llm, message_text
 from app.core.vectorstore import search_documents
 from app.core.graph_store import get_knowledge_graph
 from app.core.entity_extractor import extract_entities_regex
@@ -93,9 +93,18 @@ CITATION RULES:
 2. Cite the Act name and Section number for every proposition you state.
 3. NEVER cite an Act that does not appear in the LEGAL CONTEXT below, even if
    you believe it exists. An invented citation is worse than no answer.
-4. If the LEGAL CONTEXT does not answer the question, say exactly that and stop.
+4. THE SAME RULE APPLIES TO SECTION NUMBERS. Do not cite a section that is not
+   in the LEGAL CONTEXT below, even when the Act itself is there and even when
+   you are confident the section exists. "Section 207 of the Companies Act" is
+   a violation if the context contains only s.206 — the Act is real, s.207 may
+   be real, and the sentence still misleads, because a reader cannot tell the
+   difference between a section you read and one you remembered.
+5. Do not add related provisions, background or cross-references of your own.
+   Answer the question asked, from the context given, and stop. A short
+   grounded answer beats a thorough one that is partly from memory.
+6. If the LEGAL CONTEXT does not answer the question, say exactly that and stop.
    Do not fill the gap from memory.
-5. Distinguish Consolidated Acts from Amendment Acts.
+7. Distinguish Consolidated Acts from Amendment Acts.
 
 STYLE:
 - Plain language a non-lawyer can follow, without losing legal accuracy.
@@ -826,7 +835,7 @@ def _query_rag_linear(
     })
 
     response = llm.invoke(prompt)
-    answer = response.content
+    answer = message_text(response)
 
     # Step 7: Extract source citations.
     # These come from vector-store metadata, not from the model, so the model

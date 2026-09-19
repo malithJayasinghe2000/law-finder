@@ -93,6 +93,25 @@ def looks_like_refusal(answer: str) -> bool:
     return any(m in a for m in REFUSAL_MARKERS)
 
 
+def is_substantive(answer: str, resp: dict | None) -> bool:
+    """
+    Did the answer actually deliver legal content from the corpus?
+
+    True when retrieval returned sources AND the prose names at least one
+    section that was genuinely among them. That is a deliberately high bar: it
+    means the answer made a specific, checkable legal claim traceable to the
+    material the system holds. Nothing that does that is an abstention,
+    whatever sentence it happens to end on.
+    """
+    if not resp:
+        return False
+    sources = resp.get("sources") or []
+    if not sources:
+        return False
+    retrieved = {section_of(s) for s in sources} - {""}
+    return bool(set(PROSE_SECTION.findall(answer or "")) & retrieved)
+
+
 def looks_like_abstention(answer: str, resp: dict | None = None) -> bool:
     """
     Did it decline to answer for want of material?
@@ -101,16 +120,35 @@ def looks_like_abstention(answer: str, resp: dict | None = None) -> bool:
     returns `no_context: true` when nothing cleared it, which is a fact rather
     than an inference. The phrase markers are kept as a secondary check because
     the model can still abstain in its own words from inside the agent loop,
-    where no flag is set — but they are no longer the primary mechanism, and
-    they should not be tuned. If a case needs a new marker, the better fix is
-    usually for the service to report the outcome instead.
+    where no flag is set.
+
+    ── Why the substantive-answer escape hatch exists ─────────────────────────
+    A marker phrase is evidence, not proof, and one of them was producing false
+    failures on correct answers. Measured on co-013 ("How may a company alter
+    its articles of association?"), one run in four returns a complete, six-
+    source, correctly-cited answer that closes with "It is recommended that you
+    consult a qualified lawyer for specific advice" — a sentence every answer
+    here arguably SHOULD carry. The old rule read that closing as an abstention
+    and scored the question failed.
+
+    That is not a cosmetic scoring nit. It biases a model comparison in exactly
+    the wrong direction: a more capable, more safety-tuned model is MORE likely
+    to append a disclaimer, so it would be penalised for behaving better — and
+    Stage 1.6 exists to compare models. An instrument that rewards the answer
+    you do not want is worse than no instrument.
+
+    So: the structured flag is authoritative, and a phrase marker counts only
+    when the answer did not also deliver grounded legal content. A 900-character
+    answer citing six retrieved sections did not decline to answer.
     """
     if resp is not None and (
         resp.get("no_context") is True or resp.get("declined_advice") is True
     ):
         return True
     a = norm(answer)
-    return any(m in a for m in ABSTENTION_MARKERS)
+    if not any(m in a for m in ABSTENTION_MARKERS):
+        return False
+    return not is_substantive(answer, resp)
 
 
 # A citation as it appears in PROSE, e.g. "Section 14 of the Companies Act".
@@ -160,7 +198,17 @@ def score_one(q: dict, resp: dict) -> dict:
         "abstained": looks_like_abstention(answer, resp),
         "no_context_flag": bool(resp.get("no_context")),
         "declined_advice_flag": bool(resp.get("declined_advice")),
+        "substantive": is_substantive(answer, resp),
         "answer_preview": re.sub(r"\s+", " ", answer)[:180],
+        # The FULL answer, not just the preview. Two reasons, both learned the
+        # hard way this stage. First, a scoring rule that turns out to be wrong
+        # can then be re-applied to results already on disk instead of costing
+        # another 40-minute run — which is what the abstention-marker defect
+        # above would otherwise have cost. Second, a 180-character preview hides
+        # the end of the answer, and the end of the answer is exactly where the
+        # disclaimers that confused the scorer live. These are 83 authored test
+        # questions and their answers; no real person's data is stored here.
+        "answer": answer,
     }
 
     if resp.get("_error"):
@@ -326,11 +374,37 @@ def main() -> int:
         print("no questions matched")
         return 1
 
+    # ── Pre-flight: healthy, not merely answering ─────────────────────────
+    #
+    # This used to check only that /api/health responded at all. It does respond
+    # when the model host is down — with "degraded" — and the run then went ahead
+    # against a service that could not retrieve anything.
+    #
+    # Measured 2026-09-14: Ollama was stopped part-way through a run (a laptop
+    # getting hot, not a crash), and because embeddings come from Ollama too,
+    # every remaining question returned "I do not hold that legislation". The
+    # scorer read those as correct abstentions and reported REFUSAL CORRECTNESS
+    # 100%, not_in_corpus 17/17, must_refuse 15/15 — the best refusal numbers
+    # ever recorded by this harness, produced by a service that was answering
+    # nothing at all. It wrote that to a results file as a measurement.
+    #
+    # An outage must never be able to look like a good result.
     try:
-        requests.get(f"{BASE}/api/health", timeout=10)
+        health = requests.get(f"{BASE}/api/health", timeout=10).json()
     except requests.exceptions.RequestException:
         print(f"The RAG service is not answering on {BASE}.")
         print("Start it with: gunicorn -c gunicorn.conf.py wsgi:app")
+        return 2
+
+    if health.get("status") != "healthy":
+        services = health.get("services", {})
+        print(f"REFUSING TO RUN: /api/health reports {health.get('status')!r}.")
+        for name, s in services.items():
+            state = s.get("status") if isinstance(s, dict) else s
+            print(f"    {name:<16} {state}")
+        print("\n  A degraded service still answers every question — it just answers")
+        print("  them all with 'I do not hold that legislation', which this harness")
+        print("  would score as a perfect refusal rate. Fix the service, then run.")
         return 2
 
     print(f"\n{corpus_note()}\n")
@@ -358,6 +432,27 @@ def main() -> int:
     rows = []
     for i, q in enumerate(questions, 1):
         resp = ask(q["question"], history_for(q))
+
+        # ── Abort on an infrastructure failure; never score through one ────
+        #
+        # The pre-flight above catches a service that is already down. This
+        # catches the case that actually happened: healthy at the start, the
+        # model host stopped part-way, and every remaining question answered
+        # from a service that could no longer retrieve anything.
+        #
+        # A partial run is not a measurement, and the danger is that it does not
+        # look like one — the numbers come out plausible, and for the refusal
+        # categories they come out BETTER than a working service. So stop here
+        # and write nothing, rather than leave a results file that a later
+        # session would compare against in good faith.
+        if resp.get("_error"):
+            print(f"\n  ABORTED at question {i}/{len(questions)} ({q['id']}): "
+                  f"{resp['_error']}")
+            print("  The service failed mid-run. No results file has been written.")
+            print("  A half-finished run scores an outage as a refusal and reads")
+            print("  like a good one — check /api/health, then start again.")
+            return 3
+
         row = score_one(q, resp)
         rows.append(row)
         mark = "PASS" if row["pass"] else "FAIL"
@@ -402,6 +497,7 @@ def main() -> int:
 
     payload = {
         "run_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "provider": config.LLM_PROVIDER,
         "model": config.LLM_MODEL,
         "num_ctx": config.LLM_NUM_CTX,
         "top_k": config.TOP_K_RESULTS,
@@ -427,7 +523,7 @@ def main() -> int:
 
     if args.compare:
         prev = json.loads(Path(args.compare).read_text())
-        print("  vs " + args.compare)
+        print(f"  vs {args.compare}  ({prev.get('model', '?')} -> {payload['model']})")
         for k in ("recall_at_k", "citation_accuracy", "grounding", "refusal_correctness"):
             a, b = prev["summary"].get(k), summary.get(k)
             if a is None or b is None:
@@ -435,6 +531,50 @@ def main() -> int:
             delta = round(b - a, 3)
             arrow = "same" if delta == 0 else ("better" if delta > 0 else "WORSE")
             print(f"    {k:<20} {a} -> {b}   ({delta:+}) {arrow}")
+
+        # Latency is a quality measure here, not a footnote. The Next.js caller
+        # gives up at RAG_TIMEOUT_MS (60s), so an answer that arrives at 70s is
+        # not a slow answer, it is a failed one — and a median hides that
+        # entirely. Report the tail and count what the real caller would lose.
+        a_med, b_med = prev["summary"].get("median_seconds"), summary.get("median_seconds")
+        if a_med is not None and b_med is not None:
+            print(f"    {'median_seconds':<20} {a_med} -> {b_med}   "
+                  f"({round(b_med - a_med, 1):+}) {'WORSE' if b_med > a_med else 'better'}")
+        prev_rows = {r["id"]: r for r in prev["rows"]}
+        for tag, rows_ in (("was", prev["rows"]), ("now", rows)):
+            secs = sorted(r["seconds"] for r in rows_)
+            if not secs:
+                continue
+            p95 = secs[min(len(secs) - 1, int(len(secs) * 0.95))]
+            over = sum(1 for s in secs if s > 60)
+            print(f"    {tag} p95 {p95:>6.1f}s   slowest {secs[-1]:>6.1f}s   "
+                  f"over the caller's 60s timeout: {over}/{len(secs)}")
+
+        # Per-label, because an average can hold still while the two halves of
+        # it move in opposite directions — a model that answers more and
+        # refuses less scores about the same and is much worse.
+        print()
+        for label in sorted(set(summary["by_label"]) | set(prev["summary"]["by_label"])):
+            a_l = prev["summary"]["by_label"].get(label, {})
+            b_l = summary["by_label"].get(label, {})
+            print(f"    {label:<14} {a_l.get('pass_rate')}% -> {b_l.get('pass_rate')}%   "
+                  f"({a_l.get('passed')}/{a_l.get('n')} -> {b_l.get('passed')}/{b_l.get('n')})")
+
+        # Which questions actually flipped. "Nothing regressed" is the claim a
+        # model change has to survive, and it is not visible in an average: a
+        # run that fixes six questions and breaks five looks like +1.
+        gained = [r["id"] for r in rows
+                  if r["pass"] and r["id"] in prev_rows and not prev_rows[r["id"]]["pass"]]
+        lost = [r["id"] for r in rows
+                if not r["pass"] and r["id"] in prev_rows and prev_rows[r["id"]]["pass"]]
+        print(f"\n    fixed   ({len(gained)}): {', '.join(gained) or '—'}")
+        print(f"    broke   ({len(lost)}): {', '.join(lost) or '—'}")
+        if lost:
+            print("\n    regressions in detail:")
+            for r in rows:
+                if r["id"] in lost:
+                    print(f"      {r['id']:<8} {r['label']:<13} {r['question'][:60]}")
+                    print(f"               {r['answer_preview'][:110]}")
         print()
 
     return 0

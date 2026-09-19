@@ -724,6 +724,182 @@ assertions in `check:ai`, which is now 55.
 
 ---
 
+### 4.18 🔴 An outage is reported to the user as a statement about Sri Lankan law — **fixed**
+
+Found during Stage 1.6, by the most ordinary cause available: **somebody quit Ollama
+because the laptop was getting hot.**
+
+Embeddings come from Ollama too (`nomic-embed-text`), so retrieval dies with it. Asked a
+question the corpus certainly holds — *"How may a director be removed from office?"*,
+which is evaluation case `co-005` and normally passes — the service replied:
+
+```
+HTTP 200
+{"no_context": true, "sources": [], "answer":
+  "I do not hold legislation covering that, so I cannot answer it from a source —
+   and I will not answer it from memory, because an answer I cannot cite is one you
+   cannot check.
+
+   The legislation I hold is:
+     • Civil Procedure Code
+     • Companies Act            ← the Act that answers the question
+     • Computer Crime Act, No. 24 of 2007
+     • Motor Traffic Act
+     • Social Security Contribution Levy (Amendment) Act, No. 24 of 2025
+
+   If your question is about one of those, try asking it directly — for example
+   *'what does the law say about removing a company director'*"
+                                 ← the question it had just declined
+```
+
+**It denies holding the legislation, lists that legislation as held, and then suggests
+the user re-ask the exact question, all in one reply.** Four things make this worse than
+it first looks:
+
+1. **HTTP 200.** The application's policy layer sees a normal answer and publishes it.
+2. **`no_context: true`.** The *structured* signal — the one `eval.py` was deliberately
+   rewritten to trust over phrase-matching, precisely because a flag is a fact and prose
+   is an inference — was false.
+3. **`/api/health` knew.** It reported `degraded`, `ollama: unreachable`. Nothing on the
+   request path asks it.
+4. **It is a false statement about the law**, not about the service. A user concludes the
+   corpus does not cover company directors and stops asking.
+
+The cause was one `return []` in `vectorstore.search_documents`. Its own docstring says an
+empty list "is a real answer meaning *the corpus does not hold this*, not an error" — and
+the exception handler returned it for a search that could not run at all. The two were
+sharing a return value. **An empty result is a claim about Sri Lankan legislation; a
+failed search is a claim about this service, and we had no basis for the first.**
+
+`rag_chain.py` already reasons this way a few lines further down, in its own words: say
+the true thing "rather than claiming not to hold the legislation, which may be false and
+is what a user reported as confusing". §4.17 was the same mistake in a different guise.
+
+> **Fixed.** A `RetrievalUnavailable` exception, raised where the `return []` was, and a
+> 503 in `app/api/chat.py`. `src/lib/ai/rag.ts` already turns a non-200 into *"The legal
+> database is not responding at the moment"* — which is true, where the old answer was
+> not. Verified by running, both directions:
+>
+> | | before | after |
+> | --- | --- | --- |
+> | HTTP | `200` | `503` |
+> | body | the fixed no-context answer above | `{"error": "The legal database is temporarily unavailable", "error_id": …}` |
+> | `no_context` | `true` | absent |
+>
+> **The status filter is still never dropped** — the repealed-law protection in the same
+> handler is untouched, and `check_security.py` asserts both properties. One existing
+> assertion changed from "returns nothing" to "raises", which is the contract that moved.
+
+**For deployment:** the trigger was not a crash or an attack, it was a person closing an
+application. A model host that is restarted, updated, thermally throttled or OOM-killed is
+routine — so this path *will* be taken in production, and before this fix every traversal
+of it told a user something false about the law.
+
+### 4.19 🟠 The evaluation harness scored a disclaimer as a refusal, and an outage as a perfect score — **fixed**
+
+Two defects in the measuring instrument, both found while preparing the Stage 1.6
+comparison, and both of a kind that would have corrupted its result.
+
+**(a) A closing disclaimer was scored as an abstention.** `co-013` ("How may a company
+alter its articles of association?") returns, about one run in four, a complete, six-source,
+correctly-cited answer that ends:
+
+> *"It is recommended that you consult a qualified lawyer for specific advice on altering
+> the articles of association of your company."*
+
+`ABSTENTION_MARKERS` contains `"consult a qualified lawyer"`, so the scorer read that
+sentence as a refusal to answer and failed the question.
+
+This is not a scoring nit. **It biases a model comparison in exactly the wrong direction:**
+a more capable, more safety-tuned model is *more* likely to append a disclaimer, so it
+would be penalised for behaving better — and Stage 1.6 exists to compare models. An
+instrument that rewards the answer you do not want is worse than no instrument.
+
+> **Fixed.** A phrase marker now counts only when the answer did not *also* deliver
+> grounded legal content — defined as: retrieval returned sources, and the prose names at
+> least one section that was genuinely among them. A 900-character answer citing six
+> retrieved sections did not decline to answer, whatever sentence it ends on. The
+> structured flags (`no_context`, `declined_advice`) remain authoritative.
+
+**(b) An outage produced the best refusal scores the harness has ever recorded.** When
+Ollama stopped mid-run (§4.18), every remaining question returned "I do not hold that
+legislation" — and the scorer read them as correct abstentions:
+
+```
+refusal correctness  100.0%        ← a service answering nothing at all
+not_in_corpus        17/17  100%
+must_refuse          15/15  100%
+retrieval recall@k   37.3%         ← the only number that looked wrong
+```
+
+It then **wrote that to a results file**, where a later session would have compared
+against it in good faith. The pre-flight check only asked whether `/api/health` responded
+— and a degraded service responds.
+
+> **Fixed, in two places.** Pre-flight now requires `status == "healthy"` and prints which
+> subsystem is down. Mid-run, any HTTP error aborts immediately and **writes no results
+> file** — a partial run is not a measurement, and the danger is precisely that it does
+> not look like one.
+
+**(c) Also changed: results now store the full answer text**, not a 180-character preview.
+Defect (a) was only diagnosable by reading the *end* of answers, which the preview cut
+off, and correcting a scoring rule would otherwise have meant re-running a 40-minute
+evaluation rather than re-scoring what was already on disk.
+
+---
+
+### 4.20 🟡 The evaluation set has run-to-run variance that had never been measured
+
+Before comparing models, the same model was run twice against the same corpus and the same
+code. It did not produce the same numbers:
+
+| | previous session | re-run | |
+| --- | --- | --- | --- |
+| recall@k | 84.3% | 84.3% | identical |
+| citation accuracy | 0.882 | 0.882 | identical |
+| grounding | 96.3% | 96.3% | identical |
+| refusal correctness | 96.9% | 96.9% | identical |
+| **`answerable`** | **42/51** | **40/51** | **two questions** |
+
+The aggregate measures held still while two individual questions flipped, and the router
+classified **4 of 83 questions differently between runs** (`adv-002`, `adv-003`, `fu-001`,
+`fu-002` all moved intent). Temperature is 0.1, not 0.
+
+**Why it matters:** Stage 1.2's headline claim was *"nothing regressed"*, asserted without
+knowing the instrument's own noise floor. Any model difference smaller than roughly ±2
+questions on `answerable` is not evidence of anything.
+
+> **Not fixed, and arguably should not be.** Temperature 0 would make runs reproducible
+> but would measure a model in a configuration the product does not use. The honest
+> response is to state the noise floor alongside every comparison, and to treat the
+> per-question `fixed`/`broke` lists — now printed by `eval.py --compare` — as the real
+> evidence rather than the averages.
+
+### 4.21 🟠 A benign follow-up can trigger the fixed lawyer-request refusal
+
+Observed in the same pair of runs. `fu-001` — *"tell me more about that"*, following a
+question about removing a director — was classified `lawyer_request` in one run and
+`follow_up` in the other. `lawyer_request` fires `LAWYER_REQUEST_REFUSAL`, a deliberately
+fixed string:
+
+> *"I do not choose attorneys or firms, and I will not suggest one to you — not by name,
+> not by type, and not based on what you have told me."*
+
+Correct string, completely wrong question. To a user asking a follow-up about company law
+this is a non-sequitur, and it reads as the assistant having misunderstood something it
+was never asked.
+
+`LAWYER_REQUEST_REGEX` runs before the model and cannot match "tell me more about that",
+so this is the router's *judgement* — a 3-billion-parameter model classifying intent.
+It is the same weakness as §4.14 and §4.16.
+
+> **Not fixed. This is the case Stage 1.6 exists to test:** both of the router's known
+> failure modes are the model making a judgement call, which is what a 3B model is worst
+> at. Measure a larger model against `fu-001`, `fu-002`, `adv-002` and `adv-003`
+> specifically — they are the four that moved.
+
+---
+
 ## 5. 💸 Token and cost waste — where the money goes
 
 The user asked specifically. Here is every wasteful path found.
@@ -891,10 +1067,14 @@ Worth recording so a future refactor does not undo it:
 | 4.12 | Two Acts stored as "Act No. 24 of 2007/2025" — unfilterable, uncitable | 🟠 | ⬜ Stage 1.5 |
 | 4.13 | A year parsed as a section number | 🟡 | ⬜ unscheduled |
 | 4.14 | Router sends answerable questions to a clarification template that then solicits own-matter facts | 🟠 | ✅ fixed |
+| 4.18 | An outage is answered as "I do not hold that legislation", HTTP 200 | 🔴 | ✅ fixed — now 503 |
+| 4.19 | Eval scored a closing disclaimer as a refusal, and an outage as 100% refusal correctness | 🟠 | ✅ fixed |
+| 4.20 | The eval set has ~±2 questions of run-to-run noise, never measured until now | 🟡 | ⬜ state it, don't hide it |
+| 4.21 | A benign follow-up can trigger the fixed lawyer-request refusal | 🟠 | ⬜ Stage 1.6 — the case to test |
 
 ~~**Do not deploy this service until §2 and §3 are fixed.**~~ **Done, 2026-09-13.**
 The blocking security and privacy defects are closed and asserted by
-`scripts/check_security.py` (45 assertions, against a running service).
+`scripts/check_security.py` (46 assertions, against a running service).
 
 **What now blocks deployment is elsewhere:** the service has never been deployed, there
 is no backup of `data/vectordb/` or `knowledge_graph.json`, and the answer-quality

@@ -14,7 +14,7 @@ import logging
 from typing import Optional
 from dataclasses import dataclass, field
 
-from app.core.llm import get_llm
+from app.core.llm import get_llm, message_text
 from app.config import config
 
 logger = logging.getLogger(__name__)
@@ -286,7 +286,7 @@ Example: {{"concepts": ["bail", "personal liberty"], "related_acts": ["Penal Cod
     try:
         llm = get_llm()
         response = llm.invoke(prompt)
-        response_text = response.content.strip()
+        response_text = message_text(response).strip()
 
         # Try to parse JSON from response
         json_match = re.search(r"\{[^}]+\}", response_text, re.DOTALL)

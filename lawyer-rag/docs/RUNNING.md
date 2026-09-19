@@ -36,15 +36,24 @@ pip install -r requirements.txt
 
 ```bash
 ollama serve                      # leave running
-ollama pull llama3.2:3b           # whatever LLM_MODEL says — see the warning below
-ollama pull nomic-embed-text
+
+# Read the names from .env rather than typing them, so this page can never
+# disagree with what actually runs.
+ollama pull "$(grep '^LLM_MODEL=' .env | cut -d= -f2-)"
+ollama pull "$(grep '^EMBEDDING_MODEL=' .env | cut -d= -f2-)"
 ```
 
-> **Which model?** `LLM_MODEL` in `.env`, and nowhere else. The README, two config
-> files and a docstring used to name four different models between them. If you are
-> choosing one for real use, read `RAG-REVIEW.md` §4.7 first: the current default is a
-> 3-billion-parameter model, and it is the class of model that invented an Act in
-> Phase 5. Settling this is Stage 1.6.
+> **Which model?** `LLM_PROVIDER` and `LLM_MODEL` in `.env`, and nowhere else.
+> `config.py` reads them and `app/core/llm.py` builds the client. The README, two
+> config files and a docstring used to name four different models between them, so
+> nobody could say which one a user's question actually reached; Stage 1.6 settled
+> that, and the way it stays settled is that no other file names a model.
+>
+> **Only Ollama needs a pull.** `LLM_PROVIDER=google` uses a hosted API — and sends
+> the full text of every question out of Sri Lanka. That is a cross-border transfer
+> and an undisclosed sub-processor until someone discloses it. Read the
+> preconditions in `app/core/llm.py._build_google` first; they are not optional and
+> they are not code.
 
 ### 3. The service token — **required, the service will not start without it**
 

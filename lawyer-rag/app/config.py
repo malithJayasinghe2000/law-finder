@@ -68,9 +68,53 @@ CHAT_LOG_DIR.mkdir(parents=True, exist_ok=True)
 class Config:
     """Central configuration for the RAG system."""
 
-    # Ollama
+    # ── The chat model ────────────────────────────────────────────────────
+    #
+    # Two settings decide which model answers a legal question, and nothing
+    # else does. LLM_PROVIDER picks the client; LLM_MODEL names the model.
+    # app/core/llm.py builds it. There is no third place, on purpose: there
+    # were once five files naming four different models between them, and
+    # nobody could say which one a user's question actually reached.
+    #
+    #   ollama      local inference; the question never leaves the machine
+    #   google      hosted inference; the question leaves Sri Lanka — read the
+    #               preconditions in app/core/llm.py._build_google first
+    #
+    # The default is deliberately the local one. A hosted provider is a
+    # cross-border transfer of personal data and a sub-processor, and neither
+    # is a thing that should switch on because a variable was left unset.
+    # LLM_MODEL has NO default, deliberately, and the service refuses to start
+    # without it — the same treatment as RAG_SERVICE_TOKEN.
+    #
+    # A default here is a second place a model is named, and a second place is
+    # all it takes: this line used to say "qwen3.5:9b" while .env ran
+    # "llama3.2:3b", so the file that claimed to settle the question was itself
+    # one of four answers to it. A fallback that silently runs a different model
+    # from the one .env names is worse than a startup error, because the error
+    # is over in a second and the wrong model answers legal questions quietly.
+    LLM_PROVIDER: str = os.getenv("LLM_PROVIDER", "ollama").strip().lower()
+    LLM_MODEL: str = os.getenv("LLM_MODEL", "").strip()
+
     OLLAMA_BASE_URL: str = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-    LLM_MODEL: str = os.getenv("LLM_MODEL", "qwen3.5:9b")
+
+    # Read here rather than left to the SDK's own os.environ lookup, so that a
+    # missing key is a clear startup error naming the file to put it in rather
+    # than an authentication failure on the first question a user asks.
+    #
+    # This is a Generative Language API key. It is NOT the Google OAuth client
+    # secret or the Maps key in lawyer-finder-web/.env — same vendor, different
+    # credential, and a different lawful basis (see llm.py._build_google).
+    GOOGLE_API_KEY: str = os.getenv("GOOGLE_API_KEY", "")
+
+    # How long to wait on a hosted provider. The Next.js caller gives up at 60s
+    # (RAG_TIMEOUT_MS) and the gunicorn worker at 120s; waiting longer than
+    # either is waiting for a reply nobody is still listening for.
+    LLM_TIMEOUT_SECONDS: float = float(os.getenv("LLM_TIMEOUT_SECONDS", "90"))
+
+    # Embeddings are ALWAYS local, whichever chat provider is configured. The
+    # corpus was embedded with this model and the query must be embedded with
+    # the same one, so changing it invalidates data/vectordb and means a
+    # re-ingest and a fresh threshold sweep — see RETRIEVAL_MIN_SCORE below.
     EMBEDDING_MODEL: str = os.getenv("EMBEDDING_MODEL", "nomic-embed-text")
 
     # ChromaDB
@@ -220,3 +264,38 @@ class Config:
 
 
 config = Config()
+
+
+# ---------------------------------------------------------------------------
+# Fail fast on a provider this service cannot build
+# ---------------------------------------------------------------------------
+# gunicorn.conf.py imports this module in the master process before it binds, so
+# raising here is a clean startup failure with a readable message — the same
+# mechanism that makes a missing RAG_SERVICE_TOKEN refuse to start rather than
+# crash-loop workers behind an open port.
+#
+# Without this, LLM_PROVIDER=anthropi (one typo) is a service that starts,
+# reports healthy, accepts the question, and only then fails — by which time the
+# person's question has already been sent to the process that cannot answer it.
+_VALID_LLM_PROVIDERS = ("ollama", "google")
+
+if not config.LLM_MODEL:
+    raise RuntimeError(
+        "LLM_MODEL is not set. Which model answers a legal question is not a "
+        "thing this service will guess at, so there is no default — set it in "
+        "lawyer-rag/.env. See .env.example."
+    )
+
+if config.LLM_PROVIDER not in _VALID_LLM_PROVIDERS:
+    raise RuntimeError(
+        f"LLM_PROVIDER={config.LLM_PROVIDER!r} is not a provider this service "
+        f"knows. Valid values: {', '.join(_VALID_LLM_PROVIDERS)}. Set it in "
+        "lawyer-rag/.env."
+    )
+
+if config.LLM_PROVIDER == "google" and not config.GOOGLE_API_KEY:
+    raise RuntimeError(
+        "LLM_PROVIDER=google but GOOGLE_API_KEY is not set in lawyer-rag/.env. "
+        "It is a Generative Language API key, not the OAuth or Maps credential. "
+        "If you meant to run locally, set LLM_PROVIDER=ollama."
+    )

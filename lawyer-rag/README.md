@@ -29,11 +29,15 @@ It is called **only** by the Next.js application server, which applies
 
 1. **Python 3.11+** installed
 2. **Ollama** installed and running (`https://ollama.com`)
-3. Pull the models named in your `.env`:
+3. Pull the models named in your `.env` — read the names from it rather than
+   copying them from here, so this file can never disagree with what runs:
    ```bash
-   ollama pull llama3.2:3b     # whatever LLM_MODEL says
-   ollama pull nomic-embed-text
+   ollama pull "$(grep '^LLM_MODEL=' .env | cut -d= -f2-)"
+   ollama pull "$(grep '^EMBEDDING_MODEL=' .env | cut -d= -f2-)"
    ```
+   (Only needed when `LLM_PROVIDER=ollama`. A hosted provider pulls nothing —
+   but it sends every question out of Sri Lanka, so read the preconditions in
+   `app/core/llm.py` before setting one.)
 
 ### Setup
 

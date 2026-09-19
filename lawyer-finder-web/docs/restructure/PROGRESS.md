@@ -1947,3 +1947,190 @@ signed out.
 honest message is a mitigation rather than a fix. Storing guest conversations server-side
 needs a schema change; accepting client-supplied history would reopen the steering risk the
 current design exists to close. **Needs a decision.**
+
+---
+
+## RAG Stage 1.6 — settle the model — ⚠️ **HALF DONE 2026-09-14**
+
+**The seam is built. Nothing has been measured.** Be precise about which half, because the
+half that remains is the half the stage is named after.
+
+### Done — one model, named in one place
+
+`LLM_PROVIDER` + `LLM_MODEL` in `lawyer-rag/.env` are now the only place either is named.
+`config.py` reads them; `app/core/llm.py` builds the client; `_BUILDERS` makes adding a
+third provider obvious. An unknown provider or a missing API key is a **startup** failure
+raised in the gunicorn master before it binds — not a failure on the first question a user
+asks. `README.md` and `docs/RUNNING.md` now read the model name out of `.env`
+(`ollama pull "$(grep '^LLM_MODEL=' .env | cut -d= -f2-)"`) instead of repeating it, so the
+four-names-in-five-files drift cannot recur.
+
+`check_security.py` was made provider-*aware* rather than provider-blind. `num_ctx` has no
+hosted analogue — a hosted API errors on context overflow where Ollama silently truncates,
+which is the exact failure `num_ctx` exists to prevent — so the hosted branch asserts
+`max_tokens`, a request timeout and bounded retries instead. Deleting the assertion would
+have been the easy way to make it pass.
+
+### Not done — no candidate was run
+
+`qwen3.5:9b` was deferred: 30–50 minutes of sustained local inference on a machine that was
+overheating. The hosted provider has **never answered a single question** — there was no
+API key — and `_build_google` says UNTESTED in its own docstring. **Building the seam is
+not measuring the candidate**, and this project has twice shipped work with no caller.
+
+The hosted provider is **Google Gemini**, chosen because that is the key that will exist.
+`langchain-google-genai` is now in `requirements.txt`; it had been living in one
+developer's venv and in nobody's requirements — the state in which a dependency appears to
+work until a fresh checkout. Two Gemini defaults had to be overridden: `temperature`
+defaults to **0.7** where this system wants 0.1, and `max_retries` defaults to **six**,
+which against a 90s timeout could spend minutes on a request the Next.js caller abandoned
+at 60 seconds.
+
+### 🔴 A live defect found on the way, and fixed — an outage was answered as a fact about the law
+
+Somebody quit Ollama because the laptop was getting hot. Embeddings come from Ollama too,
+so retrieval died with it, and the service answered *"How may a director be removed from
+office?"* — which the corpus certainly holds; it is evaluation case `co-005` — with:
+
+> *"I do not hold legislation covering that… The legislation I hold is: Civil Procedure
+> Code, **Companies Act**, … If your question is about one of those, try asking it directly
+> — for example 'what does the law say about removing a company director'"*
+
+It denied holding the legislation, listed that legislation as held, and suggested re-asking
+the question it had just declined — **over HTTP 200, with `no_context: true`**, so the
+structured signal was false too and the policy layer published it. `/api/health` knew
+(`degraded`, `ollama: unreachable`); nothing on the request path asked it.
+
+One `return []` was the cause: an empty result meant both "the corpus holds nothing" and
+"the search could not run". **The first is a claim about Sri Lankan legislation; the second
+is a claim about this service.** Fixed with a `RetrievalUnavailable` exception and a 503 —
+which `src/lib/ai/rag.ts` already turns into *"The legal database is not responding at the
+moment"*, a message that is true where the old one was not. The repealed-law protection in
+the same handler is untouched and still asserted.
+
+**Worth remembering for deployment:** the trigger was a person closing an application, not
+a crash or an attack. A model host that is restarted, updated, thermally throttled or
+OOM-killed is routine, so this path will be taken in production.
+
+### 🟠 And three defects in the measuring instrument itself
+
+All three would have corrupted the very comparison this stage exists to make.
+
+1. **A closing disclaimer was scored as a refusal.** `co-013` returns, one run in four, a
+   complete six-source correctly-cited answer ending *"It is recommended that you consult a
+   qualified lawyer"* — and `"consult a qualified lawyer"` is an abstention marker, so a
+   correct answer was failed. **This biases a model comparison in exactly the wrong
+   direction:** a more capable, more safety-tuned model appends disclaimers more often, so
+   it would be punished for behaving better. Fixed: a marker now counts only when the
+   answer did not also deliver grounded legal content.
+2. **An outage scored 100% refusal correctness and wrote a results file.** When Ollama
+   stopped mid-run, every remaining question returned "I do not hold that legislation" and
+   the scorer read them as correct abstentions — `not_in_corpus` 17/17, `must_refuse`
+   15/15, the best refusal numbers this harness has ever produced, from a service answering
+   nothing at all. Fixed: pre-flight requires `/api/health` to say `healthy` rather than
+   merely to respond, and any mid-run HTTP error aborts and writes **nothing**.
+3. **The evaluation's own noise had never been measured.** Same model, same corpus, same
+   code, run twice: aggregate measures identical, but `answerable` moved 42/51 → 40/51 and
+   the router classified **4 of 83 questions differently**. Stage 1.2's "nothing regressed"
+   was asserted without knowing this. **Any difference below ~±2 questions is not
+   evidence.** `--compare` now prints per-question `fixed`/`broke` lists, p95 latency and
+   how many answers would land past the caller's 60s timeout.
+
+Results files now also store the **full answer text**, not a 180-character preview — defect
+(1) was only diagnosable by reading the end of answers, and a scoring change should mean
+re-scoring what is on disk rather than re-running a 40-minute evaluation.
+
+### 🟠 Still open — the case Stage 1.6 exists to test
+
+A benign follow-up can trigger the fixed lawyer-request refusal. `fu-001` — *"tell me more
+about that"*, after a question about removing a director — was classified `lawyer_request`
+in one run and `follow_up` in the other, and `lawyer_request` fires *"I do not choose
+attorneys or firms…"*. Correct string, entirely wrong question. The regex runs before the
+model and cannot match those words, so this is the 3B model's judgement — the same weakness
+as §4.14 and §4.16. `fu-001`, `fu-002`, `adv-002` and `adv-003` are the four questions
+whose routing moved, so they are where a larger model should show up first.
+
+### Verified
+
+**46/46** `check_security.py` against the live service, including the one assertion whose
+contract changed (from "returns nothing" to "raises"). **41 / 15 / 55 / 21 / 67** — all
+five policy checks green, unchanged, as expected since no web code was touched. The 503 fix
+was verified by running it in both directions, service up and service down. The corpus was
+confirmed unchanged at 2,368 chunks before `git checkout -- lawyer-rag/data/`.
+
+### Decided this session
+
+**OPEN-ITEMS E0b — a signed-out guest does not get a conversation.** Option (a): the guest
+chat stays a single-shot lookup and the honest `FOLLOW_UP_WITHOUT_CONTEXT` message does the
+work. Revisit at option (b) — server-side guest conversations against a cookie id, with a
+retention rule and a privacy-notice line — only if evidence appears that guests want one.
+Option (c), client-supplied history, is never to be built: it reopens the steering risk the
+current design exists to close.
+
+---
+
+## RAG Stage 1.6 — the measurement — 2026-09-19
+
+`gemini-3.6-flash`, two full runs of the 83-question golden set. Full write-up:
+[lawyer-rag/eval/results/STAGE-1.6.md](../../../lawyer-rag/eval/results/STAGE-1.6.md).
+
+**The result: the hosted model is worse.**
+
+| | `llama3.2:3b` | Gemini run 1 | Gemini run 2 (tighter prompts) |
+| --- | --- | --- | --- |
+| **grounding** | **96.3%** | 82.9% | **86.6%** |
+| ungrounded sections cited | — | 28.4% | 21.4% |
+| `answerable` | 82.4% | 78.4% | 82.4% |
+| `must_refuse` | 93.3% | 86.7% | 86.7% |
+| median latency | **5.0s** | 16.4s | 14.4s |
+
+Grounding is the number that matters and the one that is directly comparable across the
+scorer fix. **Gemini cites sections that were never retrieved** — 21.4% of everything it
+names, even after the prompt fix.
+
+### Why, and what was done about it
+
+Run 1's failures were the **long** answers: the 14 that failed grounding averaged 2,425
+characters and 3.6 cited sections, against 1,008 and 0.8 for the 68 that passed. A stronger
+model writes a better-organised, more thorough reply, and the extra thoroughness comes out
+of its own memory rather than the corpus.
+
+Both system prompts had the same hole, and it was a reasonable one: `rag_chain`'s rule 3
+forbade citing an **Act** not in context — written against the Phase 5 invented-Act failure
+— and said nothing about **section numbers**. The agent prompt, which is the default path,
+had one line of citation guidance. Both now constrain what may be cited *and how much may
+be said*, because those turned out to be one problem.
+
+That recovered ~a quarter of the grounding gap and levelled `answerable`. It did not change
+the verdict.
+
+> **The architecture held throughout.** `findUnsupportedProseCitations` withholds ungrounded
+> answers server-side, so no user is misled. The cost is that the feature *degrades* — a
+> better-sounding model gets withheld more often. E1 predicted this for a **weak** model; it
+> is true of a **verbose** one too.
+
+### Two integration defects that would have shipped
+
+**Gemini 3.x returns `content` as a list of blocks, not a string.** `rag_chain` put the list
+straight into `answer`, and the Next.js side fails closed
+(`typeof payload.answer === 'string' ? … : ''`) — so **every answer would have rendered
+empty**. Separately, `query_router` called `.content.strip()`, which raises on a list, was
+caught by a broad `except`, and silently returned the **default intent** — routing stopped
+working without failing. Fixed by `message_text()` in `app/core/llm.py`, 7 call sites; it
+drops reasoning blocks, because a reasoning trace is not an answer.
+
+**`AGENT_MAX_ITERATIONS=10` was tuned for llama.** Gemini plans in more tool calls and
+returned "Sorry, need more steps to process this request" — a config failure that the eval
+scored as a model failure. Raised to 18; still hits it on ~3 of 83.
+
+### Decided, and the risks accepted
+
+**Stay on Gemini for now; defer the llama control run.** Recorded as OPEN-ITEMS **E1b**,
+with two open consequences: the tightened prompts are now the *shipped* prompts and have
+never been measured against `llama3.2:3b`; and Gemini must not reach real users until the
+key's tier, counsel Q19/A4, and the sub-processor disclosure are settled.
+
+### Verified
+
+46/46 `check_security.py`. **41 / 15 / 55 / 21 / 67** — all five policy checks green,
+unchanged. Corpus confirmed at 2,368 chunks before `git checkout -- lawyer-rag/data/`.

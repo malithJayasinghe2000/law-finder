@@ -253,11 +253,122 @@ recoverable — that is luck, not a backup strategy. See Stage 3.
 One cached call to `get_all_document_names()`, injected into both system prompts and the
 router's valid filters. Ingesting an Act then works without editing four files.
 
-### 1.6 Settle the model
+### 1.6 Settle the model — ⚠️ **MEASURED 2026-09-19, not yet settled**
 
-Pick one, name it in one place, delete the other three references. Then measure candidates
-against the golden set — a 3B model is very unlikely to survive the comparison, and the
-default path depends on reliable tool-calling that small models do poorly.
+> **Update 2026-09-19.** The measurement half is now done for one hosted candidate.
+> `gemini-3.6-flash` was run twice against the golden set and came out **worse** than the
+> `llama3.2:3b` it would replace — grounding 86.6% vs 96.3%, 21.4% of cited sections never
+> retrieved, ~3× slower. Tightening the citation prompts recovered about a quarter of the
+> grounding gap and levelled `answerable`, but did not change the verdict. Full write-up
+> and both runs: [eval/results/STAGE-1.6.md](../eval/results/STAGE-1.6.md).
+>
+> **The decision was to stay on Gemini for now and defer the llama control run** — recorded,
+> with the two risks that carries, as OPEN-ITEMS **E1b**. The llama control is still owed:
+> the tightened prompts are the shipped prompts and have only ever been measured on Gemini.
+>
+> Everything below this line was written on 2026-09-14 and describes the seam, which is
+> unchanged and correct.
+
+Two halves, and only one of them is done. Be precise about which, because the half that
+remains is the half the stage is named after.
+
+**✅ Done — the model is named in one place, and the seam for a hosted one exists.**
+
+| | |
+| --- | --- |
+| `LLM_PROVIDER` + `LLM_MODEL` in `.env` | the only place either is named |
+| `config.py` | reads them; unknown provider or a missing key is a **startup** failure, raised in the gunicorn master before it binds — not on the first question a user asks |
+| `app/core/llm.py` | builds the client; `_BUILDERS` makes adding a third provider obvious |
+| `README.md`, `docs/RUNNING.md` | now read the name out of `.env` (`ollama pull "$(grep …)"`) instead of repeating it |
+
+`check_security.py` is provider-aware rather than provider-blind: `num_ctx` has no hosted
+analogue — a hosted API *errors* on context overflow where Ollama silently truncates,
+which is the failure `num_ctx` exists to prevent — so the hosted branch asserts
+`max_tokens`, a request timeout and bounded retries instead. Deleting the assertion would
+have been the easy way to make it pass. 46 assertions, 0 failures.
+
+**❌ Not done — nothing has been measured.** No candidate has been run against the golden
+set. `qwen3.5:9b` was not run (a 30–50 minute sustained inference load, deferred on the
+owner's hardware), and the hosted provider has **never answered a single question** —
+there was no API key. `_build_google` is marked UNTESTED in its own docstring. **Building
+the seam is not measuring the candidate**, and this project has been bitten twice by work
+that existed with no caller.
+
+**The hosted provider is Google Gemini**, not Anthropic — chosen because that is the key
+that will exist. `langchain-google-genai` is now in `requirements.txt`; it had been
+sitting in one developer's venv and in nobody's requirements, which is the state in which
+a dependency appears to work until a fresh checkout.
+
+> **Two Gemini defaults had to be overridden and are worth knowing:** `temperature`
+> defaults to **0.7** where this system wants 0.1, and `max_retries` defaults to **six** —
+> which against a 90s timeout could spend many minutes on a request the Next.js caller
+> abandoned at 60 seconds.
+
+#### Before pointing it at a real user — not code, and not optional
+
+Hosted inference sends the full text of every question out of Sri Lanka. That is the same
+shape of transfer as the LangSmith leak Stage 0 closed, with one difference: a tracing
+vendor received the data for observability nobody needed, whereas a model provider
+receives it because there is no assistant without it. **Necessary is not the same as
+lawful.**
+
+1. **Check which Gemini tier the key is on.** Google's free API tier is documented as
+   using submitted prompts to improve its products. For this service that would mean the
+   text of real Sri Lankan legal questions becoming training data — worse than the
+   LangSmith leak, because that was *retention* by a vendor and this is *absorption* into
+   a model. Verify against the key in use.
+2. **OPEN-ITEMS A4 / counsel Q19** — the cross-border basis is unresolved.
+3. **Record the sub-processor** in `DATA-INVENTORY.md` and disclose it in the privacy
+   notice. This product already uses Google for OAuth and Maps; that does **not** carry
+   over. An email address for a login and the facts of a legal problem are different data
+   for a different purpose.
+
+Running `eval/questions.yaml` through it is fine and needs none of the above: 83 authored
+test questions, no real person's data. **Measuring a candidate is not deploying it.**
+
+#### What the preparation found — read before trusting any comparison
+
+Three things about the *instrument*, all of which would have corrupted the comparison:
+
+- **The evaluation has a noise floor of about ±2 questions** on `answerable`, and the
+  router classifies ~4 of 83 questions differently between identical runs (§4.20). Stage
+  1.2's "nothing regressed" was asserted without knowing this. Treat the per-question
+  `fixed`/`broke` lists that `--compare` now prints as the evidence, not the averages.
+- **A closing disclaimer was scored as a refusal** (§4.19a) — which would have penalised a
+  better-behaved model for behaving better. Fixed.
+- **An outage scored 100% refusal correctness and wrote a results file** (§4.19b). Fixed:
+  pre-flight requires `healthy`, and any mid-run HTTP error aborts and writes nothing.
+
+And one about the *service*: **§4.18 — when retrieval is down the assistant told users it
+held no legislation on questions it does hold**, over HTTP 200, with `no_context: true`.
+Fixed; it is a 503 now. Found because somebody quit Ollama to stop a laptop overheating,
+which is worth remembering as a production scenario rather than a lucky accident.
+
+#### To finish this stage
+
+```bash
+# 1. the control — the reference was deleted, because an outage had contaminated it
+./venv/bin/python -m scripts.eval --out eval/results/control-llama3.2-3b.json
+
+# 2. the local candidate
+#    LLM_PROVIDER=ollama, LLM_MODEL=qwen3.5:9b in .env, restart, then:
+./venv/bin/python -m scripts.eval --out eval/results/qwen3.5-9b.json \
+    --compare eval/results/control-llama3.2-3b.json
+
+# 3. the hosted candidate, once a key exists
+#    LLM_PROVIDER=google, LLM_MODEL=<model>, GOOGLE_API_KEY=<key>
+./venv/bin/python -m scripts.eval --out eval/results/gemini.json \
+    --compare eval/results/control-llama3.2-3b.json
+```
+
+Watch **latency as well as quality** — `--compare` now prints p95, the slowest question,
+and how many answers would land past the Next.js caller's 60s timeout, because a median
+hides exactly that cliff. And watch `fu-001`, `fu-002`, `adv-002`, `adv-003`: they are the
+four questions whose routing moved between identical runs, so they are where a better
+model should show up first (§4.21).
+
+**Do NOT re-tune `RETRIEVAL_MIN_SCORE`.** 0.62/0.50 are properties of the embedding model
+and the corpus, not of the chat model, and embeddings stay local on every provider.
 
 ---
 
@@ -364,7 +475,7 @@ feature.
 
 ```
 Stage 0  Security + the LangSmith leak                ✅ DONE 2026-09-13
-Stage 1  Evaluation set ✅ DONE; trust fixes 1.2-1.6 remain
+Stage 1  Eval set ✅; 1.2 ✅ 1.2c ✅; 1.6 seam ✅, Gemini measured (worse), llama control owed
 Stage 2  Hybrid search + reranking                    1–2 weeks
 Stage 3  Production serving                           1 week
 Stage 4  Corpus breadth, then the rest                ongoing

@@ -17,6 +17,20 @@ logger = logging.getLogger(__name__)
 _vectorstore_instance = None
 
 
+class RetrievalUnavailable(RuntimeError):
+    """
+    The corpus could not be searched — as distinct from holding no answer.
+
+    These two are not the same thing and must never share a return value. An
+    empty result set is a statement about Sri Lankan legislation ("we do not
+    hold that"); a failed search is a statement about this service ("ask again
+    later"). Collapsing the second into the first makes the assistant tell a
+    user that law it holds does not exist, in a fixed, confident string, over
+    HTTP 200 — which is what it did until this class existed. See the comment at
+    the raise site in search_documents.
+    """
+
+
 def get_vectorstore() -> Chroma:
     """
     Get or create a singleton ChromaDB vector store instance.
@@ -185,11 +199,51 @@ def search_documents(
             )
             return apply_relevance_floor(results, query=query) if apply_floor else results
         except Exception as e2:
+            # NOT an empty result. This used to `return []`, and an empty list
+            # means "the corpus does not hold this" — a statement of fact about
+            # the corpus that we have no basis for when the search could not run
+            # at all.
+            #
+            # Reproduced live, 2026-09-14, during Stage 1.6 — and reproduced by
+            # the most ordinary cause there is: somebody quit Ollama because the
+            # laptop was getting hot. Embeddings come from Ollama too, so
+            # retrieval goes down with it. Mid-evaluation the service answered
+            # "How may a director be removed from office?" — which IS in the
+            # corpus, it is eval case co-005 — with:
+            #
+            #   "I do not hold legislation covering that ... The legislation I
+            #    hold is: Civil Procedure Code, Companies Act, ..."
+            #
+            # listing the Companies Act as held in the same breath as denying it,
+            # then suggesting the user re-ask the exact question it had just
+            # declined. HTTP 200, and `no_context: true` — so the structured
+            # signal the evaluator trusts was false too. /api/health knew the
+            # truth (`degraded`, `ollama: unreachable`); nothing on the request
+            # path asked it.
+            #
+            # This is the same mistake the follow-up branch in rag_chain.py
+            # already guards against a few lines below, in its own words: say the
+            # true thing rather than claiming not to hold the legislation, "which
+            # may be false and is what a user reported as confusing".
+            #
+            # Worth keeping in mind for deployment: the trigger was not a crash
+            # or an attack, it was a person closing an application. A model host
+            # that is restarted, updated, thermally throttled or OOM-killed is
+            # routine, so this path will be taken in production, and every time
+            # it is taken the user is told something false about Sri Lankan law.
+            #
+            # The status filter is still NEVER dropped — see the comment above.
+            # We are not loosening the repealed-law protection, only refusing to
+            # report an outage as a fact about Sri Lankan legislation.
             logger.error(
-                f"Status-filtered search also failed ({e2}); returning no results "
-                "rather than searching unfiltered, which could surface repealed law"
+                f"Status-filtered search also failed ({e2}); retrieval is "
+                "UNAVAILABLE. Reporting this as an error rather than as an empty "
+                "corpus, which would tell the user we do not hold legislation we "
+                "do hold."
             )
-            return []
+            raise RetrievalUnavailable(
+                "the vector store could not be searched"
+            ) from e2
 
 
 def get_all_document_names() -> list[dict]:

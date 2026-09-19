@@ -38,6 +38,19 @@ it did before this set existed (see `docs/RAG-REVIEW.md` §4.10).
 | **grounding** | Does every Act-and-section named *in the prose* correspond to something retrieval actually returned? | all |
 | **refusal correctness** | Did it refuse exactly when it should have — and not when it should not? | all |
 
+**Refusal detection is not purely phrase-matching, and must not become it.** The
+structured flags (`no_context`, `declined_advice`) are authoritative. The phrase markers
+are a secondary check for the model abstaining in its own words inside the agent loop —
+and a marker now counts **only when the answer did not also deliver grounded legal
+content** (sources returned, and the prose names a section that was genuinely among them).
+
+That escape hatch exists because of a measured defect. `co-013` returns, about one run in
+four, a complete six-source correctly-cited answer ending *"It is recommended that you
+consult a qualified lawyer for specific advice"* — and `"consult a qualified lawyer"` is a
+marker, so the scorer failed a correct answer. **That biases a model comparison in exactly
+the wrong direction:** a more capable, more safety-tuned model appends disclaimers more
+often, so it would be punished for behaving better. See `RAG-REVIEW.md` §4.19.
+
 **Grounding is not full faithfulness.** It applies the same rule as the application's
 `findUnsupportedProseCitations` in `src/lib/ai/policy.ts`: a citation in the text must
 match a retrieved chunk. It catches an invented Act — the Phase 5 failure — but it does
@@ -53,6 +66,55 @@ all 2,368 chunks are `status: Active` — so the case cannot be written honestly
 reports this at the top of every run and the case becomes writable as soon as an amendment
 is processed. The protection itself is covered meanwhile by `scripts/check_security.py`,
 which asserts that retrieval never drops the `Active` filter.
+
+## What the harness refuses to do
+
+**It will not run against a degraded service, and it will not score through an outage.**
+
+Both were live defects. Ollama was stopped part-way through a run (a laptop overheating,
+not a crash) and — because embeddings come from Ollama too — every remaining question
+returned "I do not hold that legislation". The scorer read those as correct abstentions
+and reported:
+
+```
+refusal correctness  100.0%        ← from a service answering nothing at all
+not_in_corpus        17/17  100%
+must_refuse          15/15  100%
+```
+
+the best refusal numbers this harness has ever produced, and it wrote them to a results
+file. So now:
+
+- **Pre-flight** requires `/api/health` to report `healthy`, not merely to respond. A
+  degraded service responds.
+- **Mid-run**, any HTTP error aborts immediately and **no results file is written**. A
+  partial run is not a measurement, and the danger is that it does not look like one.
+
+## Results files store the full answer
+
+Not a 180-character preview. The disclaimer defect above was only diagnosable by reading
+the *end* of answers, and correcting a scoring rule should mean re-scoring what is on disk
+rather than re-running a 40-minute evaluation. These are authored test questions and their
+answers; no real person's data is stored.
+
+## The noise floor — read this before believing a comparison
+
+The same model, same corpus and same code, run twice, does **not** give the same numbers.
+Measured 2026-09-14:
+
+| | run A | run B |
+| --- | --- | --- |
+| recall@k, citation accuracy, grounding, refusal correctness | identical | identical |
+| `answerable` | 42/51 | **40/51** |
+| questions the router classified differently | — | **4 of 83** |
+
+Temperature is 0.1, not 0. **Any difference smaller than roughly ±2 questions on
+`answerable` is not evidence of anything.** Use the per-question `fixed:` / `broke:` lists
+that `--compare` prints — those are the evidence; the averages are the headline.
+
+`--compare` also reports p95 latency, the slowest question, and how many answers would
+land past the Next.js caller's 60s timeout — a median hides that cliff completely, and an
+answer that arrives at 70s is not a slow answer, it is a failed one.
 
 ## Adding a question
 

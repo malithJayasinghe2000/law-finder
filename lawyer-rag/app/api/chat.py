@@ -11,6 +11,7 @@ from flask import Blueprint, request, jsonify
 
 from app.config import config
 from app.core.rag_chain import query_rag
+from app.core.vectorstore import RetrievalUnavailable
 from app.utils.chat_logger import chat_logger
 from app.utils.errors import error_response
 
@@ -119,6 +120,26 @@ def chat():
         )
 
         return jsonify(result), 200
+
+    except RetrievalUnavailable as e:
+        # 503, not 200, and emphatically not an answer.
+        #
+        # When retrieval cannot run, the honest report is that this service is
+        # unavailable. The alternative — which is what happened before — is a
+        # confident fixed string telling the user we hold no legislation
+        # covering their question, which is a false statement about the law
+        # rather than about the service, and it arrives over HTTP 200 so the
+        # application's policy layer publishes it.
+        #
+        # 503 is already handled gracefully upstream: src/lib/ai/rag.ts turns a
+        # non-200 into "The legal database is not responding at the moment".
+        # That message is true. "I do not hold that legislation" was not.
+        return error_response(
+            e,
+            "The legal database is temporarily unavailable",
+            503,
+            context="chat retrieval",
+        )
 
     except Exception as e:
         # No "details" field. It carried str(e) — file paths, model names and

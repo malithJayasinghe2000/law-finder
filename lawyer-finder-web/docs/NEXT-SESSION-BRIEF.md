@@ -1,6 +1,6 @@
 # Next Session Brief
 
-> Written 2026-09-13. **Copy §1 into a new chat as your first message.**
+> Updated 2026-09-14. **Copy §1 into a new chat as your first message.**
 >
 > Update this file at the end of every session. A brief that points at work already done is
 > worse than no brief — the next session will trust it.
@@ -12,7 +12,8 @@
 ```
 I'm working on law-finder, a Sri Lankan legal platform under a legal restructure.
 Phases 0-8 are complete. On the AI service, RAG Stages 0, 1.1, 1.2 and 1.2c are
-complete. I need you to pick up where the last session left off.
+complete, and Stage 1.6 is HALF done. I need you to pick up where the last
+session left off.
 
 REPOSITORY LAYOUT
   law-finder/
@@ -28,10 +29,13 @@ READ THESE FIRST, IN THIS ORDER:
   3. lawyer-finder-web/docs/OPEN-ITEMS.md       every outstanding item, with a
                                                 decision on each
   4. lawyer-finder-web/docs/DIRECTION.md        what to do next and in what order
-  5. lawyer-rag/docs/RAG-ROADMAP.md             the staged plan for the AI
+  5. lawyer-rag/docs/RAG-ROADMAP.md             the staged plan for the AI —
+                                                READ 1.6, it is half done
   6. lawyer-rag/docs/RUNNING.md                 how to run the AI service —
                                                 READ THIS BEFORE STARTING IT
-  7. lawyer-rag/eval/results/STAGE-1.2.md       where answer quality stands
+  7. lawyer-rag/eval/README.md                  what the eval measures, what it
+                                                REFUSES to do, and its noise floor
+  8. lawyer-rag/docs/RAG-REVIEW.md §4.18-4.21   the four findings from last session
 
 ⚠️ IGNORE the four planning documents at the repository root
 (project_scope_and_vision.md, mvp_project_plan.md, developer_project_plan.md,
@@ -41,19 +45,23 @@ is unlawful in Sri Lanka and was removed. They are marked superseded. Building
 from them rebuilds the illegal product.
 
 GIT STATE
-Branch restructure-booking-flow. Everything is committed and the tree is clean.
-Two commits are NOT yet pushed (TOUR.md, and the multi-turn chat fix). Ask me
-before any destructive git command, and before pushing.
+Branch restructure-booking-flow. Three commits are NOT yet pushed, AND there are
+UNCOMMITTED changes in the working tree from the Stage 1.6 session (10 files in
+lawyer-rag/ plus docs in lawyer-finder-web/docs/). Nothing is committed for
+Stage 1.6 — review the diff before you build on it. Ask me before any
+destructive git command, and before pushing.
+
+⚠️ MY MACHINE OVERHEATS UNDER SUSTAINED LOCAL INFERENCE. I stopped Ollama
+mid-run last session for exactly this reason. Do NOT start a 30-50 minute local
+eval run without asking me first. The hosted path costs the machine nothing.
 
 HOW TO RUN IT
-  # web app
   cd lawyer-finder-web && npm run dev          # http://localhost:3000
   # if it says "Another next dev server is already running":
   #   kill <PID>  &&  rm -f .next/dev/lock  &&  npm run dev
 
-  # AI service, second terminal
   cd lawyer-rag && source venv/bin/activate
-  ollama serve &
+  ollama serve &                               # only if LLM_PROVIDER=ollama
   gunicorn -c gunicorn.conf.py wsgi:app        # http://127.0.0.1:5001
 
   Seeded logins are password123 — citizen@thelawyr.lk, lawyer@thelawyr.lk,
@@ -61,44 +69,67 @@ HOW TO RUN IT
 
 YOUR TASK THIS SESSION
 
-Stage 1.6 of lawyer-rag/docs/RAG-ROADMAP.md — settle the model, measured.
+Finish Stage 1.6 of lawyer-rag/docs/RAG-ROADMAP.md — the MEASUREMENT half.
 
-WHY THIS ONE. Retrieval and routing are fixed and the numbers moved a long
-way. What is left is JUDGEMENT, and judgement is what a 3-billion-parameter
-model is worst at. Two known problems are both the model thinking:
+WHAT IS ALREADY DONE (do not redo it)
+  - One model, named in ONE place: LLM_PROVIDER + LLM_MODEL in lawyer-rag/.env.
+    config.py reads them, app/core/llm.py builds the client. An unknown
+    provider or a missing key is a STARTUP failure in the gunicorn master.
+    README.md and RUNNING.md now read the name out of .env instead of
+    repeating it. Do not reintroduce a model name anywhere else.
+  - A hosted provider seam for Google Gemini (_build_google in llm.py).
+    It is marked UNTESTED because it is — no key existed, so it has never
+    answered a question.
+  - check_security.py is provider-aware: 46 passed, 0 failed.
 
-  - The ReAct agent rewrites the user's question into a WORSE one. A query
-    scoring 0.747 became a paraphrase scoring 0.604 (RAG-REVIEW.md 4.15).
-  - The intent router misclassifies real legal questions, including
-    follow-ups (4.14, 4.16).
+WHAT IS NOT DONE
+  NOTHING HAS BEEN MEASURED. No candidate has been run against the golden set.
 
-WHAT TO DO
+  1. The control run. The old reference file was DELETED because an outage
+     had contaminated it, and the scorer has since been fixed, so old results
+     are not comparable anyway. Re-establish it:
+       ./venv/bin/python -m scripts.eval --out eval/results/control-llama3.2-3b.json
+     ~15-25 min of local inference. ASK ME FIRST (see the heat warning).
 
-  1. qwen3.5:9b is already pulled locally. Set LLM_MODEL=qwen3.5:9b in
-     lawyer-rag/.env, restart the service, then:
-       ./venv/bin/python -m scripts.eval --compare eval/results/stage-1.2b.json
-     Watch LATENCY as well as quality — a 9B model on this hardware may
-     blow the Next.js caller's 60s timeout. Both numbers are printed.
-  2. Try at least one HOSTED model too. Stage 3 wants hosted inference
-     anyway: local Ollama needs a GPU host and is a second thing to
-     operate. The policy gate runs server-side and the browser never calls
-     a model, so the provider is an implementation detail — answer quality
-     is not.
-  3. WHICHEVER WINS: name it in ONE place. config.py reads LLM_MODEL and
-     app/core/llm.py builds the client. Do NOT put a model name in a
-     README or a docstring — there were four different ones in five files.
-  4. Save results as eval/results/<model>.json and write up the comparison
-     the way eval/results/STAGE-1.2.md does.
+  2. qwen3.5:9b — pulled locally. LLM_PROVIDER=ollama, LLM_MODEL=qwen3.5:9b,
+     restart, then --compare against the control. ~30-50 min. ASK ME FIRST.
 
-DO NOT re-tune RETRIEVAL_MIN_SCORE for a new LLM. The thresholds
-(0.62 / 0.50) are properties of the EMBEDDING model and the corpus, not the
-chat model. Changing the embedding model or the chunker means re-running the
-sweep, which is recorded in config.py. Changing the LLM does not.
+  3. Gemini — I will add GOOGLE_API_KEY to lawyer-rag/.env. It is a Generative
+     Language API key, NOT the OAuth/Maps credential already in
+     lawyer-finder-web/.env. Costs my machine nothing, so prefer this one.
+     CHECK WHICH TIER THE KEY IS ON FIRST — Google's free tier is documented
+     as training on submitted prompts, which for this service would turn real
+     legal questions into training data. Worse than the LangSmith leak: that
+     was retention, this would be absorption.
+
+BEFORE YOU TRUST ANY COMPARISON — read RAG-REVIEW.md §4.19 and §4.20
+  The eval harness had two defects that would have corrupted this exact
+  measurement, and a noise floor nobody had quantified:
+    - A closing "consult a qualified lawyer" was scored as a REFUSAL, which
+      penalises a better-behaved model for behaving better. Fixed.
+    - An outage scored 100% refusal correctness and wrote a results file.
+      Fixed: pre-flight demands /api/health == healthy, and any mid-run HTTP
+      error aborts and writes NOTHING.
+    - Same model, same corpus, two runs: answerable 42/51 vs 40/51, and the
+      router classified 4 of 83 questions differently. ANY DIFFERENCE BELOW
+      ~±2 QUESTIONS IS NOT EVIDENCE. Use the per-question fixed/broke lists
+      that --compare now prints, not the averages.
+
+  Watch fu-001, fu-002, adv-002, adv-003 specifically — those are the four
+  whose routing moved, so a better model should show up there first (§4.21).
+
+  Watch LATENCY too. --compare prints p95, the slowest question, and how many
+  answers land past the Next.js caller's 60s timeout. An answer at 70s is not
+  a slow answer, it is a failed one, and a median hides that cliff.
+
+DO NOT re-tune RETRIEVAL_MIN_SCORE. The thresholds (0.62 / 0.50) are
+properties of the EMBEDDING model and the corpus, not the chat model, and
+embeddings stay local on every provider.
 
 AFTER THAT, in roadmap order: 1.3 (carry retrieval results through — removes
 the duplicate searches 1.2 knowingly added), 1.4 (delete verify_answer_tool),
-1.4b (the knowledge-graph delete bug, 4.11), 1.5 (derive the corpus list at
-runtime, which also fixes 4.12 — two Acts are stored as "Act No. 24 of
+1.4b (the knowledge-graph delete bug, §4.11), 1.5 (derive the corpus list at
+runtime, which also fixes §4.12 — two Acts are stored as "Act No. 24 of
 2007/2025" and cost two evaluation answers outright).
 
 TWO THINGS ONLY I CAN DO — please remind me if I have not:
@@ -110,10 +141,7 @@ TWO THINGS ONLY I CAN DO — please remind me if I have not:
     lawyer-finder-web/docs/restructure/COUNSEL-MEETING-BRIEF.md is written
     and has been ready since Phase 6.
 
-ONE DECISION I OWE YOU: OPEN-ITEMS.md E0b — should a signed-out guest be
-able to hold a conversation with the assistant? Today they cannot.
-
-WORKING STYLE — learned the hard way over nine phases and four RAG stages
+WORKING STYLE — learned the hard way over nine phases and five RAG stages
   - Verify by RUNNING, not by reading. A green build has hidden an invalid
     SQL migration, a seed broken for two sessions, an AI citing an Act that
     does not exist, star ratings still being collected two phases after
@@ -122,27 +150,35 @@ WORKING STYLE — learned the hard way over nine phases and four RAG stages
     and then SIGSEGV'd every worker. Drive the actual app.
   - Reproduce a bug before you fix it. Stage 0 proved the path traversal,
     the error leak and the LAN bind against the running service first.
+    Stage 1.6 captured the outage-as-false-answer transcript before fixing
+    it, and then proved the 503 from both directions.
+  - THE MEASURING INSTRUMENT IS ALSO CODE, AND IT HAD BUGS. Before comparing
+    anything, ask what the scorer would do with an answer that is correct
+    but unusual, and what it would do if the service were simply down. Both
+    of those were wrong here, and both were silent.
+  - A failure that reads as a fact about the world is the worst kind. "I do
+    not hold that legislation" was a statement about Sri Lankan law when the
+    truth was "the model host is off". Never let an infrastructure failure
+    share a return value with a domain answer.
   - A test suite can be deep and narrow at once. The eval set was 76
-    questions and ONE TURN WIDE, and a user found a broken follow-up that
-    it could never have caught. When you fix a bug, ask what shape of test
-    was missing — not just what value was wrong.
+      questions and ONE TURN WIDE, and a user found a broken follow-up that
+      it could never have caught. When you fix a bug, ask what shape of test
+      was missing — not just what value was wrong.
   - A guardrail pattern that LOOKS right can still miss. "you may be
     personally liable for the company's debts" reached a real user: the
     regex had no room for the adverb and required liable "to", not "for".
-    When you widen one, add a case for the general form too — a check that
-    refuses both sides of a line is as broken as one that answers both.
+    When you widen one, add a case for the general form too.
   - When a test passes, ask whether it describes a real actor.
     check:privilege passed for five phases because a fixture called a
     paralegal actorRole: 'LAWYER' — a person who cannot exist.
   - A failing check is not automatically a failing rule. Check for a stale
     Prisma client (npm run db:generate) or a stale .next (rm -rf .next).
   - After removing a feature, grep for its callers. After fixing one route,
-    check its siblings. (The roadmap said "both upload paths". There were
-    three.)
+    check its siblings. (Changing search_documents' contract broke an
+    assertion in check_security.py — which is exactly what it is for.)
   - Never break a working flow to make a legal fix — replace before removing.
   - Schema changes ship as migrations: npm run db:migrate -- --name <name>.
-    Never prisma db push. Test a migration against a database seeded with
-    the data that would break it (scripts/tmp/mkdb.js makes a scratch DB).
+    Never prisma db push.
   - lawyer-rag/data/ is TRACKED IN GIT and running the service dirties it.
     Check /api/documents total_chunks before assuming data loss, then
     git checkout -- lawyer-rag/data/. It is also the only backup that
@@ -157,7 +193,12 @@ WORKING STYLE — learned the hard way over nine phases and four RAG stages
     the seven legal rules hold — that is what the checks are for.
   - For the AI service, from lawyer-rag/ with it running:
       ./venv/bin/python scripts/check_security.py                 (46)
-      ./venv/bin/python -m scripts.eval --compare eval/results/stage-1.2b.json
+      ./venv/bin/python -m scripts.eval --compare <a results file>
+    The eval count is data-dependent in one place: check_security's upload
+    loop fires once per probe file that lands, so a crashed earlier run that
+    skipped its own cleanup makes the next run report FEWER assertions. If
+    you see 43 instead of 46, clear data/uploads of PWNED/corrupt/
+    etc_passwd/tmp_pwned .pdf and run it again.
   - npm run db:reset is destructive and has been declined before.
   - Update the docs at the end of the session: PROGRESS.md for the main
     product, RAG-REVIEW.md / RAG-ROADMAP.md for the AI service, TOUR.md if
@@ -183,15 +224,32 @@ explain the reasoning in plain words afterwards.
 | **RAG Stage 1.2c** | Multi-turn chat, after a user found follow-ups broken |
 | **docs/TOUR.md** | The whole system, feature by feature, and why |
 
+### Done, and **NOT committed** — review the diff first
+
+| | |
+| --- | --- |
+| **RAG Stage 1.6 (the seam half)** | One model in one place; a Gemini provider seam, untested |
+| **§4.18 fixed** | An outage is no longer answered as a false statement about the law |
+| **§4.19 fixed** | Two evaluation-harness defects that would have corrupted the comparison |
+| **§4.20, §4.21 recorded** | The eval's noise floor, and a follow-up hitting the lawyer refusal |
+| **E0b decided** | Guests keep the single-shot chat — option (a) |
+
 ### The AI numbers
 
-| | baseline | now |
+**Unchanged since Stage 1.2c, because nothing was measured this session.** The last valid
+figures are from `eval/results/stage-1.2b.json` (llama3.2:3b, 83 questions):
+
+| | baseline | stage 1.2b |
 | --- | --- | --- |
 | retrieval recall@k | 63.0% | **84.3%** |
 | citation accuracy | 0.663 | **0.882** |
 | grounding | 91.8% | **96.3%** |
 | refusal correctness | 33.3% | **96.9%** |
 | `not_in_corpus` | 12.5% | **100%** |
+
+> ⚠️ Those were scored by the **old** scorer, which failed correct answers that ended in a
+> disclaimer (§4.19a). They are not directly comparable to anything measured from now on,
+> which is why the control run has to be redone rather than reused.
 
 ### Found and fixed along the way, worth remembering
 
@@ -200,8 +258,11 @@ explain the reasoning in plain words afterwards.
   needs revoking.**
 - A **live rule 6 violation in the main product** — *"you may be personally liable for the
   company's debts"* was published to a user. Neither policy layer caught it.
+- **An outage was reported to the user as a fact about Sri Lankan law** (§4.18). Fixed.
+- **The evaluation harness rewarded the wrong behaviour and scored an outage as perfect**
+  (§4.19). Fixed.
 - `DELETE /api/documents/<name>` **silently strips knowledge-graph entities from other
-  Acts** (`RAG-REVIEW.md` §4.11). Unfixed; back up before calling it.
+  Acts** (§4.11). Unfixed; back up before calling it.
 
 ### The five things that have not moved in nine phases
 

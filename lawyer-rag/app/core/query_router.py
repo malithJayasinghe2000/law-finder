@@ -2,7 +2,7 @@ import json
 import re
 import logging
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from app.core.llm import get_llm
+from app.core.llm import get_llm, message_text
 
 logger = logging.getLogger(__name__)
 
@@ -307,7 +307,7 @@ def classify_intent(question: str, chat_history: list) -> dict:
             "question": question,
         }))
 
-        raw = response.content.strip()
+        raw = message_text(response).strip()
         logger.info(f"Router raw output: {raw}")
 
         result = _parse_router_response(raw)
@@ -454,7 +454,7 @@ def rewrite_query(question: str, chat_history: list) -> str:
             "question": question,
         }))
 
-        rewritten = _strip_think_tags(response.content.strip())
+        rewritten = _strip_think_tags(message_text(response).strip())
         logger.info(f"Query rewritten: '{question}' -> '{rewritten}'")
         return rewritten
 
@@ -476,7 +476,7 @@ def generate_conversational_response(question: str, chat_history: list) -> str:
             "question": question,
         }))
 
-        return _strip_think_tags(response.content.strip())
+        return _strip_think_tags(message_text(response).strip())
 
     except Exception as e:
         logger.error(f"Error generating conversational response: {e}")

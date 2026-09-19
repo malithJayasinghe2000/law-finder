@@ -29,7 +29,7 @@ from app.ingestion.metadata_builder import (
 from app.ingestion.amendment_processor import process_amendment
 import fitz
 import re
-from app.core.llm import get_llm
+from app.core.llm import get_llm, message_text
 
 logger = logging.getLogger(__name__)
 
@@ -187,7 +187,7 @@ def _generate_document_outline(pdf_path: str, title: str) -> list[dict]:
                         f"Summary:"
                     )
                     response = llm.invoke(prompt)
-                    summary = response.content.strip()
+                    summary = message_text(response).strip()
                 except Exception as e:
                     logger.warning(f"LLM outline summary failed for {c['title']}: {e}")
             

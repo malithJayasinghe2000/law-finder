@@ -13,6 +13,14 @@ langchain-text-splitters>=0.3.0
 langgraph>=0.2.0
 langsmith>=0.1.0
 
+# Hosted inference, used only when LLM_PROVIDER=google. Imported lazily in
+# app/core/llm.py so that a local-only install never needs it at import time.
+# Listed here rather than left to whoever happens to have it in their venv:
+# this was already present in one developer's environment and in nobody's
+# requirements, which is the state in which a dependency appears to work right
+# up until a fresh checkout.
+langchain-google-genai>=2.0.0
+
 # Vector Store
 chromadb>=1.0.0
 

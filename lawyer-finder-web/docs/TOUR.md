@@ -72,7 +72,7 @@ If the assistant says it is unavailable, the cause is almost always that
 ```bash
 npm run check:privilege   # 41 — who may read a client's legal problem
 npm run check:firm        # 15 — who may be in a law practice
-npm run check:ai          # 52 — what the assistant may say
+npm run check:ai          # 55 — what the assistant may say
 npm run check:billing     # 21 — what may be charged for
 npm run check:pdpa        # 67 — retention, erasure, consent
 ```
@@ -494,8 +494,16 @@ it is not a bug in the retrieval. **Sign in before testing a multi-turn conversa
 Whether guests *should* get a conversation is an open product decision (OPEN-ITEMS E0b).
 
 `npm run check:ai` asserts 55 cases. And see
-[lawyer-rag/eval/](../../lawyer-rag/eval/) for the 76-question exam that measures whether
+[lawyer-rag/eval/](../../lawyer-rag/eval/) for the 83-question exam that measures whether
 the answers are any good — a separate question from whether they are lawful.
+
+> **One more thing the assistant now does, added 2026-09-14.** When the AI service cannot
+> reach its model host, it answers **503**, and you see *"The legal database is not
+> responding at the moment."* It used to answer **200** with *"I do not hold legislation
+> covering that"* — a confident, false statement about Sri Lankan law rather than about the
+> service, published straight through the policy layer. It was found by the most ordinary
+> cause imaginable: somebody quit Ollama because their laptop was getting hot.
+> `RAG-REVIEW.md` §4.18 has the transcript.
 
 ---
 
