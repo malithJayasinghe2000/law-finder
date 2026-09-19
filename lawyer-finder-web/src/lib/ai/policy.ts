@@ -406,6 +406,41 @@ const ADVICE_IN_ANSWER_PATTERNS: RegExp[] = [
   /\byou\s+(?:may|might|could|should)\s+(?:want\s+to\s+)?(?:consider|take|follow)\s+(?:the\s+)?following\b/i,
   /\b(?:consider|follow|take)\s+the\s+following\s+steps\b/i,
   /\bhere(?:'s| is| are)\s+(?:what|how|the steps?)\s+you\s+(?:should|can|need)\b/i,
+];
+
+/**
+ * Advice patterns that only count when the answer is ADDRESSED TO THE READER.
+ *
+ * A numbered list of imperative verbs is the format the model reaches for when
+ * it has decided to help someone with their own problem — "1. Review your
+ * contract  2. Contact a lawyer  3. File a complaint" — which is the moment it
+ * must not. It is also, unavoidably, the format for describing a statutory
+ * procedure: "3. Submit the application to the Registrar".
+ *
+ * **The two are identical in isolation, and this pattern used to refuse both.**
+ * Measured 2026-09-20 on "what is the process of register a company" — a
+ * general question about held law, correctly allowed through by
+ * `classifyRequest` — **5 answers in 12 were withheld**, on `"3.  Submit"` and
+ * `"6. **Notify"`. The user saw "the answer strayed into advising you about
+ * your own situation" for a question that mentioned no situation at all. It is
+ * the most common shape of question this product exists to answer, and it was
+ * failing two times in five.
+ *
+ * What actually separates them is whether the steps are aimed at the reader.
+ * The case this pattern was written for opened "I'm sorry to hear that you've
+ * been unfairly dismissed" and said "your contract", "your employer" — second
+ * person throughout. A procedure written impersonally ("the applicant must
+ * submit") addresses nobody.
+ *
+ * So the numbered-plan rule now fires only when the answer also speaks to the
+ * reader. That is a narrowing, and it is the narrowest one available: every
+ * other advice pattern is unchanged and still applies on its own, and the
+ * system prompts were separately told to write impersonally, so a compliant
+ * answer has no second person to find.
+ */
+const READER_ADDRESSED = /\byou\b|\byour\b|\byou(?:'re|'ve|'ll)\b/i;
+
+const ADVICE_WHEN_ADDRESSED_TO_READER: RegExp[] = [
   /^\s*\d+[.)]\s*\**(?:Review|Check|File|Contact|Gather|Send|Submit|Keep|Collect|Report|Demand|Request|Notify)\b/m,
 ];
 
@@ -451,10 +486,26 @@ function withoutSafeHarbour(answer: string): string {
 /** Directive language found in a generated answer. Empty means clean. */
 export function findAdviceLanguage(answer: string): string[] {
   const scrubbed = withoutSafeHarbour(answer ?? '');
-  return ADVICE_IN_ANSWER_PATTERNS.flatMap((p) => {
+
+  const hits = ADVICE_IN_ANSWER_PATTERNS.flatMap((p) => {
     const m = scrubbed.match(p);
     return m ? [m[0].trim()] : [];
   });
+
+  // Conditional patterns: only advice when the answer speaks to the reader.
+  // A numbered procedure written impersonally is an explanation of the law;
+  // the same list addressed to "you" is a plan of action for somebody's own
+  // matter. See ADVICE_WHEN_ADDRESSED_TO_READER.
+  if (READER_ADDRESSED.test(scrubbed)) {
+    hits.push(
+      ...ADVICE_WHEN_ADDRESSED_TO_READER.flatMap((p) => {
+        const m = scrubbed.match(p);
+        return m ? [m[0].trim()] : [];
+      })
+    );
+  }
+
+  return hits;
 }
 
 /**

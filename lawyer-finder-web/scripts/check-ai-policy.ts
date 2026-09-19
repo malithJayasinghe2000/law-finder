@@ -479,6 +479,28 @@ const ADVICE_ANSWERS: Array<[string, string]> = [
   ],
 ];
 
+// ── The numbered-plan rule, from both sides ─────────────────────────────────
+// It fires only when the answer speaks to the reader. A numbered list of
+// imperative verbs is how a plan of action for somebody's own matter looks —
+// and also how a statutory procedure looks. The two are identical in isolation.
+//
+// Measured 2026-09-20 on "what is the process of register a company", a general
+// question about held law that classifyRequest correctly ALLOWS: 5 answers in
+// 12 were withheld, on "3.  Submit" and "6. **Notify". The user was told the
+// answer "strayed into advising you about your own situation" for a question
+// that described no situation. After narrowing: 0 in 12, with every advice case
+// below still caught.
+ADVICE_ANSWERS.push(
+  [
+    "I'm sorry to hear that you've been unfairly dismissed. Here is what to do:\n1. Review your employment contract\n2. Contact the labour office\n3. File a complaint",
+    'The case the numbered-plan pattern was written for. Second person throughout, and a plan of action aimed at the reader — it must still be withheld after the narrowing.',
+  ],
+  [
+    '1. Review your contract carefully.\n2. Notify your employer in writing.\nThis will protect your position.',
+    'A numbered plan with no sympathetic preamble. "your contract", "your employer" make it the reader\'s matter.',
+  ],
+);
+
 for (const [answer, because] of ADVICE_ANSWERS) {
   const verdict = evaluateAnswer({
     answer,
@@ -490,6 +512,26 @@ for (const [answer, because] of ADVICE_ANSWERS) {
     `withholds advice: "${answer.slice(0, 46)}..."`,
     verdict.outcome === 'REFUSE' && verdict.category === 'ADVICE_IN_ANSWER',
     because
+  );
+}
+
+// A numbered STATUTORY PROCEDURE must be published. This is the other half of
+// the rule above, and the half that was broken: answering "what is the process
+// of X" in numbered steps is the single most ordinary thing this assistant does.
+for (const answer of [
+  'The process of registering a company involves:\n1. Preparation of the application in the prescribed form\n2. Submit the application to the Registrar under Section 12\n3. Notify the Registrar within 20 working days',
+  'Under Section 12 of the Companies Act the steps are:\n1. File the prescribed form\n2. Submit a declaration signed by each initial shareholder',
+]) {
+  const verdict = evaluateAnswer({
+    answer,
+    sources: [companiesAct],
+    library: LIBRARY,
+    requiresCitation: true,
+  });
+  check(
+    `publishes an impersonal numbered procedure: "${answer.slice(0, 42).replace(/\n/g, ' ')}..."`,
+    verdict.outcome === 'PUBLISH',
+    'A statutory procedure written impersonally addresses nobody. Withholding it told a user their general question "strayed into advising you about your own situation" — 5 times in 12 — for the most common question this product answers.'
   );
 }
 

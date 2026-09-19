@@ -2339,3 +2339,56 @@ section Repealed, and a stale keyword index would keep a repealed section findab
 
 Verified: 46/46 `check_security`, 41 / 15 / 76 / 21 / 67, and the questions reported by the
 owner still behave — company registration answers with 4 sources, land law still refuses.
+
+---
+
+## The advice gate was refusing statutory procedures — 2026-09-20
+
+Reported from the live chat, signed in. *"What is the process of register a company"* — a
+general question about held law, correctly **allowed** by `classifyRequest` — came back as:
+
+> *"I started to answer this, but the answer strayed into advising you about your own
+> situation, so I have withheld it."*
+
+The question described no situation. **Measured: 5 answers in 12 were withheld**, and the
+matches were `"3.  Submit"` and `"6. **Notify"` — **numbered steps in a procedure.**
+
+### The pattern could not tell two identical things apart
+
+```js
+/^\s*\d+[.)]\s*\**(?:Review|Check|File|Contact|…|Submit|…|Notify)\b/m
+```
+
+It was written for a real Phase-5-era failure: *"I'm sorry to hear that you've been
+unfairly dismissed"* followed by *"1. Review your contract 2. Contact a lawyer"* — a plan
+of action for somebody's own matter. But *"3. Submit the application to the Registrar"* is
+a description of a statutory procedure, and **in isolation the two are the same string
+shape.** So the gate refused both — on the single most ordinary question this product
+answers.
+
+### What actually separates them
+
+Whether the steps are **addressed to the reader**. The case the pattern was written for was
+second person throughout — *your* contract, *your* employer. A procedure written
+impersonally addresses nobody.
+
+> **Fixed by narrowing, not by deleting.** The numbered-plan rule moved into
+> `ADVICE_WHEN_ADDRESSED_TO_READER` and now fires only when the answer also contains "you"
+> or "your". Every other advice pattern is untouched and still fires on its own.
+>
+> Verified both directions: all three advice cases still withheld (including the original),
+> both impersonal procedures published, and **the 12 real service answers went from 5
+> withheld to 0.**
+>
+> `check:ai` **76 → 80**, with the numbered-plan rule now asserted from both sides.
+
+### Two process notes worth keeping
+
+**My first diagnosis was wrong, twice.** I said the screenshot predated the fix and that a
+restart would settle it; it did not. Then six clean runs convinced me it was fixed — the
+failure is intermittent at about 40%, and six samples was not enough to see it. **Sampling
+once and declaring victory is how an intermittent bug survives a fix.**
+
+**The prompt change alone was not the fix.** Telling the model to write impersonally
+(previous commit) removed the second-person *phrasing*, but the numbered list survived and
+that was what the gate was matching. A prompt is a preference; the gate is the rule.

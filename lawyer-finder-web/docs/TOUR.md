@@ -72,7 +72,7 @@ If the assistant says it is unavailable, the cause is almost always that
 ```bash
 npm run check:privilege   # 41 — who may read a client's legal problem
 npm run check:firm        # 15 — who may be in a law practice
-npm run check:ai          # 66 — what the assistant may say
+npm run check:ai          # 80 — what the assistant may say
 npm run check:billing     # 21 — what may be charged for
 npm run check:pdpa        # 67 — retention, erasure, consent
 ```
@@ -493,7 +493,7 @@ So if you test follow-ups while logged out, *"tell me more about that"* will not
 it is not a bug in the retrieval. **Sign in before testing a multi-turn conversation.**
 Whether guests *should* get a conversation is an open product decision (OPEN-ITEMS E0b).
 
-`npm run check:ai` asserts 66 cases. And see
+`npm run check:ai` asserts 80 cases. And see
 [lawyer-rag/eval/](../../lawyer-rag/eval/) for the 83-question exam that measures whether
 the answers are any good — a separate question from whether they are lawful.
 
