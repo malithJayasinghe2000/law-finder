@@ -1,9 +1,41 @@
 # Next Session Brief
 
-> Updated 2026-09-20. **Copy §1 into a new chat as your first message.**
+> Updated 2026-09-21, after an overnight session on the RAG service.
+> **Copy §1 into a new chat as your first message.**
 >
 > Update this file at the end of every session. A brief that points at work already done is
 > worse than no brief — the next session will trust it.
+
+---
+
+## 0. Read this before anything else
+
+Two things from the overnight session you need to know in the first minute.
+
+**1. The corpus was re-extracted and re-chunked, and it fixed a WRONG CITATION that
+was being published.** The service used to cite **Penal Code s.368** for the punishment
+for theft. It is **s.367**; s.368 is theft of cattle. Five Civil Procedure Code sections
+were mis-attributed the same way. The cause was the PDF's two-column layout — marginal
+note, section number and body are three separate blocks on one line, and the old
+extractor interleaved them. See RAG-REVIEW §4.29.
+
+**2. That fix made every retrieval number worse, and it was kept anyway.**
+
+```
+                      before        after (floor 0.62)
+  answerable          54/75            51/75
+  not_in_corpus       10/12             7/12
+  chunks <100 chars    15.7%            2.7%
+  theft citation    s.368 WRONG      s.367 correct
+```
+
+The reason is chunk length, and the fix is **parent-document retrieval** (roadmap 2.3) —
+now the top retrieval item. Three cheaper options were tried and measured and all failed.
+Full reasoning in RAG-ROADMAP under "Why 2.3 is now the top retrieval item".
+
+**If you disagree with that trade, the pre-re-chunk vector store is NOT in git** — it was
+a scratch backup and it is gone. Rebuild with `python -m scripts.ingest_all --replace`
+after reverting `app/ingestion/pdf_parser.py` and `app/core/chunker.py`.
 
 ---
 
@@ -11,8 +43,9 @@
 
 ```
 I'm working on law-finder, a Sri Lankan legal platform under a legal restructure.
-Phases 0-8 are complete. On the AI service, RAG Stages 0, 1.1, 1.2, 1.2c are done
-and 1.6 is measured. I need you to pick up where the last session left off.
+Phases 0-8 are complete. On the AI service, RAG Stages 0, 1.1, 1.2, 1.2c are done,
+1.5 and 2.1 are done, 1.6 is measured, and 4.1 is done for land/property.
+I need you to pick up where the last session left off.
 
 REPOSITORY LAYOUT
   law-finder/
@@ -21,20 +54,16 @@ REPOSITORY LAYOUT
     lawyer-portfolio/    an untouched Vite template, ignore it
 
 READ THESE FIRST, IN THIS ORDER:
-  1. lawyer-finder-web/docs/THE-PROJECT.md      what this is, in two pages
-  2. lawyer-finder-web/docs/TOUR.md             the whole system, feature by
-                                                feature, and WHY each thing is
-                                                built that way
-  3. lawyer-finder-web/docs/OPEN-ITEMS.md       every outstanding item + a
-                                                decision on each (read E1, E1b)
-  4. lawyer-finder-web/docs/DIRECTION.md        what to build next, in order
-  5. lawyer-rag/docs/RAG-ROADMAP.md             the AI plan. READ 1.6 and the
-                                                "first attempt at 2.1" note
-  6. lawyer-rag/docs/RUNNING.md                 how to run the AI service
-  7. lawyer-rag/eval/results/STAGE-1.6.md       the model comparison + verdict
-  8. lawyer-rag/eval/README.md                  what the eval measures, what it
-                                                REFUSES to do, and its noise floor
-  9. lawyer-rag/docs/RAG-REVIEW.md §4.18-4.23   recent findings
+  1. lawyer-finder-web/docs/NEXT-SESSION-BRIEF.md §0  the two things that matter
+  2. lawyer-finder-web/docs/THE-PROJECT.md      what this is, in two pages
+  3. lawyer-rag/docs/RAG-REVIEW.md §4.28-4.34   the overnight findings. §4.29
+                                                and §4.31 are the important ones
+  4. lawyer-rag/docs/RAG-ROADMAP.md             READ the note "Why 2.3 is now
+                                                the top retrieval item"
+  5. lawyer-finder-web/docs/TOUR.md             the whole system, feature by feature
+  6. lawyer-finder-web/docs/OPEN-ITEMS.md       every outstanding item (read E1, E1b)
+  7. lawyer-rag/eval/README.md                  what the eval measures and refuses to do
+  8. lawyer-rag/docs/RUNNING.md                 how to run the AI service
 
 ⚠️ IGNORE the four planning documents at the repository root
 (project_scope_and_vision.md, mvp_project_plan.md, developer_project_plan.md,
@@ -42,17 +71,36 @@ architecture_manual.md). They describe the pre-restructure marketplace —
 sponsored listings, commission on fees, reviews, lead generation — all unlawful
 in Sri Lanka and removed. They are marked superseded.
 
-GIT STATE
-Branch restructure-booking-flow, tree clean. SEVEN commits NOT yet pushed.
+GIT STATE — READ BEFORE ANY git checkout
+Branch restructure-booking-flow. SEVEN commits not yet pushed, PLUS a large
+UNCOMMITTED change set from 2026-09-20/21. Nothing from either session is
+committed.
+
+🔴 lawyer-rag/data/vectordb/ IS MODIFIED AND THAT IS THE CORPUS, NOT CHURN.
+The usual `git checkout -- lawyer-rag/data/` would destroy it. Check
+/api/documents reports 3,424 chunks and 14 documents before touching data/.
+
+Untracked and WANTED:
+  lawyer-rag/data/acts/                 13 source PDFs, 11 MB — the corpus is
+                                        now rebuildable from these
+  lawyer-rag/scripts/validate_questions.py
+  lawyer-rag/scripts/check_injection.py
+  lawyer-rag/app/core/corpus.py
+Untracked and NOT wanted: lawyer-rag/data/.DS_Store — gitignore it.
+
 Ask me before any destructive git command, and before pushing.
 
 CURRENT CONFIG
-lawyer-rag/.env: LLM_PROVIDER=ollama, LLM_MODEL=llama3.2:3b — the model the
-measurement favoured. ENABLE_HYBRID_SEARCH is false and that is deliberate.
+lawyer-rag/.env: LLM_PROVIDER=ollama, LLM_MODEL=llama3.2:3b
+config.py: ENABLE_HYBRID_SEARCH=true (RRF, measured, +3 answerable)
+           RETRIEVAL_MIN_SCORE=0.62   (0.64 was tried and reverted — it refused
+                                       "how may a director be removed")
+           RETRIEVAL_MIN_MARGIN=0     (built, measured, does not separate)
+           ENABLE_LEXICAL_GATE=false  (built, measured, costs not_in_corpus)
 
-⚠️ MY MACHINE OVERHEATS UNDER SUSTAINED LOCAL INFERENCE. I stopped Ollama
-mid-run once for exactly this. Do NOT start a 20+ minute local eval without
-asking me first.
+⚠️ MY MACHINE OVERHEATS UNDER SUSTAINED LOCAL INFERENCE. Embedding is cheap
+(~17 chunks/sec, a full re-ingest is ~14 min). It is GENERATION that costs heat.
+Do NOT start a 20+ minute eval run without asking me first.
 
 HOW TO RUN IT
   cd lawyer-finder-web && npm run dev          # http://localhost:3000
@@ -61,117 +109,96 @@ HOW TO RUN IT
   gunicorn -c gunicorn.conf.py wsgi:app        # http://127.0.0.1:5001
 
   Changes to lawyer-rag/app/** need a gunicorn RESTART.
-  Changes to lawyer-finder-web/src/** hot-reload.
-
-  Seeded logins are password123 — citizen@thelawyr.lk, lawyer@thelawyr.lk,
-  admin@thelawyr.lk.
+  STOP the service before ingesting — two Chroma clients on one directory.
+  Seeded logins are password123 — citizen@ / lawyer@ / admin@thelawyr.lk.
 
 YOUR TASK THIS SESSION — in this order
 
-1. LOAD LAND / PROPERTY LAW. The highest-value item on the whole roadmap
-   (Stage 4.1). The corpus holds only Companies, Civil Procedure, Motor
-   Traffic, Computer Crimes and one SSCL amendment, so most real questions
-   get a correct-but-useless "I do not hold that".
+1. PARENT-DOCUMENT RETRIEVAL (roadmap 2.3). The top item, and the only thing
+   that resolves the trade in §0. Embed small focused child chunks so the
+   specific sentence matches; return the enclosing section so the answer is
+   complete and citeable. No new dependency needed.
 
-   Source: https://lankalaw.net/consolidated-acts-2024/  — this is where the
-   EXISTING corpus came from; it is printed on page 1 of the Companies Act
-   PDF ("Published By www.lankalaw.net"), so the format already matches.
-   Start with Partition, Prescription, Penal Code, then Land Acquisition,
-   Land Development, Registration of Documents, Notaries.
+   The single clearest test case:
+     "What is the punishment for theft under the Sri Lankan Penal Code?"
+     Penal Code s.367 contains, verbatim, "Whoever commits theft shall be
+     punished with imprisonment ... three years" — and it is NOT IN THE TOP 30.
 
-   Note the two official sources are currently broken: lawnet.gov.lk serves
-   a parked page, and documents.gov.lk was rebuilt and holds only ~174
-   recent Acts.
+   Re-sweep RETRIEVAL_MIN_SCORE afterwards. It has now been invalidated twice
+   by changes that had nothing to do with it.
 
-   BEFORE INGESTING:
-     - Back up lawyer-rag/data/graph/knowledge_graph.json. Ingest steals
-       shared entity nodes between Acts (RAG-REVIEW 4.11, unfixed).
-     - lawyer-rag/data/ is TRACKED IN GIT and is the only backup of the
-       vector store.
-   AFTER INGESTING:
-     - Re-run ./venv/bin/python -m scripts.sweep_retrieval (free, no model)
-     - Relabel eval/questions.yaml: several not_in_corpus questions become
-       answerable, and would start failing for the right reason.
+2. STAGE 1.4 — MAKE THE ANSWER MATCH THE SECTION. Still open. The service
+   answered "12 years" for the prescriptive period where s.3 says TEN, six runs
+   out of six, with grounding and the citation gate both passing because the Act
+   it cited really was retrieved (RAG-REVIEW §4.25). Only the number was wrong,
+   and the number was the whole answer.
 
-2. ADD LAY-WORDED QUESTIONS TO THE EVAL SET. The golden set was written by
-   reading the corpus, so it uses STATUTORY vocabulary — and it is therefore
-   blind to the single most common real failure, which is lay vocabulary
-   ("register a company" vs "incorporation"). Add lay-worded variants
-   pointing at the SAME expected sections. Without this, step 3 cannot be
-   measured and will look like it changed nothing.
+3. TRANSLATE THE GUARDRAILS, or keep the assistant disabled for si/ta.
+   It is disabled now (UNSUPPORTED_LANGUAGE), because every check in policy.ts
+   is an English regex and Sinhala/Tamil speakers had NO own-matter rule and NO
+   touting rule at all (§4.32). Lifting it means translating OWN_MATTER_PATTERNS,
+   REPRESENTATION_PATTERNS and the answer-side checks, plus cases in check:ai.
+   ⚠️ THIS IS A USER-VISIBLE CHANGE I MADE WHILE YOU WERE ASLEEP. If you would
+   rather it answered unguarded, it is one guard at the top of classifyRequest.
 
-3. REDO HYBRID SEARCH PROPERLY (roadmap 2.1). It is built and switched OFF
-   because as built it does nothing — I ranked BM25 candidates by DENSE
-   score, so the lexical half got no vote. Read the "first attempt at 2.1"
-   note in RAG-ROADMAP.md before touching it. The fix needs two changes
-   together: rank by Reciprocal Rank Fusion, and let a strong keyword match
-   clear the relevance gate at a lower dense score. That changes what the
-   floor means, so measure not_in_corpus with scripts/sweep_retrieval.py —
-   it needs no model and runs in seconds.
+4. LOAD MORE LEGISLATION (4.1 continued). Labour → Family → Criminal Procedure
+   → Tax → Evidence → Rent. Source: lankalaw.net, a page per letter.
+   The Criminal Procedure Code PDF is in data/uploads/ and still not ingested.
+   ⚠️ Land Acquisition is NOT in that set — I checked the whole L index.
 
-4. LLAMA CONTROL RUN. The tightened citation prompts and the impersonal-
-   writing instruction ship today but were only ever measured on Gemini.
-   20 questions is enough. ASK ME FIRST (heat).
+5. LLAMA CONTROL RUN. Still owed from 1.6, and every number in eval/results/
+   now predates two corpus changes. ASK ME FIRST (heat).
 
 THREE THINGS ONLY I CAN DO — please remind me if I have not:
-  - ROTATE RAG_SERVICE_TOKEN. I pasted the live one into a chat on
-    2026-09-19. Generate a new one and set it in BOTH .env files:
+  - ROTATE RAG_SERVICE_TOKEN. Pasted into a chat on 2026-09-19. This matters
+    more than it did: the ingest endpoints are now allow-listed, but the token
+    is still the only thing between a caller and the corpus.
       python -c "import secrets; print(secrets.token_urlsafe(48))"
-  - Revoke the old LangSmith and Groq keys, commented out in lawyer-rag/.env
-    marked REVOKE-ME. Tracing is off, but that stops NEW data leaving; a key
-    that still works can be turned back on.
+  - Revoke the old LangSmith and Groq keys (REVOKE-ME in lawyer-rag/.env).
   - Email a Sri Lankan Attorney-at-Law about counsel questions 16-18.
-    docs/restructure/COUNSEL-MEETING-BRIEF.md has been ready since Phase 6.
 
-WORKING STYLE — learned the hard way, and re-learned yesterday
-  - Verify by RUNNING, not by reading. Every real defect this project has
-    found came from driving the actual app.
-  - SAMPLE PROPERLY BEFORE DECLARING A FIX. An intermittent bug at ~40%
-    survived six clean runs and two confident wrong diagnoses in one
-    session. If a failure is intermittent, run it a dozen times and count.
-  - A PROMPT IS A PREFERENCE; THE GATE IS THE RULE. Telling the model to
-    write impersonally removed the wording but not the structure the gate
-    was matching. Fix the layer that actually decides.
-  - Reproduce a bug before you fix it, and capture the transcript.
-  - THE MEASURING INSTRUMENT IS ALSO CODE AND IT HAS HAD BUGS. Before
-    trusting a comparison, ask what the scorer does with an answer that is
-    correct but unusual, and what it does if the service is simply down.
-    Both were wrong here.
-  - A failure that reads as a fact about the world is the worst kind. "I do
-    not hold that legislation" was a statement about Sri Lankan law when the
-    truth was "the model host is off". Never let infrastructure failure
-    share a return value with a domain answer.
-  - A guardrail pattern that LOOKS right can still miss. Four misses so far:
-    a missing adverb, a possessive instead of a verb, a plural, and a
-    numbered list it could not tell from a statutory procedure. When you
-    widen one, ALWAYS pin the general form that must still be answered — a
-    check that refuses both sides of a line is as broken as one that answers
-    both.
-  - After fixing one route, check its siblings. After removing a feature,
-    grep for callers.
+WORKING STYLE — learned the hard way, and re-learned all night
+  - VERIFY BY RUNNING. Every single defect this session came from driving the
+    service, never from reading the code. The corpus-list bug, the wrong theft
+    citation, the touting hole and the language hole were all invisible on the
+    page and obvious in one request.
+  - THE MEASURING INSTRUMENT IS ALSO CODE, AND IT HAS NOW BEEN WRONG FOUR TIMES.
+    This session alone: a probe that called hybrid_search with apply_floor=False
+    and reported a gate had "no effect at any setting" when it never ran; a grid
+    that measured "clears the floor" instead of "retrieves the right section";
+    a comparison that reported phantom nondeterminism because it diffed Python
+    SETS across processes. Before believing "no effect", check the code path is
+    reached.
+  - A GUARDRAIL TESTED ONLY WITH THE SENTENCE IT WAS WRITTEN FROM TESTS NOTHING.
+    check:ai passed at 80 while the classifier allowed all six touting questions
+    in the eval set, because all three of its cases happened to be phrased
+    without a practice area.
+  - SIX MISSES OF THE SAME FAMILY NOW: a missing adverb, a possessive instead of
+    a verb, a plural, a numbered list, a recovery verb, and a qualifier gap.
+    When you widen one, ALWAYS pin the general form that must still be answered.
+  - A LABEL IS A CLAIM WITH A SHELF LIFE. "not in the corpus" expires when the
+    corpus changes. So does an answer key: nic-004's key said s.368 because the
+    STORE said s.368, and the store was wrong. Reading it in the store first is
+    right and is not sufficient.
+  - DON'T POINT A TEST AT A REAL INGEST DIRECTORY. I probed the containment fix
+    with source_dir=data/uploads and it cheerfully ingested both PDFs, doubling
+    the Companies Act. Restored from backup; check /api/documents after.
   - Never break a working flow to make a legal fix — replace before removing.
-  - Schema changes ship as migrations: npm run db:migrate -- --name <name>.
-    Never prisma db push. npm run db:reset is destructive and has been
-    declined before.
-  - Running the RAG service dirties git (data/ is tracked). Check
-    /api/documents total_chunks, then git checkout -- lawyer-rag/data/.
+  - Schema changes ship as migrations. Never prisma db push.
   - Run all five checks after every change set, from lawyer-finder-web/:
       npm run check:privilege   (41)
       npm run check:firm        (15)
-      npm run check:ai          (80)
+      npm run check:ai         (112)   ← was 80
       npm run check:billing     (21)
       npm run check:pdpa        (67)
-    plus npx tsc --noEmit. A green build proves none of the seven legal
-    rules hold — that is what the checks are for.
+    plus npx tsc --noEmit.
   - For the AI service, from lawyer-rag/ with it running:
       ./venv/bin/python scripts/check_security.py            (46)
+      ./venv/bin/python scripts/check_injection.py           (16, NEW, ~8 min)
+      ./venv/bin/python -m scripts.validate_questions        (free, no model)
       ./venv/bin/python -m scripts.sweep_retrieval           (free, no model)
-      ./venv/bin/python -m scripts.eval --compare <results>  (slow, costs money)
-    If check_security reports fewer than 46, an earlier crashed run left
-    probe files behind: clear PWNED/corrupt/etc_passwd/tmp_pwned .pdf from
-    data/uploads and run it again.
-  - Update the docs at the end of the session: PROGRESS.md, RAG-REVIEW.md,
-    RAG-ROADMAP.md, TOUR.md if a feature changed, and this brief.
+  - Update the docs at the end: PROGRESS.md, RAG-REVIEW.md, RAG-ROADMAP.md,
+    TOUR.md if a feature changed, and this brief.
 
 I am a software engineer, not a lawyer. Make the legal calls yourself and
 explain the reasoning in plain words afterwards.
@@ -179,47 +206,55 @@ explain the reasoning in plain words afterwards.
 
 ---
 
-## 2. Where things actually stand
+## 2. What the overnight session did
 
-### Committed, not yet pushed (7 commits)
+### Security and guardrails — the most important half
 
 | | |
 | --- | --- |
-| **RAG Stage 1.6** | One model in one place; Gemini measured twice and it is WORSE |
-| **§4.18** | An outage was answered as a false statement about the law → now 503 |
-| **§4.19–4.20** | Two eval-harness defects, and the noise floor quantified |
-| **§4.22** | A real user's own-matter question passed the guardrail (possessive) |
-| **plural + adverb** | Two more guardrail misses of the same family |
-| **query expansion** | "registration" → "incorporation", as a rescue only |
-| **hybrid search** | Built, measured, does nothing, switched OFF |
-| **advice gate** | Was refusing statutory procedures 5 times in 12 |
+| **§4.31 touting** | `classifyRequest` allowed **all six** `law-*` questions from the eval set — "recommend a good **property** lawyer" passed where "recommend a good lawyer" was refused. Rule 4 carries **criminal** exposure. Fixed; `hire` was in neither layer |
+| **§4.32 language** | Sinhala and Tamil speakers had **no guardrail at all** — no own-matter rule, no touting rule, and the answer-side checks return zero markers. Now refused with `UNSUPPORTED_LANGUAGE` |
+| **§4.33 ingest paths** | `file_path` and `source_dir` accepted any local path — arbitrary file read that lands in *retrieved context*. Now allow-listed to `data/uploads` and `data/acts`, containment checked before existence |
+| **§4.34 injection** | New `scripts/check_injection.py` — 16 probes (override, forged system turns, hypothetical/fiction/role-play, touting, exfiltration, base64, character spacing, si/ta, context-as-instruction). All pass |
+| **own-matter** | Sixth miss found and fixed earlier in the night; `check:ai` **80 → 112** |
 
-`check:ai` went **55 → 80** across the session.
+### Correctness
 
-### The AI numbers
+| | |
+| --- | --- |
+| **§4.28** | Both system prompts and the router named a **hardcoded** corpus. After the land ingest the service said *"the Penal Code does not specifically address theft"* while holding it. `app/core/corpus.py` now derives the list and is invalidated on ingest |
+| **§4.29** | Layout-aware extraction + chunker fixes. **15.7% → 2.7%** citeable-empty chunks, and the theft citation corrected from s.368 to **s.367** |
+| **§4.26** | 14 title-page chunks removed from retrieval — they were top hits for any question naming an Act |
+| **corpus sources** | `data/acts/` now holds 13 of the 14 documents' PDFs. The corpus is rebuildable; before, `ACTS_SOURCE_DIR` pointed at a directory that has never existed |
 
-| | `llama3.2:3b` | `gemini-3.6-flash` |
-| --- | --- | --- |
-| **grounding** | **96.3%** | 86.6% |
-| answerable | 82.4% | 82.4% |
-| must_refuse | 93.3% | 86.7% |
-| median latency | **5.0s** | 14.4s |
+### Measured and rejected — recorded so nobody re-derives them
 
-**The hosted model lost.** `.env` is back on `llama3.2:3b`. Full detail, and the two
-integration defects that would have shipped, in `eval/results/STAGE-1.6.md`.
+- **Margin gate** — separates on a 30-result pool, does nothing on the 6 the service uses.
+- **CHUNK_SIZE 1000** — 48/75 and 8/12, no better than 1500.
+- **Floor 0.64** — restores abstention, refuses the canonical director question live.
+- **Cross-encoder reranker** — needs torch (~200 MB) and CPU latency per request. **Not added while you were asleep.** That is your call.
+
+### Current state, verified
+
+```
+corpus            3,424 chunks, 14 documents, all Active
+eval set          108 questions, 80 answerable — all keys resolve to real chunks
+check:ai          112 passed, 0 failed          check_security.py   46/46
+check:privilege    41   check:firm 15   check:billing 21   check:pdpa 67
+tsc --noEmit      clean                         check_injection.py  16/16
+```
 
 ### What is NOT done
 
-1. **Corpus breadth** — the limiting factor now, not the code.
-2. **Lay-worded eval questions** — without them the vocabulary problem is unmeasurable.
-3. **Hybrid search, properly** — RRF plus a lexical path through the gate.
-4. **The llama control run** — today's prompts were only measured on Gemini.
+1. **Parent-document retrieval** — the top item; resolves the trade in §0.
+2. **Stage 1.4** — the answer still does not have to match the section it cites.
+3. **Guardrail translation** for si/ta, or keep the assistant disabled there.
+4. **Corpus breadth** — labour, family, tax, evidence, rent. Criminal Procedure is free.
 5. **Token rotation**, LangSmith/Groq revocation, counsel email.
 
 ### The five things that have not moved in nine phases
 
-1. **Nobody has asked counsel** about Q16–18 — whether the consumer directory may lawfully
-   exist at all. Top of "next up" since Phase 2.
+1. **Nobody has asked counsel** about Q16–18. Top of "next up" since Phase 2.
 2. **Nobody has talked to a law firm.** Nine phases of reasoning, zero users.
 3. **Never deployed.** No CI, no TLS, no backups, no monitoring.
 4. **`MATTER_ENCRYPTION_KEYS` has no custody arrangement.**

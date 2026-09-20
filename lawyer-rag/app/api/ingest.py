@@ -40,6 +40,49 @@ class UnsafeUpload(Exception):
     """Raised when an uploaded filename cannot be made safe."""
 
 
+# Directories a caller may name a file inside. Everything else is refused.
+#
+# WHY. `file_path` in the JSON body and `source_dir` in /api/ingest/batch were
+# arbitrary local paths — Stage 0 closed the UPLOAD traversal and left these two
+# open, recorded in RAG-ROADMAP as "should become an allow-listed directory in
+# Stage 3". Behind the service token they are not anonymous, but "authenticated"
+# is not the same as "harmless":
+#
+#   * any readable file on the host could be ingested into the corpus and then
+#     read straight back out through /api/documents — an arbitrary file read
+#     dressed up as legislation;
+#   * anything ingested becomes RETRIEVED CONTEXT, which the model is told to
+#     answer from. That is indirect prompt injection with a file-read primitive
+#     attached, and it is the one attack this service's context handling cannot
+#     defend against, because retrieved text is trusted by construction.
+#
+# The token was pasted into a chat on 2026-09-19 and is still pending rotation,
+# so "behind the token" is doing less work right now than it looks like.
+_INGEST_ROOTS = (
+    Path(config.UPLOADS_DIR).resolve(),
+    Path(config.ACTS_SOURCE_DIR).resolve(),
+)
+
+
+def _resolve_ingest_path(raw: str):
+    """
+    Resolve a caller-supplied path, or None if it escapes the allowed roots.
+
+    resolve() first, then containment — the same order as `_save_upload`, and
+    for the same reason: a string check for "../" is defeated by symlinks, by
+    absolute paths and by encodings, whereas comparing resolved paths is what
+    actually holds.
+    """
+    try:
+        candidate = Path(raw).expanduser().resolve()
+    except (OSError, RuntimeError):
+        return None
+    for root in _INGEST_ROOTS:
+        if candidate == root or candidate.is_relative_to(root):
+            return candidate
+    return None
+
+
 def _save_upload(file, *, require_pdf: bool = True) -> str:
     """
     Save an uploaded file into UPLOADS_DIR, and nowhere else.
@@ -329,8 +372,19 @@ def ingest_document():
         if not pdf_path:
             return jsonify({"error": "No file provided. Use 'file' upload or 'file_path' in JSON body."}), 400
 
-        if not Path(pdf_path).exists():
-            return jsonify({"error": f"File not found: {pdf_path}"}), 404
+        # Containment BEFORE existence. Reporting "file not found" for a path
+        # outside the allowed roots answers "does /etc/shadow exist on this
+        # host?", which is the probe rather than the ingest.
+        resolved = _resolve_ingest_path(pdf_path)
+        if resolved is None:
+            logger.warning("Rejected ingest of a path outside the allowed roots")
+            return jsonify({
+                "error": "file_path must name a file inside the uploads or acts directory"
+            }), 400
+        pdf_path = str(resolved)
+
+        if not resolved.exists():
+            return jsonify({"error": "File not found"}), 404
 
         # Get PDF info
         pdf_info = get_pdf_info(pdf_path)
@@ -602,9 +656,14 @@ def ingest_batch():
         clear_existing = data.get("clear_existing", False)
         source_dir = data.get("source_dir", config.ACTS_SOURCE_DIR)
 
-        source_path = Path(source_dir)
+        source_path = _resolve_ingest_path(str(source_dir))
+        if source_path is None:
+            logger.warning("Rejected batch ingest of a directory outside the allowed roots")
+            return jsonify({
+                "error": "source_dir must be the uploads or acts directory"
+            }), 400
         if not source_path.exists():
-            return jsonify({"error": f"Source directory not found: {source_dir}"}), 404
+            return jsonify({"error": "Source directory not found"}), 404
 
         # Find all PDF files
         pdf_files = list(source_path.glob("*.pdf"))

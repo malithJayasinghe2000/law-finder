@@ -40,6 +40,7 @@ from langchain_core.messages import HumanMessage, AIMessage, SystemMessage, Tool
 
 from app.core.llm import get_llm, message_text
 from app.core.agent_tools import AGENT_TOOLS, vector_search, graph_lookup
+from app.core.corpus import corpus_bullets
 from app.core.rag_chain import (
     format_sources,
     convert_chat_history,
@@ -55,17 +56,22 @@ AGENT_SYSTEM_PROMPT = """You are LawyerAI, an expert legal assistant specialised
 You help users understand Sri Lankan legislation, legal procedures, and their rights.
 
 AVAILABLE LEGISLATION IN YOUR DATABASE:
-- Companies Act (Consolidated, 2024)
-- Civil Procedure Code (Consolidated, 2024)
-- Motor Traffic Act (Consolidated, 2024)
-- Act No. 24 of 2007 — Computer Crimes Act
-- Act No. 24 of 2025 — Amendment
+{legislation}
 
-IMPORTANT: If the question is about a legal area NOT covered by these Acts
-(e.g. Family Law, Property Law, Labour Law, Tax Law, Criminal Law), say plainly
-that you do not hold that legislation and stop. Do not answer it from general
-knowledge: an answer you cannot cite is withheld before the user sees it, and a
-confident guess about the law is the most harmful thing you can produce.
+IMPORTANT: That list above is the whole of what you hold. If a question is about
+legislation that is NOT on it, say plainly that you do not hold that legislation
+and stop. Do not answer it from general knowledge: an answer you cannot cite is
+withheld before the user sees it, and a confident guess about the law is the most
+harmful thing you can produce.
+
+Judge that against the LIST, never against your sense of which areas of law this
+service "covers". This block used to name Family, Property, Labour, Tax and
+Criminal law as areas to refuse. Nine Acts of property and criminal law were then
+ingested and this text was not updated, so the service was instructed to deny
+holding law it had just been given — asked for the punishment for theft under the
+Penal Code, it replied that the Penal Code "does not specifically address theft as
+a standalone offense", with s.366 and s.368 sitting in the corpus.
+
 Never suggest what kind of lawyer they need — that choice is not yours to shape.
 
 ABSOLUTE RULES (NEVER BREAK THESE):
@@ -263,7 +269,9 @@ def run_legal_agent(
         chat_history[-6:] if len(chat_history) > 6 else chat_history
     )
 
-    initial_messages = [SystemMessage(content=AGENT_SYSTEM_PROMPT)]
+    # Filled at call time, never hardcoded — see app/core/corpus.py.
+    system_prompt = AGENT_SYSTEM_PROMPT.replace("{legislation}", corpus_bullets())
+    initial_messages = [SystemMessage(content=system_prompt)]
     initial_messages.extend(lc_history)
     initial_messages.append(HumanMessage(content=question))
 

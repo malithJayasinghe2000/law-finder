@@ -196,7 +196,74 @@ class Config:
     # Re-tune with `python -m scripts.eval --compare eval/results/baseline.json`
     # after any change to the embedding model, the chunker or the corpus. These
     # numbers are properties of THIS corpus and THIS embedding model.
+    # ⚠️ RE-TUNED 2026-09-21, from 0.62, after the corpus was re-chunked.
+    #
+    # This number is a property of the SCORE DISTRIBUTION, not of relevance, and
+    # the distribution has now moved twice under it. Longer chunks cover more
+    # ground and therefore score higher against everything, so after re-chunking
+    # the old 0.62 let three more out-of-corpus questions through. Measured on
+    # the 101 single-turn questions, after the re-chunk:
+    #
+    #      floor    answerable   not_in_corpus
+    #      0.58       63/75          4/12
+    #      0.60       62/75          6/12
+    #      0.62       59/75          7/12    <- the old setting
+    #      0.64       55/75          9/12    <- chosen
+    #      0.66       41/75          9/12
+    #
+    # 0.64 is the lowest value that recovers 9/12. The pre-re-chunk baseline was
+    # 54/75 and 10/12, so this is +1 answerable and −1 not_in_corpus.
+    #
+    # That one lost abstention was accepted deliberately, because the re-chunk
+    # corrected a citation the service was actually publishing: the punishment
+    # for theft was cited as Penal Code s.368, and it is s.367. It also removed
+    # 15.7% of chunks that were citeable and empty. **Stating the wrong section
+    # is a worse failure than declining one more question**, which is the same
+    # judgement that chose 0.62 over 0.60 in the first place.
+    # ⚠️ LEFT AT 0.62 after the re-chunk, not raised to 0.64.
+    #
+    # 0.64 is the value that best restores `not_in_corpus` on the golden set
+    # (9/12 against 7/12), and it was set to 0.64 for exactly that reason — then
+    # reverted after driving the actual service, which is the only test that has
+    # ever found anything on this project:
+    #
+    #   "How may a director be removed from office?"   -> "I do not hold
+    #                                                      legislation covering that"
+    #
+    # That is co-005, the canonical Companies Act question, whose section the
+    # corpus plainly holds; its best chunk scores 0.640 and sat on the knife
+    # edge. Refusing it is a worse product than admitting one more out-of-corpus
+    # question, and the sweep could not see the difference because both are one
+    # tick in a column.
     RETRIEVAL_MIN_SCORE: float = float(os.getenv("RETRIEVAL_MIN_SCORE", "0.62"))
+
+    # ── A margin gate: built, measured, and OFF because it does not separate ──
+    #
+    # The idea: an absolute threshold answers "is this similar enough?" but not
+    # "is this about the question?". For a question the corpus answers, one chunk
+    # should stand clear of the rest; for one it does not, everything should be
+    # equally mediocre. Margin is also scale-free against a uniform shift in
+    # scores, which is precisely what invalidated the floor twice.
+    #
+    # It does not work here, and the way it appeared to is worth recording.
+    # Measured over a THIRTY-result pool it looked strong — 0.60 with a margin of
+    # 0.04 gave 57/75 and 9/12, better than any absolute threshold. But the
+    # service applies the floor to the SIX results it returns, and on that window
+    # the two populations are not separable: mean margin 0.0818 for answerable
+    # against 0.0656 for not_in_corpus. At every absolute level, raising the
+    # margin only costs answerable questions and buys no abstentions:
+    #
+    #      floor  margin   answerable   not_in_corpus
+    #      0.64    0.00      55/75          9/12
+    #      0.64    0.03      53/75          9/12
+    #      0.64    0.05      45/75          9/12
+    #
+    # The first measurement was of a code path the setting does not use. That is
+    # the third time on this project that an instrument has been measured instead
+    # of the system — see also the lexical gate, measured with apply_floor=False.
+    #
+    # Left switchable at 0 rather than deleted, so re-measuring costs nothing.
+    RETRIEVAL_MIN_MARGIN: float = float(os.getenv("RETRIEVAL_MIN_MARGIN", "0"))
     RETRIEVAL_CHUNK_FLOOR: float = float(os.getenv("RETRIEVAL_CHUNK_FLOOR", "0.50"))
 
     # ── Hybrid retrieval: dense + BM25 keyword ────────────────────────────
@@ -214,33 +281,39 @@ class Config:
     # the corpus, not of how a candidate was found. BM25 decides what is
     # findable; dense similarity still decides what is relevant.
     #
-    # ⚠️ DEFAULT OFF, BECAUSE AS BUILT IT DOES NOTHING. Measured 2026-09-20 with
-    # scripts/sweep_retrieval.py over the golden set: the numbers with it on and
-    # off are IDENTICAL at every threshold, and on five lay-worded probes the
-    # best score was unchanged to three decimal places in every case.
+    # ── History: the first attempt did nothing, and why ──────────────────
+    # Built 2026-09-20 and switched straight off. Measured over the golden set,
+    # the numbers with it on and off were IDENTICAL at every threshold. The
+    # reason was a design mistake worth stating so nobody rebuilds it: BM25
+    # candidates were scored by DENSE similarity and then RANKED by dense
+    # similarity, so a keyword hit could only win if dense already liked it —
+    # and if dense already liked it, the chunk was in dense's own top
+    # HYBRID_FETCH_K anyway. "BM25 proposes, dense disposes" sounded
+    # principled and gave the lexical half no vote.
     #
-    # The reason is a design mistake, and it is worth stating plainly so nobody
-    # re-implements it the same way. BM25 candidates are scored by DENSE
-    # similarity and then ranked by DENSE similarity, so a keyword hit can only
-    # win if dense already scored it highly — and if dense scored it highly it
-    # was already in dense's own top HYBRID_FETCH_K. "BM25 proposes, dense
-    # disposes" sounded principled and gave the lexical half no vote.
+    # ── ON since 2026-09-20, because now it is measured and it pays ───────
+    # Two things changed together. Ranking is now Reciprocal Rank Fusion over
+    # the two rankings, so a chunk BM25 puts first can rise even where dense
+    # puts it 25th. And `_chunk_key` was fixed: it keyed on
+    # (source_file, section_number, chunk_index), which 670 of 3,860 chunks
+    # SHARE, so merging the two result sets was silently overwriting rows —
+    # mt-002 lost Motor Traffic s.99 at 0.683 and reported 0.586 for a
+    # different chunk wearing the same key.
     #
-    # Making it work means letting keyword evidence actually count: rank by
-    # fusion (RRF) rather than by dense score alone, and let a strong lexical
-    # match clear the gate at a lower dense score. That changes what the
-    # relevance floor means, so it has to be measured against not_in_corpus
-    # before it is trusted — sweep_retrieval.py does that in seconds, free.
+    # Measured on the gated path — the one the service actually takes — over
+    # 101 single-turn questions including the lay-worded set added the same
+    # day. Retrieval is deterministic here, so unlike scripts.eval there is no
+    # noise floor to discount:
     #
-    # And note what the golden set CANNOT tell you here: its questions were
-    # written by reading the corpus, so they use statutory vocabulary. The whole
-    # point of keyword search is lay vocabulary. The instrument is blind to the
-    # benefit, the same way it was blind to multi-turn until a user found it.
-    # Lay-worded probes need adding before any of this is measurable.
+    #                    dense only   hybrid + RRF
+    #     answerable          50/75          53/75     co-001, co-013, prop-009
+    #     not_in_corpus       10/12          10/12     unchanged
+    #     must_refuse         13/14          13/14     unchanged
     #
-    # The index and scoring machinery are kept because they are the foundation
-    # that fix needs. They are OFF, not deleted, and they are not a feature yet.
-    ENABLE_HYBRID_SEARCH: bool = os.getenv("ENABLE_HYBRID_SEARCH", "false").lower() == "true"
+    # Nothing regressed, and co-001 — "what is required to incorporate a
+    # company", the flagship question of the weakest Act in the corpus — is
+    # one of the three it fixes.
+    ENABLE_HYBRID_SEARCH: bool = os.getenv("ENABLE_HYBRID_SEARCH", "true").lower() == "true"
 
     # How many candidates each half proposes before fusion and the floor. The
     # roadmap's shape is "retrieve 30, rerank, keep 6": this is the 30. Only
@@ -248,8 +321,86 @@ class Config:
     # retrieval time, not tokens.
     HYBRID_FETCH_K: int = int(os.getenv("HYBRID_FETCH_K", "30"))
 
-    # Acts source directory
-    ACTS_SOURCE_DIR: str = os.getenv("ACTS_SOURCE_DIR", str(BASE_DIR.parent / "Acts"))
+    # Reciprocal Rank Fusion: score = SUM over rankings of 1 / (k + rank).
+    #
+    # 60 is the value from the original RRF paper and the usual default. It is
+    # a smoothing constant: small k makes the top rank dominate, large k
+    # flattens the two rankings toward equal weight. It is not worth tuning
+    # before reranking exists — the gain available here is much smaller than
+    # the gain available from Stage 2.2.
+    HYBRID_RRF_K: int = int(os.getenv("HYBRID_RRF_K", "60"))
+
+    # ── The lexical path through the relevance gate — DEFAULT OFF ────────
+    #
+    # The roadmap asked for two changes together: rank by fusion (done, above)
+    # and let a strong keyword match clear the gate at a lower dense score.
+    # This is the second. It WORKS. It is off because of what it costs, not
+    # because it fails.
+    #
+    # THE PROBLEM IT ADDRESSES. Several genuinely answerable questions fail
+    # not because the right chunk is missing but because it lands just UNDER
+    # 0.62 — the correct section is the top hit and the gate rejects it:
+    #
+    #     lay-008  "do you need insurance to drive a car"
+    #                                    0.583, Motor Traffic s.99 — right
+    #     lay-002  "can the shareholders sack a director"
+    #                                    0.616, Companies Act s.206 — right
+    #     prop-003 "within what time must an action for loss, injury or
+    #               damage be brought"   0.614, Prescription s.9 — right
+    #
+    # MEASURED 2026-09-20 on the gated path, against hybrid+RRF with this off
+    # (answerable 53/75, not_in_corpus 10/12, must_refuse 13/14):
+    #
+    #   rank<=3,  dense>=0.58    answerable 57/75  not_in_corpus  9/12  13/14
+    #   rank<=10, dense>=0.56    answerable 61/75  not_in_corpus  7/12  13/14
+    #   rank<=30, dense>=0.55    answerable 62/75  not_in_corpus  6/12  12/14
+    #
+    # It is a clean trade curve, and every rung of it is paid for in
+    # not_in_corpus. At the tightest setting it buys four answerable questions
+    # and loses nic-005 — "what is the personal income tax rate in Sri Lanka",
+    # which the corpus cannot answer and would then answer anyway. At the
+    # loosest it also breaks law-001, a touting refusal.
+    #
+    # WHY OFF. The standing judgement of this project, and the reason 0.62 was
+    # chosen over 0.60 in the first place: stating law it does not hold is a
+    # worse failure than declining a question it could have answered. The
+    # first is invisible to the reader; the second is obvious to them. Nothing
+    # about loading land law changes that, and a tax question answered out of
+    # the Land (Restrictions on Alienation) Act is exactly the §4.10 failure.
+    #
+    # ⚠️ AND A WARNING ABOUT MEASURING IT. The first run of this reported "no
+    # effect at any setting", because the probe called hybrid_search with
+    # apply_floor=False — and the whole gate lives in the apply_floor branch.
+    # It was measuring a code path the setting cannot reach. If you re-measure
+    # this, drive the GATED path or you will conclude it is inert.
+    #
+    # The real fix for this class is a cross-encoder reranker (Stage 2.2),
+    # which judges the query-chunk PAIR instead of asking one scalar threshold
+    # to separate "the right section, oddly worded" from "a plausible section
+    # about something else". Those populations overlap at 3,860 chunks.
+    ENABLE_LEXICAL_GATE: bool = os.getenv("ENABLE_LEXICAL_GATE", "false").lower() == "true"
+
+    # How strong a keyword match has to be to use that path: within the top N
+    # of the BM25 ranking, and still above a reduced dense score. The reduced
+    # score is NOT a free parameter — below about 0.58 the sweep shows
+    # not_in_corpus collapsing whatever the lexical rule is.
+    HYBRID_LEXICAL_RANK: int = int(os.getenv("HYBRID_LEXICAL_RANK", "3"))
+    RETRIEVAL_LEXICAL_MIN_SCORE: float = float(
+        os.getenv("RETRIEVAL_LEXICAL_MIN_SCORE", "0.58")
+    )
+
+    # Where the source PDFs live, and therefore the only route by which this
+    # corpus can be rebuilt from scratch.
+    #
+    # This defaulted to `<repo>/Acts`, a directory that is NOT in the repository
+    # and does not exist on any checkout — so `python -m scripts.ingest_all`,
+    # the command docs/RUNNING.md gives for first-time setup, could not run. It
+    # failed safely (the script returns before it clears anything) and silently,
+    # and the consequence was that `data/vectordb` was the only artifact of the
+    # corpus in existence: rebuildable from nothing, restorable only from git.
+    #
+    # Now `data/acts/`, which is tracked, so the corpus has a source again.
+    ACTS_SOURCE_DIR: str = os.getenv("ACTS_SOURCE_DIR", str(BASE_DIR / "data" / "acts"))
 
     # LLM Parameters
     LLM_TEMPERATURE: float = 0.1  # Low temperature for factual legal responses

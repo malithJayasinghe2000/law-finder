@@ -3,6 +3,7 @@ import re
 import logging
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from app.core.llm import get_llm, message_text
+from app.core.corpus import held_filter_names
 
 logger = logging.getLogger(__name__)
 
@@ -28,18 +29,40 @@ CRITICAL DISTINCTIONS:
 - "What does Section X say?" → legal_query
 
 FIELD 2 — "document_filter" (required):
-Pick the most relevant document or "All":
-- "Motor Traffic Act" — driving, vehicles, road accidents, traffic offences
-- "Companies Act" — companies, directors, shareholders, incorporation
-- "Civil Procedure Code" — court procedures, filing cases, appeals, evidence
-- "Act No. 24 of 2007" — computer crimes, cyber offences, hacking
+Pick the most relevant document from this list, or "All":
+{document_filters}
 - "All" — general, multiple areas, or uncertain
+
+Use the EXACT name as written above. Anything else is discarded and treated as
+"All". Prefer "All" whenever you are unsure — a wrong filter hides the answer,
+whereas "All" merely searches wider.
 
 RULES:
 - Return ONLY a valid JSON object. No markdown, no explanation, no thinking.
 - If intent is "conversational", "lawyer_request", or "clarification_needed", set document_filter to "All".
 - Example: {{"intent": "legal_query", "document_filter": "Motor Traffic Act"}}
 """
+
+
+def _router_prompt() -> str:
+    """
+    ROUTER_PROMPT with the document-filter menu filled in from the live store.
+
+    Substituted with `str.replace` rather than by ChatPromptTemplate, on purpose.
+    Act names are data, and some of them contain characters a template treats as
+    syntax — "Land (Restrictions on Alienation) Act" is fine, but the moment a
+    document name contained a brace it would become a template variable and
+    raise at request time. Text that comes from the corpus must never be parsed
+    as prompt syntax; that is the same principle as the injection fencing in
+    rag_chain.format_context.
+    """
+    names = held_filter_names()
+    if not names:
+        menu = '- "All" — the document list could not be read; do not guess a filter'
+    else:
+        menu = "\n".join(f'- "{n}"' for n in names)
+    return ROUTER_PROMPT.replace("{document_filters}", menu)
+
 
 REWRITE_PROMPT = """You are a helpful assistant for a legal AI. 
 Your task is to rewrite a follow-up question into a fully standalone legal question that can be understood without the conversation history.
@@ -293,7 +316,7 @@ def classify_intent(question: str, chat_history: list) -> dict:
         llm = get_llm()
 
         prompt = ChatPromptTemplate.from_messages([
-            ("system", ROUTER_PROMPT),
+            ("system", _router_prompt()),
             MessagesPlaceholder(variable_name="chat_history"),
             ("human", "{question}"),
         ])
@@ -400,12 +423,20 @@ def _parse_router_response(raw: str) -> dict:
             else:
                 intent = "legal_query"
 
-        # Validate document_filter
-        valid_filters = {
-            "Motor Traffic Act", "Companies Act",
-            "Civil Procedure Code", "Act No. 24 of 2007", "All",
-        }
+        # Validate document_filter against what is ACTUALLY in the store.
+        #
+        # This was a hardcoded set of four Acts plus "All". After the 2026-09-20
+        # ingest the store held fourteen documents, so a correct filter like
+        # "Penal Code" failed this check and was silently downgraded to "All" —
+        # document filtering simply did not work for any Act added after the set
+        # was written, and nothing said so. See app/core/corpus.py.
+        valid_filters = set(held_filter_names()) | {"All"}
         if doc_filter not in valid_filters:
+            if doc_filter and doc_filter != "All":
+                logger.info(
+                    "Router proposed document_filter=%r which is not a held document; using All",
+                    doc_filter,
+                )
             doc_filter = "All"
 
         return {"intent": intent, "document_filter": doc_filter}

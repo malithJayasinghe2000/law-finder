@@ -156,7 +156,7 @@ That is a retrieval failure, not a coverage gap, and it is what 1.2 and Stage 2 
 
 #### The one case that still cannot be written
 
-A question whose answer lies in a **repealed** section. **All 2,368 chunks are
+A question whose answer lies in a **repealed** section. **All 3,860 chunks are
 `status: Active`** — there is no repealed content in the corpus at all, so the case cannot
 be written honestly. `scripts/eval.py` reports this at the top of every run, and the case
 becomes writable the moment an amendment is processed. Meanwhile
@@ -379,9 +379,9 @@ largest quality gains here.
 
 | # | Change | Why |
 | --- | --- | --- |
-| 1 | **Hybrid search** — BM25 alongside dense, fused with Reciprocal Rank Fusion | Legal queries are full of exact strings: `"Section 14(2)(b)"`, `"Act No. 24 of 2007"`. Dense embeddings are weak at exactly this, and it is what lawyers type. ⚠️ **Attempted 2026-09-20 and it did nothing — read the note below before trying again** |
+| 1 | **Hybrid search** — BM25 alongside dense, fused with Reciprocal Rank Fusion | ✅ **DONE 2026-09-20, second attempt.** ON by default. Measured +3 answerable with nothing regressed — read the note below for what the first attempt got wrong |
 | 2 | **Cross-encoder reranking** — retrieve 30, rerank, keep 6 | Usually the single biggest quality jump in a RAG system. Also *reduces* tokens: fewer, better chunks |
-| 3 | **Parent-document retrieval** — match small, return the enclosing section | Fixes mid-section truncation without raising chunk size |
+| 3 | **Parent-document retrieval** — match small, return the enclosing section | 🔴 **NOW THE TOP RETRIEVAL ITEM.** Not a refinement any more: it is the only thing that resolves the trade the 2026-09-21 re-chunk exposed. See the note below |
 | 4 | **Query expansion** for legal synonyms (`plaint`/`complaint`, `decree`/`judgment`) | Vocabulary mismatch is a known failure mode in legal IR |
 | 5 | **Semantic cache** on question embeddings | Repeated questions are common; a hit costs nothing |
 | 6 | **Amendment-aware retrieval** — surface the amending provision with the amended section | Already half-built: `amendment_processor.py` and the graph exist. Citing a section without its amendment is a wrong answer that looks right |
@@ -440,6 +440,122 @@ answerable — the wrong trade for a legal assistant.
 
 ---
 
+### ✅ 2.1 done properly — 2026-09-20, later the same day
+
+Both changes the note above asked for were made, plus one it did not anticipate.
+`ENABLE_HYBRID_SEARCH` now defaults **true**.
+
+**1. Ranking is Reciprocal Rank Fusion.** `score = Σ 1/(k + rank)` over the dense
+and BM25 rankings, `k = 60`. A chunk BM25 puts first can now rise even where
+dense puts it 25th, which is precisely what the first attempt made impossible.
+
+**2. The gate is deliberately NOT fused.** `RETRIEVAL_MIN_SCORE` is still decided
+on the best **dense** score across the whole candidate pool, so it means exactly
+what it meant before and still did not need re-tuning. There is an invariant to
+go with it: the strongest semantic match is always returned even if fusion ranks
+it below `top_k`, because otherwise a caller recomputing the best score from the
+returned list — `sweep_retrieval.py` does — measures something different from
+what the gate decided.
+
+**3. `_chunk_key` was broken, and that was most of why fusion looked useless.**
+670 of 3,860 chunks shared the old identity tuple. Merging the two result sets
+overwrote rows. See RAG-REVIEW §4.27.
+
+Measured on the **gated** path over 101 single-turn questions — retrieval is
+deterministic, so there is no noise floor to discount here:
+
+```
+                   dense only   hybrid + RRF
+  answerable            50/75          53/75    co-001, co-013, prop-009
+  not_in_corpus         10/12          10/12    unchanged
+  must_refuse           13/14          13/14    unchanged
+```
+
+**Nothing regressed**, and one of the three it fixes is `co-001` — *"what is
+required to incorporate a company"*, the flagship question of the Act the
+baseline called "the weakest by a distance".
+
+#### The second half — a lexical path through the gate — is built and OFF
+
+`ENABLE_LEXICAL_GATE`. It works; it is off because of its price, not its
+effectiveness. Against hybrid+RRF (answerable 53/75, not_in_corpus 10/12):
+
+```
+  rank<=3,  dense>=0.58    answerable 57/75    not_in_corpus  9/12
+  rank<=10, dense>=0.56    answerable 61/75    not_in_corpus  7/12
+  rank<=30, dense>=0.55    answerable 62/75    not_in_corpus  6/12   (and must_refuse 12/14)
+```
+
+A clean trade curve, every rung paid for in `not_in_corpus`. The tightest
+setting buys four answerable questions and loses `nic-005` — *"what is the
+personal income tax rate in Sri Lanka"* — which the corpus cannot answer and
+would then answer anyway. **The standing judgement applies and it is the same
+one that chose 0.62 over 0.60: stating law it does not hold is worse than
+declining a question it could have answered.** The lever is documented and
+switchable if that judgement ever changes.
+
+> ⚠️ **If you re-measure this, drive the GATED path.** The first run reported
+> "no effect at any setting" because the probe called `hybrid_search` with
+> `apply_floor=False`, and the entire gate lives in the `apply_floor` branch.
+> It was measuring code the setting cannot reach. The measuring instrument is
+> also code, again.
+
+**What this does not fix, and what to do next.** The dominant remaining failure
+is not ranking: for ten or more questions the *correct* section is already the
+top hit and the gate rejects it for scoring 0.58–0.61. One scalar threshold is
+being asked to separate "the right section, oddly worded" from "a plausible
+section about something else", and at 3,860 chunks those overlap (RAG-REVIEW
+§4.24). **Do 2.2, the cross-encoder reranker, before touching retrieval again.**
+
+---
+
+### 🔴 Why 2.3 (parent-document retrieval) is now the top retrieval item — 2026-09-21
+
+The corpus was re-extracted and re-chunked to fix real defects (RAG-REVIEW §4.29:
+15.7% of chunks were citeable and empty, and the punishment for theft was cited
+as Penal Code s.368 when it is s.367). The data got better and **every retrieval
+number got worse**:
+
+```
+                      pre-re-chunk   re-chunked @0.62
+  answerable              54/75           51/75
+  not_in_corpus           10/12            7/12
+  chunks < 100 chars       15.7%            2.7%
+  theft citation        s.368 WRONG      s.367 correct
+```
+
+The mechanism is chunk length, and it cuts both ways at once. Longer, well-formed
+chunks cover more ground, so they score higher against **everything** — lifting
+out-of-corpus questions through the floor — while the specific sentence a user
+asked about is diluted inside a larger chunk, leaving correct answers just under
+it. The sharpest single example:
+
+```
+Q: "What is the punishment for theft under the Sri Lankan Penal Code?"
+   Penal Code s.367 contains, verbatim:
+   "Whoever commits theft shall be punished with imprisonment ... three years"
+   -> NOT IN THE TOP 30.
+```
+
+Three cheaper fixes were tried and measured, and all three failed:
+
+| tried | result |
+| --- | --- |
+| raise the floor to 0.64 | restores 9/12 abstention, but refuses co-005 — *"how may a director be removed"* — live. Reverted |
+| a margin gate ("does the best hit stand clear?") | separates on a 30-result pool, does nothing on the 6 the service uses. OFF |
+| CHUNK_SIZE 1000 instead of 1500 | 48/75 and 8/12. No better |
+
+**Parent-document retrieval is the one that resolves it rather than trading one
+side against the other:** embed small, focused child chunks so the specific
+sentence matches strongly, and return the enclosing section so the answer is
+complete and citeable. It needs no new dependency, unlike the cross-encoder
+reranker in 2.2, and the ingestion side already produces clean section
+boundaries for the parent to be.
+
+**Do this before anything else in retrieval, and re-sweep the floor afterwards.**
+
+---
+
 ## Stage 3 — Make it production software (1 week)
 
 | Item | Detail |
@@ -457,7 +573,52 @@ answerable — the wrong trade for a legal assistant.
 
 ## Stage 4 — Features, in the order I would build them
 
-### 4.1 Corpus breadth — **the highest-value item on this page**
+### 4.1 Corpus breadth — ⏳ **land and property DONE 2026-09-20**
+
+> **What was loaded**, from `lankalaw.net/consolidated-acts-2024` — the same source and
+> the same `*-Consolidated-2024.pdf` format as the existing corpus. Sources now live in
+> `lawyer-rag/data/acts/`, which is where `ACTS_SOURCE_DIR` should point; before this the
+> documented rebuild command could not run at all, because it pointed at `../Acts` and
+> that directory does not exist in the repository.
+>
+> | Act | chunks | |
+> | --- | --- | --- |
+> | Penal Code | 714 | trespass, mischief, theft |
+> | Partition Law | 208 | co-owned land — the commonest land action in Sri Lanka |
+> | Notaries Ordinance | 179 | |
+> | Land Development Ordinance | 169 | State land, permits and grants |
+> | Registration of Documents Ordinance | 85 | deed registration and priority |
+> | Powers of Attorney Ordinance | 47 | |
+> | Land (Restrictions on Alienation) Act | 42 | foreign ownership |
+> | Prevention of Frauds Ordinance | 27 | **s.2 — the rule that land passes only by notarially attested deed** |
+> | Prescription Ordinance | 21 | **s.3 — ten years' adverse possession** |
+>
+> **2,368 → 3,860 chunks; 5 → 14 documents.** No displacement: every question that found
+> its section in the old corpus still finds it, verified by re-running the golden set
+> restricted to the original five Acts.
+>
+> **⚠️ The Land Acquisition Act is NOT available from this source.** The full alphabetical
+> index holds only Land Development and Land (Restrictions on Alienation). It will have to
+> come from somewhere else, and both official sources are still broken.
+>
+> **Four things to know before the next ingest — all of them cost time here:**
+>
+> 1. **Add a `DOCUMENT_PATTERNS` entry per Act first.** Eight of the nine would otherwise
+>    have been stored as `"Partition  2024"`, `"Notaries  2024"` — §4.12 all over again,
+>    and a name nobody would type is a section nobody can filter to. Take the short title
+>    out of the Act's own section 1, not out of the filename.
+> 2. **Labels expire.** Loading legislation silently invalidated four `not_in_corpus`
+>    answer keys. One of them (`nic-011`) still scores below the floor, so it *looked*
+>    like a correct abstention — only re-reading the corpus for coverage found it. Run
+>    `scripts/validate_questions.py`, which now exists for this.
+> 3. **Write the questions at the same time as the ingest.** Until they existed, 1,492 of
+>    3,860 chunks had no test coverage at all.
+> 4. **The floor gets worse as the corpus grows** — RAG-REVIEW §4.24.
+>
+> **Still to do:** Labour → Family → Criminal Procedure (the PDF is already in
+> `data/uploads/`, tracked, and never ingested) → Tax → Evidence Ordinance → Rent Act.
+
+#### Why corpus breadth is still the highest-value item on this page
 
 The service holds three consolidated Acts plus the Computer Crimes Act. A practising
 lawyer will ask about Land, Labour, Family, Tax and Criminal law within minutes of opening
@@ -528,16 +689,31 @@ feature.
 ```
 Stage 0  Security + the LangSmith leak                ✅ DONE 2026-09-13
 Stage 1  Eval set ✅; 1.2 ✅ 1.2c ✅; 1.6 seam ✅, Gemini measured (worse), llama control owed
-Stage 2  Hybrid search + reranking                    1–2 weeks
+Stage 2  2.1 hybrid + RRF ✅ DONE 2026-09-20; 2.2 reranking is now the top item
 Stage 3  Production serving                           1 week
-Stage 4  Corpus breadth, then the rest                ongoing
+Stage 4  4.1 land/property ✅ DONE 2026-09-20; Labour/Family/Tax/Evidence outstanding
 ```
 
-**If you only do two things now that Stage 0 and 1.1 are done:**
+**The one thing to do next: Stage 2.2, the cross-encoder reranker.**
 
-1. **Stage 1.2 — the relevance floor.** `not_in_corpus` sits at **12.5%**. Everything
-   else on this page is a refinement; this is the system stating law it does not have.
-   And it is now a number you can watch move, which it was not last week.
-2. **Load more legislation** (Stage 4.1). The most sophisticated retrieval in the world
-   cannot answer a question about land law from a corpus that contains no land law — and
-   the baseline shows what the system does instead of admitting that.
+Everything measured on 2026-09-20 points at it from a different direction:
+
+- **Ranking is no longer the bottleneck.** RRF fixed what fusion could fix (+3, nothing
+  regressed). For ten or more remaining failures the correct section is *already the top
+  hit* and the 0.62 gate rejects it at 0.58–0.61.
+- **The gate cannot be tuned out of this.** Lowering it recovers those questions and
+  loses `not_in_corpus` at every rung of the curve; raising it to exclude the two new
+  false positives costs five real answers.
+- **The corpus growing made it worse, and will again.** 0.62 was tuned against 2,368
+  chunks; at 3,860 more near-neighbours reach it (§4.24). Every future ingest degrades a
+  fixed threshold.
+
+A reranker judges the query-chunk **pair** rather than scoring the chunk alone, which is
+the only thing on the list that can separate populations one scalar cannot.
+
+**And the finding that outranks all of the above:** §4.25. The service retrieved the
+Prescription Ordinance and told a user the prescriptive period is **12 years** when s.3
+says **ten** — six times out of six, with grounding and the citation check both passing,
+because the Act it cited genuinely was retrieved. **Loading the legislation fixed the
+retrieval and did not fix the answer**, and a real citation beside a wrong number is more
+dangerous than no citation at all. That is Stage 1.4, and it is no longer a quality item.

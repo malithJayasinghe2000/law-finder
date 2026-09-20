@@ -45,6 +45,58 @@ DOCUMENT_PATTERNS = [
         "document_name": "Evidence Ordinance",
         "document_type": "Consolidated Act",
     },
+    # ── Land, property and conveyancing — added 2026-09-20 (roadmap 4.1) ──────
+    #
+    # Every name here is the statute's OWN short title, read out of section 1 of
+    # the PDF ("This Ordinance may be cited as ..."), not inferred from the
+    # filename. That matters because `document_name` is what a citation shows
+    # the user and what `document_filter` matches on: a name nobody would type
+    # is a section nobody can filter to, which is defect 4.12.
+    #
+    # Without these entries the fallback below produced "Partition  2024",
+    # "Notaries  2024", "Registration Of Documents  2024" — eight of the nine.
+    {
+        "pattern": re.compile(r"Partition[- ]?Consolidated.*?(\d{4})", re.IGNORECASE),
+        "document_name": "Partition Law",  # a Law, not an Act — Law No. 21 of 1977
+        "document_type": "Consolidated Act",
+    },
+    {
+        "pattern": re.compile(r"Prescription[- ]?Consolidated.*?(\d{4})", re.IGNORECASE),
+        "document_name": "Prescription Ordinance",
+        "document_type": "Consolidated Act",
+    },
+    {
+        "pattern": re.compile(r"Prevention[- ]?of[- ]?Frauds[- ]?Consolidated.*?(\d{4})", re.IGNORECASE),
+        "document_name": "Prevention of Frauds Ordinance",
+        "document_type": "Consolidated Act",
+    },
+    {
+        "pattern": re.compile(r"Registration[- ]?of[- ]?Documents[- ]?Consolidated.*?(\d{4})", re.IGNORECASE),
+        "document_name": "Registration of Documents Ordinance",
+        "document_type": "Consolidated Act",
+    },
+    {
+        "pattern": re.compile(r"Notaries[- ]?Consolidated.*?(\d{4})", re.IGNORECASE),
+        "document_name": "Notaries Ordinance",
+        "document_type": "Consolidated Act",
+    },
+    {
+        "pattern": re.compile(r"Powers[- ]?of[- ]?Attorney[- ]?Consolidated.*?(\d{4})", re.IGNORECASE),
+        "document_name": "Powers of Attorney Ordinance",
+        "document_type": "Consolidated Act",
+    },
+    {
+        "pattern": re.compile(r"Land[- ]?Development[- ]?Consolidated.*?(\d{4})", re.IGNORECASE),
+        "document_name": "Land Development Ordinance",
+        "document_type": "Consolidated Act",
+    },
+    {
+        # Filename drops the brackets the short title carries; keep them in the
+        # name, because "Land (Restrictions on Alienation) Act" is how it is cited.
+        "pattern": re.compile(r"Land[- ]?Restrictions[- ]?on[- ]?Alienation[- ]?Consolidated.*?(\d{4})", re.IGNORECASE),
+        "document_name": "Land (Restrictions on Alienation) Act",
+        "document_type": "Consolidated Act",
+    },
     # Amendment act pattern: "24-2025_E.pdf" → Act No. 24 of 2025
     {
         "pattern": re.compile(r"^(\d+)-(\d{4})_[A-Z]", re.IGNORECASE),
@@ -105,19 +157,48 @@ def build_metadata_from_filename(filename: str) -> dict:
                     "ingested_at": datetime.now(timezone.utc).isoformat(),
                 }
 
-    # Fallback: try to extract meaningful info from filename
-    logger.warning(f"No pattern matched for filename: {filename}, using fallback metadata")
+    # Fallback: derive a readable name from the filename.
+    #
+    # ⚠️ A NAME DERIVED HERE IS A CITATION NOBODY CAN CHECK. `document_name` is
+    # what the user is shown as the source and what `document_filter` matches
+    # on, so a name that is not the statute's real short title is defect 4.12
+    # in a new coat. Treat this warning as work to do, not as noise: add the
+    # Act to DOCUMENT_PATTERNS above, with the short title read out of its own
+    # section 1.
+    logger.warning(
+        "No pattern matched for %s — falling back to a name derived from the "
+        "filename. Add it to DOCUMENT_PATTERNS with its statutory short title.",
+        filename,
+    )
     year_match = re.search(r"(\d{4})", stem)
     year = int(year_match.group(1)) if year_match else 0
 
-    # Try to make a readable name from the filename
-    readable_name = stem.replace("-", " ").replace("_", " ").title()
-    # Remove common suffixes
-    for suffix in ["Consolidated", "Upto Act No", "E", "S", "T"]:
-        readable_name = readable_name.replace(suffix, "").strip()
+    # Strip noise a TOKEN at a time. This used to be a list of substring
+    # replacements including the bare letters "E", "S" and "T" — meant as the
+    # language suffix in "24-2025_E", but `str.replace` does not know what a
+    # suffix is, so it removed those letters from ANYWHERE in the name:
+    #
+    #   Trusts-Consolidated-2024          -> "rusts  2024"
+    #   Estate-Duty-Consolidated-2024     -> "state Duty  2024"
+    #   Stamp-Duty-Special-Provisions-…   -> "tamp Duty pecial Provisions  2024"
+    #
+    # All three are on the roadmap. Reproduced before it was changed.
+    _NOISE = {"consolidated", "upto", "e", "s", "t"}
+    tokens = [t for t in re.split(r"[-_\s]+", stem) if t]
+    kept = []
+    for i, tok in enumerate(tokens):
+        if tok.lower() in _NOISE:
+            continue
+        if re.fullmatch(r"\d{4}", tok):  # a bare year, e.g. the "2024" suffix
+            continue
+        if tok.lower() in {"act", "no", "no."} and i and tokens[i - 1].lower() == "upto":
+            continue
+        # Title-case only what arrives lowercase, so "McCallum" survives intact.
+        kept.append(tok.title() if tok.islower() else tok)
+    readable_name = " ".join(kept).strip()
 
     return {
-        "document_name": readable_name.strip() or stem,
+        "document_name": readable_name or stem,
         "document_type": "Consolidated Act" if "consolidated" in stem.lower() else "Act",
         "status": "Active",
         "last_updated_year": year,

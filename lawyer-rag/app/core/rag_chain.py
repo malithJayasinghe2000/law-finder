@@ -25,6 +25,7 @@ from langsmith import traceable
 from app.core.llm import get_llm, message_text
 from app.core.vectorstore import search_documents, hybrid_search
 from app.core.synonyms import expand_query
+from app.core.corpus import corpus_bullets, held_legislation, DISPLAY_NAMES
 from app.core.graph_store import get_knowledge_graph
 from app.core.entity_extractor import extract_entities_regex
 from app.core.query_router import (
@@ -60,15 +61,16 @@ logger = logging.getLogger(__name__)
 #     operator criminally.
 #   - The own-matter line is now explicit, because "never provide specific legal
 #     advice" turned out to be too abstract for the model to apply.
+# {legislation} is filled at call time from app/core/corpus.py. It was a
+# hardcoded list of five Acts, and on 2026-09-20 nine more were ingested while
+# this block went on naming the original five — so the model was told it did not
+# hold legislation that retrieval was handing it. See corpus.py for what that
+# produced.
 SYSTEM_PROMPT = """You are a legal information assistant for Sri Lankan law.
 You are NOT a lawyer and you are NOT anyone's lawyer.
 
 LEGISLATION AVAILABLE TO YOU:
-- Companies Act (Consolidated, 2024)
-- Civil Procedure Code (Consolidated, 2024)
-- Motor Traffic Act (Consolidated, 2024)
-- Act No. 24 of 2007 — Computer Crimes Act
-- Act No. 24 of 2025 — Amendment
+{legislation}
 
 THE LINE YOU MUST NOT CROSS:
 You explain what the law says. You never advise a person about their own case.
@@ -356,41 +358,15 @@ def _graph_expand_retrieval(question: str, initial_docs: list) -> tuple[list, li
 # own-matter path this service handles worst. It offers the general form of the
 # question instead, the way the application's own refusals do.
 
-_CORPUS_CACHE: Optional[list[str]] = None
-
-# Display names for documents whose stored document_name is unusable.
-#
-# STOPGAP, and display-only. "Act No. 24 of 2007" is what build_metadata_from_filename
-# derived from 24-2007_E.pdf; it is not a name anybody would ask for and not a
-# citation anybody could look up (RAG-REVIEW.md §4.12). The real fix is to
-# re-ingest with the Act's long title, which is in the first chunk of each PDF.
-# This map only affects the sentence below, never a citation.
-_DISPLAY_NAMES = {
-    "Act No. 24 of 2007": "Computer Crime Act, No. 24 of 2007",
-    "Act No. 24 of 2025": "Social Security Contribution Levy (Amendment) Act, No. 24 of 2025",
-}
-
-
 def _corpus_titles() -> list[str]:
     """
-    The legislation actually held, read from the vector store and cached.
+    The legislation actually held. Thin alias over app/core/corpus.py.
 
-    Derived rather than hardcoded. The available Acts are currently written into
-    four separate places (RAG-REVIEW.md §4.6) and ingesting a new one updates
-    none of them, so a hardcoded list here would be a fifth thing to drift.
+    This module used to own the cache and the display-name map. They moved so
+    that the SYSTEM PROMPTS and the ROUTER could share them — those were the
+    places still naming a hardcoded five Acts when nine more were ingested.
     """
-    global _CORPUS_CACHE
-    if _CORPUS_CACHE is None:
-        try:
-            from app.core.vectorstore import get_all_document_names
-            names = [d.get("document_name", "") for d in get_all_document_names()]
-            _CORPUS_CACHE = sorted(
-                {_DISPLAY_NAMES.get(n, n) for n in names if n and n != "Unknown"}
-            )
-        except Exception as e:
-            logger.warning(f"Could not read corpus names: {e}")
-            return []
-    return _CORPUS_CACHE
+    return held_legislation()
 
 
 # A question that cannot stand on its own: "tell me more about that", "explain
@@ -878,6 +854,8 @@ def _query_rag_linear(
         "graph_context": graph_context,
         "chat_history": langchain_history,
         "question": question,
+        # Read at call time, never hardcoded — see app/core/corpus.py.
+        "legislation": corpus_bullets(),
     })
 
     response = llm.invoke(prompt)

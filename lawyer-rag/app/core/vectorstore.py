@@ -76,15 +76,21 @@ def add_documents(documents: list, batch_size: int = 50) -> int:
 
 def _invalidate_keyword_index() -> None:
     """
-    Drop the BM25 index after the collection changes.
+    Drop the caches that are snapshots of the collection, after it changes.
 
     Deliberately here, at the mutation, rather than at the four call sites that
-    ingest or delete. The keyword index is a snapshot taken at first use, so a
-    newly ingested Act would otherwise be findable by meaning and invisible to
-    keyword search until someone restarted the service — a half-working state
-    that costs a day to diagnose and that nobody would think to look for.
+    ingest or delete. Each of these is taken at first use, so a newly ingested
+    Act would otherwise land in a half-working state that costs a day to
+    diagnose and that nobody would think to look for:
 
-    Imported locally because bm25 imports this module.
+      BM25 index   the Act is findable by meaning and invisible to keyword
+                   search until someone restarts the service.
+      corpus list  the Act is retrievable, and every system prompt still tells
+                   the model it does not exist. That one is not theoretical —
+                   on 2026-09-20 it made the service deny holding the Penal
+                   Code while quoting from it. See app/core/corpus.py.
+
+    Imported locally because both of those modules import this one.
     """
     try:
         from app.core.bm25 import reset_bm25_index
@@ -92,6 +98,95 @@ def _invalidate_keyword_index() -> None:
         reset_bm25_index()
     except Exception as e:  # never let index bookkeeping fail an ingest
         logger.warning("Could not invalidate the keyword index (%s)", e)
+
+    try:
+        from app.core.corpus import invalidate_corpus_cache
+
+        invalidate_corpus_cache()
+    except Exception as e:
+        logger.warning("Could not invalidate the corpus list (%s)", e)
+
+
+# Publication furniture that appears on the first page of a consolidated PDF and
+# nowhere else. Matching any of these, in a chunk that carries no section number,
+# is what identifies front matter.
+_FRONT_MATTER_MARKERS = (
+    "printed on the order of government",
+    "to be purchased at the government publications bureau",
+    "published by www.lankalaw.net",
+    "parliament of the democratic socialist republic",
+    "acts of parliament",
+    # The amending-instrument list that follows every cover-page title. All
+    # three forms are needed: Sri Lanka has Ordinances (pre-1947), Acts, and
+    # Laws (the 1972-78 National State Assembly). Writing only two of the three
+    # left the Motor Traffic Act's cover page — "Law Nos, 22 of 1973" — as the
+    # single unflagged front-matter chunk in the corpus.
+    "ordinance nos",
+    "act nos",
+    "law nos",
+    # The long title, which is the other half of every cover page.
+    "an act to",
+    "an ordinance to",
+    "a law to",
+    "price :",
+    "postage",
+)
+
+
+def is_front_matter(doc) -> bool:
+    """
+    Is this chunk a title page rather than law?
+
+    WHY THIS EXISTS. Every consolidated PDF begins with a cover page — the Act's
+    name, its long title, the list of amending Act numbers, the Government
+    Publications Bureau address and the price. The chunker gives these no section
+    number, so they are stored as `Chunk_1`. There are exactly 14 in this corpus,
+    one per document, and one of them is the 14 characters "Ordinance Nos,".
+
+    They are actively harmful, because a chunk that is mostly the Act's NAME is a
+    strong embedding match for any question that names that Act:
+
+        "what is the punishment for theft under the Penal Code?"
+              -> Penal Code Chunk_1 at 0.731, the top hit, the title page
+        "what is mischief under the Sri Lankan Penal Code?"
+              -> Penal Code Chunk_1 at 0.743, the top hit
+
+    That does three bad things at once. It occupies a slot in a six-chunk context
+    window with text containing no law; it can clear the relevance gate on its
+    own, so a question the corpus cannot answer stops abstaining; and it cannot be
+    cited, because there is no section to cite — which means it can never support
+    an answer even in principle. See RAG-REVIEW §4.26.
+
+    DELIBERATELY TWO CONDITIONS. Being unciteable is not enough on its own. A
+    future ingest of a differently formatted PDF could produce real legal text
+    that the chunker fails to number, and silently dropping that would be a much
+    worse failure than the one this fixes. So a chunk is only discarded when it is
+    unciteable AND it looks like publication furniture — very short, or carrying
+    a marker that only ever appears on a cover page.
+    """
+    meta = doc.metadata or {}
+    section = str(meta.get("section_number") or "")
+    citeable = section and not section.startswith("Chunk_")
+    if citeable:
+        return False
+
+    text = " ".join((doc.page_content or "").split())
+    if len(text) < 200:
+        return True
+    lowered = text.lower()
+    return any(marker in lowered for marker in _FRONT_MATTER_MARKERS)
+
+
+def drop_front_matter(results: list, *, query: str = "") -> list:
+    """Remove title-page chunks from a scored result list, before the floor."""
+    kept = [(doc, score) for doc, score in results if not is_front_matter(doc)]
+    dropped = len(results) - len(kept)
+    if dropped:
+        logger.info(
+            "[front-matter] dropped %d title-page chunk(s) carrying no law for %r",
+            dropped, query[:60],
+        )
+    return kept
 
 
 def apply_relevance_floor(results: list, *, query: str = "") -> list:
@@ -119,13 +214,43 @@ def apply_relevance_floor(results: list, *, query: str = "") -> list:
     if not results:
         return results
 
-    best = max(score for _, score in results)
+    scores = sorted((score for _, score in results), reverse=True)
+    best = scores[0]
     if best < config.RETRIEVAL_MIN_SCORE:
         logger.info(
             "[floor] no result cleared %.2f (best %.3f) for %r — returning nothing",
             config.RETRIEVAL_MIN_SCORE, best, query[:60],
         )
         return []
+
+    # Second gate: does the best hit STAND OUT, or is everything equally mediocre?
+    #
+    # An absolute threshold answers "is this similar enough?". It cannot answer
+    # "is this about the question?", and the difference shows up exactly where it
+    # matters. For a question the corpus answers, one chunk is clearly the best.
+    # For a question it does not, the top twenty are all vaguely related and all
+    # about the same distance away — the shape of "nothing here is it".
+    #
+    # WHY THIS WAS ADDED. The absolute floor has now been invalidated twice by
+    # changes that had nothing to do with it: once by loading nine Acts
+    # (RAG-REVIEW §4.24) and once by re-chunking, which made chunks longer and
+    # lifted every score. A threshold tuned against one score distribution is not
+    # a property of relevance, it is a property of that distribution.
+    #
+    # Margin is scale-free against a uniform shift, which is what both of those
+    # were. That is the reason for preferring it — but it has been measured
+    # against ONE corpus at ONE chunk size, so treat the robustness as the
+    # intention rather than as an established fact.
+    if config.RETRIEVAL_MIN_MARGIN > 0 and len(scores) > 1:
+        neighbours = scores[1:11]
+        margin = best - (sum(neighbours) / len(neighbours))
+        if margin < config.RETRIEVAL_MIN_MARGIN:
+            logger.info(
+                "[floor] best %.3f does not stand out (margin %.3f < %.3f) for %r "
+                "— returning nothing",
+                best, margin, config.RETRIEVAL_MIN_MARGIN, query[:60],
+            )
+            return []
 
     kept = [(doc, score) for doc, score in results if score >= config.RETRIEVAL_CHUNK_FLOOR]
     if len(kept) < len(results):
@@ -187,6 +312,12 @@ def search_documents(
             k=top_k,
             filter=filter_metadata,
         )
+        # Title pages are removed BEFORE the floor, and before `apply_floor` is
+        # consulted, so that every caller sees the same result set the service
+        # reasons over — including scripts/sweep_retrieval.py, which recomputes
+        # the gate itself. A measurement that sees different chunks from the
+        # pipeline is not a measurement of the pipeline.
+        results = drop_front_matter(results, query=query)
         return apply_relevance_floor(results, query=query) if apply_floor else results
     except Exception as e:
         # The status filter is NEVER dropped.
@@ -267,13 +398,34 @@ def search_documents(
             ) from e2
 
 
-def _chunk_key(meta: dict) -> tuple:
-    """Identity of a chunk, for de-duplicating dense and keyword hits."""
-    return (
-        str(meta.get("source_file") or ""),
-        str(meta.get("section_number") or ""),
-        meta.get("chunk_index"),
-    )
+def _chunk_key(doc) -> tuple:
+    """
+    Identity of a chunk, for merging the dense and keyword result sets.
+
+    Keyed on the TEXT, not on the metadata. The obvious key —
+    (source_file, section_number, chunk_index) — is not unique in this corpus:
+    measured on 2026-09-20, 670 of 3,860 chunks share such a tuple with at
+    least one other chunk, and eight different chunks of the Notaries Ordinance
+    all answer to ("Notaries-Consolidated-2024.pdf", "Section 6", 0). The
+    consolidated PDFs restate low section numbers inside schedules and forms,
+    and `chunk_index` restarts per section, so collisions are routine rather
+    than exceptional.
+
+    While this key was only used to drop duplicates that cost recall quietly.
+    The moment it became a dict key it started corrupting scores: the dense
+    pool is walked in rank order, so a colliding LATER row overwrote an
+    earlier, higher-scoring one. mt-002 lost Motor Traffic s.99 at 0.683 and
+    reported 0.586 for a different chunk wearing the same key, which dropped
+    the question below the relevance gate.
+
+    Two chunks with identical text are genuinely interchangeable here, which is
+    what this key now means.
+    """
+    import hashlib
+
+    meta = doc.metadata or {}
+    digest = hashlib.sha1((doc.page_content or "").encode("utf-8")).hexdigest()
+    return (str(meta.get("document_name") or ""), digest)
 
 
 def hybrid_search(
@@ -283,35 +435,37 @@ def hybrid_search(
     apply_floor: bool = True,
 ) -> list:
     """
-    Dense retrieval widened by BM25 keyword candidates.
+    Dense retrieval fused with BM25 keyword retrieval by Reciprocal Rank Fusion.
 
-    ── The design, and the one line that matters ─────────────────────────────
-    **BM25 decides what is findable. Dense similarity still decides what is
-    relevant.**
+    ── What changed on 2026-09-20, and why the first attempt did nothing ─────
+    The first version said "BM25 proposes, dense disposes": keyword search
+    suggested candidates, and every candidate was then SCORED and RANKED by
+    dense similarity. Ranking by dense score is what made it useless — a
+    keyword hit could only survive if dense already liked it, and if dense
+    already liked it the chunk was in dense's own top `HYBRID_FETCH_K` anyway.
+    Measured over the golden set, the numbers were identical with it on and
+    off, at every threshold. **The lexical half was given no vote.**
 
-    Keyword search is good at the thing embeddings are worst at — matching the
-    user's actual words — and bad at the thing the relevance floor depends on.
-    A question about land law will always match *some* chunk on a common word,
-    and admitting those on BM25's own score would undo the floor that took
-    `not_in_corpus` from 12.5% to 100%.
+    Now the two halves vote. Membership and ORDER of the returned chunks come
+    from Reciprocal Rank Fusion over the dense ranking and the BM25 ranking,
+    so a chunk BM25 puts first can rise even where dense puts it 25th.
 
-    So BM25 only proposes candidates. Every candidate is then scored by the SAME
-    dense metric, through the same collection, and passed through the SAME
-    `apply_relevance_floor`. `RETRIEVAL_MIN_SCORE` therefore means exactly what
-    it meant before this function existed, and did not need re-tuning: it is a
-    property of the embedding model and the corpus, not of how candidates were
-    found.
+    ── The one thing deliberately NOT fused: the relevance gate ──────────────
+    `RETRIEVAL_MIN_SCORE` is still decided on the best DENSE score across the
+    whole candidate pool, exactly as before this function existed. That is the
+    gate which took `not_in_corpus` from 12.5% to 100%, and it is the reason
+    the threshold did not need re-tuning: it remains a property of the
+    embedding model and the corpus, not of how a candidate was found.
 
-    Chroma's relevance for this collection is `1 - distance / sqrt(2)` (l2
-    space). That is not an assumption — it was verified against
-    `similarity_search_with_relevance_scores` on the same chunks and matched to
-    six decimal places.
+    Fusing the gate as well is the tempting next step and it is measured, not
+    assumed — see `ENABLE_LEXICAL_GATE` in config.py for what it costs.
 
-    ── Why this exists ──────────────────────────────────────────────────────
-    Three user reports in one evening, all the same failure: "company
-    registration", "legal actions", "resign from the company" each found nothing
-    while the corpus held the answer under different wording. `synonyms.py`
-    patches the pairs somebody wrote down; this fixes the class.
+    ── An invariant worth keeping ───────────────────────────────────────────
+    The single strongest semantic match is ALWAYS returned, even if fusion
+    ranks it below `top_k`. Without that, RRF could promote keyword matches
+    past the one chunk the gate was computed on, and a caller recomputing the
+    best score from the returned list (scripts/sweep_retrieval.py does exactly
+    that) would measure something different from what the gate decided.
 
     Degrades to dense-only if the keyword index is unavailable, which is the
     behaviour that shipped before.
@@ -330,7 +484,11 @@ def hybrid_search(
         trimmed = dense[:top_k]
         return apply_relevance_floor(trimmed, query=query) if apply_floor else trimmed
 
-    merged = list(dense)
+    # key -> [Document, dense_score, dense_rank | None, lexical_rank | None]
+    candidates: dict = {}
+    for rank, (doc, score) in enumerate(dense, 1):
+        candidates[_chunk_key(doc)] = [doc, score, rank, None]
+
     try:
         from app.core.bm25 import get_bm25_index
 
@@ -340,25 +498,87 @@ def hybrid_search(
             candidate_ids = index.search(
                 query, n=config.HYBRID_FETCH_K, document_filter=document_filter
             )
-            if candidate_ids:
-                seen = {_chunk_key(doc.metadata) for doc, _ in dense}
-                merged.extend(_score_candidates(query, candidate_ids, seen))
+            for chunk_id, doc, score in _score_candidates(query, candidate_ids):
+                if is_front_matter(doc):
+                    continue  # BM25 loves a cover page: it is almost all Act name
+                lexical_rank = candidate_ids.index(chunk_id) + 1
+                key = _chunk_key(doc)
+                if key in candidates:
+                    candidates[key][3] = lexical_rank
+                else:
+                    candidates[key] = [doc, score, None, lexical_rank]
     except Exception as e:
         # Never let the lexical half break the semantic half.
         logger.warning("Hybrid search fell back to dense-only (%s)", e)
+        trimmed = dense[:top_k]
+        return apply_relevance_floor(trimmed, query=query) if apply_floor else trimmed
 
-    merged.sort(key=lambda pair: pair[1], reverse=True)
-    merged = merged[:top_k]
-    return apply_relevance_floor(merged, query=query) if apply_floor else merged
+    rows = list(candidates.values())
+    if not rows:
+        return []
+
+    k = config.HYBRID_RRF_K
+
+    def rrf(row) -> float:
+        _, _, dense_rank, lexical_rank = row
+        score = 0.0
+        if dense_rank is not None:
+            score += 1.0 / (k + dense_rank)
+        if lexical_rank is not None:
+            score += 1.0 / (k + lexical_rank)
+        return score
+
+    best_dense_row = max(rows, key=lambda r: r[1])
+    lexical_only = sum(1 for r in rows if r[2] is None)
+    if lexical_only:
+        logger.info(
+            "[hybrid] keyword search added %d candidate(s) dense retrieval missed", lexical_only
+        )
+
+    rows.sort(key=lambda r: (rrf(r), r[1]), reverse=True)
+    ordered = rows[:top_k]
+    if best_dense_row not in ordered:  # the invariant above
+        ordered = [best_dense_row] + ordered[: top_k - 1]
+
+    merged = [(row[0], row[1]) for row in ordered]
+    if not apply_floor:
+        return merged
+
+    lexical_pass = None
+    if config.ENABLE_LEXICAL_GATE:
+        lexical_pass = next(
+            (
+                r
+                for r in rows
+                if r[3] is not None
+                and r[3] <= config.HYBRID_LEXICAL_RANK
+                and r[1] >= config.RETRIEVAL_LEXICAL_MIN_SCORE
+            ),
+            None,
+        )
+        if lexical_pass is not None and best_dense_row[1] < config.RETRIEVAL_MIN_SCORE:
+            logger.info(
+                "[hybrid] lexical gate: BM25 rank %d at dense %.3f cleared a gate of %.2f for %r",
+                lexical_pass[3], lexical_pass[1], config.RETRIEVAL_MIN_SCORE, query[:60],
+            )
+            kept = [(d, sc) for d, sc in merged if sc >= config.RETRIEVAL_CHUNK_FLOOR]
+            return kept or merged[:1]
+
+    return apply_relevance_floor(merged, query=query)
 
 
-def _score_candidates(query: str, candidate_ids: list, seen: set) -> list:
+def _score_candidates(query: str, candidate_ids: list) -> list:
     """
-    Score BM25 candidates with the same dense metric, skipping ones already found.
+    Score BM25 candidates with the same dense metric.
 
-    Uses the raw Chroma collection because langchain's wrapper cannot restrict a
-    scored query to a set of ids. The status filter is applied again here even
-    though the index holds only Active chunks — belt and braces on the one
+    Returns (chunk_id, Document, dense_score) so the caller can recover each
+    candidate's BM25 RANK — Chroma returns rows in distance order, not in the
+    order the ids were given, so the rank has to be carried by id rather than
+    by position. Getting that wrong would silently feed RRF the wrong ranking.
+
+    Uses the raw Chroma collection because langchain's wrapper cannot restrict
+    a scored query to a set of ids. The status filter is applied again here
+    even though the index holds only Active chunks — belt and braces on the one
     property that must never slip.
     """
     import math
@@ -366,6 +586,9 @@ def _score_candidates(query: str, candidate_ids: list, seen: set) -> list:
     from langchain_core.documents import Document
 
     from app.core.embeddings import get_embeddings
+
+    if not candidate_ids:
+        return []
 
     collection = get_vectorstore()._collection
     result = collection.query(
@@ -377,21 +600,16 @@ def _score_candidates(query: str, candidate_ids: list, seen: set) -> list:
     )
 
     scored = []
-    for text, meta, distance in zip(
-        result["documents"][0], result["metadatas"][0], result["distances"][0]
+    for chunk_id, text, meta, distance in zip(
+        result["ids"][0], result["documents"][0], result["metadatas"][0], result["distances"][0]
     ):
         meta = meta or {}
-        key = _chunk_key(meta)
-        if key in seen:
-            continue
-        seen.add(key)
         scored.append(
-            (Document(page_content=text or "", metadata=meta), 1.0 - distance / math.sqrt(2))
-        )
-
-    if scored:
-        logger.info(
-            "[hybrid] keyword search added %d candidate(s) dense retrieval missed", len(scored)
+            (
+                chunk_id,
+                Document(page_content=text or "", metadata=meta),
+                1.0 - distance / math.sqrt(2),
+            )
         )
     return scored
 

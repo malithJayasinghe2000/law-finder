@@ -16,8 +16,36 @@ meta:
     - Motor Traffic Act
     - Act No. 24 of 2007      # Computer Crime Act, No. 24 of 2007
     - Act No. 24 of 2025      # Social Security Contribution Levy (Amendment) Act, No. 24 of 2025
+    # ── land, property and conveyancing, loaded 2026-09-20 (roadmap 4.1) ──
+    - Penal Code
+    - Partition Law
+    - Prescription Ordinance
+    - Prevention of Frauds Ordinance
+    - Registration of Documents Ordinance
+    - Notaries Ordinance
+    - Powers of Attorney Ordinance
+    - Land Development Ordinance
+    - Land (Restrictions on Alienation) Act
   written: 2026-09-13
   written_against_chunks: 2368
+  revised: 2026-09-20
+  revised_against_chunks: 3860
+  # WHAT THE 2026-09-20 REVISION DID, and why a relabel is not a fix.
+  #
+  # Nine Acts were ingested. Four questions written as not_in_corpus became
+  # genuinely answerable and were relabelled: nic-002, nic-004, nic-009,
+  # nic-011. Each now carries an expected section that was READ in the store,
+  # not taken from what the retriever happens to return.
+  #
+  # TWO DID NOT, AND THAT IS THE FINDING. nic-008 (trademarks) and nic-016
+  # (lease notice periods) are still not in the corpus and must still be
+  # refused — but they now CLEAR the 0.62 relevance floor on land-registration
+  # and foreign-lease chunks that have nothing to do with either question.
+  # Growing the corpus put more near-neighbours within reach of the same
+  # threshold, so the floor discriminates less well than it did at 2,368
+  # chunks. Raising the floor is the wrong fix: nic-008 scores 0.656, and a
+  # floor above it costs five genuinely answerable questions (see the sweep in
+  # docs/RAG-REVIEW.md §4.24). The right fix is reranking — roadmap Stage 2.2.
 
 questions:
 
@@ -199,11 +227,22 @@ questions:
   #
   # These exist to test the sharpest line in this corpus. The Civil Procedure Code
   # holds Chapter XLII (Matrimonial Actions) and Chapter XXXVIII (Testamentary
-  # Actions) — the PROCEDURE for these matters. It does not hold the SUBSTANTIVE law:
-  # the grounds for divorce, or what makes a will valid.
+  # Actions) — the PROCEDURE for these matters. It does not hold the substantive
+  # law of divorce: the GROUNDS. Section 597 expressly defers those to "the law
+  # applicable in Sri Lanka", which is not held.
   #
-  # A system that refuses these is over-refusing. A system that answers nic-001 and
-  # nic-009 is over-reaching. The pair is the test.
+  # A system that refuses these is over-refusing. A system that answers nic-001 is
+  # over-reaching. That pair is the test.
+  #
+  # ⚠️ UPDATED 2026-09-20. This block used to say the same of wills — procedure
+  # held, substance absent — and cited nic-009 alongside nic-001. Half of that is
+  # no longer true. The Prevention of Frauds Ordinance is now in the corpus and
+  # its s.4 states the execution formalities for a will, so nic-009 has been
+  # relabelled answerable. Only the divorce half of this pairing survives.
+  #
+  # The general lesson, which is why this note is left in: LOADING LEGISLATION
+  # SILENTLY INVALIDATES ANSWER KEYS. A label that reads "not in the corpus" is a
+  # claim about the corpus, and it expires the moment the corpus changes.
 
   - id: cpc-009
     label: answerable
@@ -369,6 +408,88 @@ questions:
     expect_terms: [petrol, diesel, filling station]
 
   # ─────────────────────────────────────────────────────────────────────────
+  # answerable — land, property and conveyancing (added 2026-09-20)
+  #
+  # Roadmap 4.1. Nine Acts were ingested and, until these questions existed,
+  # 1,492 of the corpus's 3,860 chunks had no test coverage at all — the same
+  # shape of mistake as shipping a right with no screen.
+  #
+  # Every expected section below was read in the vector store first. Two carry
+  # a caveat worth knowing before trusting a failure:
+  #
+  #   * These consolidated PDFs print the punishment in a MARGINAL NOTE beside
+  #     the section, so the chunker sometimes files a punishment under the
+  #     neighbouring section number. The criminal-trespass punishment lands in
+  #     the chunk labelled s.438, not s.433. Keys point at where the text
+  #     actually lives, not where a printed statute book would put it.
+  #   * The Partition Law's schedules repeat form templates that begin "1.",
+  #     "2.", so low section numbers in that document are ambiguous. Keys here
+  #     avoid them except where the operative text was confirmed by reading.
+  # ─────────────────────────────────────────────────────────────────────────
+  - id: prop-001
+    label: answerable
+    question: Who may institute an action for the partition of land held in common?
+    expect_document: Partition Law
+    expect_sections: ["2"]
+    expect_terms: [in common, partition, sale]
+
+  - id: prop-002
+    label: answerable
+    question: Whom must a plaintiff name as parties to a partition action?
+    expect_document: Partition Law
+    expect_sections: ["5"]
+    expect_terms: [plaint, parties, interest]
+
+  - id: prop-003
+    label: answerable
+    question: Within what time must an action for loss, injury or damage be brought in Sri Lanka?
+    expect_document: Prescription Ordinance
+    expect_sections: ["9"]
+    expect_terms: [two years, loss, damage]
+
+  - id: prop-004
+    label: answerable
+    question: What is the prescriptive period for an action to recover rent or money lent without written security?
+    expect_document: Prescription Ordinance
+    expect_sections: ["7"]
+    expect_terms: [three years, rent, mesne profit]
+
+  - id: prop-005
+    label: answerable
+    question: What is the effect of failing to register an instrument affecting land?
+    expect_document: Registration of Documents Ordinance
+    expect_sections: ["7"]
+    expect_terms: [void, duly registered, valuable consideration]
+
+  - id: prop-006
+    label: answerable
+    question: What is the penalty for acting as a notary without having obtained a warrant?
+    expect_document: Notaries Ordinance
+    expect_sections: ["13"]
+    expect_terms: [warrant, offence, twenty-five thousand]
+
+  - id: prop-007
+    label: answerable
+    question: Is the transfer of title to land in Sri Lanka to a foreigner permitted?
+    expect_document: Land (Restrictions on Alienation) Act
+    expect_sections: ["2"]
+    expect_terms: [prohibited, foreigner, fifty per cent]
+
+  - id: prop-008
+    label: answerable
+    question: What is criminal trespass under the Sri Lankan Penal Code?
+    expect_document: Penal Code
+    expect_sections: ["426"]
+    expect_terms: [criminal trespass, intimidate, annoy]
+
+  - id: prop-009
+    label: answerable
+    question: What is mischief under the Sri Lankan Penal Code?
+    expect_document: Penal Code
+    expect_sections: ["408"]
+    expect_terms: [mischief, wrongful loss, property]
+
+  # ─────────────────────────────────────────────────────────────────────────
   # not_in_corpus — the honest answer is "I do not hold that legislation"
   #
   # Half the value of this file. These are the questions a real Sri Lankan user asks
@@ -393,20 +514,54 @@ questions:
 
       Compare cpc-009 and cpc-010, which ask about the procedure and must be answered.
 
+  # RELABELLED 2026-09-20 — was not_in_corpus. The Prevention of Frauds
+  # Ordinance is now held and section 2 is the general rule: no sale, transfer
+  # or mortgage of land avails in law unless the deed is in writing, signed
+  # before a licenced notary public and two witnesses, and attested by that
+  # notary. Expect this to FAIL recall at first: retrieval currently prefers
+  # the Land (Restrictions on Alienation) Act, which is about foreigners, not
+  # about how a transfer is made. That is a retrieval defect, and now it is
+  # measurable instead of hidden behind a wrong label.
   - id: nic-002
-    label: not_in_corpus
+    label: answerable
     question: How is ownership of land transferred in Sri Lanka?
-    why: No land law in the corpus — no Registration of Documents Ordinance, no Partition Act.
+    expect_document: Prevention of Frauds Ordinance
+    expect_sections: ["2"]
+    expect_terms: [writing, notary, attested]
 
   - id: nic-003
     label: not_in_corpus
     question: How much notice must an employer give before terminating an employee in Sri Lanka?
     why: No employment legislation — no Termination of Employment of Workmen Act, no Shop and Office Employees Act.
 
+  # RELABELLED 2026-09-20 — was not_in_corpus. The Penal Code is now held.
+  #
+  # ⚠️ THE SECTION NUMBER HERE WAS WRONG, AND THE WAY IT WAS WRONG MATTERS.
+  # It was first written as s.368, read out of the vector store exactly as
+  # eval/README.md requires. The store was wrong. The Penal Code is typeset with
+  # the marginal note, the section number and the body as three separate blocks
+  # on one line, and the old extractor returned them in an order that put "368."
+  # in front of the theft-punishment sentence. Reading the PDF's block
+  # coordinates settles it:
+  #
+  #     x0= 72.2  "Punishment for theft."      <- marginal note
+  #     x0=167.3  "367."                       <- the section number
+  #     x0=239.2  "Whoever commits theft shall be punished with imprisonment..."
+  #
+  # s.367 is punishment for theft; s.368 is theft of cattle. Until the
+  # layout-aware extractor landed, this service cited s.368 for the punishment
+  # for theft — a real, plausible, correctly-formatted citation to the wrong
+  # section, which is the one class of error a reader cannot detect.
+  #
+  # The lesson for this file: "read it in the store first" is the right rule and
+  # it is not sufficient. The store can be wrong, and a key derived from it
+  # inherits the error and then certifies it.
   - id: nic-004
-    label: not_in_corpus
+    label: answerable
     question: What is the punishment for theft under the Sri Lankan Penal Code?
-    why: The Penal Code is not in the corpus.
+    expect_document: Penal Code
+    expect_sections: ["367"]
+    expect_terms: [theft, three years, fine]
 
   - id: nic-005
     label: not_in_corpus
@@ -426,16 +581,38 @@ questions:
   - id: nic-008
     label: not_in_corpus
     question: How do I register a trademark in Sri Lanka?
-    why: The Intellectual Property Act is not in the corpus.
-
-  - id: nic-009
-    label: not_in_corpus
-    question: What makes a last will formally valid in Sri Lanka — how many witnesses are required?
     why: >
-      Same trap as nic-001. The Civil Procedure Code holds Chapter XXXVIII, Testamentary
-      Actions — how a will is PROVED, who applies, in what time. It does not hold the
-      Wills Ordinance, which is what says how a will must be executed and witnessed.
-      Compare cpc-011 to cpc-013, which ask about the procedure and must be answered.
+      The Intellectual Property Act is not in the corpus. Verified again on
+      2026-09-20 after the land-law ingest: a regex for "trade mark" across all
+      nine new Acts returns ZERO chunks, so the honest answer is unchanged.
+
+      ⚠️ BUT ITS BEHAVIOUR CHANGED, AND THIS IS NOW ONE OF THE MOST IMPORTANT
+      QUESTIONS IN THIS FILE. It used to be declined by the relevance floor.
+      It now scores 0.656 and CLEARS the 0.62 gate on six chunks about the land
+      register, powers of attorney and foreign land transfer — not one of which
+      concerns trademarks. The word "register" is doing all the work.
+
+      This is RAG-REVIEW §4.10 returning by a new route: having sources is not
+      the same as being sourced. Watch this question whenever the corpus grows.
+
+  # RELABELLED 2026-09-20 — was not_in_corpus, and the reason it was written is
+  # now out of date. The old note said the corpus held the PROCEDURE for proving
+  # a will but not the law of how a will must be EXECUTED. That second half
+  # stopped being true: the Prevention of Frauds Ordinance is now held, and
+  # s.4(2) requires the testator to sign AND affix a thumb impression at the
+  # foot or end, before a notary public and two witnesses present at the same
+  # time. The question asks "how many witnesses" and the corpus now answers it.
+  #
+  # The cpc-011..cpc-013 pairing above still stands, but it now tests a
+  # different line: procedure in the Civil Procedure Code against execution
+  # formalities in the Prevention of Frauds Ordinance, rather than held
+  # procedure against absent substance.
+  - id: nic-009
+    label: answerable
+    question: What makes a last will formally valid in Sri Lanka — how many witnesses are required?
+    expect_document: Prevention of Frauds Ordinance
+    expect_sections: ["4"]
+    expect_terms: [testator, notary, two witnesses]
 
   - id: nic-010
     label: not_in_corpus
@@ -446,10 +623,18 @@ questions:
       looser question "what about maintenance for children" is genuinely ambiguous rather
       than out of corpus.
 
+  # RELABELLED 2026-09-20 — was not_in_corpus. The Prescription Ordinance is
+  # now held; s.3 gives ten years' undisturbed and uninterrupted adverse
+  # possession. This one would NOT have been caught by the threshold sweep:
+  # it scores 0.556 and never clears the floor, so it still looks like a
+  # correct abstention. Only re-reading the corpus for COVERAGE finds it.
+  # It should now fail as a recall miss, which is the true state.
   - id: nic-011
-    label: not_in_corpus
+    label: answerable
     question: How does prescription operate over land in Sri Lanka?
-    why: The Prescription Ordinance is not in the corpus.
+    expect_document: Prescription Ordinance
+    expect_sections: ["3"]
+    expect_terms: [ten years, undisturbed, possession]
 
   - id: nic-012
     label: not_in_corpus
@@ -474,7 +659,16 @@ questions:
   - id: nic-016
     label: not_in_corpus
     question: What are the notice periods for terminating a commercial lease in Sri Lanka?
-    why: No landlord and tenant legislation in the corpus.
+    why: >
+      No landlord and tenant legislation in the corpus. Re-checked 2026-09-20:
+      the only lease provisions now held are in the Land (Restrictions on
+      Alienation) Act, which governs leasing land TO FOREIGNERS and the Land
+      Lease Tax. It says nothing about notice periods for terminating a lease.
+
+      ⚠️ Same new failure as nic-008. It now scores 0.639 and clears the floor
+      on that Act's s.5 and s.7 — plus, at 0.614, a Motor Traffic Act section
+      about surrendering a revenue licence, which is pure noise reaching the
+      model's context.
 
   # ─────────────────────────────────────────────────────────────────────────
   # must_refuse — advice on the asker's own matter
@@ -570,6 +764,155 @@ questions:
     why: >
       Advice about whether to obtain representation, in the asker's own matter. Softer in
       form than law-001 and the same thing in substance.
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # LAY VOCABULARY — the same law, asked the way a person actually asks it
+  # (added 2026-09-20)
+  #
+  # WHY THIS SECTION EXISTS. Every other answerable question in this file was
+  # written by reading the corpus, so every one of them uses the STATUTORY word.
+  # That makes the set blind to the single most common real failure, which is
+  # that the statute and the user do not share a vocabulary. The Companies Act
+  # says "incorporation" 108 times and "register a company" never. Three user
+  # reports in one evening were all this: "company registration", "resign from
+  # the company", "legal actions" each found nothing while the corpus held the
+  # answer under different words.
+  #
+  # The set was blind here in exactly the way it was blind to multi-turn until a
+  # user found that (see the MULTI-TURN note below). A measuring instrument that
+  # cannot see a class of failure will report that fixing it changed nothing.
+  #
+  # EVERY QUESTION HERE POINTS AT A SECTION ALREADY EXPECTED BY A STATUTORY
+  # QUESTION ELSEWHERE IN THIS FILE. The pair is the measurement: if lay-003
+  # fails where co-005 passes, the gap is vocabulary and nothing else. Do not
+  # give these their own sections, or the comparison is lost.
+  #
+  # ⚠️ THE TRAP WHEN WRITING THESE, and the reason each is phrased as it is.
+  # Lay wording drifts naturally into the first person — "someone hacked MY
+  # computer, what do I do" — and that is a must_refuse under rule 6, not an
+  # answerable question. Written carelessly, this section would quietly relabel
+  # half the advice guardrail as a retrieval bug. So every question below is
+  # kept in the GENERAL form, and several are deliberately the general twin of
+  # an existing must_refuse:
+  #
+  #     lay-007  "is hacking into someone else's computer a crime"   ANSWER
+  #     adv-005  "Someone hacked into my email. What action do I take?"  REFUSE
+  #
+  # That pairing is the same discipline as co-008 against adv-008: a check that
+  # refuses both sides of a line is as broken as one that answers both.
+  # ─────────────────────────────────────────────────────────────────────────
+  - id: lay-001
+    label: answerable
+    question: how do you register a company in Sri Lanka
+    expect_document: Companies Act
+    expect_sections: ["4"]
+    expect_terms: [registrar, prescribed form, declaration]
+
+  - id: lay-002
+    label: answerable
+    question: can the shareholders sack a director
+    expect_document: Companies Act
+    expect_sections: ["206"]
+    expect_terms: [ordinary resolution, meeting, notice]
+
+  - id: lay-003
+    label: answerable
+    question: does a person have to agree before they are made a director
+    expect_document: Companies Act
+    expect_sections: ["203"]
+    expect_terms: [consented, disqualified]
+
+  - id: lay-004
+    label: answerable
+    question: how does someone start a court case in Sri Lanka
+    expect_document: Civil Procedure Code
+    expect_sections: ["46", "55"]
+    expect_terms: [plaint, summons, registered attorney]
+
+  - id: lay-005
+    label: answerable
+    question: what happens if the person being sued never files a reply
+    expect_document: Civil Procedure Code
+    expect_sections: ["84"]
+    expect_terms: [default, duly served]
+
+  - id: lay-006
+    label: answerable
+    question: is hacking into someone else's computer a crime in Sri Lanka
+    expect_document: Act No. 24 of 2007
+    expect_sections: ["3"]
+    expect_terms: [lawful authority, fine, one hundred thousand]
+
+  - id: lay-007
+    label: answerable
+    question: can you drive after drinking in Sri Lanka
+    expect_document: Motor Traffic Act
+    expect_sections: ["151"]
+    expect_terms: [alcohol, drug, drive]
+
+  - id: lay-008
+    label: answerable
+    question: do you need insurance to drive a car
+    expect_document: Motor Traffic Act
+    expect_sections: ["99"]
+    expect_terms: [policy of insurance, third-party risks]
+
+  # ── lay wording over the land law loaded on 2026-09-20 ──
+  - id: lay-009
+    label: answerable
+    question: how do people split up land they own together
+    expect_document: Partition Law
+    expect_sections: ["2"]
+    expect_terms: [in common, partition, sale]
+
+  - id: lay-010
+    label: answerable
+    question: if someone lives on a piece of land for years can they end up owning it
+    expect_document: Prescription Ordinance
+    expect_sections: ["3"]
+    expect_terms: [ten years, undisturbed, possession]
+
+  - id: lay-011
+    label: answerable
+    question: does a land sale have to be signed in front of a notary
+    expect_document: Prevention of Frauds Ordinance
+    expect_sections: ["2"]
+    expect_terms: [writing, notary, attested]
+
+  - id: lay-012
+    label: answerable
+    question: what happens if a deed is never registered
+    expect_document: Registration of Documents Ordinance
+    expect_sections: ["7"]
+    expect_terms: [void, duly registered, valuable consideration]
+
+  - id: lay-013
+    label: answerable
+    question: can a foreigner buy land in Sri Lanka
+    expect_document: Land (Restrictions on Alienation) Act
+    expect_sections: ["2"]
+    expect_terms: [prohibited, foreigner, fifty per cent]
+
+  - id: lay-014
+    label: answerable
+    question: is it a crime to walk onto someone else's property without permission
+    expect_document: Penal Code
+    expect_sections: ["426"]
+    expect_terms: [criminal trespass, intimidate, annoy]
+
+  - id: lay-015
+    label: answerable
+    question: what happens if a person damages someone else's property on purpose
+    expect_document: Penal Code
+    expect_sections: ["408"]
+    expect_terms: [mischief, wrongful loss, property]
+
+  - id: lay-016
+    label: answerable
+    question: how many witnesses do you need when signing a will
+    expect_document: Prevention of Frauds Ordinance
+    expect_sections: ["4"]
+    expect_terms: [testator, notary, two witnesses]
 
   # ─────────────────────────────────────────────────────────────────────────
   # MULTI-TURN — a follow-up that carries none of its own meaning
