@@ -496,7 +496,37 @@ def query_rag(
 
     # ── Fast paths (no RAG needed) ────────────────────────────────────────
 
-    if intent == "conversational":
+    # ⚠️ ONLY the fast path may answer conversationally without searching.
+    #
+    # `generate_conversational_response` is a free-form LLM call with NO
+    # retrieval, no relevance floor, no sources and nothing for the citation
+    # check to bite on. It is the one path in this service that is ALLOWED to
+    # speak from the model's memory, on the assumption that it is only ever
+    # reached by "hi" and "thanks".
+    #
+    # A 3B router broke that assumption. Reported by the owner on 2026-09-21:
+    #
+    #     "what is the process of register a company"
+    #       -> router: intent=conversational ("a general inquiry about the
+    #          process of registering a company, which falls under the
+    #          conversational intent category")
+    #       -> no search, 0 sources, and a confident invented answer:
+    #          a "Sri Lanka Companies Registration Department database", a
+    #          "Memorandum and Articles of Association" (the 2007 Act abolished
+    #          the memorandum), a "Share Capital Deed" (not a thing), and
+    #          Central Bank approval.
+    #
+    # Nothing downstream could catch it: there were no citations to check, so
+    # `findUnsupportedProseCitations` had nothing to compare. The answer was
+    # withheld only because it happened to say "you'll need to" and tripped the
+    # ADVICE gate — luck standing in for a control, and the user saw a refusal
+    # about legal advice for a perfectly general question.
+    #
+    # So the router's conversational verdict is now treated exactly like its
+    # clarification_needed verdict (§4.14): a guess to be overruled by
+    # evidence. Search first; if nothing clears the floor, it really was small
+    # talk and the conversational reply is correct.
+    if intent == "conversational" and routing.get("source") == "fast":
         answer = generate_conversational_response(question, chat_history)
         return {
             "answer": answer,
@@ -647,6 +677,21 @@ def query_rag(
             logger.info("Anaphoric question with no history — asking for the full question")
             return no_history_response(intent)
 
+        if intent == "conversational":
+            # The router called it small talk and retrieval found nothing to
+            # contradict that, so it probably was. This is the ONLY route to the
+            # ungrounded reply other than the exact-match fast path.
+            logger.info("No context and the router said conversational — replying as small talk")
+            answer = generate_conversational_response(question, chat_history)
+            return {
+                "answer": answer,
+                "sources": [],
+                "chunks_retrieved": 0,
+                "intent": intent,
+                "graph_entities": [],
+                "related_documents": [],
+            }
+
         if intent == "clarification_needed":
             logger.info("No context and the question was vague — asking for specifics")
             return {**generate_clarification_response(question, chat_history),
@@ -654,10 +699,10 @@ def query_rag(
         logger.info("No context cleared the relevance floor — declining to answer")
         return no_context_response(intent)
 
-    if intent == "clarification_needed":
+    if intent in ("clarification_needed", "conversational"):
         logger.info(
-            "Router said clarification_needed, but retrieval found %d relevant "
-            "chunks — answering instead of asking", len(gate_hits),
+            "Router said %s, but retrieval found %d relevant chunks — "
+            "answering from the corpus instead", intent, len(gate_hits),
         )
         intent = "legal_query"
 

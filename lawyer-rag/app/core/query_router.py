@@ -304,12 +304,15 @@ def classify_intent(question: str, chat_history: list) -> dict:
     clean_text = re.sub(r'[^a-zA-Z\s]', '', question.lower()).strip()
     if clean_text in CONVERSATIONAL_PHRASES:
         logger.info(f"Fast heuristic: '{clean_text}' -> conversational")
-        return {"intent": "conversational", "document_filter": "All"}
+        # source="fast" means an EXACT match against the greeting list, and it
+        # is the only conversational verdict rag_chain acts on without first
+        # searching. See the guard there for why.
+        return {"intent": "conversational", "document_filter": "All", "source": "fast"}
 
     # ── Fast heuristic: explicit lawyer request ─────────────────────────
     if LAWYER_REQUEST_REGEX.search(question):
         logger.info(f"Fast heuristic: matched lawyer regex -> lawyer_request")
-        return {"intent": "lawyer_request", "document_filter": "All"}
+        return {"intent": "lawyer_request", "document_filter": "All", "source": "fast"}
 
     # ── LLM-based routing ───────────────────────────────────────────────
     try:
@@ -341,6 +344,7 @@ def classify_intent(question: str, chat_history: list) -> dict:
         if result["intent"] == "clarification_needed" and chat_history:
             result = _guard_clarification_loop(result, chat_history)
 
+        result.setdefault("source", "llm")
         logger.info(f"Router parsed: intent={result['intent']}, filter={result['document_filter']}")
         return result
 
