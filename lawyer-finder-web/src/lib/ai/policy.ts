@@ -287,7 +287,29 @@ const OWN_MATTER_PATTERNS: RegExp[] = [
   // REFUSED. Requiring the remedy-seeking half keeps general questions about
   // law that happens to touch the asker's affairs answerable.
   new RegExp(
-    String.raw`(?=[\s\S]*\b(?:my|our)\s+(?:own\s+)?(?:propert(?:y|ies)|land|house|home|flat|apartment|vehicle|car|business|compan(?:y|ies)|firm|shop|employer|employee|landlord|tenant|neighbou?rs?|spouse|husband|wife|marriage|divorce|contract|agreement|lease|deed|title|case|matter|claim|dispute|child|children)\b)` +
+    // ⚠️ ANY noun after "my"/"our", not a list of nouns.
+    //
+    // This enumerated 30 nouns — property, land, house, vehicle, company... —
+    // and a single mistyped letter walked straight through it. Reported from
+    // the live chat on 2026-09-21:
+    //
+    //   "someone cut a tree in my roperty. what is the legal action can I do
+    //    for this"                                              ALLOWED
+    //   the same sentence with "property" spelled correctly      REFUSED
+    //
+    // That is the SEVENTH miss of this family, and it is the one that cannot be
+    // fixed by adding to a list: you cannot enumerate typos. The original §4.22
+    // report was itself full of them ("what is teh legal action"), because this
+    // is what a distressed person types on a phone. A guardrail that depends on
+    // spelling protects the people who spell carefully.
+    //
+    // The precision comes from the OTHER half of this rule — the requirement
+    // that the question also seek action, a remedy or compensation. "my X"
+    // alone still never refuses, so "what does the law say about removing a
+    // director from my company's board" stays answerable. The small exclusion
+    // list below covers the discourse nouns that follow "my" without naming a
+    // matter at all: "in my view", "to my understanding".
+    String.raw`(?=[\s\S]*\b(?:my|our)\s+(?:own\s+)?(?!view\b|views\b|opinion\b|understanding\b|question\b|questions\b|point\b|mind\b|knowledge\b|reading\b|experience\b)\w{3,})` +
       // Every noun here is plural-tolerant, and that is not tidiness.
       // "legal action" was written without the `s?` and a real user asked
       // "what are the legal actionS can get when someone cut a tree in my own

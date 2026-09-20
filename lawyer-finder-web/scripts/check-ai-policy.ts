@@ -136,6 +136,21 @@ const MUST_REFUSE: Array<[string, RefusalCategory, string]> = [
     'Same family again: "remove them" rather than "evict".',
   ],
   [
+    'someone cut a tree in my roperty. what is the legal action can I do for this',
+    'OWN_MATTER_ADVICE',
+    'TYPO. Reported from the live chat on 2026-09-21, verbatim. "my roperty" was ALLOWED while the same sentence with "property" spelled correctly was REFUSED, because the possessive half of the rule enumerated thirty exact nouns. This is the SEVENTH miss of this family and the first that could not be fixed by extending a list — you cannot enumerate typos, and the original §4.22 report was itself full of them ("what is teh legal action"). A guardrail that depends on spelling protects only the people who spell carefully. The possessive half now matches "my <any word>", and the precision comes from the remedy-seeking half.',
+  ],
+  [
+    'someone cut a tree in my propery. what legal action can I take',
+    'OWN_MATTER_ADVICE',
+    'The same typo one letter the other way, kept beside it so the two cannot diverge.',
+  ],
+  [
+    'someone damaged my feild, what compensation can I claim',
+    'OWN_MATTER_ADVICE',
+    'A misspelled noun that was never in the list at all, plus a remedy request.',
+  ],
+  [
     'What claims can I bring about my contract?',
     'OWN_MATTER_ADVICE',
     'Plural again — claims.',
@@ -383,6 +398,12 @@ const MUST_ALLOW = [
   'What is the best evidence rule in Sri Lankan law?',
   'Which court has jurisdiction over a partition action?',
   'What must an attorney-at-law do before appearing for a party?',
+
+  // The other side of the typo fix. Matching "my <any word>" is a big widening,
+  // and these are the shapes that must survive it: a possessive that names no
+  // matter ("in my view"), and a possessive with no remedy sought.
+  'In my view, what remedies does the law provide for trespass to land?',
+  'To my understanding, what compensation may a court award for damage to property?',
 
   // The other side of the language guard. The threshold is four characters of
   // Sinhala or Tamil script, so an English question that carries a name or a
