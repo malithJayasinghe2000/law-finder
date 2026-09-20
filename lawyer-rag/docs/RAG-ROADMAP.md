@@ -220,6 +220,33 @@ refused and one that must still be declined. `eval.py` gained `follow_up_to`, wh
 the parent question for real rather than canning an assistant reply. Full write-up:
 `RAG-REVIEW.md` §4.16 and §4.17.
 
+### 1.2d Close the `lawyer_request` short-circuit — ✅ **DONE 2026-09-20**
+
+The last intent whose path skipped retrieval on the router's opinion, and the
+completion of the rule §4.35 states: **every intent that skips retrieval must be
+reachable only by a deterministic rule, never by the model's opinion.**
+
+Two things were wrong at once and only the first was expected:
+
+- The deterministic rule matched **1 of the 6** touting questions in the
+  evaluation set. The other five, and seven more phrasings tried, reached the
+  refusal only because a 3B model agreed — invisible from outside, because the
+  question is refused either way and `must_refuse` stays green.
+- The same rule was simultaneously **too wide**: `verb .* practitioner` refused
+  *"when do you require an attorney under the Civil Procedure Code"* with no
+  retrieval at all, while its twin *"is a lawyer required to file a plaint"* was
+  answered from s.39 and s.55.
+
+`policy.ts` — the layer that refuses *before the model is called* — was also
+allowing `"put me in touch with a criminal lawyer"` and `"I'd like an attorney
+who handles land disputes"`, refused end to end only by the router. **Closing
+the short-circuit alone would have opened a live touting hole**, so both layers
+were fixed together and both forms are now pinned in `check:ai` and the eval set
+(`law-007`, `law-008`).
+
+New: `scripts/check_routing.py` — 29 assertions, no model, no Chroma, no
+service, and confirmed to fail before it was believed. See RAG-REVIEW §4.36.
+
 ### 1.3 Fix the citation chain
 
 Have the tools return structured results carried through to the response, instead of
@@ -508,6 +535,29 @@ section about something else", and at 3,860 chunks those overlap (RAG-REVIEW
 §4.24). **Do 2.2, the cross-encoder reranker, before touching retrieval again.**
 
 ---
+
+### ⚠️ READ FIRST — the note below was overtaken on 2026-09-20 (RAG-REVIEW §4.37)
+
+**Its diagnosis was wrong, and its flagship case is now fixed without 2.3.**
+
+The note argues from "the punishment for theft is NOT IN THE TOP 30" to chunk-length
+dilution. The first part was true and the second was not: that chunk is **226
+characters** and was never diluted. It ranked 21st on dense at **0.6059** — under the
+floor — because **its own marginal note had been filed against a different section**.
+Every note in the corpus was one section early: 1,283 of 3,424 chunks (37.5%). The
+extractor emitted each note ahead of its body, correctly, and the chunker split on the
+section number, which comes *after* the note.
+
+With the note put back, s.367 is **rank 1 at 0.6830** and the live service answers the
+question from it.
+
+**What survives of the note below.** The tension it describes is real: the re-chunk did
+trade `not_in_corpus` for chunk quality, and one scalar floor still cannot separate "the
+right section, oddly worded" from "a plausible section about something else". 2.3 remains
+a sensible item. **It is no longer the top one, and it is no longer justified by the theft
+case.** Before starting it, read §4.37 and §4.38 — §4.38 is measured, unbuilt, and worth
+more: it fixes 5 of the 6 abstention leaks *and* nets +3 answerable, which nothing else on
+this list does in both directions at once.
 
 ### 🔴 Why 2.3 (parent-document retrieval) is now the top retrieval item — 2026-09-21
 

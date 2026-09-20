@@ -20,8 +20,43 @@ could catch it — an answer that cites nothing gives the citation check nothing
 Now only exact greeting matches skip the search; the router's `conversational` verdict is
 overruled by evidence, exactly as `clarification_needed` already was. RAG-REVIEW §4.35.
 
-⚠️ **`lawyer_request` is the one intent that still short-circuits on the model's opinion.**
-Same shape of risk. Worth closing next.
+✅ **`lawyer_request` was the one intent left short-circuiting on the model's opinion.
+Closed 2026-09-20 — and it was worse than the note above assumed.** The deterministic
+regex it was supposed to fall back on matched **1 of the 6** touting questions in the
+evaluation set; the other five reached the refusal only because the 3B router agreed. The
+same regex was simultaneously too wide, refusing *"when do you require an attorney under
+the Civil Procedure Code"* with no retrieval while answering *"is a lawyer required to
+file a plaint"* from s.39.
+
+**And `policy.ts` — the layer that refuses before the model is called — was allowing
+`"put me in touch with a criminal lawyer"` and `"I'd like an attorney who handles land
+disputes"`.** They were refused end to end only by the router, so removing the router's
+authority would have opened a live touting hole. Both layers fixed together; both forms
+pinned in `check:ai` and as `law-007`/`law-008`. RAG-REVIEW §4.36.
+
+✅ **The roadmap's top retrieval item (2.3, parent-document retrieval) is NOT the fix its
+flagship case needed. Do not start it without reading RAG-REVIEW §4.37.** The case that
+justified it — the punishment for theft — failed because **every marginal note in the
+corpus was filed against the section before its own**, 1,283 of 3,424 chunks (37.5%). The
+extractor put each note ahead of its body, correctly; the chunker split on the section
+number, which comes after the note, so the boundary always fell between a note and its own
+section. The heading a person searches with (*"Punishment for theft"*) was sitting on a
+chunk about conduct that is **not** theft.
+
+Fixed and re-ingested 2026-09-20. s.367 went from **dense rank 21 at 0.6059** (under the
+floor, absent from the top 30) to **rank 1 at 0.6830**, and the live service now answers
+the question and cites s.367. The corpus is **3,401 chunks, 14 documents**.
+
+⚠️ **Ingest with `--replace`, NEVER `--clear`.** *Act No. 24 of 2025* is in the store with
+no PDF in `data/acts/`; `--clear` deletes it with nothing to rebuild from.
+
+🔵 **The biggest retrieval win now available is §4.38, and it is measured but NOT built.**
+Attaching *"in Sri Lanka"* to a question lifts its score corpus-wide — it occurs in every
+Act, so it matches everything and means nothing. Ignoring it when searching fixes **5 of
+the 6 `not_in_corpus` leaks** (both canaries included) and nets **+3 answerable**. It
+cannot be a blanket strip: it breaks the two land questions where the phrase is
+substantive. **The numbers came from the dense path, not `hybrid_search` — re-measure on
+the gated path before believing them.**
 
 Two more things from the overnight session you need to know in the first minute.
 
@@ -127,23 +162,16 @@ HOW TO RUN IT
 
 YOUR TASK THIS SESSION — in this order
 
-1. CLOSE THE `lawyer_request` SHORT-CIRCUIT. It is the last intent that skips
-   retrieval on the 3B router's opinion alone. The `conversational` version of
-   that bug invented company law and shipped a nonsense refusal to a real user
-   (§4.35); this is the same shape, one intent over. Small fix.
+✅ 1. CLOSE THE `lawyer_request` SHORT-CIRCUIT — DONE 2026-09-20, §4.36.
+   Both layers, because policy.ts was allowing two plain touting requests that
+   only the router was catching. New free check: scripts/check_routing.py (29).
 
-2. PARENT-DOCUMENT RETRIEVAL (roadmap 2.3). The top retrieval item, and the only
-   thing that resolves the trade in §0c. Embed small focused child chunks so the
-   specific sentence matches; return the enclosing section so the answer is
-   complete and citeable. No new dependency needed.
-
-   The single clearest test case:
-     "What is the punishment for theft under the Sri Lankan Penal Code?"
-     Penal Code s.367 contains, verbatim, "Whoever commits theft shall be
-     punished with imprisonment ... three years" — and it is NOT IN THE TOP 30.
-
-   Re-sweep RETRIEVAL_MIN_SCORE afterwards. It has now been invalidated twice
-   by changes that had nothing to do with it.
+✅ 2. PARENT-DOCUMENT RETRIEVAL — NOT DONE, AND DELIBERATELY NOT STARTED.
+   Its flagship case was fixed by something else (§4.37): every marginal note in
+   the corpus was filed one section early, 37.5% of chunks. s.367 went from
+   dense rank 21 at 0.6059 to rank 1 at 0.6830 and the live service now cites it.
+   Read §4.37 before picking 2.3 up — the case that justified it is gone.
+   Floor re-swept and LEFT AT 0.62 (55/76 answerable, 6/12 not_in_corpus).
 
 3. STAGE 1.4 — MAKE THE ANSWER MATCH THE SECTION. Still open. The service
    answered "12 years" for the prescriptive period where s.3 says TEN, six runs
@@ -163,6 +191,19 @@ YOUR TASK THIS SESSION — in this order
    → Tax → Evidence → Rent. Source: lankalaw.net, a page per letter.
    The Criminal Procedure Code PDF is in data/uploads/ and still not ingested.
    ⚠️ Land Acquisition is NOT in that set — I checked the whole L index.
+   ⚠️ INGEST WITH --replace, NEVER --clear. "Act No. 24 of 2025" is in the store
+   with no PDF in data/acts/, so --clear deletes it unrecoverably.
+
+6. THE JURISDICTION PHRASE (§4.38) — MEASURED, NOT BUILT, AND THE BEST RETRIEVAL
+   ITEM ON THIS LIST. "in Sri Lanka" occurs in every Act, so attaching it to a
+   question raises the score against the WHOLE corpus while adding no topical
+   signal. Ignoring it when searching fixes 5 of the 6 not_in_corpus leaks —
+   nic-008 and nic-016 included, the two canaries — and nets +3 answerable.
+   Nothing else on this list improves both sides at once.
+   ⚠️ NOT a blanket strip: it breaks lay-013 and nic-002, where "Sri Lanka" is
+   substantive rather than boilerplate (foreign ownership of land).
+   ⚠️ The numbers came from the DENSE path, not hybrid_search. Re-measure on the
+   gated path first — that exact mistake has now been made three times.
 
 6. LLAMA CONTROL RUN. Still owed from 1.6, and every number in eval/results/
    now predates two corpus changes. ASK ME FIRST (heat).
@@ -206,15 +247,21 @@ WORKING STYLE — learned the hard way, and re-learned all night
   - Run all five checks after every change set, from lawyer-finder-web/:
       npm run check:privilege   (41)
       npm run check:firm        (15)
-      npm run check:ai         (112)   ← was 80
+      npm run check:ai         (124)   ← was 112, was 80
       npm run check:billing     (21)
       npm run check:pdpa        (67)
     plus npx tsc --noEmit.
   - For the AI service, from lawyer-rag/ with it running:
       ./venv/bin/python scripts/check_security.py            (46)
-      ./venv/bin/python scripts/check_injection.py           (16, NEW, ~8 min)
+      ./venv/bin/python scripts/check_injection.py           (16, ~8 min, HEAT)
       ./venv/bin/python -m scripts.validate_questions        (free, no model)
       ./venv/bin/python -m scripts.sweep_retrieval           (free, no model)
+      ./venv/bin/python -m scripts.check_routing             (29, NEW, free —
+          no model, no Chroma, no service. Asserts that only a DETERMINISTIC
+          rule may skip retrieval. Run it on any change to the router or to
+          the dispatch in rag_chain.query_rag)
+  - RELOAD BY RESTARTING. `kill -HUP` puts the worker in a crash loop that looks
+    exactly like the preload_app segfault. See docs/RUNNING.md.
   - Update the docs at the end: PROGRESS.md, RAG-REVIEW.md, RAG-ROADMAP.md,
     TOUR.md if a feature changed, and this brief.
 

@@ -61,6 +61,60 @@ _NOTE_THEN_SECTION_BARE = re.compile(
 )
 
 
+# A body block that OPENS with a section marker. Kept deliberately in step with
+# the chunker's split pattern in app/core/chunker.py — the whole point is that
+# the two agree about where a section begins. A bare number must carry a dot,
+# for the reason set out there (a cover page's "11 of 1887" is not a section).
+_LEADING_SECTION_MARKER = re.compile(
+    r"^[ \t]*(?:(?:Section|SECTION|Sec\.?)\s*\d+[A-Z]?[.\s]|\d+[A-Z]?\.)"
+)
+
+
+def _is_bare_marker(text: str) -> bool:
+    """Is this line nothing but a section marker — "367.", "Section 46."?"""
+    return bool(_LEADING_SECTION_MARKER.fullmatch(text.strip()))
+
+
+def _markers_lead(pending: list[str]) -> list[str]:
+    """Reorder a page's pending marginal notes so each section marker leads.
+
+    The marker has to come out ahead of the note, because the chunker splits on
+    the marker and whatever precedes it is filed with the PREVIOUS section.
+
+    Three typesettings appear across these Acts, and all three reach here:
+
+        "Punishment for theft.\\n367."   one block, already split upstream
+        ["Punishment for theft.", "367."]   two separate note blocks
+        "Incorporation of a company."       no marker; the body carries it
+
+    Only an adjacent note/marker pair is swapped. A marker with no note before
+    it, and a note with no marker after it, are both left exactly where they
+    are — this must not reorder anything it does not understand.
+    """
+    flat: list[str] = []
+    for note in pending:
+        head, sep, tail = note.rpartition("\n")
+        if sep and head.strip() and _is_bare_marker(tail):
+            flat.extend([head.strip(), tail.strip()])
+        else:
+            flat.append(note)
+
+    out: list[str] = []
+    i = 0
+    while i < len(flat):
+        if (
+            i + 1 < len(flat)
+            and not _is_bare_marker(flat[i])
+            and _is_bare_marker(flat[i + 1])
+        ):
+            out.extend([flat[i + 1].strip(), flat[i].strip()])
+            i += 2
+        else:
+            out.append(flat[i])
+            i += 1
+    return out
+
+
 def _split_note_from_section(text: str) -> str:
     """Put a run-on marginal note on its own line, ahead of its section."""
     text = _NOTE_THEN_SECTION_DOTTED.sub(r"\1\n\2", text)
@@ -147,11 +201,73 @@ def _page_reading_order(page) -> str:
 
     # Interleave by vertical position: each note is emitted immediately before
     # the first body block at or below it, which is the section it heads.
+    #
+    # ── Why the section number is pulled out ahead of the note ──────────────
+    #
+    # Emitting the note *before* the body it heads is right on the page and was
+    # wrong for everything downstream, because the CHUNKER splits on the section
+    # marker — which comes after the note. So the boundary fell between the note
+    # and its own section, and every marginal note in the corpus was filed with
+    # the section BEFORE the one it belongs to:
+    #
+    #     ...or is an individual or a body corporate.     <- end of s.4
+    #     Incorporation of a company.                     <- s.5's note
+    #     5.(1) On receipt of a properly completed...     <- s.5 starts here
+    #                    ^ the chunker split HERE
+    #
+    # 1,283 of 3,424 chunks (37.5%) ended with a note belonging to the next
+    # section. The Penal Code is the clearest case: "Punishment for theft."
+    # sat at the tail of s.365C — a chunk of illustrations of conduct that is
+    # NOT theft — while s.367, which actually carries the punishment, ended
+    # with "Theft of cattle.", the note for s.368.
+    #
+    # This matters more than a tidiness defect, because the marginal note is
+    # the one place the statute uses the words a person would actually search
+    # with. The body says "Whoever commits theft shall be punished with
+    # imprisonment"; the note says "Punishment for theft", which is the query.
+    # Measured against "What is the punishment for theft under the Sri Lankan
+    # Penal Code?", cosine similarity of the s.367 text:
+    #
+    #     as stored, with the wrong note        0.7213
+    #     body alone                            0.7221
+    #     body with its own note and number     0.8002
+    #
+    # s.367 sat at dense rank 21 scoring 0.6059 — under the 0.62 floor, and out
+    # of the top 30 altogether once fusion re-ranked it. The answer was in the
+    # corpus, verbatim, and unreachable.
+    #
+    # So when a note is followed by a body block that opens with a section
+    # marker, the marker is emitted FIRST, then the note, then the rest of the
+    # body. The chunker's split boundary then falls ahead of the note and the
+    # note stays with the section it heads. Pages that are not typeset this way
+    # are untouched: no marker, no reordering.
     out, ni = [], 0
     for y, text in body:
+        pending = []
         while ni < len(notes) and notes[ni][0] <= y + 2:
-            out.append(notes[ni][1])
+            pending.append(notes[ni][1])
             ni += 1
+        if pending:
+            # Two typesettings, and both have to end with the marker leading.
+            #
+            # (a) The number is in the NOTE block — "Punishment for theft. 367."
+            #     — which `_split_note_from_section` has already broken onto two
+            #     lines. The Penal Code is set this way throughout.
+            # (b) The number is in the BODY block — "5.(1) On receipt of..." —
+            #     as the Companies Act is.
+            #
+            # Handling only (b) fixed the Companies Act and left the Penal Code
+            # exactly as it was, which is how the difference was noticed at all.
+            pending = _markers_lead(pending)
+            marker = _LEADING_SECTION_MARKER.match(text)
+            if marker:
+                out.append(text[:marker.end()].strip())
+                out.extend(pending)
+                rest = text[marker.end():].strip()
+                if rest:
+                    out.append(rest)
+                continue
+            out.extend(pending)
         out.append(text)
     out.extend(text for _, text in notes[ni:])
     return "\n".join(out)

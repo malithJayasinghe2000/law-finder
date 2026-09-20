@@ -122,6 +122,33 @@ Preloading imports ChromaDB's native stack in the master and then `fork()`s, and
 child does not survive it. **The service looks healthy — open port, clean startup log —
 and answers nothing.** The comment in `gunicorn.conf.py` says this too.
 
+### Reload by restarting, not with `kill -HUP`
+
+To pick up a change under `app/**`, **stop the service and start it again**.
+
+`kill -HUP <master>` is gunicorn's graceful reload and it does not work here. It
+puts the worker into a crash loop — a new worker pid every three or four
+seconds, `/api/health` never answering — which looks exactly like the
+`preload_app` segfault below and is not the same thing. Observed 2026-09-20:
+
+```
+t=4s   pids: 71093 5585   health:
+t=8s   pids: 71093 5720   health:
+t=12s  pids: 71093 5833   health:
+```
+
+The master survives, so the port stays open and the service still looks up. A
+clean stop and start of the identical code booted first time and answered in
+145 ms.
+
+The likely cause is the same one behind every other rule on this page: ChromaDB
+holds the store, the reloading worker and the outgoing worker overlap, and two
+clients on one directory is the thing this service cannot do. **Do not debug it
+by importing `app.core.rag_chain` in a second shell while the service is
+running** — that is a second Chroma client too, and it makes the symptom worse
+rather than explaining it. Stop the service first; `get_vectorstore()` is lazy,
+so an import on its own is cheap once nothing else holds the directory.
+
 ### One gunicorn worker, on purpose
 
 `app/core/llm.py`, `app/core/vectorstore.py` and `app/core/graph_store.py` each hold a
