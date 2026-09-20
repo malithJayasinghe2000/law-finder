@@ -10,16 +10,29 @@
 
 ## 0. Read this before anything else
 
-Two things from the overnight session you need to know in the first minute.
+**0a. The router could send a legal question to the path with no retrieval — fixed
+2026-09-21.** *"what is the process of register a company"* was classified
+`conversational` (small talk), which skips retrieval entirely, and the service invented
+company law: a "Sri Lanka Companies Registration Department database", a "Memorandum and
+Articles of Association" (abolished by the 2007 Act), a "Share Capital Deed". It reached
+the user as a *legal-advice refusal*, which is what made it visible. Nothing downstream
+could catch it — an answer that cites nothing gives the citation check nothing to compare.
+Now only exact greeting matches skip the search; the router's `conversational` verdict is
+overruled by evidence, exactly as `clarification_needed` already was. RAG-REVIEW §4.35.
 
-**1. The corpus was re-extracted and re-chunked, and it fixed a WRONG CITATION that
+⚠️ **`lawyer_request` is the one intent that still short-circuits on the model's opinion.**
+Same shape of risk. Worth closing next.
+
+Two more things from the overnight session you need to know in the first minute.
+
+**0b. The corpus was re-extracted and re-chunked, and it fixed a WRONG CITATION that
 was being published.** The service used to cite **Penal Code s.368** for the punishment
 for theft. It is **s.367**; s.368 is theft of cattle. Five Civil Procedure Code sections
 were mis-attributed the same way. The cause was the PDF's two-column layout — marginal
 note, section number and body are three separate blocks on one line, and the old
 extractor interleaved them. See RAG-REVIEW §4.29.
 
-**2. That fix made every retrieval number worse, and it was kept anyway.**
+**0c. That fix made every retrieval number worse, and it was kept anyway.**
 
 ```
                       before        after (floor 0.62)
@@ -54,10 +67,10 @@ REPOSITORY LAYOUT
     lawyer-portfolio/    an untouched Vite template, ignore it
 
 READ THESE FIRST, IN THIS ORDER:
-  1. lawyer-finder-web/docs/NEXT-SESSION-BRIEF.md §0  the two things that matter
+  1. lawyer-finder-web/docs/NEXT-SESSION-BRIEF.md §0  the three things that matter
   2. lawyer-finder-web/docs/THE-PROJECT.md      what this is, in two pages
-  3. lawyer-rag/docs/RAG-REVIEW.md §4.28-4.34   the overnight findings. §4.29
-                                                and §4.31 are the important ones
+  3. lawyer-rag/docs/RAG-REVIEW.md §4.28-4.35   the overnight findings. §4.35,
+                                                §4.29 and §4.31 are the ones to read
   4. lawyer-rag/docs/RAG-ROADMAP.md             READ the note "Why 2.3 is now
                                                 the top retrieval item"
   5. lawyer-finder-web/docs/TOUR.md             the whole system, feature by feature
@@ -114,8 +127,13 @@ HOW TO RUN IT
 
 YOUR TASK THIS SESSION — in this order
 
-1. PARENT-DOCUMENT RETRIEVAL (roadmap 2.3). The top item, and the only thing
-   that resolves the trade in §0. Embed small focused child chunks so the
+1. CLOSE THE `lawyer_request` SHORT-CIRCUIT. It is the last intent that skips
+   retrieval on the 3B router's opinion alone. The `conversational` version of
+   that bug invented company law and shipped a nonsense refusal to a real user
+   (§4.35); this is the same shape, one intent over. Small fix.
+
+2. PARENT-DOCUMENT RETRIEVAL (roadmap 2.3). The top retrieval item, and the only
+   thing that resolves the trade in §0c. Embed small focused child chunks so the
    specific sentence matches; return the enclosing section so the answer is
    complete and citeable. No new dependency needed.
 
@@ -127,13 +145,13 @@ YOUR TASK THIS SESSION — in this order
    Re-sweep RETRIEVAL_MIN_SCORE afterwards. It has now been invalidated twice
    by changes that had nothing to do with it.
 
-2. STAGE 1.4 — MAKE THE ANSWER MATCH THE SECTION. Still open. The service
+3. STAGE 1.4 — MAKE THE ANSWER MATCH THE SECTION. Still open. The service
    answered "12 years" for the prescriptive period where s.3 says TEN, six runs
    out of six, with grounding and the citation gate both passing because the Act
    it cited really was retrieved (RAG-REVIEW §4.25). Only the number was wrong,
    and the number was the whole answer.
 
-3. TRANSLATE THE GUARDRAILS, or keep the assistant disabled for si/ta.
+4. TRANSLATE THE GUARDRAILS, or keep the assistant disabled for si/ta.
    It is disabled now (UNSUPPORTED_LANGUAGE), because every check in policy.ts
    is an English regex and Sinhala/Tamil speakers had NO own-matter rule and NO
    touting rule at all (§4.32). Lifting it means translating OWN_MATTER_PATTERNS,
@@ -141,12 +159,12 @@ YOUR TASK THIS SESSION — in this order
    ⚠️ THIS IS A USER-VISIBLE CHANGE I MADE WHILE YOU WERE ASLEEP. If you would
    rather it answered unguarded, it is one guard at the top of classifyRequest.
 
-4. LOAD MORE LEGISLATION (4.1 continued). Labour → Family → Criminal Procedure
+5. LOAD MORE LEGISLATION (4.1 continued). Labour → Family → Criminal Procedure
    → Tax → Evidence → Rent. Source: lankalaw.net, a page per letter.
    The Criminal Procedure Code PDF is in data/uploads/ and still not ingested.
    ⚠️ Land Acquisition is NOT in that set — I checked the whole L index.
 
-5. LLAMA CONTROL RUN. Still owed from 1.6, and every number in eval/results/
+6. LLAMA CONTROL RUN. Still owed from 1.6, and every number in eval/results/
    now predates two corpus changes. ASK ME FIRST (heat).
 
 THREE THINGS ONLY I CAN DO — please remind me if I have not:
@@ -238,7 +256,7 @@ explain the reasoning in plain words afterwards.
 
 ```
 corpus            3,424 chunks, 14 documents, all Active
-eval set          108 questions, 80 answerable — all keys resolve to real chunks
+eval set          109 questions, 81 answerable — all keys resolve to real chunks
 check:ai          112 passed, 0 failed          check_security.py   46/46
 check:privilege    41   check:firm 15   check:billing 21   check:pdpa 67
 tsc --noEmit      clean                         check_injection.py  16/16
@@ -246,11 +264,13 @@ tsc --noEmit      clean                         check_injection.py  16/16
 
 ### What is NOT done
 
-1. **Parent-document retrieval** — the top item; resolves the trade in §0.
-2. **Stage 1.4** — the answer still does not have to match the section it cites.
-3. **Guardrail translation** for si/ta, or keep the assistant disabled there.
-4. **Corpus breadth** — labour, family, tax, evidence, rent. Criminal Procedure is free.
-5. **Token rotation**, LangSmith/Groq revocation, counsel email.
+1. **Close the `lawyer_request` short-circuit** — the last intent that skips retrieval on
+   a 3B model's opinion (§4.35). Small, and the same shape as the bug above.
+2. **Parent-document retrieval** — the top retrieval item; resolves the trade in §0b.
+3. **Stage 1.4** — the answer still does not have to match the section it cites.
+4. **Guardrail translation** for si/ta, or keep the assistant disabled there.
+5. **Corpus breadth** — labour, family, tax, evidence, rent. Criminal Procedure is free.
+6. **Token rotation**, LangSmith/Groq revocation, counsel email.
 
 ### The five things that have not moved in nine phases
 

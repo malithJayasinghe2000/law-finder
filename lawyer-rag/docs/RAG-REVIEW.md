@@ -1376,6 +1376,88 @@ configuration leaked, no practitioner named, no own-matter advice.
 
 ---
 
+### 4.35 🔴 The router sent a legal question to the one path with no retrieval, and it invented company law
+
+Reported by the owner on 2026-09-21, from the live chat, with a screenshot.
+
+*"what is the process of register a company"* — a general, answerable question,
+and one the corpus holds — came back as:
+
+> *"I started to answer this, but the answer strayed into advising you about
+> your own situation, so I have withheld it."*
+
+That refusal is wrong twice over: the question asks for nothing personal, and
+the reason given describes something the user did not do. But the refusal is the
+*symptom*. What produced it was worse.
+
+**The router classified it `conversational`** — small talk — three times out of
+three, reasoning in its own trace: *"a general inquiry about the process of
+registering a company, which falls under the conversational intent category"*.
+
+`generate_conversational_response` is the one path in this service with **no
+retrieval, no relevance floor, no sources and nothing for the citation check to
+bite on.** It exists so that "hi" and "thanks" do not cost an embedding, and it
+is allowed to speak from the model's memory on the assumption that only
+greetings reach it. So the service answered:
+
+```
+sources: 0
+"To register a company in Sri Lanka, you'll need to follow these general steps:
+   1. Choose a company name ... searching the Sri Lanka Companies Registration
+      Department's database
+   3. Prepare the necessary documents:
+      * Memorandum and Articles of Association (MoA)
+      * Certificate of Incorporation (CoI)
+      * Share Capital Deed
+   4. Obtain approval from the Central Bank of Sri Lanka ..."
+```
+
+Every element of that is wrong. The Companies Act No. 7 of 2007 **abolished the
+memorandum**; the certificate of incorporation is *issued* by the Registrar, not
+prepared by the applicant; there is no "Share Capital Deed"; and no Central Bank
+approval is generally required.
+
+**Nothing downstream could catch it.** `findUnsupportedProseCitations` compares
+cited sections against retrieved ones — and an answer that cites nothing at all
+gives it nothing to compare. Grounding was vacuously satisfied. The answer was
+withheld only because it happened to contain "you'll need to" and tripped the
+ADVICE gate. **Luck standing in for a control**, for the third time in this
+review (§4.22, §4.25, and now this) — and this time the luck produced a
+misleading refusal instead of a misleading answer.
+
+> **Fixed, and the fix already existed for the sibling case.** Stage 1.2b made
+> the router's `clarification_needed` verdict answerable to evidence: search
+> first, and let what retrieval finds overrule the router's guess (§4.14). That
+> reasoning was never extended to `conversational`, which is the verdict where
+> being wrong costs the most.
+>
+> Now only an EXACT match against the greeting list (`source: "fast"`) returns a
+> conversational reply without searching. An LLM-produced `conversational`
+> verdict defers to the gate: if retrieval clears the floor the question is
+> answered from the corpus, and if it does not, the conversational reply stands.
+>
+> Verified: the same question now routes `legal_query`, returns 6 sources, and
+> answers from **Companies Act s.5** — *"On receipt of a properly completed
+> application for incorporation in the prescribed form, the Registrar shall
+> enter the particulars of the company on the Register"*. "hi" and "thanks" are
+> unchanged. Added to the golden set as `lay-001b`, in the owner's exact wording.
+
+**Two things worth carrying forward.**
+
+The router is a 3-billion-parameter model making a judgement call, and this is
+now the fourth time that judgement has been the defect (§4.14, §4.16, §4.21,
+§4.35). **Every intent whose path skips retrieval should be reachable only by a
+deterministic rule, never by the model's opinion.** `lawyer_request` is the one
+remaining intent that still short-circuits on the model's say-so; its fast-path
+regex covers the common forms, but the LLM can still route to it alone.
+
+And a smaller one: a refusal message that names a reason the user will not
+recognise — "advising you about your own situation", for a question about
+company registration — teaches them the assistant is broken, even when the
+underlying withholding was correct.
+
+---
+
 ## 5. 💸 Token and cost waste — where the money goes
 
 The user asked specifically. Here is every wasteful path found.

@@ -808,6 +808,29 @@ questions:
     expect_sections: ["4"]
     expect_terms: [registrar, prescribed form, declaration]
 
+  # The owner's verbatim wording, reported 2026-09-21, broken grammar and all.
+  #
+  # It is here because of WHERE it failed, which no other question in this file
+  # reaches. The 3B router classified it `conversational` — small talk — and the
+  # conversational path answers with NO retrieval, no relevance floor and no
+  # sources. The service invented a "Sri Lanka Companies Registration Department
+  # database", a "Memorandum and Articles of Association" (abolished by the 2007
+  # Act) and a "Share Capital Deed" (not a thing), and nothing downstream could
+  # catch it, because an answer with no citations gives the citation check
+  # nothing to compare. It was withheld only because it happened to say "you'll
+  # need to" and tripped the advice gate — so the user was told their perfectly
+  # general question had strayed into asking for legal advice.
+  #
+  # Keep the grammar exactly as it was asked. "the process of register a
+  # company" is what a real person typed, and the polished sibling above routed
+  # correctly while this one did not.
+  - id: lay-001b
+    label: answerable
+    question: what is the process of register a company
+    expect_document: Companies Act
+    expect_sections: ["4", "5"]
+    expect_terms: [registrar, incorporation]
+
   - id: lay-002
     label: answerable
     question: can the shareholders sack a director
