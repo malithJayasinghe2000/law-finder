@@ -551,7 +551,7 @@ def query_rag(
     # Now the search runs first. Asking for clarification is a decision made
     # AFTER looking, not a guess made before.
 
-    if intent == "lawyer_request":
+    if intent == "lawyer_request" and routing.get("source") == "fast":
         # Deleted in Phase 5: this used to run generate_lawyer_response(), which
         # classified the person's situation into practice areas and replied
         # "Based on our conversation, I'd recommend consulting a Property
@@ -561,6 +561,32 @@ def query_rag(
         # of what they had just disclosed about their own legal problem. It is
         # rule 4, rule 5 and the 1894 Ordinance in one sentence, and it was the
         # single worst thing left in the codebase.
+        #
+        # ── Why this is gated on source == "fast" ──────────────────────────
+        #
+        # `lawyer_request` was the LAST intent whose path skipped retrieval on
+        # the 3B router's opinion alone. §4.35 is what that costs: the router
+        # called "what is the process of register a company" small talk, the
+        # no-retrieval path invented company law, and the user was shown a
+        # refusal about legal advice they had never asked for.
+        #
+        # This is the same shape, one intent over, and it was measured rather
+        # than assumed. Of thirteen ways of asking for a practitioner, the old
+        # deterministic regex caught ONE; the other twelve reached this refusal
+        # only because a 3-billion-parameter model happened to agree. When the
+        # model is wrong in the other direction, a general legal question gets a
+        # fixed touting refusal with no retrieval, no sources and no recourse.
+        #
+        # So the rule is now the one §4.35 asks for in as many words: *every
+        # intent whose path skips retrieval must be reachable only by a
+        # deterministic rule, never by the model's opinion.* The rule is
+        # `matches_lawyer_request`, which was widened at the same time to cover
+        # the twelve forms it was missing.
+        #
+        # An LLM-produced `lawyer_request` verdict does NOT return here. It
+        # falls through to the search below and survives only as a fallback
+        # when nothing clears the relevance floor — exactly how the router's
+        # `conversational` verdict is treated above.
         logger.info("Refusing lawyer_request — the platform does not choose practitioners")
         return {
             "answer": LAWYER_REQUEST_REFUSAL,
@@ -692,6 +718,31 @@ def query_rag(
                 "related_documents": [],
             }
 
+        if intent == "lawyer_request":
+            # The router said this was a request for a practitioner, the
+            # deterministic rule did not agree, and retrieval found nothing to
+            # contradict the router. Nothing was suppressed by guessing: the
+            # search ran first and came back empty.
+            #
+            # The touting refusal is the better message of the two available
+            # here. "I do not hold legislation covering that" is the wrong
+            # thing to say to somebody asking for a lawyer — the corpus is not
+            # the reason we will not answer — and this message ends by offering
+            # to explain the law on whatever they are dealing with, which is
+            # the useful half.
+            logger.info(
+                "No context and the router said lawyer_request — declining to "
+                "choose a practitioner"
+            )
+            return {
+                "answer": LAWYER_REQUEST_REFUSAL,
+                "sources": [],
+                "chunks_retrieved": 0,
+                "intent": intent,
+                "graph_entities": [],
+                "related_documents": [],
+            }
+
         if intent == "clarification_needed":
             logger.info("No context and the question was vague — asking for specifics")
             return {**generate_clarification_response(question, chat_history),
@@ -699,7 +750,17 @@ def query_rag(
         logger.info("No context cleared the relevance floor — declining to answer")
         return no_context_response(intent)
 
-    if intent in ("clarification_needed", "conversational"):
+    # Evidence overrules the router's guess. Only LLM-produced verdicts get
+    # this far: an exact-match greeting and a deterministic lawyer-request both
+    # returned above, so nothing here is overruling a rule — only an opinion.
+    #
+    # For `lawyer_request` specifically: a question the deterministic rule did
+    # not recognise as touting, which retrieves Sri Lankan legislation above the
+    # relevance floor, is answered from that legislation. The answer is about
+    # the law and never about a practitioner — this service holds no attorney
+    # data at all, and `LAWYER_REQUEST_REFUSAL` is a fixed string precisely so
+    # that nothing here can compose its way into a recommendation.
+    if intent in ("clarification_needed", "conversational", "lawyer_request"):
         logger.info(
             "Router said %s, but retrieval found %d relevant chunks — "
             "answering from the corpus instead", intent, len(gate_hits),

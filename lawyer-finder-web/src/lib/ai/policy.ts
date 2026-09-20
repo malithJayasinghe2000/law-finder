@@ -471,6 +471,34 @@ const REPRESENTATION_PATTERNS: RegExp[] = [
   // "do I need a lawyer", "should I hire a lawyer or handle this myself" — law-006.
   new RegExp(String.raw`\b(?:need|want|require)\b` + QUALIFIED + PRACTITIONER, 'i'),
   new RegExp(String.raw`\bshould\s+i\b[^.?!]{0,30}?\b(?:hire|get|engage|instruct|retain|see|approach|brief)\b` + QUALIFIED + PRACTITIONER, 'i'),
+
+  /*
+   * Asking to be INTRODUCED to one, rather than to be told a name.
+   *
+   * Miss #7 and #8 of this family, found 2026-09-20 by probing this classifier
+   * directly rather than by reading it:
+   *
+   *     "put me in touch with a criminal lawyer"          ALLOWED
+   *     "I'd like an attorney who handles land disputes"   ALLOWED
+   *
+   * Neither names a practitioner and neither uses a superlative, so every
+   * pattern above passes over them — and they are as plain a request to be
+   * channelled to somebody as law-001 is.
+   *
+   * They were refused end to end anyway, which is why nothing caught them: the
+   * RAG service's 3B intent router recognised them and returned its fixed
+   * touting refusal. That is an opinion standing in for a rule, and the same
+   * change that adds these patterns removes it (RAG-REVIEW §4.36) — so without
+   * these two lines, closing that short-circuit would have opened a live
+   * touting hole in the layer that refuses BEFORE the model is called.
+   *
+   * Keep in step with LAWYER_REQUEST_PATTERNS in
+   * lawyer-rag/app/core/query_router.py. Those two sets drifted once already
+   * and the note above records what it cost.
+   */
+  new RegExp(String.raw`\b(?:put|get)\s+me\s+in\s+touch\s+with\b` + QUALIFIED + PRACTITIONER, 'i'),
+  new RegExp(String.raw`\b(?:looking|searching|hunting)\s+for\b` + QUALIFIED + PRACTITIONER, 'i'),
+  new RegExp(String.raw`\b(?:i(?:'|’)d\s+like|i\s+would\s+like|show\s+me|give\s+me)\b` + QUALIFIED + PRACTITIONER, 'i'),
 ];
 
 /**

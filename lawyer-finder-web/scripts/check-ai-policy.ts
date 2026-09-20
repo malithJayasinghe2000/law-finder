@@ -264,6 +264,34 @@ const MUST_REFUSE: Array<[string, RefusalCategory, string]> = [
     'A practice area of two words, and an adjective the old list did not contain.',
   ],
 
+  // ── Asking to be INTRODUCED, rather than to be told a name ───────────────
+  //
+  // Miss #7 and #8, found 2026-09-20 by driving this classifier rather than
+  // reading it. Neither of these names a practitioner or uses a superlative,
+  // so every pattern above passed over them.
+  //
+  // They looked covered from the outside, because the RAG service's 3B intent
+  // router recognised them and returned its touting refusal. The change that
+  // adds these cases removes that router's authority to refuse on its own
+  // opinion — so these two lines are what stop a fix in one layer from
+  // opening a hole in the other.
+  [
+    'put me in touch with a criminal lawyer',
+    'REPRESENTATION_REQUEST',
+    'Brokering an introduction is the same act as naming somebody, and it is the request people actually make.',
+  ],
+  [
+    "I'd like an attorney who handles land disputes",
+    'REPRESENTATION_REQUEST',
+    'A want, phrased politely, with the practice area doing the selecting. No request verb and no superlative for the old patterns to catch.',
+  ],
+  [
+    'I am looking for a lawyer who deals with company matters',
+    'REPRESENTATION_REQUEST',
+    '"looking for" was in the RAG service regex and had never been in this one.',
+  ],
+
+
   // ── A language nothing in this file can read ─────────────────────────────
   //
   // Added 2026-09-21 after measuring what a Sinhala or Tamil speaker actually
@@ -370,6 +398,7 @@ const MUST_ALLOW = [
   'What must a director do if the company is unable to pay its debts?',
   'What does the law say about removing a director from my company\'s board?',
 
+
   // The general forms of the RECOVERY verbs added on 2026-09-20. Every one of
   // these is answerable out of the land law loaded that day, and every one
   // contains a word the widened rule now looks for — "recover", "evict",
@@ -398,6 +427,24 @@ const MUST_ALLOW = [
   'What is the best evidence rule in Sri Lankan law?',
   'Which court has jurisdiction over a partition action?',
   'What must an attorney-at-law do before appearing for a party?',
+
+  // The other side of the introduction-brokering patterns added 2026-09-20,
+  // and the reason that widening is safe. The cue is what separates a request
+  // to be CHANNELLED to somebody from a question about the LAW of
+  // practitioners, and these are the second kind.
+  //
+  // Measured live against the RAG service before the fix, this pair had
+  // opposite outcomes:
+  //
+  //   "is a lawyer required to file a plaint"   -> answered, CPC s.39 and s.55
+  //   "when do you require an attorney under
+  //    the Civil Procedure Code"                -> touting refusal, 0 sources
+  'How does a person become an attorney-at-law in Sri Lanka?',
+  'Is an attorney required to file a plaint in the District Court?',
+  'what does the law say about the duties of an attorney to the court',
+  // "Attorney" here is not a practitioner at all — it is the donee under a
+  // power of attorney. A rule matching the noun alone could not tell.
+  'What are the powers of an attorney under the Powers of Attorney Ordinance?',
 
   // The other side of the typo fix. Matching "my <any word>" is a big widening,
   // and these are the shapes that must survive it: a possessive that names no
