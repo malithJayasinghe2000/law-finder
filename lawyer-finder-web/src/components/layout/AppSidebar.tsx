@@ -3,14 +3,34 @@
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { Sidebar, SidebarContent, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarGroup, SidebarGroupLabel, SidebarFooter, SidebarMenuSub, SidebarMenuSubItem, SidebarMenuSubButton } from '@/components/ui/sidebar';
-import { LayoutDashboard, Users, FileText, Settings, Star, ShieldCheck, LogOut, Megaphone, Image, ShieldPlus, ChevronDown, History, CreditCard, MessageCircle, Globe, PenSquare, Flag, CalendarDays, DollarSign, Banknote, BookOpen, Building2 } from 'lucide-react';
+import { LayoutDashboard, Users, FileText, Settings, Star, ShieldCheck, LogOut, Megaphone, Image, ShieldPlus, ChevronDown, History, CreditCard, MessageCircle, Globe, PenSquare, Flag, CalendarDays, DollarSign, Banknote, BookOpen, Building2, Shield, Lock } from 'lucide-react';
 import ChatBadge from '@/components/chat/ChatBadge';
 import { toast } from 'sonner';
 import React, { useState } from 'react';
 
-export function AppSidebar({ locale, role, userId }: { locale: string; role: string; userId?: string }) {
+export function AppSidebar({
+  locale,
+  role,
+  userId,
+  isFirmMember = false,
+  canManageFirm = false,
+}: {
+  locale: string;
+  role: string;
+  userId?: string;
+  /** ACTIVE member of an active firm — a practice manager or paralegal, whose
+   *  platform role is CLIENT, is firm-side and must get the firm menu. */
+  isFirmMember?: boolean;
+  /** Principal or practice manager. Data-protection requests are theirs, and a
+   *  link that 403s is a bug in the screen. */
+  canManageFirm?: boolean;
+}) {
   const pathname = usePathname();
-  const [openSubmenus, setOpenSubmenus] = useState<string[]>(['Payments','Consultations']); // Default open for better UX, or empty
+  // Open by default, so the screens underneath are visible rather than one
+  // click behind a chevron. 'My Firm' is here because a collapsed submenu hid
+  // 'Data Requests' entirely — a link nobody can see is the sidebar problem
+  // Phase 7 fixed, in a different costume.
+  const [openSubmenus, setOpenSubmenus] = useState<string[]>(['Payments','Consultations','My Firm']);
   const [counts, setCounts] = useState({ pendingInvoicesCount: 0, pendingAdCampaignsCount: 0, pendingBankPaymentsCount: 0 });
 
   React.useEffect(() => {
@@ -31,7 +51,16 @@ export function AppSidebar({ locale, role, userId }: { locale: string; role: str
     return () => clearInterval(interval);
   }, []);
 
-  const adminLinks = [
+  type NavLink = {
+    href: string;
+    icon: React.ComponentType<{ className?: string }>;
+    label: string;
+    exact?: boolean;
+    hasBadge?: boolean;
+    subLinks?: { href: string; icon: React.ComponentType<{ className?: string }>; label: string }[];
+  };
+
+  const adminLinks: NavLink[] = [
     { href: `/${locale}/dashboard/admin`, icon: LayoutDashboard, label: 'Dashboard', exact: true },
     { href: `/${locale}/dashboard/admin/verification`, icon: ShieldCheck, label: 'Verification' },
     { href: `/${locale}/dashboard/admin/firms`, icon: Building2, label: 'Law Firms' },
@@ -57,6 +86,7 @@ export function AppSidebar({ locale, role, userId }: { locale: string; role: str
     { href: `/${locale}/dashboard/admin/communities`, icon: Globe, label: 'Communities' },
     { href: `/${locale}/dashboard/admin/content-moderation`, icon: Flag, label: 'Content Moderation' },
     { href: `/${locale}/dashboard/admin/legal-documents`, icon: BookOpen, label: 'Legal Documents' },
+    { href: `/${locale}/dashboard/admin/privacy-notices`, icon: Shield, label: 'Privacy Notice' },
     {
       href: `/${locale}/dashboard/admin/consultations`,
       icon: CalendarDays,
@@ -71,9 +101,19 @@ export function AppSidebar({ locale, role, userId }: { locale: string; role: str
     { href: `/${locale}/dashboard/admin/subscriptions`, icon: ShieldPlus, label: 'Subscription Config' },
   ];
 
-  const lawyerLinks = [
+  const lawyerLinks: NavLink[] = [
     { href: `/${locale}/dashboard/lawyer`, icon: LayoutDashboard, label: 'Dashboard' },
-    { href: `/${locale}/dashboard/lawyer/firm`, icon: Building2, label: 'My Firm' },
+    {
+      href: `/${locale}/dashboard/lawyer/firm`,
+      icon: Building2,
+      label: 'My Firm',
+      subLinks: [
+        { href: `/${locale}/dashboard/lawyer/firm`, icon: Building2, label: 'Practice' },
+        ...(canManageFirm
+          ? [{ href: `/${locale}/dashboard/lawyer/firm/requests`, icon: Shield, label: 'Data Requests' }]
+          : []),
+      ]
+    },
     {
       href: `/${locale}/dashboard/lawyer/consultations`,
       icon: CalendarDays,
@@ -97,19 +137,24 @@ export function AppSidebar({ locale, role, userId }: { locale: string; role: str
       ]
     },
     { href: `/${locale}/dashboard/blog/my-posts`, icon: PenSquare, label: 'Community Posts' },
-    { href: `/${locale}/dashboard/profile`, icon: Settings, label: 'Profile Settings' },
+    { href: `/${locale}/dashboard/profile`, icon: Settings, label: 'Profile Settings', exact: true },
+    { href: `/${locale}/dashboard/profile/privacy`, icon: Lock, label: 'Your Data' },
   ];
 
-  const clientLinks = [
+  const clientLinks: NavLink[] = [
     { href: `/${locale}/dashboard/client`, icon: LayoutDashboard, label: 'Dashboard', exact: true },
     { href: `/${locale}/dashboard/client/consultations`, icon: CalendarDays, label: 'My Consultations' },
     { href: `/${locale}/dashboard/blog/my-posts`, icon: PenSquare, label: 'Community Posts' },
-    { href: `/${locale}/dashboard/profile`, icon: Settings, label: 'Profile Settings' },
+    { href: `/${locale}/dashboard/profile`, icon: Settings, label: 'Profile Settings', exact: true },
+    { href: `/${locale}/dashboard/profile/privacy`, icon: Lock, label: 'Your Data' },
   ];
 
-  const links = role === 'ADMIN' ? adminLinks : (role === 'LAWYER' ? lawyerLinks : clientLinks);
+  // Firm-side by membership, not by platform role. See the comment in
+  // `dashboard/layout.tsx` for why this is not `role === 'LAWYER'`.
+  const links =
+    role === 'ADMIN' ? adminLinks : role === 'LAWYER' || isFirmMember ? lawyerLinks : clientLinks;
 
-  const isLinkActive = (link: any) => {
+  const isLinkActive = (link: NavLink) => {
     if (link.exact) {
       return pathname === link.href;
     }
@@ -128,8 +173,8 @@ export function AppSidebar({ locale, role, userId }: { locale: string; role: str
     <Sidebar className="border-r border-[#efeae0] bg-[#fbf9f6]">
       <SidebarHeader className="h-20 flex flex-col justify-center px-6 border-b border-[#efeae0] bg-[#fbf9f6]">
         <div className="flex flex-col gap-0.5">
-          <h2 className="text-[13px] font-bold tracking-widest text-neutral-900 uppercase font-serif">{role === 'ADMIN' ? 'Control Panel' : (role === 'LAWYER' ? 'Lawyer Portal' : 'Client Portal')}</h2>
-          <p className="text-[9px] text-[#bfa37a] font-bold tracking-wider uppercase">{role === 'ADMIN' ? 'Platform Administration' : (role === 'LAWYER' ? 'Manage your practice' : 'Manage your account')}</p>
+          <h2 className="text-[13px] font-bold tracking-widest text-neutral-900 uppercase font-serif">{role === 'ADMIN' ? 'Control Panel' : (role === 'LAWYER' ? 'Lawyer Portal' : (isFirmMember ? 'Firm Portal' : 'Client Portal'))}</h2>
+          <p className="text-[9px] text-[#bfa37a] font-bold tracking-wider uppercase">{role === 'ADMIN' ? 'Platform Administration' : (role === 'LAWYER' || isFirmMember ? 'Manage your practice' : 'Manage your account')}</p>
         </div>
       </SidebarHeader>
       <SidebarContent className="px-4 py-6 bg-[#fbf9f6]">

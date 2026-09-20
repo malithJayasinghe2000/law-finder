@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
-import { Scale, User, Inbox, FileText, LogOut, LayoutDashboard, Shield, Star, Menu, BookOpen, Banknote, Landmark, ArrowRightLeft, Building2 } from 'lucide-react';
+import { Scale, User, FileText, LogOut, LayoutDashboard, Shield, Star, Menu, BookOpen, Banknote, Landmark, ArrowRightLeft, Building2, Briefcase, MessageSquare, CalendarDays, Receipt, Megaphone, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from '@/components/ui/sheet';
@@ -19,21 +19,44 @@ export default function DashboardSidebar({ role, locale }: DashboardSidebarProps
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
 
+  /**
+   * Navigation.
+   *
+   * ───────────────────────────────────────────────────────────────────────────
+   * Every href below resolves to a page that exists. That is worth stating,
+   * because before Phase 7 four of the twelve did not: `lawyer/profile`,
+   * `lawyer/articles`, `admin/lawyers` and `admin/subscription-conf` were all
+   * 404s, and `lawyer/inquiries` pointed at a page that had never existed. At
+   * the same time the sidebar did not link to an attorney's **matters**, their
+   * **messages**, or their **invoices** — the three screens they actually use.
+   *
+   * So the primary navigation mostly led nowhere while the real product was
+   * reachable only by typing a URL. If someone is lost in a screen, that is a
+   * bug in the screen.
+   *
+   * If you add a link here, open it.
+   * ───────────────────────────────────────────────────────────────────────────
+   */
   const lawyerLinks = [
     { href: `/${locale}/dashboard/lawyer`, label: 'Overview', icon: LayoutDashboard },
-    { href: `/${locale}/dashboard/lawyer/profile`, label: 'My Profile', icon: User },
+    { href: `/${locale}/dashboard/lawyer/consultations`, label: 'Matters', icon: Briefcase },
+    { href: `/${locale}/dashboard/lawyer/consultations/availability`, label: 'Availability', icon: CalendarDays },
+    { href: `/${locale}/dashboard/lawyer/chat`, label: 'Messages', icon: MessageSquare },
     { href: `/${locale}/dashboard/lawyer/firm`, label: 'My Firm', icon: Building2 },
-    { href: `/${locale}/dashboard/lawyer/inquiries`, label: 'Inquiries', icon: Inbox },
-    { href: `/${locale}/dashboard/lawyer/articles`, label: 'Articles', icon: FileText },
+    { href: `/${locale}/dashboard/profile`, label: 'My Profile', icon: User },
+    { href: `/${locale}/dashboard/blog/my-posts`, label: 'Articles', icon: FileText },
     { href: `/${locale}/dashboard/lawyer/consultations/earnings`, label: 'Consultation Income', icon: Banknote },
-    { href: `/${locale}/dashboard/lawyer/consultations/refunds`, label: 'Refunds', icon: Banknote },
+    { href: `/${locale}/dashboard/lawyer/consultations/refunds`, label: 'Refunds', icon: ArrowRightLeft },
+    { href: `/${locale}/dashboard/lawyer/invoices`, label: 'Software Licence', icon: Receipt },
   ];
 
   const adminLinks = [
     { href: `/${locale}/dashboard/admin`, label: 'Overview', icon: LayoutDashboard },
-    { href: `/${locale}/dashboard/admin/lawyers`, label: 'Manage Lawyers', icon: Shield },
+    { href: `/${locale}/dashboard/admin/verification`, label: 'Attorney Verification', icon: Shield },
     { href: `/${locale}/dashboard/admin/firms`, label: 'Law Firms', icon: Building2 },
-    { href: `/${locale}/dashboard/admin/subscription-conf`, label: 'Subscription Config', icon: Star },
+    { href: `/${locale}/dashboard/admin/users`, label: 'Users', icon: Users },
+    { href: `/${locale}/dashboard/admin/subscriptions`, label: 'Subscriptions', icon: Star },
+    { href: `/${locale}/dashboard/admin/advertisers`, label: 'Advertisers', icon: Megaphone },
     { href: `/${locale}/dashboard/admin/legal-documents`, label: 'Legal Documents', icon: BookOpen },
     { href: `/${locale}/dashboard/admin/finances`, label: 'Financial Reports', icon: Landmark },
   ];

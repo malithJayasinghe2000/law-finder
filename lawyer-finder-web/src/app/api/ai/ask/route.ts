@@ -5,6 +5,7 @@ import { checkRateLimit, getClientIp } from '@/lib/security';
 import {
   classifyRequest,
   evaluateAnswer,
+  REFUSAL_MESSAGES,
   buildModelContext,
   type ResolvedCitation,
   type RefusalCategory,
@@ -148,6 +149,41 @@ export async function POST(req: Request) {
         );
       }
       throw error;
+    }
+
+    // ── 2b. A follow-up with nothing behind it ─────────────────────────────
+    //
+    // Handled before the citation check, because it is not a legal answer and
+    // has no citations by definition — so evaluateAnswer would withhold it as
+    // NO_CITABLE_SOURCE and tell the user "I could not find this in the
+    // legislation I hold". That is FALSE: the corpus may hold the subject
+    // perfectly well, and what is missing is any way to know what "that" means.
+    //
+    // A signed-out visitor hits this on every follow-up, because a guest has no
+    // stored conversation (see the history note above). Reported by a user on
+    // 2026-09-13, who read the old message as the assistant having lost the
+    // legislation it had just quoted.
+    //
+    // The service supplies only the SIGNAL. The words come from
+    // REFUSAL_MESSAGES, like every other refusal, so the model service can never
+    // put its own prose in front of a reader.
+    if (generated.needsContext) {
+      const saved = await persist({
+        session,
+        conversationId,
+        question,
+        answer: REFUSAL_MESSAGES.FOLLOW_UP_WITHOUT_CONTEXT,
+        citations: [],
+        refusalCategory: 'FOLLOW_UP_WITHOUT_CONTEXT',
+      });
+
+      return NextResponse.json<AskResponse>({
+        answer: REFUSAL_MESSAGES.FOLLOW_UP_WITHOUT_CONTEXT,
+        citations: [],
+        refused: true,
+        refusalCategory: 'FOLLOW_UP_WITHOUT_CONTEXT',
+        conversationId: saved,
+      });
     }
 
     // ── 3. Evaluate the whole answer before anyone reads any of it ─────────

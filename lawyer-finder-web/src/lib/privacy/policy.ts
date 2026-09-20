@@ -38,11 +38,19 @@ import { AI_CONVERSATION_RETENTION_DAYS } from '@/lib/ai/policy';
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * The version of the privacy notice currently shown.
+ * The label of the FIRST published version of the privacy notice.
  *
- * Stamped onto every `ConsentRecord`. Without it, "they consented" is a claim
- * about a document nobody can produce — which is not demonstrable consent.
- * Bump this whenever the notice text changes materially.
+ * ⚠️ This is no longer "the current version". Phase 8 turned that into a lookup:
+ * ask `resolveNoticeVersion()` in `./notice.ts`, which reads the version
+ * actually in force from `PrivacyNotice`. Do not bump this constant when the
+ * notice changes — publish a new version instead, or every consent record
+ * written under the old label will point at a document that has moved.
+ *
+ * It survives for two reasons. It is the version stamped on every consent
+ * record written before the register existed, and the migration that created
+ * the register seeds a document under exactly this label so those records
+ * resolve. And it is the last-resort label if the register is somehow empty —
+ * a stable, greppable value rather than an empty string.
  */
 export const PRIVACY_NOTICE_VERSION = '2026-08-03';
 
@@ -127,13 +135,17 @@ export const RETENTION_SCHEDULE: RetentionRule[] = [
       'that delivers that, counted from last use rather than creation.',
   },
   {
-    model: 'inquiry',
-    days: 365,
-    timestampField: 'createdAt',
+    model: 'lawyerApplication',
+    days: 730,
+    timestampField: 'updatedAt',
     controller: 'PLATFORM',
     reason:
-      'An enquiry that never became a matter is a description of a legal problem ' +
-      'with no retainer behind it and no reason to outlive the year it was sent.',
+      'An application holds an NIC number and images of identity and practising ' +
+      'certificates. Two years after a decision is long enough to answer a challenge ' +
+      'to how we handled it and short enough that a rejected applicant is not on file ' +
+      'indefinitely. An APPROVED application is reduced to a stub at approval — the ' +
+      'data it held now lives on the attorney profile, and two copies of a national ' +
+      'identity number is one too many.',
   },
   {
     model: 'slotHold',
@@ -360,10 +372,12 @@ export const ERASURE_PLAN: ErasureStep[] = [
     explanation: 'Your conversations with the legal assistant are deleted outright.',
   },
   {
-    model: 'inquiry',
+    model: 'lawyerApplication',
     action: 'DELETE',
     controller: 'PLATFORM',
-    explanation: 'Enquiries you sent to attorneys that never became a matter are deleted.',
+    explanation:
+      'If you applied to be listed as an Attorney-at-Law, that application and the ' +
+      'identity documents attached to it are deleted.',
   },
   {
     model: 'consentRecord',

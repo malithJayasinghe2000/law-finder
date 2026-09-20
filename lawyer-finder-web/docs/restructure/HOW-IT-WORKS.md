@@ -205,15 +205,28 @@ damage a client's legal position in their own case.*
 [`src/lib/firms/access.ts`](../../src/lib/firms/access.ts). Never re-implement it
 inline in a route.
 
-| Who | Sees the matter exists | Reads the client's description |
-|---|---|---|
-| The client | yes | yes — they wrote it |
-| The attorney assigned to it | yes | yes |
-| The firm's principal / practice manager | yes | yes — they must be able to reassign |
-| Another attorney at the same firm | yes | **no** |
-| A paralegal at the same firm | yes | **no** |
-| An attorney at a different firm | **no** | **no** |
-| Platform `ADMIN` (us) | yes | **no** |
+| Who | Sees the matter exists | Reads the client's description | Reads the message thread |
+|---|---|---|---|
+| The client | yes | yes — they wrote it | yes |
+| The attorney assigned to it | yes | yes | yes, if they are in it |
+| The firm's principal / practice manager | yes | yes — they must be able to reassign | **no**, unless in it |
+| Another attorney at the same firm | yes | **no** | **no** |
+| A paralegal at the same firm | yes | **no** | **no** |
+| An attorney at a different firm | **no** | **no** | **no** |
+| An attorney who has **left** the firm | **no** | **no** | **no** |
+| Platform `ADMIN` (us) | yes | **no** | **no** |
+
+The message-thread column is narrower on purpose. A principal needs the *file* to move a
+matter when an attorney is ill or leaves; they do not need to read a conversation that
+has already happened. Every extra reader of a privileged communication is another person
+an opponent can point at to argue privilege was waived.
+
+**Since Phase 7 those columns are also encrypted in the database.** Blocking a read in
+code only binds code; a database dump does not go through the code. The rule that keeps
+this honest is that the function turning stored data into readable text has three
+outcomes — the words, "withheld", or "unavailable" — and **never the ciphertext**.
+Handing a blocked reader the encrypted value passes a naive check while giving them a
+copy they can attack offline.
 
 Run `npm run check:privilege` after changing that file. It asserts every row of
 that table. A green `npm run build` proves nothing about this.
@@ -409,6 +422,10 @@ Each of these is a normal, sensible product feature that is illegal here.
 | "Pay per lead" / per-introduction billing | Textbook touting |
 | Escrow, wallet, "hold the fee until the meeting" | Regulated payment activity without a licence (rule 2) |
 | Admin dashboard showing matter descriptions | Threatens privilege (rule 5) |
+| A quick "contact a lawyer" form outside the engagement flow | This is `Inquiry`, deleted in Phase 7: an unauthenticated intake for a legal problem, outside every access control |
+| Letting a departing attorney keep their client conversations | Participation is not permanent authority (rule 5) |
+| Returning encrypted data to someone who may not read it | It passes the check and protects nothing |
+| Adding someone to a firm without asking them | Being in a practice means seeing that its clients' matters exist |
 | AI that says "you should sue them" | Unauthorised practice + BASL 2021 note (rule 6) |
 | Auto-assigning a request to the least busy attorney | The platform choosing (rule 4) — the *firm* may do this, we may not |
 
@@ -443,7 +460,7 @@ adjusted.** The good news is that Phase 2 is what makes that survivable: now tha
 removable layer rather than the foundation. The same engine underneath serves a
 business-to-business product — companies managing law firms they have already
 hired — which raises no touting question at all, and which is the shape described
-in `PROJECT-PLAN.md` at the repository root.
+in [DIRECTION.md](../DIRECTION.md).
 
 ---
 

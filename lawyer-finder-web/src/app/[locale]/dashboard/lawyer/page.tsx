@@ -18,7 +18,7 @@ interface ProfileData {
   languages: string[];
   district: string | null;
   bio: string | null;
-  inquiries: { id: string; clientName: string; clientEmail: string; message: string; status: string; createdAt: string }[];
+  openMatters: number;
   articles: { id: string; title: string; status: string; createdAt: string }[];
 }
 
@@ -70,7 +70,12 @@ export default function LawyerDashboard() {
     );
   }
 
-  const pendingInquiries = profile.inquiries.filter((i) => i.status === 'PENDING').length;
+  // Was `pendingInquiries`, counted from the unauthenticated `Inquiry` intake
+  // removed in Phase 7. The replacement counts matters that have actually
+  // reached the firm through the engagement flow — which is the number an
+  // attorney needs anyway, since an enquiry created no relationship and no
+  // obligation to respond.
+  const openMatters = profile.openMatters;
   const publishedArticles = profile.articles.filter((a) => a.status === 'PUBLISHED').length;
 
   const sub = subscriptionData?.subscription;
@@ -182,8 +187,11 @@ export default function LawyerDashboard() {
               <Inbox className="h-5 w-5" />
             </div>
             <div>
-              <p className="text-2xl font-bold">{pendingInquiries}</p>
-              <p className="text-xs text-muted-foreground font-medium">Pending Inquiries</p>
+              <p className="text-2xl font-bold">{openMatters}</p>
+              <p className="text-xs text-muted-foreground font-medium">Open Matters</p>
+              <Link href={`/${locale}/dashboard/lawyer/consultations`} className="text-[10px] text-primary hover:underline mt-2 block font-semibold">
+                Go to matters &rarr;
+              </Link>
             </div>
           </CardContent>
         </Card>
@@ -203,40 +211,6 @@ export default function LawyerDashboard() {
         </Card>
       </div>
 
-      {/* Recent Inquiries */}
-      <Card className="mb-6 rounded-none shadow-sm">
-        <CardContent className="p-6">
-          <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-            <Inbox className="h-4 w-4" />
-            Recent Inquiries
-          </h2>
-          {profile.inquiries.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-6 text-center">No inquiries received yet.</p>
-          ) : (
-            <div className="space-y-3">
-              {profile.inquiries.slice(0, 5).map((inq) => (
-                <div key={inq.id} className="rounded-none border p-4 shadow-sm">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="font-semibold text-sm">{inq.clientName}</span>
-                        <Badge variant={inq.status === 'PENDING' ? 'outline' : 'secondary'} className="text-[10px] rounded-none px-2 uppercase tracking-wide">
-                          {inq.status}
-                        </Badge>
-                      </div>
-                      <p className="text-xs text-muted-foreground mb-1">{inq.clientEmail}</p>
-                      <p className="text-sm text-muted-foreground line-clamp-2">{inq.message}</p>
-                    </div>
-                    <span className="shrink-0 text-xs text-muted-foreground">
-                      {new Date(inq.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
 
       {/* Profile Preview */}
       <Card className="rounded-none shadow-sm">

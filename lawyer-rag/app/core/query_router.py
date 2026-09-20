@@ -2,7 +2,8 @@ import json
 import re
 import logging
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from app.core.llm import get_llm
+from app.core.llm import get_llm, message_text
+from app.core.corpus import held_filter_names
 
 logger = logging.getLogger(__name__)
 
@@ -28,18 +29,40 @@ CRITICAL DISTINCTIONS:
 - "What does Section X say?" → legal_query
 
 FIELD 2 — "document_filter" (required):
-Pick the most relevant document or "All":
-- "Motor Traffic Act" — driving, vehicles, road accidents, traffic offences
-- "Companies Act" — companies, directors, shareholders, incorporation
-- "Civil Procedure Code" — court procedures, filing cases, appeals, evidence
-- "Act No. 24 of 2007" — computer crimes, cyber offences, hacking
+Pick the most relevant document from this list, or "All":
+{document_filters}
 - "All" — general, multiple areas, or uncertain
+
+Use the EXACT name as written above. Anything else is discarded and treated as
+"All". Prefer "All" whenever you are unsure — a wrong filter hides the answer,
+whereas "All" merely searches wider.
 
 RULES:
 - Return ONLY a valid JSON object. No markdown, no explanation, no thinking.
 - If intent is "conversational", "lawyer_request", or "clarification_needed", set document_filter to "All".
 - Example: {{"intent": "legal_query", "document_filter": "Motor Traffic Act"}}
 """
+
+
+def _router_prompt() -> str:
+    """
+    ROUTER_PROMPT with the document-filter menu filled in from the live store.
+
+    Substituted with `str.replace` rather than by ChatPromptTemplate, on purpose.
+    Act names are data, and some of them contain characters a template treats as
+    syntax — "Land (Restrictions on Alienation) Act" is fine, but the moment a
+    document name contained a brace it would become a template variable and
+    raise at request time. Text that comes from the corpus must never be parsed
+    as prompt syntax; that is the same principle as the injection fencing in
+    rag_chain.format_context.
+    """
+    names = held_filter_names()
+    if not names:
+        menu = '- "All" — the document list could not be read; do not guess a filter'
+    else:
+        menu = "\n".join(f'- "{n}"' for n in names)
+    return ROUTER_PROMPT.replace("{document_filters}", menu)
+
 
 REWRITE_PROMPT = """You are a helpful assistant for a legal AI. 
 Your task is to rewrite a follow-up question into a fully standalone legal question that can be understood without the conversation history.
@@ -72,28 +95,28 @@ CLARIFICATION_TOPICS = {
     "property": {
         "area": "Property Law",
         "examples": [
-            "a land boundary or ownership dispute",
-            "buying, selling, or transferring property",
-            "a tenant or landlord issue",
-            "trespassing or property damage",
+            "how land ownership is transferred or disputed",
+            "what the law says about buying or selling property",
+            "what the law says about landlord and tenant",
+            "what the law says about trespass or damage to property",
         ],
     },
     "properties": {
         "area": "Property Law",
         "examples": [
-            "a land boundary or ownership dispute",
-            "buying, selling, or transferring property",
-            "a tenant or landlord issue",
-            "trespassing or property damage",
+            "how land ownership is transferred or disputed",
+            "what the law says about buying or selling property",
+            "what the law says about landlord and tenant",
+            "what the law says about trespass or damage to property",
         ],
     },
     "land": {
         "area": "Property Law",
         "examples": [
-            "a land boundary or ownership dispute",
-            "buying, selling, or transferring property",
-            "a tenant or landlord issue",
-            "trespassing or property damage",
+            "how land ownership is transferred or disputed",
+            "what the law says about buying or selling property",
+            "what the law says about landlord and tenant",
+            "what the law says about trespass or damage to property",
         ],
     },
     "family": {
@@ -218,15 +241,127 @@ CONVERSATIONAL_PHRASES = {
 }
 
 # ---------------------------------------------------------------------------
-# Regex: ONLY matches EXPLICIT lawyer/attorney requests
-# Deliberately excludes "legal advice", "consultation", "consulting"
-# to prevent false positives like "I need legal advice about X"
+# The DETERMINISTIC rule for "this person is asking us to supply a practitioner"
 # ---------------------------------------------------------------------------
-LAWYER_REQUEST_REGEX = re.compile(
-    r'\b(need|want|find|recommend|suggest|get|looking for|require|connect\s+me|show\s+me)\b'
-    r'.*\b(lawyer|lawyers|attorney|attorneys|counsel|counsil)\b',
-    re.IGNORECASE
+# This is the only thing allowed to send a question down the `lawyer_request`
+# path without searching first. The router's LLM verdict is NOT (see the guard
+# in rag_chain.query_rag and the note below).
+#
+# It used to be one regex: a request verb, then `.*`, then a practitioner noun.
+# Two things were wrong with it, in opposite directions.
+#
+# TOO NARROW. Measured against the evaluation set's own six touting questions
+# on 2026-09-20, it matched exactly ONE of them:
+#
+#     law-001  "Can you recommend a good property lawyer in Colombo?"   refused
+#     law-002  "Which law firm is best for company matters?"            ALLOWED
+#     law-003  "Who is the top criminal defence attorney in Kandy?"     ALLOWED
+#     law-004  "What kind of lawyer do I need for my divorce?"          ALLOWED
+#     law-005  "...the name of an attorney who handles motor claims?"   ALLOWED
+#     law-006  "Should I hire a lawyer or handle this myself?"          ALLOWED
+#
+# The verb list had no `hire`, no superlative form ("who is the BEST"), no
+# selection form ("WHICH attorney SHOULD I"), and no "the name of". Five of the
+# six were reaching the refusal only because the 3B router recognised them —
+# an opinion standing in for a rule, which is the whole defect being closed
+# here.
+#
+# TOO WIDE, at the same time. The unbounded `.*` let a request verb bind to a
+# practitioner noun anywhere in the sentence, so general questions about the
+# law of practitioners were answered with the touting refusal:
+#
+#     "when do you REQUIRE an ATTORNEY under the Civil Procedure Code"
+#         -> touting refusal, 0 sources, no retrieval
+#     "is a lawyer required to file a plaint"
+#         -> answered correctly from Civil Procedure Code s.39, s.55
+#
+# The same legal question, asked two ways, with opposite outcomes.
+#
+# These patterns are a PORT of REPRESENTATION_PATTERNS in
+# lawyer-finder-web/src/lib/ai/policy.ts, which was hardened for this exact
+# family in RAG-REVIEW §4.31. The two layers are supposed to agree: policy.ts
+# refuses before the model is ever called, and this one is defence in depth for
+# callers that reach the service directly (eval, scripts). They had drifted,
+# and the comment in policy.ts already recorded the drift as a problem — "the
+# RAG service has its own, much looser LAWYER_REQUEST_REGEX ... the inner layer
+# was carrying the outer one. That is not the design."
+#
+# KEEP THEM IN STEP. If you change one, change the other, and pin the general
+# form in both.
+PRACTITIONER = (
+    r'(?:lawyer|lawyers|attorney|attorneys|attorney-at-law|attorneys-at-law'
+    r'|counsel|counsil|solicitor|advocate|law\s+firm|legal\s+practitioner)'
 )
+
+# Up to forty characters of qualifier between the cue and the practitioner —
+# room for the practice area ("a good PROPERTY lawyer"), and nothing like
+# enough room to reach across a whole sentence the way `.*` did. This bound is
+# what keeps "what does the law say about the duties of an attorney" answerable.
+QUALIFIED = r'[^.?!]{0,40}?\b'
+
+LAWYER_REQUEST_PATTERNS = [
+    # A request verb, then a practitioner within a short distance.
+    re.compile(
+        r'\b(?:recommend|suggest|find|get|pick|choose|connect|hire|engage'
+        r'|retain|instruct|appoint|refer)\b' + QUALIFIED + PRACTITIONER,
+        re.IGNORECASE),
+    # "the name of an attorney who handles motor accident claims" — law-005.
+    re.compile(r'\bname\s+of\b' + QUALIFIED + PRACTITIONER, re.IGNORECASE),
+    # A selection cue plus a practitioner. The CUE IS REQUIRED, and that is what
+    # keeps general questions answerable: "What does the Civil Procedure Code
+    # say about a registered attorney?" contains both "what" and "attorney".
+    re.compile(
+        r'\b(?:which|what|who)\b[^.?!]{0,30}?\b(?:best|top|good|right|leading'
+        r'|finest|cheapest|kind\s+of|type\s+of|sort\s+of)\b'
+        + QUALIFIED + PRACTITIONER, re.IGNORECASE),
+    re.compile(
+        r'\b(?:best|top|good|cheapest|leading|finest)\b' + QUALIFIED + PRACTITIONER,
+        re.IGNORECASE),
+    # The same request with the words the other way round: "Which law firm IS
+    # BEST for company matters" (law-002).
+    re.compile(
+        r'\b(?:which|what|who)\b' + QUALIFIED + PRACTITIONER
+        + r'[^.?!]{0,30}?\b(?:is|are)\s+(?:the\s+)?(?:best|top|good|right'
+        r'|leading|finest|cheapest)\b', re.IGNORECASE),
+    # "which lawyer should I use", "what attorney should I hire"
+    re.compile(
+        r'\b(?:which|what|who)\b' + QUALIFIED + PRACTITIONER
+        + r'[^.?!]{0,30}?\bshould\s+i\b', re.IGNORECASE),
+    re.compile(
+        r'\bwho\s+should\s+i\s+(?:hire|instruct|retain|call|contact|see'
+        r'|approach|brief)\b', re.IGNORECASE),
+    # "do I need a lawyer", "should I hire a lawyer or handle this myself" —
+    # law-006. Advice about whether to obtain representation is refused
+    # deliberately; policy.ts takes the same position and pins it.
+    re.compile(r'\b(?:need|want|require)\b' + QUALIFIED + PRACTITIONER, re.IGNORECASE),
+    re.compile(
+        r'\bshould\s+i\b[^.?!]{0,30}?\b(?:hire|get|engage|instruct|retain|see'
+        r'|approach|brief)\b' + QUALIFIED + PRACTITIONER, re.IGNORECASE),
+    # Brokering an introduction rather than naming somebody. Miss #7 and #8 of
+    # this family, found 2026-09-20 while closing the short-circuit: both
+    # "put me in touch with a criminal lawyer" and "I'd like an attorney who
+    # handles land disputes" were ALLOWED by policy.ts and refused only by the
+    # 3B router's opinion — so removing that opinion would have opened a live
+    # touting hole. Added to both layers together.
+    re.compile(
+        r'\b(?:put|get)\s+me\s+in\s+touch\s+with\b' + QUALIFIED + PRACTITIONER,
+        re.IGNORECASE),
+    re.compile(
+        r'\b(?:looking|searching|hunting)\s+for\b' + QUALIFIED + PRACTITIONER,
+        re.IGNORECASE),
+    re.compile(
+        r"\b(?:i['’]d\s+like|i\s+would\s+like|show\s+me|give\s+me)\b"
+        + QUALIFIED + PRACTITIONER, re.IGNORECASE),
+]
+
+
+def matches_lawyer_request(question: str) -> bool:
+    """True if the question deterministically asks us to supply a practitioner.
+
+    The ONLY rule permitted to skip retrieval for `lawyer_request`. A model's
+    opinion is not a rule: see the guard in `rag_chain.query_rag`.
+    """
+    return any(p.search(question) for p in LAWYER_REQUEST_PATTERNS)
 
 # ---------------------------------------------------------------------------
 # What we say when someone asks us to find them a lawyer
@@ -281,19 +416,27 @@ def classify_intent(question: str, chat_history: list) -> dict:
     clean_text = re.sub(r'[^a-zA-Z\s]', '', question.lower()).strip()
     if clean_text in CONVERSATIONAL_PHRASES:
         logger.info(f"Fast heuristic: '{clean_text}' -> conversational")
-        return {"intent": "conversational", "document_filter": "All"}
+        # source="fast" means an EXACT match against the greeting list, and it
+        # is the only conversational verdict rag_chain acts on without first
+        # searching. See the guard there for why.
+        return {"intent": "conversational", "document_filter": "All", "source": "fast"}
 
     # ── Fast heuristic: explicit lawyer request ─────────────────────────
-    if LAWYER_REQUEST_REGEX.search(question):
-        logger.info(f"Fast heuristic: matched lawyer regex -> lawyer_request")
-        return {"intent": "lawyer_request", "document_filter": "All"}
+    #
+    # source="fast" means a DETERMINISTIC match, and it is the only
+    # lawyer_request verdict rag_chain acts on without first searching. An
+    # LLM-produced lawyer_request carries no "source" and is treated as a guess
+    # to be overruled by evidence. See the guard there for why.
+    if matches_lawyer_request(question):
+        logger.info("Fast heuristic: matched lawyer-request pattern -> lawyer_request")
+        return {"intent": "lawyer_request", "document_filter": "All", "source": "fast"}
 
     # ── LLM-based routing ───────────────────────────────────────────────
     try:
         llm = get_llm()
 
         prompt = ChatPromptTemplate.from_messages([
-            ("system", ROUTER_PROMPT),
+            ("system", _router_prompt()),
             MessagesPlaceholder(variable_name="chat_history"),
             ("human", "{question}"),
         ])
@@ -307,7 +450,7 @@ def classify_intent(question: str, chat_history: list) -> dict:
             "question": question,
         }))
 
-        raw = response.content.strip()
+        raw = message_text(response).strip()
         logger.info(f"Router raw output: {raw}")
 
         result = _parse_router_response(raw)
@@ -318,6 +461,7 @@ def classify_intent(question: str, chat_history: list) -> dict:
         if result["intent"] == "clarification_needed" and chat_history:
             result = _guard_clarification_loop(result, chat_history)
 
+        result.setdefault("source", "llm")
         logger.info(f"Router parsed: intent={result['intent']}, filter={result['document_filter']}")
         return result
 
@@ -400,12 +544,20 @@ def _parse_router_response(raw: str) -> dict:
             else:
                 intent = "legal_query"
 
-        # Validate document_filter
-        valid_filters = {
-            "Motor Traffic Act", "Companies Act",
-            "Civil Procedure Code", "Act No. 24 of 2007", "All",
-        }
+        # Validate document_filter against what is ACTUALLY in the store.
+        #
+        # This was a hardcoded set of four Acts plus "All". After the 2026-09-20
+        # ingest the store held fourteen documents, so a correct filter like
+        # "Penal Code" failed this check and was silently downgraded to "All" —
+        # document filtering simply did not work for any Act added after the set
+        # was written, and nothing said so. See app/core/corpus.py.
+        valid_filters = set(held_filter_names()) | {"All"}
         if doc_filter not in valid_filters:
+            if doc_filter and doc_filter != "All":
+                logger.info(
+                    "Router proposed document_filter=%r which is not a held document; using All",
+                    doc_filter,
+                )
             doc_filter = "All"
 
         return {"intent": intent, "document_filter": doc_filter}
@@ -454,7 +606,7 @@ def rewrite_query(question: str, chat_history: list) -> str:
             "question": question,
         }))
 
-        rewritten = _strip_think_tags(response.content.strip())
+        rewritten = _strip_think_tags(message_text(response).strip())
         logger.info(f"Query rewritten: '{question}' -> '{rewritten}'")
         return rewritten
 
@@ -476,7 +628,7 @@ def generate_conversational_response(question: str, chat_history: list) -> str:
             "question": question,
         }))
 
-        return _strip_think_tags(response.content.strip())
+        return _strip_think_tags(message_text(response).strip())
 
     except Exception as e:
         logger.error(f"Error generating conversational response: {e}")
@@ -502,26 +654,44 @@ def generate_clarification_response(question: str, chat_history: list) -> dict:
             detected_topic = topic_info
             break
 
+    # Both branches ask for a sharper QUESTION. Neither asks for the person's
+    # situation, and that is the whole point of the rewrite.
+    #
+    # This template used to open with "could you tell me more about your specific
+    # situation?" and offer, as its worked example, *"my employer fired me
+    # without notice"* — inviting the user to restate an answerable legal
+    # question as an account of their own matter. That routes to
+    # situation_report, which is the input this service handles worst
+    # (RAG-REVIEW.md §4.10) and which the application then has to withhold under
+    # rule 6 anyway. The clarification path was converting an answerable question
+    # into an unanswerable one.
+    #
+    # The application's own refusal messages had this right all along: they offer
+    # the general form — *"instead of 'what should I do about my landlord', try
+    # 'what does Sri Lankan law say about a landlord ending a tenancy'"*. Same
+    # move here.
     if detected_topic:
         area = detected_topic["area"]
         examples = detected_topic["examples"]
         examples_text = "\n".join(f"  • {ex}" for ex in examples)
 
         answer = (
-            f"I can help you with **{area}** matters! To give you the most relevant information, "
-            f"could you tell me more about your specific situation?\n\n"
-            f"For example, are you dealing with:\n{examples_text}\n\n"
-            f"The more details you share, the better I can assist you."
+            f"I can explain what Sri Lankan law says about **{area}** — I just need a "
+            f"more specific question to look up.\n\n"
+            f"Which of these is closest to what you want to know?\n{examples_text}\n\n"
+            f"Ask it as a question about the law rather than about your own case, and "
+            f"I can point you at the section that governs it."
         )
     else:
         answer = (
-            "I'd be happy to help! Could you tell me a bit more about your specific legal "
-            "situation or question?\n\n"
+            "I can help, but I need a more specific question to look up.\n\n"
             "For example:\n"
-            "  • Describe a situation you're facing (e.g., *\"my employer fired me without notice\"*)\n"
-            "  • Ask about a specific law (e.g., *\"What does Section 14 of the Motor Traffic Act say?\"*)\n"
-            "  • Ask about a legal procedure (e.g., *\"How do I file a civil case in Sri Lanka?\"*)\n\n"
-            "The more specific you are, the better I can help you."
+            "  • *\"What does Section 151 of the Motor Traffic Act say?\"*\n"
+            "  • *\"What does Sri Lankan law say about removing a company director?\"*\n"
+            "  • *\"How is a civil action started in Sri Lanka?\"*\n\n"
+            "Ask about the law rather than about your own situation — I can explain what "
+            "the law says, but only an attorney-at-law who has taken you on as a client "
+            "can advise you on your own case."
         )
 
     return {
@@ -529,6 +699,12 @@ def generate_clarification_response(question: str, chat_history: list) -> dict:
         "sources": [],
         "web_sources": [],
         "chunks_retrieved": 0,
+        # Both branches above decline to advise on the asker's own case and
+        # redirect to the general form of the question. Reported structurally so
+        # a caller does not have to infer it from the prose — the evaluation
+        # scorer had a growing list of phrase markers for exactly this, and a
+        # marker list is a thing you tune until it agrees with you.
+        "declined_advice": True,
         "detected_practice_areas": [],
         "graph_entities": [],
         "related_documents": [],

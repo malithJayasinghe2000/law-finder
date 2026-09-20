@@ -1,3 +1,24 @@
+> # ⚠️ SUPERSEDED — DO NOT BUILD FROM THIS DOCUMENT
+>
+> This describes the **original marketplace product**, written before the legal
+> restructure. It is kept as a historical record of where the project started.
+>
+> **It promises things that are unlawful in Sri Lanka** and that were removed across
+> Phases 0–8 — sponsored listings and paid placement, commission on consultation fees,
+> star ratings and reviews, "Inquire Now" lead generation, published fee ranges, and an
+> AI that recommends particular lawyers. Touting is a **criminal offence** under the
+> Intermeddlers with Suitors Ordinance No. 11 of 1894 and it reaches the **platform
+> operator**, not only the attorney.
+>
+> **If you build from this document, you will rebuild the illegal product.**
+>
+> 👉 Read **[lawyer-finder-web/docs/THE-PROJECT.md](./lawyer-finder-web/docs/THE-PROJECT.md)**
+> instead. For what is still accurate here (the tech stack, the folder structure, the
+> i18n and validation conventions), cross-check it against
+> [lawyer-finder-web/AGENTS.md](./lawyer-finder-web/AGENTS.md).
+
+---
+
 # Project Vision & Scope: "Next-Level" Lawyer Finder Platform (Sri Lanka)
 
 ## 1. Executive Summary

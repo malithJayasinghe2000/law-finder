@@ -49,7 +49,6 @@ export default function PermissionsPage() {
   const categories = [
     'features',
     'posts',
-    'inquiries',
     'reviews',
     'messaging',
     'analytics',

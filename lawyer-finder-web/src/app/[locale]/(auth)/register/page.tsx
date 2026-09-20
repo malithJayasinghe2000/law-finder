@@ -158,6 +158,30 @@ export default function RegisterPage() {
               {loading ? <Loader2 className="h-4.5 w-4.5 animate-spin" /> : null}
               {loading ? 'Creating...' : 'Create Account'}
             </button>
+
+            {/*
+              The PDPA expects the notice to be given at the point of
+              collection, which is here.
+
+              Note what this does NOT say. There is no "I consent to the
+              processing of my data" checkbox, because your account data is
+              processed to perform our contract with you — not on consent.
+              Presenting it as consent would imply you could withdraw it while
+              keeping the account, which is not true, and treating everything as
+              consent is the common and expensive PDPA error. The three things
+              that genuinely do rest on consent are optional, live on the "Your
+              data" screen, and are never a precondition of signing up.
+            */}
+            <p className="mt-5 text-center text-xs font-light leading-relaxed text-neutral-500">
+              We explain what we collect, why, and how long we keep it in the{' '}
+              <Link
+                href={`/${locale}/privacy`}
+                className="font-bold text-[#bfa37a] underline-offset-2 hover:underline"
+              >
+                Privacy Notice
+              </Link>
+              . Creating an account does not sign you up to marketing.
+            </p>
           </form>
 
           <div className="mt-8">

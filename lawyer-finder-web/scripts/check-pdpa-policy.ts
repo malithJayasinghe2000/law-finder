@@ -38,9 +38,20 @@ import {
   erasedEmailFor,
   summariseErasure,
   SUBJECT_REQUEST_DUE_DAYS,
+  PRIVACY_NOTICE_VERSION,
 } from '@/lib/privacy/policy';
 import { buildSubjectExport, eraseSubject } from '@/lib/privacy/subject';
 import { recordAccess } from '@/lib/privacy/audit';
+import {
+  getPublishedNotice,
+  getNoticeByVersion,
+  publishNotice,
+  assertEditable,
+  assertVersionLabel,
+  requirePublishedVersionForConsent,
+  resolveNoticeVersion,
+} from '@/lib/privacy/notice';
+import { recordFirmResponse, assertFirmReason } from '@/lib/privacy/firmResponse';
 
 let pass = 0;
 const fails: string[] = [];
@@ -172,10 +183,12 @@ async function main() {
   const attorney = await prisma.lawyerProfile.create({
     data: { userId: attorneyUser.id, fullName: 'Acting Attorney', baslNumber: `${TAG}-b`, firmId: firm.id },
   });
-  await prisma.inquiry.create({
+  // Replaces the `Inquiry` fixture removed in Phase 7. An application holds an
+  // NIC number and identity images, so erasure must actually delete it.
+  await prisma.lawyerApplication.create({
     data: {
-      lawyerId: attorney.id, clientName: 'Erasure Subject', clientPhone: '0770000000',
-      clientEmail: subject.email, message: 'I have a problem with my landlord',
+      userId: subject.id, status: 'DRAFT', currentStep: 1,
+      draftData: { step1: { fullName: 'Erasure Subject', nic: '901234567V' } },
     },
   });
   const booking = await prisma.booking.create({
@@ -233,9 +246,9 @@ async function main() {
   ok('AI conversations are deleted',
      (await prisma.aiConversation.findUnique({ where: { id: conv.id } })) === null,
      'the plan promises deletion, not hiding');
-  ok('enquiries are deleted',
-     (await prisma.inquiry.count({ where: { clientEmail: `${TAG}@example.com` } })) === 0,
-     'enquiries are keyed by email, which the erasure overwrites — order matters here');
+  ok('the attorney application is deleted',
+     (await prisma.lawyerApplication.count({ where: { userId: subject.id } })) === 0,
+     'it holds a national identity number and images of identity documents');
 
   const bookingAfter = await prisma.booking.findUnique({ where: { id: booking.id } });
   const conflictAfter = await prisma.conflictCheck.findUnique({ where: { id: conflict.id } });
@@ -321,13 +334,222 @@ async function main() {
      summariseErasure().partial,
      'today a firm’s file always survives, and the interface must say so');
 
+  // ── The privacy notice register (Phase 8) ──────────────────────────────
+  //
+  // The defect this exists to prevent: an administrator edits the notice in
+  // place, and every past consent record silently starts pointing at wording
+  // nobody agreed to. Nothing errors. The evidence is destroyed by an ordinary
+  // content edit, and you find out when somebody asks you to prove consent.
+
+  ok('a consent record’s notice version resolves to a document that exists',
+     (await getNoticeByVersion(PRIVACY_NOTICE_VERSION)) !== null,
+     `nothing is published under ${PRIVACY_NOTICE_VERSION}, so every consent record written ` +
+       'under it points at wording nobody can produce — which is not demonstrable consent. ' +
+       'The migration that created the register seeds this document for exactly this reason');
+
+  ok('a PUBLISHED version cannot be edited',
+     !assertEditable('PUBLISHED').ok,
+     'editing the document people agreed to rewrites the evidence silently');
+  ok('a SUPERSEDED version cannot be edited',
+     !assertEditable('SUPERSEDED').ok,
+     'a superseded version is still pointed at by the consent records written under it');
+  ok('a DRAFT can be edited',
+     assertEditable('DRAFT').ok,
+     'nobody has agreed to a draft, so there is no evidence to protect — and a register you ' +
+       'cannot write in is not usable');
+
+  ok('a version label cannot smuggle a path segment',
+     !assertVersionLabel('../../etc/passwd').ok && !assertVersionLabel('2026-08-03/x').ok,
+     'the label is put into a public URL; a label that is not a label is a traversal');
+  ok('a normal and a suffixed version label are accepted',
+     assertVersionLabel('2026-08-03').ok && assertVersionLabel('2026-08-03-b').ok,
+     'publishing twice in one day must be expressible, or somebody will reuse a label');
+
+  // Everything from here to the matching `finally` mutates the live register:
+  // it publishes a scratch version, which supersedes whatever is in force. On
+  // the happy path it is put back below — but a check that leaves the database
+  // with NO published notice if it throws would turn a failed assertion into a
+  // broken dev environment, where consent grants then fail closed for everyone.
+  const restorePoint = await getPublishedNotice();
+  try {
+
+  const draftA = await prisma.privacyNotice.create({
+    data: {
+      version: `2999-01-01-${TAG.slice(-6)}`,
+      title: 'Privacy Notice (check)',
+      body: 'x'.repeat(400),
+      status: 'DRAFT',
+    },
+  });
+
+  const before = await getPublishedNotice();
+  const publishedA = await publishNotice({ id: draftA.id, actorUserId: subject.id });
+
+  ok('publishing a draft promotes it and supersedes the old version',
+     publishedA.ok &&
+       (await prisma.privacyNotice.count({ where: { status: 'PUBLISHED' } })) === 1,
+     'at most one version is ever in force; two would make "the current notice" ambiguous');
+
+  ok('the superseded version still exists and is still readable at its own URL',
+     before !== null && (await getNoticeByVersion(before.version)) !== null,
+     'consent records point at it. Evidence you can take off the shelf is not evidence');
+
+  ok('the superseded version is marked SUPERSEDED, not deleted',
+     before !== null &&
+       (await prisma.privacyNotice.findUnique({ where: { version: before.version } }))?.status ===
+         'SUPERSEDED',
+     'a version that vanishes takes the proof of what people agreed to with it');
+
+  ok('the version stamped on a new consent is the one now in force',
+     (await resolveNoticeVersion()) === draftA.version,
+     'PRIVACY_NOTICE_VERSION is no longer "the current version" — it is a lookup, or the ' +
+       'constant and the register drift apart');
+
+  ok('publishing an already-published version is refused',
+     !(await publishNotice({ id: draftA.id, actorUserId: subject.id })).ok,
+     'republishing would supersede the version currently in force with itself');
+
+  const stub = await prisma.privacyNotice.create({
+    data: { version: `2999-01-02-${TAG.slice(-6)}`, body: 'too short', status: 'DRAFT' },
+  });
+  ok('a placeholder-length draft cannot be published',
+     !(await publishNotice({ id: stub.id, actorUserId: subject.id })).ok,
+     'publishing a stub replaces a real notice with a placeholder for every reader');
+  await prisma.privacyNotice.delete({ where: { id: stub.id } });
+
+  // The `finally` below is the single restore path — see the comment there.
+
+  ok('a grant is refused when no notice is published, and the reason says why',
+     await (async () => {
+       await prisma.privacyNotice.updateMany({
+         where: { status: 'PUBLISHED' },
+         data: { status: 'SUPERSEDED' },
+       });
+       const refused = await requirePublishedVersionForConsent();
+       if (before) {
+         await prisma.privacyNotice.update({
+           where: { id: before.id },
+           data: { status: 'PUBLISHED' },
+         });
+       }
+       return !refused.ok;
+     })(),
+     'recording agreement to a document that cannot be produced recreates the exact defect ' +
+       'the register exists to remove — and doing it silently is worse than an error');
+
+  } finally {
+    // Put the register back exactly as it was found, whatever happened above.
+    await prisma.privacyNotice.deleteMany({ where: { version: { startsWith: '2999-' } } });
+    if (restorePoint) {
+      await prisma.privacyNotice.updateMany({
+        where: { status: 'PUBLISHED' },
+        data: { status: 'SUPERSEDED' },
+      });
+      await prisma.privacyNotice.update({
+        where: { id: restorePoint.id },
+        data: { status: 'PUBLISHED' },
+      });
+    }
+  }
+
+  // ── A firm answering the half of a request that is its own ─────────────
+
+  // A real second practice: this person engaged two firms, which is the shape
+  // that breaks a design where the first firm to answer closes the request.
+  const secondPractice = await prisma.lawFirm.create({
+    data: { name: `${TAG} Second Firm`, slug: `${TAG}-2`, firmType: 'SOLE_PRACTITIONER' },
+  });
+
+  const dsr = await prisma.dataSubjectRequest.create({
+    data: {
+      userId: subject.id,
+      type: 'ERASURE',
+      status: 'AWAITING_FIRM',
+      referredFirmIds: [firm.id, secondPractice.id],
+      dueBy: subjectRequestDueDate(),
+    },
+  });
+
+  ok('a firm cannot answer a request that was not referred to it',
+     !(await recordFirmResponse({
+       requestId: dsr.id,
+       firmId: 'a-firm-this-request-never-went-to',
+       outcome: 'NO_DATA',
+       reason: 'We hold nothing at all for this person.',
+       respondedById: attorneyUser.id,
+     })).ok,
+     'otherwise any firm could write onto any person’s request — and would learn it exists');
+
+  ok('an outcome with a one-word reason is refused',
+     !assertFirmReason('REFUSED_RETAINED', 'no').ok,
+     'a refusal that does not name the duty is not a defensible refusal, and the person is ' +
+       'shown these words verbatim');
+
+  const firstFirm = await recordFirmResponse({
+    requestId: dsr.id,
+    firmId: firm.id,
+    outcome: 'REFUSED_RETAINED',
+    reason: 'We must retain the file under our professional record-keeping obligations.',
+    respondedById: attorneyUser.id,
+  });
+
+  ok('one firm answering does NOT close a request referred to two',
+     firstFirm.ok &&
+       firstFirm.allFirmsResponded === false &&
+       (await prisma.dataSubjectRequest.findUnique({ where: { id: dsr.id } }))?.status ===
+         'AWAITING_FIRM',
+     'the second firm’s client would be told their matter had been dealt with by a practice ' +
+       'that never looked at it');
+
+  const secondFirm = await recordFirmResponse({
+    requestId: dsr.id,
+    firmId: secondPractice.id,
+    outcome: 'NO_DATA',
+    reason: 'We do not hold a matter for this person at this practice.',
+    respondedById: attorneyUser.id,
+  });
+
+  ok('a request closes as PARTIALLY_FULFILLED when any firm retained the file',
+     secondFirm.ok &&
+       secondFirm.allFirmsResponded === true &&
+       (await prisma.dataSubjectRequest.findUnique({ where: { id: dsr.id } }))?.status ===
+         'PARTIALLY_FULFILLED',
+     'a clean COMPLETED over a firm that is still holding the file is a false answer to a ' +
+       'statutory request');
+
+  ok('a firm re-deciding corrects its own row rather than adding a second answer',
+     (await (async () => {
+       await recordFirmResponse({
+         requestId: dsr.id,
+         firmId: firm.id,
+         outcome: 'ERASED',
+         reason: 'On review the retention duty had expired, so the file was deleted.',
+         respondedById: attorneyUser.id,
+       });
+       return prisma.subjectRequestFirmResponse.count({
+         where: { requestId: dsr.id, firmId: firm.id },
+       });
+     })()) === 1,
+     'two answers to one question from one firm leaves nobody able to say what it decided');
+
+  ok('a firm response holds no matter content column',
+     !Object.keys(
+       (await prisma.subjectRequestFirmResponse.findFirst({ where: { requestId: dsr.id } })) ?? {}
+     ).some((k) => ['description', 'content', 'notes', 'matterDetail'].includes(k)),
+     'the same rule as DataAccessLog: a second store of privileged material with different ' +
+       'access rules and a different retention period');
+
+  await prisma.subjectRequestFirmResponse.deleteMany({ where: { requestId: dsr.id } });
+  await prisma.dataSubjectRequest.delete({ where: { id: dsr.id } });
+  await prisma.lawFirm.delete({ where: { id: secondPractice.id } });
+
   // ── Cleanup ────────────────────────────────────────────────────────────
   await prisma.dataAccessLog.deleteMany({ where: { bookingId: booking.id } });
   await prisma.consentRecord.deleteMany({ where: { userId: attorneyUser.id } });
   await prisma.dataSubjectRequest.deleteMany({ where: { userId: subject.id } });
   await prisma.conflictCheck.deleteMany({ where: { bookingId: booking.id } });
   await prisma.booking.delete({ where: { id: booking.id } });
-  await prisma.inquiry.deleteMany({ where: { lawyerId: attorney.id } });
+  await prisma.lawyerApplication.deleteMany({ where: { userId: subject.id } });
   await prisma.lawyerProfile.delete({ where: { id: attorney.id } });
   await prisma.user.deleteMany({ where: { id: { in: [subject.id, attorneyUser.id] } } });
   await prisma.lawFirm.delete({ where: { id: firm.id } });

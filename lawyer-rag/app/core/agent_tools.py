@@ -290,15 +290,25 @@ def section_lookup_tool(act_name: str, section_number: str) -> str:
         section_query = f"Section {section_query}"
 
     try:
-        # First try exact metadata filter
+        # First try exact metadata filter.
+        #
+        # apply_floor=False on purpose. The caller has already decided WHICH
+        # section it wants — this is a lookup by name and number, not a
+        # relevance judgement — and a similarity score between a query like
+        # "Companies Act Section 189" and the section's own text is not the
+        # thing being judged. The relevance floor belongs on vector_search,
+        # where the question is "does the corpus answer this at all".
         results = search_documents(
             query=f"{act_name} {section_query}",
             top_k=3,
             filter_metadata={"document_name": act_name},
+            apply_floor=False,
         )
 
         if not results:
-            # Broader fallback — search without doc filter
+            # Broader fallback — search without the document filter, but WITH
+            # the floor: at this point the Act name did not match anything, so
+            # relevance is back to being the question.
             results = search_documents(
                 query=f"{section_query} {act_name}",
                 top_k=3,

@@ -16,13 +16,16 @@ attorneys to show the user). See lawyer-finder-web/docs/restructure/.
 """
 
 import logging
+import re
 from typing import Optional
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.messages import HumanMessage, AIMessage
 from langsmith import traceable
 
-from app.core.llm import get_llm
-from app.core.vectorstore import search_documents
+from app.core.llm import get_llm, message_text
+from app.core.vectorstore import search_documents, hybrid_search
+from app.core.synonyms import expand_query
+from app.core.corpus import corpus_bullets, held_legislation, DISPLAY_NAMES
 from app.core.graph_store import get_knowledge_graph
 from app.core.entity_extractor import extract_entities_regex
 from app.core.query_router import (
@@ -58,15 +61,16 @@ logger = logging.getLogger(__name__)
 #     operator criminally.
 #   - The own-matter line is now explicit, because "never provide specific legal
 #     advice" turned out to be too abstract for the model to apply.
+# {legislation} is filled at call time from app/core/corpus.py. It was a
+# hardcoded list of five Acts, and on 2026-09-20 nine more were ingested while
+# this block went on naming the original five — so the model was told it did not
+# hold legislation that retrieval was handing it. See corpus.py for what that
+# produced.
 SYSTEM_PROMPT = """You are a legal information assistant for Sri Lankan law.
 You are NOT a lawyer and you are NOT anyone's lawyer.
 
 LEGISLATION AVAILABLE TO YOU:
-- Companies Act (Consolidated, 2024)
-- Civil Procedure Code (Consolidated, 2024)
-- Motor Traffic Act (Consolidated, 2024)
-- Act No. 24 of 2007 — Computer Crimes Act
-- Act No. 24 of 2025 — Amendment
+{legislation}
 
 THE LINE YOU MUST NOT CROSS:
 You explain what the law says. You never advise a person about their own case.
@@ -92,13 +96,31 @@ CITATION RULES:
 2. Cite the Act name and Section number for every proposition you state.
 3. NEVER cite an Act that does not appear in the LEGAL CONTEXT below, even if
    you believe it exists. An invented citation is worse than no answer.
-4. If the LEGAL CONTEXT does not answer the question, say exactly that and stop.
+4. THE SAME RULE APPLIES TO SECTION NUMBERS. Do not cite a section that is not
+   in the LEGAL CONTEXT below, even when the Act itself is there and even when
+   you are confident the section exists. "Section 207 of the Companies Act" is
+   a violation if the context contains only s.206 — the Act is real, s.207 may
+   be real, and the sentence still misleads, because a reader cannot tell the
+   difference between a section you read and one you remembered.
+5. Do not add related provisions, background or cross-references of your own.
+   Answer the question asked, from the context given, and stop. A short
+   grounded answer beats a thorough one that is partly from memory.
+6. If the LEGAL CONTEXT does not answer the question, say exactly that and stop.
    Do not fill the gap from memory.
-5. Distinguish Consolidated Acts from Amendment Acts.
+7. Distinguish Consolidated Acts from Amendment Acts.
 
 STYLE:
 - Plain language a non-lawyer can follow, without losing legal accuracy.
 - Proper paragraph breaks.
+- WRITE IMPERSONALLY. Describe what the law requires of a person in general —
+  "a company must apply to the Registrar", "an applicant must file" — never
+  "you should" or "you must". Second person turns an explanation of the law into
+  an instruction to the reader, which is advice, and the answer will be withheld
+  before they see it. Same sentence, different subject:
+    WITHHELD:  "You should file the application with the Registrar."
+    PUBLISHED: "An applicant must file the application with the Registrar."
+  This is not a style preference. It is the difference between explaining the
+  law and telling somebody what to do about their case.
 - Be calm and clear. The person may be under real stress, and the most useful
   thing you can give them is an accurate account of the law and an honest
   statement of where your usefulness ends.
@@ -319,6 +341,116 @@ def _graph_expand_retrieval(question: str, initial_docs: list) -> tuple[list, li
         return [], []
 
 
+# ---------------------------------------------------------------------------
+# What it says when the corpus does not hold the answer
+# ---------------------------------------------------------------------------
+# A FIXED STRING, deliberately, for the same reason LAWYER_REQUEST_REFUSAL is
+# one: a refusal that a model composes is a refusal that a model can compose its
+# way out of. Measured on the golden set before the relevance floor existed, the
+# service answered questions about legislation it does not hold 14 times out of
+# 16 — describing the powers of the Prevention of Terrorism Act, attributing
+# trademark registration to the Companies Act, and inventing a residence
+# requirement for citizenship. None of that law is in the corpus.
+#
+# Note what this message does NOT do: it does not ask the person to describe
+# their situation. The clarification template did, offering "my employer fired
+# me without notice" as its worked example, which walked users straight into the
+# own-matter path this service handles worst. It offers the general form of the
+# question instead, the way the application's own refusals do.
+
+def _corpus_titles() -> list[str]:
+    """
+    The legislation actually held. Thin alias over app/core/corpus.py.
+
+    This module used to own the cache and the display-name map. They moved so
+    that the SYSTEM PROMPTS and the ROUTER could share them — those were the
+    places still naming a hardcoded five Acts when nine more were ingested.
+    """
+    return held_legislation()
+
+
+# A question that cannot stand on its own: "tell me more about that", "explain
+# more", "what about it". Short, and leaning on something said earlier.
+#
+# Kept deliberately tight — it must not catch a real question that happens to
+# contain "that", so it requires the question to be SHORT as well as anaphoric.
+_ANAPHORIC = re.compile(
+    r"^\s*(and\s+)?(tell me more|explain( more| further)?|more( detail| info| about)?|"
+    r"go on|continue|what about (that|it|this)|elaborate|expand|why( is)? (that|it)|"
+    r"(tell me )?more about (that|it|this))\b",
+    re.IGNORECASE,
+)
+
+
+def looks_anaphoric(question: str) -> bool:
+    """True when a question only makes sense as a follow-up."""
+    q = (question or "").strip()
+    return len(q.split()) <= 8 and bool(_ANAPHORIC.match(q))
+
+
+def no_history_response(intent: str) -> dict:
+    """
+    The answer to a follow-up asked with no conversation behind it.
+
+    Without this, such a question fell through to no_context_response and was
+    told "I do not hold legislation covering that" — which is FALSE and
+    confusing. The corpus may hold the subject perfectly well; what is missing
+    is any way to know what "that" refers to.
+
+    This happens for real: a signed-out visitor has no stored conversation (see
+    the history note in src/app/api/ai/ask/route.ts — history is read from the
+    database for a signed-in user so a client cannot fabricate a conversation to
+    steer the model), so every question a guest asks is a first turn. Reported by
+    a user on 2026-09-13, who quite reasonably read the old message as the
+    assistant having lost the legislation it had just quoted.
+
+    Saying the true thing costs nothing and removes the confusion.
+    """
+    return {
+        "answer": (
+            "I am not sure what \"that\" refers to — I do not have the earlier part of "
+            "this conversation.\n\n"
+            "Could you ask the whole question in one go? For example, instead of "
+            "*\"tell me more about that\"*, try *\"tell me more about removing a company "
+            "director under the Companies Act\"*.\n\n"
+            "If you sign in, I can follow a conversation across several questions."
+        ),
+        "sources": [],
+        "chunks_retrieved": 0,
+        "intent": intent,
+        "needs_context": True,
+        "graph_entities": [],
+        "related_documents": [],
+    }
+
+
+def no_context_response(intent: str) -> dict:
+    """The answer when nothing in the corpus clears the relevance floor."""
+    held = _corpus_titles()
+    holdings = (
+        "\n\nThe legislation I hold is:\n"
+        + "\n".join(f"  • {t}" for t in held)
+        if held else ""
+    )
+    return {
+        "answer": (
+            "I do not hold legislation covering that, so I cannot answer it from a "
+            "source — and I will not answer it from memory, because an answer I "
+            "cannot cite is one you cannot check."
+            + holdings
+            + "\n\nIf your question is about one of those, try asking it directly — "
+            "for example *\"what does the law say about removing a company "
+            "director\"* rather than a general topic."
+        ),
+        "sources": [],
+        "chunks_retrieved": 0,
+        "intent": intent,
+        "no_context": True,
+        "graph_entities": [],
+        "related_documents": [],
+    }
+
+
 @traceable(name="RAG Query Dispatcher")
 def query_rag(
     question: str,
@@ -364,7 +496,37 @@ def query_rag(
 
     # ── Fast paths (no RAG needed) ────────────────────────────────────────
 
-    if intent == "conversational":
+    # ⚠️ ONLY the fast path may answer conversationally without searching.
+    #
+    # `generate_conversational_response` is a free-form LLM call with NO
+    # retrieval, no relevance floor, no sources and nothing for the citation
+    # check to bite on. It is the one path in this service that is ALLOWED to
+    # speak from the model's memory, on the assumption that it is only ever
+    # reached by "hi" and "thanks".
+    #
+    # A 3B router broke that assumption. Reported by the owner on 2026-09-21:
+    #
+    #     "what is the process of register a company"
+    #       -> router: intent=conversational ("a general inquiry about the
+    #          process of registering a company, which falls under the
+    #          conversational intent category")
+    #       -> no search, 0 sources, and a confident invented answer:
+    #          a "Sri Lanka Companies Registration Department database", a
+    #          "Memorandum and Articles of Association" (the 2007 Act abolished
+    #          the memorandum), a "Share Capital Deed" (not a thing), and
+    #          Central Bank approval.
+    #
+    # Nothing downstream could catch it: there were no citations to check, so
+    # `findUnsupportedProseCitations` had nothing to compare. The answer was
+    # withheld only because it happened to say "you'll need to" and tripped the
+    # ADVICE gate — luck standing in for a control, and the user saw a refusal
+    # about legal advice for a perfectly general question.
+    #
+    # So the router's conversational verdict is now treated exactly like its
+    # clarification_needed verdict (§4.14): a guess to be overruled by
+    # evidence. Search first; if nothing clears the floor, it really was small
+    # talk and the conversational reply is correct.
+    if intent == "conversational" and routing.get("source") == "fast":
         answer = generate_conversational_response(question, chat_history)
         return {
             "answer": answer,
@@ -375,11 +537,21 @@ def query_rag(
             "related_documents": [],
         }
 
-    if intent == "clarification_needed":
-        logger.info("Handling clarification_needed — asking user for specifics")
-        return {**generate_clarification_response(question, chat_history), "intent": intent}
+    # clarification_needed is handled AFTER the search below, not here.
+    #
+    # It used to return immediately, before retrieval ever ran. Measured on the
+    # golden set, that discarded 13 of the 18 answerable questions the service
+    # got wrong: "What standard of skill and care must a company director
+    # exercise?" was met with "could you tell me more about your specific
+    # situation?" while the near-identical "What does the Companies Act say
+    # about the duties of a director?" was answered correctly from s.189.
+    # Nine of the thirteen were Companies Act questions, which is the whole
+    # reason that Act scored 5/16 (RAG-REVIEW.md §4.14).
+    #
+    # Now the search runs first. Asking for clarification is a decision made
+    # AFTER looking, not a guess made before.
 
-    if intent == "lawyer_request":
+    if intent == "lawyer_request" and routing.get("source") == "fast":
         # Deleted in Phase 5: this used to run generate_lawyer_response(), which
         # classified the person's situation into practice areas and replied
         # "Based on our conversation, I'd recommend consulting a Property
@@ -389,6 +561,32 @@ def query_rag(
         # of what they had just disclosed about their own legal problem. It is
         # rule 4, rule 5 and the 1894 Ordinance in one sentence, and it was the
         # single worst thing left in the codebase.
+        #
+        # ── Why this is gated on source == "fast" ──────────────────────────
+        #
+        # `lawyer_request` was the LAST intent whose path skipped retrieval on
+        # the 3B router's opinion alone. §4.35 is what that costs: the router
+        # called "what is the process of register a company" small talk, the
+        # no-retrieval path invented company law, and the user was shown a
+        # refusal about legal advice they had never asked for.
+        #
+        # This is the same shape, one intent over, and it was measured rather
+        # than assumed. Of thirteen ways of asking for a practitioner, the old
+        # deterministic regex caught ONE; the other twelve reached this refusal
+        # only because a 3-billion-parameter model happened to agree. When the
+        # model is wrong in the other direction, a general legal question gets a
+        # fixed touting refusal with no retrieval, no sources and no recourse.
+        #
+        # So the rule is now the one §4.35 asks for in as many words: *every
+        # intent whose path skips retrieval must be reachable only by a
+        # deterministic rule, never by the model's opinion.* The rule is
+        # `matches_lawyer_request`, which was widened at the same time to cover
+        # the twelve forms it was missing.
+        #
+        # An LLM-produced `lawyer_request` verdict does NOT return here. It
+        # falls through to the search below and survives only as a fallback
+        # when nothing clears the relevance floor — exactly how the router's
+        # `conversational` verdict is treated above.
         logger.info("Refusing lawyer_request — the platform does not choose practitioners")
         return {
             "answer": LAWYER_REQUEST_REFUSAL,
@@ -405,8 +603,169 @@ def query_rag(
         search_query = rewrite_query(question, chat_history)
         logger.info(f"Follow-up rewritten: '{search_query[:80]}'")
     else:
-        # Both legal_query and situation_report use the original question
+        # legal_query, situation_report and clarification_needed all search on
+        # the original question.
         search_query = question
+
+    # ── The gate: look before deciding whether there is anything to say ───
+    #
+    # One search, with the relevance floor applied. Three outcomes:
+    #
+    #   nothing clears the floor          -> say so, in a fixed string, and stop.
+    #                                        No model call at all.
+    #   material found, intent was vague  -> answer it. The router's caution is
+    #                                        overruled by evidence.
+    #   material found, intent was clear  -> carry on as before.
+    #
+    # This costs one embedding that the agentic path will then repeat, which is
+    # the duplicate-retrieval waste already noted in RAG-REVIEW.md §5.3. Paid
+    # knowingly: it is the difference between declining to answer and inventing
+    # an Act, and Stage 1.3 removes the duplication by carrying results through.
+    gate_hits = hybrid_search(query=search_query, top_k=top_k)
+
+    # ── Second chance for a follow-up ─────────────────────────────────────
+    #
+    # "tell me more about that" carries none of its own meaning. Searched
+    # literally it scores 0.350 and the floor correctly rejects it; rewritten
+    # against the conversation it becomes "What specific provisions of the
+    # Companies Act relate to the removal of a director from office?" and scores
+    # 0.761.
+    #
+    # This is NOT gated on intent == "follow_up", deliberately. The router is a
+    # 3B model and it classified exactly this question as `legal_query`, so
+    # trusting it here would leave the bug in place for the cases that matter
+    # most — the ones where it guesses wrong. The test is evidence instead: we
+    # have history, the literal question found nothing, so try the question the
+    # conversation implies before declaring the corpus empty.
+    #
+    # It costs an extra LLM call ONLY when a search has already failed, so a
+    # question that stands on its own pays nothing.
+    #
+    # Found by a user, not by the evaluation set: every question in
+    # eval/questions.yaml was single-turn, so multi-turn was untested. Follow-up
+    # cases were added at the same time as this fix.
+    if not gate_hits and chat_history and search_query == question:
+        rewritten = rewrite_query(question, chat_history)
+        if rewritten and rewritten.strip() and rewritten != question:
+            retry_hits = hybrid_search(query=rewritten, top_k=top_k)
+            if retry_hits:
+                logger.info(
+                    "Follow-up rescued: %r found nothing, %r found %d chunks",
+                    question[:60], rewritten[:60], len(retry_hits),
+                )
+                gate_hits = retry_hits
+                search_query = rewritten
+                # It WAS a follow-up, whatever the router said.
+                intent = "follow_up"
+
+    # ── Third chance: the user's words, in the statute's vocabulary ───────
+    #
+    # Lay language and statutory language are different registers for the same
+    # thing, and the gap is wide enough to fail the relevance floor. A user
+    # asked "what is the process of company registration" and was told the
+    # service holds no legislation covering it — while holding the Companies
+    # Act, which says "incorporation" 108 times, "company registration" once,
+    # and "register a company" never.
+    #
+    # Deliberately LAST, and deliberately conditional on having found nothing:
+    # a question that already retrieves is never touched, so this cannot make a
+    # working query worse. It can only add one more attempt to one that has
+    # already failed, and it costs a single embedding when it runs at all.
+    #
+    # This is a patch over a retrieval weakness, not a fix for it. Stage 2.1
+    # (hybrid search with BM25) matches literal words without anyone
+    # maintaining a word list, and would have caught "registration" on the
+    # first attempt. See app/core/synonyms.py.
+    if not gate_hits:
+        expanded = expand_query(search_query)
+        if expanded:
+            expanded_hits = hybrid_search(query=expanded, top_k=top_k)
+            if expanded_hits:
+                logger.info(
+                    "Vocabulary rescued: %r found nothing, %r found %d chunks",
+                    search_query[:60], expanded[:60], len(expanded_hits),
+                )
+                gate_hits = expanded_hits
+                search_query = expanded
+                # The router may have called this vague because IT did not
+                # recognise the lay wording either. Retrieval has now found
+                # material, and evidence outranks the router — the same
+                # reasoning as the clarification gate above (§4.14).
+                if intent == "clarification_needed":
+                    intent = "legal_query"
+
+    if not gate_hits:
+        # A follow-up with nothing behind it. Say the true thing — that the
+        # reference cannot be resolved — rather than claiming not to hold the
+        # legislation, which may be false and is what a user reported as
+        # confusing.
+        if looks_anaphoric(question) and not chat_history:
+            logger.info("Anaphoric question with no history — asking for the full question")
+            return no_history_response(intent)
+
+        if intent == "conversational":
+            # The router called it small talk and retrieval found nothing to
+            # contradict that, so it probably was. This is the ONLY route to the
+            # ungrounded reply other than the exact-match fast path.
+            logger.info("No context and the router said conversational — replying as small talk")
+            answer = generate_conversational_response(question, chat_history)
+            return {
+                "answer": answer,
+                "sources": [],
+                "chunks_retrieved": 0,
+                "intent": intent,
+                "graph_entities": [],
+                "related_documents": [],
+            }
+
+        if intent == "lawyer_request":
+            # The router said this was a request for a practitioner, the
+            # deterministic rule did not agree, and retrieval found nothing to
+            # contradict the router. Nothing was suppressed by guessing: the
+            # search ran first and came back empty.
+            #
+            # The touting refusal is the better message of the two available
+            # here. "I do not hold legislation covering that" is the wrong
+            # thing to say to somebody asking for a lawyer — the corpus is not
+            # the reason we will not answer — and this message ends by offering
+            # to explain the law on whatever they are dealing with, which is
+            # the useful half.
+            logger.info(
+                "No context and the router said lawyer_request — declining to "
+                "choose a practitioner"
+            )
+            return {
+                "answer": LAWYER_REQUEST_REFUSAL,
+                "sources": [],
+                "chunks_retrieved": 0,
+                "intent": intent,
+                "graph_entities": [],
+                "related_documents": [],
+            }
+
+        if intent == "clarification_needed":
+            logger.info("No context and the question was vague — asking for specifics")
+            return {**generate_clarification_response(question, chat_history),
+                    "intent": intent}
+        logger.info("No context cleared the relevance floor — declining to answer")
+        return no_context_response(intent)
+
+    # Evidence overrules the router's guess. Only LLM-produced verdicts get
+    # this far: an exact-match greeting and a deterministic lawyer-request both
+    # returned above, so nothing here is overruling a rule — only an opinion.
+    #
+    # For `lawyer_request` specifically: a question the deterministic rule did
+    # not recognise as touting, which retrieves Sri Lankan legislation above the
+    # relevance floor, is answered from that legislation. The answer is about
+    # the law and never about a practitioner — this service holds no attorney
+    # data at all, and `LAWYER_REQUEST_REFUSAL` is a fixed string precisely so
+    # that nothing here can compose its way into a recommendation.
+    if intent in ("clarification_needed", "conversational", "lawyer_request"):
+        logger.info(
+            "Router said %s, but retrieval found %d relevant chunks — "
+            "answering from the corpus instead", intent, len(gate_hits),
+        )
+        intent = "legal_query"
 
     # Run the RAG pipeline
     if config.ENABLE_AGENTIC_RAG:
@@ -473,6 +832,39 @@ def _query_rag_agentic(
 
         # Strip internal debug keys before returning to the API
         result.pop("_agent_tool_calls", None)
+
+        # If the agent found nothing but the gate did, use the linear path.
+        #
+        # The agent writes its own search query, and a 3B model writes worse
+        # queries than the user does. Measured: asked "Within what time must an
+        # application be made to have a deceased person's will proved?" — which
+        # scores 0.747 against s.524 — the agent searched for "time limit to
+        # prove a deceased person", scoring 0.604, and the relevance floor
+        # correctly rejected its paraphrase.
+        #
+        # Before the floor, that bad query still returned six chunks and the
+        # right section happened to be among them, so the weakness was invisible.
+        # It was always there. The floor did not cause it; it revealed it.
+        #
+        # The gate search in query_rag used the USER'S OWN WORDS and did find
+        # material, so falling back to the linear pipeline — which searches on
+        # the user's question rather than the agent's rewrite — recovers the
+        # answer. The proper fix is Stage 1.3, carrying the gate's results
+        # through instead of searching three times.
+        if not result.get("sources"):
+            logger.info(
+                "Agent returned no sources though the gate found material — "
+                "falling back to the linear pipeline on the user's own wording"
+            )
+            return _query_rag_linear(
+                question=question,
+                search_query=search_query,
+                chat_history=chat_history,
+                document_filter=document_filter,
+                top_k=config.TOP_K_RESULTS,
+                filter_metadata=None,
+            )
+
         return result
 
     except Exception as e:
@@ -568,10 +960,12 @@ def _query_rag_linear(
         "graph_context": graph_context,
         "chat_history": langchain_history,
         "question": question,
+        # Read at call time, never hardcoded — see app/core/corpus.py.
+        "legislation": corpus_bullets(),
     })
 
     response = llm.invoke(prompt)
-    answer = response.content
+    answer = message_text(response)
 
     # Step 7: Extract source citations.
     # These come from vector-store metadata, not from the model, so the model

@@ -76,9 +76,35 @@ export const applicationStep3Schema = z.object({
 
 // ── Step 4: Verification ─────────────────────────────────────────────────────
 
+/**
+ * An uploaded identity document.
+ *
+ * Must be a URL produced by `POST /api/upload`, never the image itself.
+ *
+ * Until Phase 7 the wizard put a base64 `data:` URL straight into the draft —
+ * `FileReader.readAsDataURL` for the practising certificate and
+ * `canvas.toDataURL` for the face snapshot. So `LawyerApplication.draftData`
+ * held up to two multi-megabyte images inline in a JSON column, and those exact
+ * strings were then copied into `LawyerProfile.licenseImageUrl` and
+ * `identityImageUrl`, which are named "Url" and were not URLs. It also meant the
+ * documents skipped `/api/upload` entirely and with it the magic-byte check, the
+ * MIME allow-list, the size limit and the rate limit.
+ *
+ * See docs/restructure/DATA-INVENTORY.md §7 finding D.
+ */
+const uploadedDocumentUrl = z
+  .string()
+  .min(1)
+  .max(500, 'That does not look like an upload reference.')
+  .refine(
+    (v) => v.startsWith('https://') || v.startsWith('/uploads/'),
+    'Upload the document through the upload endpoint rather than embedding it. ' +
+      'An image pasted inline is not stored, scanned or size-limited.'
+  );
+
 export const applicationStep4Schema = z.object({
-  licenseImage: z.string().min(1, 'Attorney license document upload is required.'),
-  identityImage: z.string().min(1, 'Face identity verification is required.'),
+  licenseImage: uploadedDocumentUrl.describe('Attorney license document upload is required.'),
+  identityImage: uploadedDocumentUrl.describe('Face identity verification is required.'),
 });
 
 // ── Full application schema (for final submission) ───────────────────────────
@@ -89,6 +115,49 @@ export const fullApplicationSchema = z.object({
   step3: applicationStep3Schema,
   step4: applicationStep4Schema,
 });
+
+/**
+ * The shape of `LawyerApplication.draftData`, and the ONLY thing that may be
+ * written to it.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * WHY THIS EXISTS. `draftData` was an untyped `Json` column, and the draft route
+ * validated only the steps BEFORE the current one and then persisted
+ * `req.body.draftData` verbatim rather than the parsed result. Two consequences:
+ * the final step was never validated at all, and any key the caller invented was
+ * stored forever. An inventory cannot honestly describe data nobody has looked
+ * at, and a subject-access export cannot safely include it.
+ *
+ * Every step is `.strict()`, so an unknown key is a 400 rather than a silent
+ * write. Every step is optional, because a draft is by definition incomplete —
+ * completeness is enforced at submission and again at approval, not here.
+ * ─────────────────────────────────────────────────────────────────────────────
+ */
+export const ApplicationDraftSchema = z
+  .object({
+    step1: applicationStep1Schema.strict().partial().optional(),
+    step2: applicationStep2Schema.strict().partial().optional(),
+    step3: applicationStep3Schema.strict().partial().optional(),
+    step4: applicationStep4Schema.strict().partial().optional(),
+  })
+  .strict();
+
+export type ApplicationDraft = z.infer<typeof ApplicationDraftSchema>;
+
+/**
+ * What `draftData` is replaced with once an application is APPROVED.
+ *
+ * Everything it held now lives on the `LawyerProfile`, and two copies of a
+ * person's identity documents is one copy too many. A rejected application keeps
+ * its data for the retention period so the decision can be explained; an
+ * approved one does not need to.
+ */
+export const APPROVED_DRAFT_STUB = {
+  reduced: true,
+  reducedReason:
+    'Approved. The application details were written to the attorney profile and ' +
+    'removed from here, so the identity documents are held once rather than twice.',
+} as const;
 
 // ── Type exports ─────────────────────────────────────────────────────────────
 

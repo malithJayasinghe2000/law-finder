@@ -6,6 +6,15 @@ import { canTransition, SLOT_BLOCKING_STATUSES } from '@/lib/consultations/booki
 import { renderEngagementLetter, buildLetterReference } from '@/lib/consultations/engagementLetter';
 import { EmailService } from '@/lib/email/EmailService';
 import { formatSriLankaDateIso, formatSriLankaDateIsoOrNull, parseDateOnlyToUtc } from '@/lib/utils';
+import {
+  getMatterAccess,
+  discloseField,
+  discloseMatter,
+  discloseQuote,
+  type MatterAccess,
+} from '@/lib/firms/access';
+import { encryptField } from '@/lib/privacy/encryption';
+import { randomUUID } from 'crypto';
 
 /** Minutes between two "HH:mm" times on the same day. */
 function minutesBetween(start: string, end: string): number {
@@ -40,19 +49,36 @@ export async function GET(
 
     const booking = await prisma.booking.findUnique({
       where: { id },
-      select: { clientId: true, lawyer: { select: { userId: true } } },
+      select: {
+        clientId: true,
+        lawyerId: true,
+        firmId: true,
+        lawyer: { select: { userId: true } },
+      },
     });
 
     if (!booking) {
       return NextResponse.json({ error: 'Request not found' }, { status: 404 });
     }
 
-    const isClient = booking.clientId === session.userId;
-    const isLawyer = !!booking.lawyer && booking.lawyer.userId === session.userId;
+    // A quote is a commercial term between the client and the firm, and its
+    // scope of work describes what the firm agreed to do about the client's
+    // problem. That makes it the same kind of material as the description, so
+    // it goes through the same rule rather than an `isClient || isLawyer` test
+    // written out here — platform staff have no need to see it, and neither
+    // does a paralegal.
+    const access = await getMatterAccess({
+      actorUserId: session.userId,
+      actorRole: session.role,
+      actorProfileId: session.profileId,
+      matter: {
+        lawyerId: booking.lawyerId,
+        firmId: booking.firmId,
+        clientId: booking.clientId,
+      },
+    });
 
-    // A quote is a commercial term between the client and the firm. Platform
-    // staff have no need to see it.
-    if (!isClient && !isLawyer) {
+    if (!access.canReadMatterDetail) {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 });
     }
 
@@ -61,7 +87,7 @@ export async function GET(
       orderBy: { version: 'desc' },
     });
 
-    return NextResponse.json({ quotes });
+    return NextResponse.json({ quotes: quotes.map((q) => discloseQuote(q, access)) });
   } catch {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
@@ -183,8 +209,13 @@ export async function POST(
         select: { version: true },
       });
 
+      // The id is generated here so the encrypted scope can be bound to it
+      // before the insert. See src/lib/privacy/encryption.ts.
+      const quoteId = randomUUID();
+
       const quote = await tx.quote.create({
         data: {
+          id: quoteId,
           bookingId: id,
           version: (latest?.version ?? 0) + 1,
           status: 'SENT',
@@ -192,8 +223,17 @@ export async function POST(
           amount: data.amount,
           hourlyRate: data.hourlyRate,
           estimatedHours: data.estimatedHours,
-          scopeOfWork: data.scopeOfWork,
-          exclusions: data.exclusions,
+          // What the firm agreed to do about this client's problem. The fee
+          // itself stays in the clear — the amount is a commercial term the
+          // client is told in full and it is not an account of the matter.
+          scopeOfWork: encryptField(
+            { model: 'Quote', recordId: quoteId, field: 'scopeOfWork' },
+            data.scopeOfWork
+          ),
+          exclusions: encryptField(
+            { model: 'Quote', recordId: quoteId, field: 'exclusions' },
+            data.exclusions
+          ),
           paymentInstructions: data.paymentInstructions,
           validUntil: new Date(data.validUntil),
           proposedDate: data.proposedDate ? parseDateOnlyToUtc(data.proposedDate) : null,
@@ -233,7 +273,14 @@ export async function POST(
       `${data.proposedStartTime ?? booking.startTime ?? '—'} - ${data.proposedEndTime ?? booking.endTime ?? '—'}`
     );
 
-    return NextResponse.json({ success: true, quote: result }, { status: 201 });
+    // Echo the scope back as the attorney typed it, not as it is stored.
+    return NextResponse.json(
+      {
+        success: true,
+        quote: { ...result, scopeOfWork: data.scopeOfWork, exclusions: data.exclusions ?? null },
+      },
+      { status: 201 }
+    );
   } catch (error) {
     console.error('Quote issue error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
@@ -326,6 +373,43 @@ export async function PATCH(
     const accepting = validated.data.action === 'accept';
     const nextStatus = accepting ? 'ACCEPTED' : 'CLIENT_DECLINED';
 
+    // The engagement letter is rendered from the terms as words, so the stored
+    // ciphertext has to come back to plaintext first — and then the rendered
+    // letter is encrypted again before it is stored. The client is the actor
+    // here and this is their own matter, so they hold full detail access; it is
+    // still resolved through the gate rather than assumed, because "the caller
+    // is obviously entitled" is how a privileged read ends up outside the one
+    // file that decides.
+    const clientAccess: MatterAccess = {
+      canRead: true,
+      canReadMatterDetail: true,
+      canAct: false,
+      canAssign: false,
+      basis: 'CLIENT',
+    };
+
+    const plainScopeOfWork = discloseField({
+      access: clientAccess,
+      model: 'Quote',
+      recordId: quote.id,
+      field: 'scopeOfWork',
+      stored: quote.scopeOfWork,
+    });
+    const plainExclusions = discloseField({
+      access: clientAccess,
+      model: 'Quote',
+      recordId: quote.id,
+      field: 'exclusions',
+      stored: quote.exclusions,
+    });
+    const plainSubject = discloseField({
+      access: clientAccess,
+      model: 'Booking',
+      recordId: booking.id,
+      field: 'subject',
+      stored: booking.subject,
+    });
+
     if (!canTransition(booking.status, nextStatus)) {
       return NextResponse.json(
         { error: `Cannot respond to a quote on a request in "${booking.status}".` },
@@ -339,7 +423,12 @@ export async function PATCH(
         data: {
           status: accepting ? 'ACCEPTED' : 'DECLINED',
           respondedAt: new Date(),
-          declineReason: accepting ? null : validated.data.reason,
+          declineReason: accepting
+            ? null
+            : encryptField(
+                { model: 'Quote', recordId: quote.id, field: 'declineReason' },
+                validated.data.reason
+              ),
         },
       });
 
@@ -416,9 +505,9 @@ export async function PATCH(
         attorneyBaslNumber: actingAttorney.baslNumber,
         clientName,
         clientEmail: booking.client.email,
-        matterSubject: booking.subject,
-        scopeOfWork: quote.scopeOfWork,
-        exclusions: quote.exclusions,
+        matterSubject: plainSubject ?? '',
+        scopeOfWork: plainScopeOfWork ?? '',
+        exclusions: plainExclusions,
         feeBasis: quote.feeBasis,
         feeAmount: quote.amount,
         currency: quote.currency,
@@ -433,8 +522,19 @@ export async function PATCH(
         mode: booking.mode,
       });
 
+      // The letter is rendered from plaintext and stored encrypted.
+      //
+      // `matterSubject` and `scopeOfWork` are copies of columns that are
+      // encrypted on `Booking` and `Quote`, so leaving the copies in the clear
+      // would have made encrypting the originals pointless for every matter
+      // that ever reached acceptance. The id is generated up front so the
+      // ciphertext can be bound to the row.
+      const letterId = randomUUID();
+      const letterRef = { model: 'EngagementLetter', recordId: letterId };
+
       const letter = await tx.engagementLetter.create({
         data: {
+          id: letterId,
           bookingId: id,
           quoteId: quote.id,
           reference,
@@ -444,14 +544,20 @@ export async function PATCH(
           firmContact,
           clientName,
           clientEmail: booking.client.email,
-          matterSubject: booking.subject,
-          scopeOfWork: quote.scopeOfWork,
-          exclusions: quote.exclusions,
+          matterSubject: encryptField(
+            { ...letterRef, field: 'matterSubject' },
+            plainSubject ?? ''
+          ),
+          scopeOfWork: encryptField(
+            { ...letterRef, field: 'scopeOfWork' },
+            plainScopeOfWork ?? ''
+          ),
+          exclusions: encryptField({ ...letterRef, field: 'exclusions' }, plainExclusions),
           feeBasis: quote.feeBasis,
           feeAmount: quote.amount,
           currency: quote.currency,
           paymentTerms: quote.paymentInstructions,
-          body,
+          body: encryptField({ ...letterRef, field: 'body' }, body),
           issuedAt,
         },
       });
@@ -471,7 +577,11 @@ export async function PATCH(
 
     return NextResponse.json({
       success: true,
-      booking: { ...updatedBooking, date: formatSriLankaDateIsoOrNull(updatedBooking.date) },
+      booking: {
+        ...discloseMatter(updatedBooking, clientAccess),
+        date: formatSriLankaDateIsoOrNull(updatedBooking.date),
+      },
+      engagementLetterId: engagementLetter?.id ?? null,
     });
   } catch (error) {
     console.error('Quote response error:', error);

@@ -1,5 +1,10 @@
 import prisma from '@/lib/db';
 import type { FirmRole } from '@prisma/client';
+import {
+  decryptField,
+  decryptFieldList,
+  UNDECRYPTABLE_MARKER,
+} from '@/lib/privacy/encryption';
 
 /**
  * Who inside a firm may see what.
@@ -172,7 +177,26 @@ export function resolveMatterAccess(params: {
     };
   }
 
-  if (actorRole !== 'LAWYER') return NO_ACCESS;
+  // ───────────────────────────────────────────────────────────────────────────
+  // AUTHORITY INSIDE A FIRM COMES FROM MEMBERSHIP, NOT FROM THE PLATFORM ROLE.
+  //
+  // This used to read `if (actorRole !== 'LAWYER') return NO_ACCESS;`, and that
+  // was wrong in a way nothing caught until the flow was driven in a browser.
+  //
+  // A practice manager or a paralegal is usually NOT an admitted attorney, so
+  // their platform `Role` is `CLIENT`. The guard therefore refused every
+  // non-attorney firm member outright — a `FIRM_ADMIN` who is meant to run the
+  // diary got 403 on the diary. Non-attorney membership did nothing at all.
+  //
+  // `check:privilege` passed throughout, because its fixtures described the
+  // paralegal as `actorRole: 'LAWYER'` — a combination that cannot occur. The
+  // test asserted a rule about a person who does not exist. There are now cases
+  // below for the roles as they really are.
+  //
+  // The platform role is still what separates a stranger from a member: without
+  // an ACTIVE membership of this matter's firm, there is no way past here.
+  // ───────────────────────────────────────────────────────────────────────────
+  if (actorRole !== 'LAWYER' && !membership) return NO_ACCESS;
 
   // The attorney the client chose, or the attorney the firm has since assigned.
   // Guarded on matter.lawyerId being set so that an unassigned matter cannot be
@@ -226,36 +250,399 @@ export async function getMatterAccess(params: {
   actorProfileId?: string | null;
   matter: MatterOwnership;
 }): Promise<MatterAccess> {
+  // Membership is loaded for everyone except platform staff.
+  //
+  // It used to be loaded only for `LAWYER`, which meant a practice manager or
+  // paralegal — whose platform role is `CLIENT`, because they are not admitted
+  // attorneys — arrived at the rule with `membership: null` and could never
+  // match their own firm. Skipping the lookup for ADMIN is not an optimisation:
+  // platform staff have no firm membership that could grant them anything, and
+  // the rule refuses them before it looks.
   const membership =
-    params.actorRole === 'LAWYER'
-      ? await getFirmMembership(params.actorUserId)
-      : null;
+    params.actorRole === 'ADMIN'
+      ? null
+      : await getFirmMembership(params.actorUserId);
 
   return resolveMatterAccess({ ...params, membership });
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Disclosure — the only path from stored ciphertext to readable text
+// ─────────────────────────────────────────────────────────────────────────────
+
 /**
- * Redact a matter for an actor who may read it but not its detail.
- *
- * Always run list and detail payloads through this rather than redacting by
- * hand at each call site — Phase 0 shipped a redaction on one booking read path
- * and missed the other.
+ * What a reader sees where they may see that a matter exists but not what it
+ * says. Deliberately a sentence and not an empty string: a blank field reads as
+ * "the client wrote nothing", which is a different and misleading claim.
  */
-export function redactMatter<
+export const WITHHELD_MARKER = '[Withheld — privileged]';
+
+/**
+ * Turn one stored privileged field into something a caller may have.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * THIS FUNCTION HAS EXACTLY THREE OUTCOMES AND CIPHERTEXT IS NOT ONE OF THEM.
+ *
+ *   1. The reader may read the detail, and the value decrypts → plaintext.
+ *   2. The reader may not read the detail                     → WITHHELD_MARKER.
+ *   3. The reader may, but the value will not decrypt         → UNDECRYPTABLE_MARKER.
+ *
+ * Outcome 3 exists because the tempting alternative — "if decryption fails,
+ * return what is stored" — hands the ciphertext to whoever asked. That is the
+ * failure mode that makes an encryption-at-rest feature theatre, and it is the
+ * one `npm run check:privilege` is written to catch. It asserts that the value
+ * a withheld reader receives is neither the plaintext nor the stored ciphertext.
+ * ─────────────────────────────────────────────────────────────────────────────
+ */
+export function discloseField(params: {
+  access: MatterAccess;
+  model: string;
+  recordId: string;
+  field: string;
+  stored: string | null | undefined;
+}): string | null {
+  const { access, model, recordId, field, stored } = params;
+
+  if (stored === null || stored === undefined || stored === '') return stored ?? null;
+
+  if (!access.canReadMatterDetail) return WITHHELD_MARKER;
+
+  try {
+    return decryptField({ model, recordId, field }, stored);
+  } catch (error) {
+    // Logged without the value. A log line carrying the ciphertext would be a
+    // second copy of privileged material in a store with different retention
+    // and different access rules — the same reasoning that keeps a content
+    // column off `DataAccessLog`.
+    console.error(
+      `[privilege] could not decrypt ${model}.${field} on ${recordId}:`,
+      error instanceof Error ? error.message : 'unknown error'
+    );
+    return UNDECRYPTABLE_MARKER;
+  }
+}
+
+/** `discloseField` for a string-array column, e.g. `ConflictCheck.screenedParties`. */
+export function discloseFieldList(params: {
+  access: MatterAccess;
+  model: string;
+  recordId: string;
+  field: string;
+  stored: string[];
+}): string[] {
+  const { access, model, recordId, field, stored } = params;
+
+  if (!access.canReadMatterDetail) return stored.map(() => WITHHELD_MARKER);
+
+  try {
+    return decryptFieldList({ model, recordId, field }, stored);
+  } catch (error) {
+    console.error(
+      `[privilege] could not decrypt ${model}.${field} on ${recordId}:`,
+      error instanceof Error ? error.message : 'unknown error'
+    );
+    return stored.map(() => UNDECRYPTABLE_MARKER);
+  }
+}
+
+/**
+ * Disclose a matter for an actor: decrypt what they may read, withhold the rest.
+ *
+ * Always run list and detail payloads through this rather than deciding by hand
+ * at each call site — Phase 0 shipped a redaction on one booking read path and
+ * missed the other, and that class of miss is now worse than it was, because
+ * the field a call site forgets no longer leaks the description: it leaks the
+ * ciphertext, which looks harmless in a code review.
+ *
+ * Replaces `redactMatter`, which only blanked fields. Blanking was sufficient
+ * while the columns held plaintext; now that they hold ciphertext, a reader who
+ * may see the matter also needs it turned back into words.
+ */
+export function discloseMatter<
   T extends {
+    id: string;
     subject?: string | null;
     description?: string | null;
     lawyerNotes?: string | null;
   },
 >(matter: T, access: MatterAccess): T {
-  if (access.canReadMatterDetail) return matter;
+  const ref = { access, model: 'Booking', recordId: matter.id };
 
   return {
     ...matter,
-    subject: '[Withheld — privileged]',
-    description: '[Withheld — privileged]',
-    lawyerNotes: null,
+    ...('subject' in matter
+      ? { subject: discloseField({ ...ref, field: 'subject', stored: matter.subject }) }
+      : {}),
+    ...('description' in matter
+      ? {
+          description: discloseField({
+            ...ref,
+            field: 'description',
+            stored: matter.description,
+          }),
+        }
+      : {}),
+    // Notes are the attorney's own working record. A reader without detail
+    // access gets null rather than a marker, because unlike the subject and
+    // description there is no client-facing expectation that anything is there.
+    ...('lawyerNotes' in matter
+      ? {
+          lawyerNotes: access.canReadMatterDetail
+            ? discloseField({ ...ref, field: 'lawyerNotes', stored: matter.lawyerNotes })
+            : null,
+        }
+      : {}),
   };
+}
+
+/**
+ * Disclose a quote.
+ *
+ * `scopeOfWork` describes what the firm agreed to do about the client's
+ * problem, so it is privileged in the same way the description is.
+ *
+ * This exists because of a leak found while wiring encryption in: the booking
+ * detail route `include`s `quotes` and spread the rows straight into its
+ * response, so every quote's scope of work reached anyone who could see that
+ * the matter existed — a paralegal, another attorney at the firm, and platform
+ * `ADMIN`. The subject and description were being carefully withheld one line
+ * above while the same information went out in an adjacent field.
+ */
+export function discloseQuote<
+  T extends {
+    id: string;
+    scopeOfWork?: string | null;
+    exclusions?: string | null;
+    declineReason?: string | null;
+  },
+>(quote: T, access: MatterAccess): T {
+  const ref = { access, model: 'Quote', recordId: quote.id };
+
+  return {
+    ...quote,
+    ...('scopeOfWork' in quote
+      ? {
+          scopeOfWork: discloseField({
+            ...ref,
+            field: 'scopeOfWork',
+            stored: quote.scopeOfWork,
+          }),
+        }
+      : {}),
+    ...('exclusions' in quote
+      ? { exclusions: discloseField({ ...ref, field: 'exclusions', stored: quote.exclusions }) }
+      : {}),
+    ...('declineReason' in quote
+      ? {
+          declineReason: discloseField({
+            ...ref,
+            field: 'declineReason',
+            stored: quote.declineReason,
+          }),
+        }
+      : {}),
+  };
+}
+
+/**
+ * Disclose an engagement letter.
+ *
+ * The letter snapshots the matter subject and the scope of work, so those
+ * columns are encrypted too — a plaintext copy three tables away would have
+ * made encrypting the originals pointless for every matter that reached
+ * acceptance.
+ */
+export function discloseEngagementLetter<
+  T extends {
+    id: string;
+    body?: string | null;
+    matterSubject?: string | null;
+    scopeOfWork?: string | null;
+    exclusions?: string | null;
+  },
+>(letter: T, access: MatterAccess): T {
+  const ref = { access, model: 'EngagementLetter', recordId: letter.id };
+
+  return {
+    ...letter,
+    ...('body' in letter
+      ? { body: discloseField({ ...ref, field: 'body', stored: letter.body }) }
+      : {}),
+    ...('matterSubject' in letter
+      ? {
+          matterSubject: discloseField({
+            ...ref,
+            field: 'matterSubject',
+            stored: letter.matterSubject,
+          }),
+        }
+      : {}),
+    ...('scopeOfWork' in letter
+      ? {
+          scopeOfWork: discloseField({
+            ...ref,
+            field: 'scopeOfWork',
+            stored: letter.scopeOfWork,
+          }),
+        }
+      : {}),
+    ...('exclusions' in letter
+      ? { exclusions: discloseField({ ...ref, field: 'exclusions', stored: letter.exclusions }) }
+      : {}),
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Message threads
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Who may read a client↔firm message thread.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Until Phase 7 this rule did not exist. `Conversation` and `Message` held
+ * client↔attorney communication — the most obviously privileged material in the
+ * system — and access was decided in the chat routes by a single question: is
+ * there a `ConversationParticipant` row for you? Three things followed from
+ * that, and each is a real hole rather than a tidiness complaint:
+ *
+ *   1. An attorney who LEFT a firm kept reading its clients' messages. A
+ *      participant row has no end date, so leaving the practice removed their
+ *      access to the matter file and left the conversation about it open.
+ *   2. Nothing in the code said platform staff may not read a thread. No route
+ *      did, but the rule lived in the absence of a query rather than in a
+ *      decision — and absences do not survive the next feature.
+ *   3. `POST /api/chat/conversations` accepted any user id, so a signed-in user
+ *      could open a thread with anyone at all.
+ *
+ * THE DELIBERATE NARROWNESS. Unlike a matter, a thread is NOT readable by the
+ * firm's principal unless they are in it. A principal needs the matter file to
+ * triage and reassign; they do not need to read a conversation that has already
+ * happened between a colleague and a client. Every extra person who can read a
+ * privileged communication is another person an opponent can point at to argue
+ * privilege was waived, so the default is the narrowest one that works.
+ *
+ * See docs/restructure/DATA-INVENTORY.md §7 finding B and LEGAL-GUARDRAILS.md
+ * (rule 5). Asserted by `npm run check:privilege`.
+ * ─────────────────────────────────────────────────────────────────────────────
+ */
+export type ConversationOwnership = {
+  /** The firm on the other side. NULL for pre-Phase-7 threads. */
+  firmId: string | null;
+  /** The client in the thread. */
+  clientId: string | null;
+  /** User ids of everyone with a participant row. */
+  participantUserIds: string[];
+};
+
+export type ConversationAccess = {
+  /** May open the thread and read its messages. */
+  canRead: boolean;
+  /** May post to it. */
+  canWrite: boolean;
+  basis: 'CLIENT' | 'FIRM_ATTORNEY' | 'FORMER_PARTICIPANT' | 'NONE';
+};
+
+const NO_CONVERSATION_ACCESS: ConversationAccess = {
+  canRead: false,
+  canWrite: false,
+  basis: 'NONE',
+};
+
+export function resolveConversationAccess(params: {
+  actorUserId: string;
+  actorRole: 'ADMIN' | 'LAWYER' | 'CLIENT';
+  /** The actor's ACTIVE firm membership, or null. */
+  membership: FirmMembership | null;
+  conversation: ConversationOwnership;
+}): ConversationAccess {
+  const { actorUserId, actorRole, membership, conversation } = params;
+
+  // Platform staff, first and unconditionally.
+  //
+  // Checked before participation rather than after, so that a future feature
+  // which puts a support user into a thread cannot accidentally grant them the
+  // history of everything said before they arrived. If we ever need staff in a
+  // conversation, that is a product decision with a client-visible disclosure
+  // attached, not a fall-through.
+  if (actorRole === 'ADMIN') return NO_CONVERSATION_ACCESS;
+
+  const isParticipant = conversation.participantUserIds.includes(actorUserId);
+  if (!isParticipant) return NO_CONVERSATION_ACCESS;
+
+  // The client always keeps their own thread. Their access does not depend on
+  // the firm, because it is their conversation as much as the firm's, and a
+  // client must not lose their record of what their attorney told them because
+  // the attorney changed practice.
+  if (conversation.clientId === actorUserId) {
+    return { canRead: true, canWrite: true, basis: 'CLIENT' };
+  }
+
+  if (actorRole !== 'LAWYER') return NO_CONVERSATION_ACCESS;
+
+  // A pre-Phase-7 thread with no firm recorded. Participants only, and it can
+  // never be widened, because there is no firm to widen it to.
+  if (!conversation.firmId) {
+    return { canRead: true, canWrite: true, basis: 'FIRM_ATTORNEY' };
+  }
+
+  // The firm side. Participation is not permanent authority: it must still be
+  // backed by an ACTIVE membership of the firm the client was talking to.
+  if (membership && membership.firmId === conversation.firmId) {
+    return { canRead: true, canWrite: true, basis: 'FIRM_ATTORNEY' };
+  }
+
+  // In the thread, but no longer of the firm. This is the case the old rule got
+  // wrong: they used to keep reading indefinitely. The distinct basis exists so
+  // an audit can tell "never had access" from "had it and lost it".
+  return { canRead: false, canWrite: false, basis: 'FORMER_PARTICIPANT' };
+}
+
+/** Load the membership and resolve conversation access in one call. */
+export async function getConversationAccess(params: {
+  actorUserId: string;
+  actorRole: 'ADMIN' | 'LAWYER' | 'CLIENT';
+  conversation: ConversationOwnership;
+}): Promise<ConversationAccess> {
+  // Same reasoning as `getMatterAccess`: a firm-side participant need not be an
+  // admitted attorney, so membership cannot be gated on the platform role.
+  const membership =
+    params.actorRole === 'ADMIN'
+      ? null
+      : await getFirmMembership(params.actorUserId);
+
+  return resolveConversationAccess({ ...params, membership });
+}
+
+/**
+ * Disclose one message.
+ *
+ * `Message.content` is encrypted at rest. As everywhere else, a reader who may
+ * not have the words gets a marker and never the stored value.
+ */
+export function discloseMessage<T extends { id: string; content: string }>(
+  message: T,
+  access: ConversationAccess
+): T {
+  if (!access.canRead) {
+    return { ...message, content: WITHHELD_MARKER };
+  }
+
+  try {
+    return {
+      ...message,
+      content: decryptField(
+        { model: 'Message', recordId: message.id, field: 'content' },
+        message.content
+      ),
+    };
+  } catch (error) {
+    console.error(
+      `[privilege] could not decrypt Message.content on ${message.id}:`,
+      error instanceof Error ? error.message : 'unknown error'
+    );
+    return { ...message, content: UNDECRYPTABLE_MARKER };
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

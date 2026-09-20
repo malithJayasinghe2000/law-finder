@@ -4,6 +4,7 @@ import { getSession } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import prisma from '@/lib/db';
 import DashboardUserMenu from '@/components/layout/DashboardUserMenu';
+import { getFirmMembership, canManageFirm } from '@/lib/firms/access';
 
 export default async function DashboardLayout({ children, params }: { children: React.ReactNode, params: Promise<{ locale: string }> }) {
   const { locale } = await params;
@@ -25,10 +26,30 @@ export default async function DashboardLayout({ children, params }: { children: 
     redirect(`/${locale}/login`);
   }
 
+  /*
+   * Authority inside a firm comes from an ACTIVE `FirmMember` row, never from
+   * the platform role — a practice manager and a paralegal are not admitted
+   * attorneys, so their platform `Role` is CLIENT.
+   *
+   * Phase 7 fixed that in `resolveMatterAccess`, the `/api/firms/*` guards, the
+   * lawyer layout and the Edge middleware. It missed the navigation: this
+   * sidebar chose its menu from the platform role alone, so a practice manager
+   * was admitted by the layout and then shown the client menu, with no link to
+   * their own firm. The pages worked and were reachable only by typing a URL —
+   * the same "membership that grants nothing" shape, one layer further out.
+   */
+  const membership = await getFirmMembership(session.userId);
+
   return (
     <SidebarProvider>
       <div className="flex w-full min-h-screen bg-neutral-50 relative overflow-hidden">
-        <AppSidebar locale={locale} role={liveRole} userId={session.userId} />
+        <AppSidebar
+          locale={locale}
+          role={liveRole}
+          userId={session.userId}
+          isFirmMember={!!membership}
+          canManageFirm={canManageFirm(membership)}
+        />
         <div className="flex-1 flex flex-col min-w-0 max-w-full">
           {/* Top bar */}
           <header className="h-14 border-b border-neutral-200 bg-white flex items-center justify-between px-4 lg:px-6 sticky top-0 z-40 print:hidden">
@@ -36,7 +57,7 @@ export default async function DashboardLayout({ children, params }: { children: 
               <div className="md:hidden">
                 <SidebarTrigger />
               </div>
-              <span className="text-[13px] font-semibold text-neutral-900 tracking-tight">{liveRole === 'ADMIN' ? 'Admin Dashboard' : (liveRole === 'LAWYER' ? 'Lawyer Portal' : 'Client Portal')}</span>
+              <span className="text-[13px] font-semibold text-neutral-900 tracking-tight">{liveRole === 'ADMIN' ? 'Admin Dashboard' : (liveRole === 'LAWYER' ? 'Lawyer Portal' : (membership ? 'Firm Portal' : 'Client Portal'))}</span>
             </div>
             <div className="flex items-center gap-3">
               <DashboardUserMenu

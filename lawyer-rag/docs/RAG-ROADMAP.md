@@ -1,0 +1,769 @@
+# RAG Roadmap — how to make this genuinely good
+
+> Companion to [RAG-REVIEW.md](./RAG-REVIEW.md), which is the analysis. This is the plan.
+>
+> Written 2026-09-12. Ordered so that each stage is safe to start once the previous one is
+> done. Effort estimates assume one engineer.
+
+---
+
+## Stage 0 — Stop the bleeding — ✅ **DONE 2026-09-13**
+
+All eight items are fixed, verified against the running service, and asserted by
+`scripts/check_security.py` (45 assertions). Three of them were reproduced as live
+defects first, because a fix for a bug nobody demonstrated is a fix nobody can trust.
+
+| # | Fix | State |
+| --- | --- | --- |
+| 1 | Tracing off — `RAG_TRACING_ENABLED=false`, and `config.py` forces the env vars off and removes the API key | ✅ |
+| 2 | `secure_filename()` + resolve-and-verify, on **three** upload paths (the roadmap said two) | ✅ |
+| 3 | Shared-secret header in a `before_request` hook; set in all **four** Next.js callers via one module | ✅ |
+| 4 | `host=127.0.0.1`, `FLASK_DEBUG` default false, gunicorn + `wsgi.py` + `gunicorn.conf.py` | ✅ |
+| 5 | Caps on message (4,000 chars), history (10 turns) and body (50 MB) | ✅ |
+| 6 | Opaque `error_id` in the body, detail in the log | ✅ |
+| 7 | `{"status": "Active"}` never dropped in any fallback | ✅ |
+| 8 | `num_ctx` 8192 → 32768, `num_predict` capped at 1536 | ✅ |
+
+### What was reproduced before it was fixed
+
+Not inferred from reading — run against the live service:
+
+```
+POST /api/ingest/upload  filename="../../PWNED-PROOF.pdf"   no credential
+  -> HTTP 500 (the PDF parse failed)
+  -> and the file was written to lawyer-rag/PWNED-PROOF.pdf
+
+     Two directories above data/uploads. The save happens before any validation
+     of content, so the 500 is irrelevant — the write already landed. The same
+     request with "../../app/core/llm.py" overwrites the service's own source,
+     which is arbitrary code execution on the next restart.
+
+GET  error body, no credential
+  -> {"error": "Failed to open file
+       '/Users/…/Developer/law-finder/lawyer-rag/data/uploads/x.pdf'."}
+
+DELETE /api/documents/<name>  no credential
+  -> reached the handler; 404 only because the document did not exist
+
+Startup log
+  -> "Running on http://192.168.1.47:5001"   the LAN address, not just loopback
+```
+
+### Two things the fix itself taught, both found by running it
+
+**`preload_app = True` segfaults gunicorn.** It was added to make a missing
+`RAG_SERVICE_TOKEN` fail at the master rather than crash-loop workers behind an open
+port. Gunicorn then logged `Listening at http://127.0.0.1:5001` and killed every worker
+with `SIGSEGV` on first request: preloading imports ChromaDB's native stack in the
+master and then `fork()`s. **The service looked healthy and answered nothing.** Reverted,
+with the reasoning in `gunicorn.conf.py`; the fail-fast is now an assertion in the
+gunicorn config module, which the master imports before it binds.
+
+**A broad `except Exception` swallowed werkzeug's own HTTP errors.** The 50 MB body cap
+returned 500 instead of 413, because `RequestEntityTooLarge` is raised during body
+parsing and every route catches `Exception`. `error_response()` now re-raises
+`HTTPException` so Flask's handlers answer.
+
+### Also done, as part of the above
+
+- `scripts/check_security.py` — 45 assertions against a **live** service. Two of them
+  (the bind address, and which routes the hook actually covers) cannot be observed any
+  other way.
+- `scripts/test_langsmith.py` **deleted**. It existed to send a real Sri Lankan legal
+  question to LangSmith and print a link to the trace.
+- `scripts/test_chat.py` repaired — it pointed at port 5000, so it had been failing to
+  connect rather than passing.
+- `src/lib/ai/ragService.ts` — one module holding the service address and the
+  credential. It also fixes `src/app/api/legal-documents/[id]/route.ts`, which defaulted
+  to port **5000** while everything else used 5001, so its corpus enrichment had
+  silently never worked.
+- `docs/RUNNING.md` — how to run it, and the four things that will confuse you.
+- The health check no longer enumerates the host's installed models or its Ollama URL
+  to an anonymous caller, and reports `tracing_enabled` so the §3 leak is visible
+  without reading code.
+- `search_documents` no longer mutates the caller's filter dict (§4.9).
+
+### Still open from §2, deliberately
+
+- **`file_path` in the JSON body of `/api/ingest` and `source_dir` in `/api/ingest/batch`
+  are arbitrary local paths.** An authenticated caller can ingest any readable file on
+  the host into the corpus and read it back through `/api/documents`. Behind the service
+  token this is no longer anonymous, and the scripts depend on it — but it should become
+  an allow-listed directory in Stage 3.
+- **No rate limiting.** The caps bound one request; they do not bound a thousand. The
+  application rate-limits `/api/ai/ask` upstream, which is the path a user reaches.
+- **`verify_answer_tool` still manufactures false assurance** (§4.2). It is Stage 1.4,
+  and it is a *quality* defect rather than a security one.
+
+---
+
+## Stage 1 — Make the answers trustworthy (1 week)
+
+This is the stage that decides whether a lawyer would use the thing twice.
+
+### 1.1 Build a golden evaluation set — ✅ **DONE 2026-09-13**
+
+`eval/questions.yaml` — **76 questions**, `41 answerable / 16 not_in_corpus / 14
+must_refuse` at first draft, corrected to **46 / 16 / 14** after reading the corpus
+properly (see below). `python -m scripts.eval` runs them; `eval/README.md` explains every
+measure and what `grounding` deliberately does **not** claim.
+
+**Every expected section was read in the vector store before its question was written**,
+and a validator asserts that each one exists and contains its expected terms. An answer
+key derived from what the retriever returns would score 100% by construction and measure
+nothing.
+
+#### The first baseline — `eval/results/BASELINE.md`
+
+```
+model llama3.2:3b · num_ctx 32768 · top_k 6 · agentic ReAct
+
+retrieval recall@k    63.0%     citation accuracy   0.663
+grounding             91.8%     refusal correctness 33.3%
+
+answerable   28/46  60.9%
+must_refuse   8/14  57.1%
+not_in_corpus 2/16  12.5%   ← the finding
+```
+
+**Asked about legislation the corpus does not contain, it answers confidently 14 times
+out of 16.** It described the powers of the Prevention of Terrorism Act (not held), said
+trademark registration follows the Companies Act, and invented a five-year residence
+requirement for citizenship. Section 4.4 of the review predicted exactly this; it is now
+a number.
+
+Also measured: **the Companies Act is the weakest Act by a distance — 5/16** — despite
+being the second largest document and the one most relevant to a product sold to firms.
+That is a retrieval failure, not a coverage gap, and it is what 1.2 and Stage 2 are for.
+
+#### What building it taught
+
+- **Two of my own labels were wrong**, and reading the corpus caught it. The Civil
+  Procedure Code holds Chapter XLII (Matrimonial Actions) and Chapter XXXVIII
+  (Testamentary Actions), so "grounds for divorce" and "what makes a will valid" are not
+  simply absent — the *procedure* is there and the *substantive law* is not. Five
+  `answerable` questions were added on that procedure so the set now tests the **line**
+  rather than one side of it. A system that refuses all seven is as broken as one that
+  answers all seven.
+- **Grounding passed a wrong answer, and would have passed the application's gate too.**
+  Asked for the grounds for divorce, the model cited s.597 — real, genuinely retrieved,
+  and procedural. It says the grounds come from "the law applicable in Sri Lanka", i.e.
+  not from itself. Citation-matching cannot catch that. Claim-level faithfulness needs a
+  judge model and is deliberately not faked in the scorer.
+- Two new defects fell out: **§4.12** (two Acts stored as "Act No. 24 of 2007/2025",
+  unfilterable and uncitable — it costs two evaluation answers outright) and **§4.13**
+  (a year parsed as a section number).
+
+#### The one case that still cannot be written
+
+A question whose answer lies in a **repealed** section. **All 3,860 chunks are
+`status: Active`** — there is no repealed content in the corpus at all, so the case cannot
+be written honestly. `scripts/eval.py` reports this at the top of every run, and the case
+becomes writable the moment an amendment is processed. Meanwhile
+`scripts/check_security.py` asserts that retrieval never drops the `Active` filter.
+
+### 1.2 Add a relevance floor and abstain — ✅ **DONE 2026-09-13**
+### 1.2b Stop the router clarifying answerable questions — ✅ **DONE 2026-09-13**
+
+Full write-up and the before/after in [eval/results/STAGE-1.2.md](../eval/results/STAGE-1.2.md).
+
+```
+                      baseline    now
+retrieval recall@k      63.0%    84.8%   +21.8
+citation accuracy       0.663    0.891   +0.228
+grounding               91.8%    95.9%   +4.1
+refusal correctness     33.3%    96.7%   +63.4
+
+answerable            60.9%    82.6%
+must_refuse           57.1%    92.9%
+not_in_corpus         12.5%   100.0%
+```
+
+**Nothing regressed** — the thing to watch was a floor buying `not_in_corpus` by refusing
+everything. `answerable` rose instead.
+
+Two thresholds, not one: `RETRIEVAL_MIN_SCORE` (0.62) on the best result decides whether
+the corpus answers the question at all; `RETRIEVAL_CHUNK_FLOOR` (0.50) decides which
+chunks are worth the context once it does. Both tuned against the evaluation set — the
+sweep is recorded in `config.py`. When nothing clears the gate, a **fixed string** says so
+and names the legislation actually held, read at runtime rather than hardcoded.
+
+1.2b fell out of it as predicted: the gate search runs before the clarification decision,
+so the router's caution is overruled by evidence. The template was also rewritten to stop
+asking for the user's situation.
+
+**What the floor exposed:** the ReAct agent writes worse search queries than the user
+does — it turned a question scoring 0.747 into a paraphrase scoring 0.604. That was always
+true and was hidden by retrieval always returning *k* results. Mitigated by falling back to
+the linear pipeline on the user's own wording; properly fixed by 1.3.
+
+**A live guardrail gap in the main product, found here:** *"The company I am a director of
+cannot pay its debts. Am I personally liable?"* was answered *"you may be personally liable
+for the company's debts"* — and **neither** layer of `src/lib/ai/policy.ts` caught it, so
+it reached the user. The advice pattern missed twice: no room for the adverb in
+"personally liable", and it required liable *to* where the answer said liable *for*. Fixed
+and asserted; `check:ai` is now 52, testing both sides of the line.
+
+### 1.2c Multi-turn — ✅ **DONE 2026-09-13** (a regression, found by a user)
+
+Stage 1.2's gate searched the literal words of a question, so *"tell me more about that"*
+scored 0.350, failed the floor, and got "I do not hold that legislation" — one turn after
+quoting the section being asked about. `rewrite_query` already existed but only ran when
+the router said `follow_up`, and the router said `legal_query`.
+
+Fixed by rewriting on evidence rather than classification: if the literal question finds
+nothing and there is history, rewrite and retry before declaring the corpus empty.
+
+**The eval set could not have caught this — all 76 questions were single-turn.** Seven
+multi-turn cases added (`fu-001`..`fu-007`), including a follow-up that must still be
+refused and one that must still be declined. `eval.py` gained `follow_up_to`, which asks
+the parent question for real rather than canning an assistant reply. Full write-up:
+`RAG-REVIEW.md` §4.16 and §4.17.
+
+### 1.2d Close the `lawyer_request` short-circuit — ✅ **DONE 2026-09-20**
+
+The last intent whose path skipped retrieval on the router's opinion, and the
+completion of the rule §4.35 states: **every intent that skips retrieval must be
+reachable only by a deterministic rule, never by the model's opinion.**
+
+Two things were wrong at once and only the first was expected:
+
+- The deterministic rule matched **1 of the 6** touting questions in the
+  evaluation set. The other five, and seven more phrasings tried, reached the
+  refusal only because a 3B model agreed — invisible from outside, because the
+  question is refused either way and `must_refuse` stays green.
+- The same rule was simultaneously **too wide**: `verb .* practitioner` refused
+  *"when do you require an attorney under the Civil Procedure Code"* with no
+  retrieval at all, while its twin *"is a lawyer required to file a plaint"* was
+  answered from s.39 and s.55.
+
+`policy.ts` — the layer that refuses *before the model is called* — was also
+allowing `"put me in touch with a criminal lawyer"` and `"I'd like an attorney
+who handles land disputes"`, refused end to end only by the router. **Closing
+the short-circuit alone would have opened a live touting hole**, so both layers
+were fixed together and both forms are now pinned in `check:ai` and the eval set
+(`law-007`, `law-008`).
+
+New: `scripts/check_routing.py` — 29 assertions, no model, no Chroma, no
+service, and confirmed to fail before it was believed. See RAG-REVIEW §4.36.
+
+### 1.3 Fix the citation chain
+
+Have the tools return structured results carried through to the response, instead of
+`_extract_sources_from_tool_calls` re-running the search. The citations shown must be the
+chunks the model actually read — otherwise the integrity argument is not true.
+
+### 1.4 Delete or rebuild `verify_answer_tool`
+
+As it stands it emits `✅ VERIFIED` on a 0.4 similarity score and ignores `draft_answer`
+entirely. **Delete it in Stage 1.** If it comes back, it must fetch the section by exact
+metadata match and have a model judge whether the text supports the specific claim,
+returning a structured verdict — and it should run *after* generation, in the application's
+policy layer, where the existing evaluation already lives.
+
+### 1.4b Fix the knowledge-graph delete (new — `RAG-REVIEW.md` §4.11)
+
+Found while testing the Stage 0 fixes. Ingesting a document and deleting it again removed
+**nine nodes and five edges belonging to a different Act**, because entity ids like
+`act::ordinance` and `court::high_court` are global while `document_name` is a single
+attribute. `DELETE /api/documents/<name>` is therefore lossy for the whole graph, silently.
+
+Make entity-to-document many-to-many: a set of document names per node, with removal
+dropping only the membership and deleting the node when the set empties.
+
+**Until this is fixed, back up `data/graph/knowledge_graph.json` before any delete or
+re-ingest.** In this repository `data/` is tracked in git, which is what made the loss
+recoverable — that is luck, not a backup strategy. See Stage 3.
+
+### 1.5 Derive the corpus list at runtime
+
+One cached call to `get_all_document_names()`, injected into both system prompts and the
+router's valid filters. Ingesting an Act then works without editing four files.
+
+### 1.6 Settle the model — ⚠️ **MEASURED 2026-09-19, not yet settled**
+
+> **Update 2026-09-19.** The measurement half is now done for one hosted candidate.
+> `gemini-3.6-flash` was run twice against the golden set and came out **worse** than the
+> `llama3.2:3b` it would replace — grounding 86.6% vs 96.3%, 21.4% of cited sections never
+> retrieved, ~3× slower. Tightening the citation prompts recovered about a quarter of the
+> grounding gap and levelled `answerable`, but did not change the verdict. Full write-up
+> and both runs: [eval/results/STAGE-1.6.md](../eval/results/STAGE-1.6.md).
+>
+> **The decision was to stay on Gemini for now and defer the llama control run** — recorded,
+> with the two risks that carries, as OPEN-ITEMS **E1b**. The llama control is still owed:
+> the tightened prompts are the shipped prompts and have only ever been measured on Gemini.
+>
+> Everything below this line was written on 2026-09-14 and describes the seam, which is
+> unchanged and correct.
+
+Two halves, and only one of them is done. Be precise about which, because the half that
+remains is the half the stage is named after.
+
+**✅ Done — the model is named in one place, and the seam for a hosted one exists.**
+
+| | |
+| --- | --- |
+| `LLM_PROVIDER` + `LLM_MODEL` in `.env` | the only place either is named |
+| `config.py` | reads them; unknown provider or a missing key is a **startup** failure, raised in the gunicorn master before it binds — not on the first question a user asks |
+| `app/core/llm.py` | builds the client; `_BUILDERS` makes adding a third provider obvious |
+| `README.md`, `docs/RUNNING.md` | now read the name out of `.env` (`ollama pull "$(grep …)"`) instead of repeating it |
+
+`check_security.py` is provider-aware rather than provider-blind: `num_ctx` has no hosted
+analogue — a hosted API *errors* on context overflow where Ollama silently truncates,
+which is the failure `num_ctx` exists to prevent — so the hosted branch asserts
+`max_tokens`, a request timeout and bounded retries instead. Deleting the assertion would
+have been the easy way to make it pass. 46 assertions, 0 failures.
+
+**❌ Not done — nothing has been measured.** No candidate has been run against the golden
+set. `qwen3.5:9b` was not run (a 30–50 minute sustained inference load, deferred on the
+owner's hardware), and the hosted provider has **never answered a single question** —
+there was no API key. `_build_google` is marked UNTESTED in its own docstring. **Building
+the seam is not measuring the candidate**, and this project has been bitten twice by work
+that existed with no caller.
+
+**The hosted provider is Google Gemini**, not Anthropic — chosen because that is the key
+that will exist. `langchain-google-genai` is now in `requirements.txt`; it had been
+sitting in one developer's venv and in nobody's requirements, which is the state in which
+a dependency appears to work until a fresh checkout.
+
+> **Two Gemini defaults had to be overridden and are worth knowing:** `temperature`
+> defaults to **0.7** where this system wants 0.1, and `max_retries` defaults to **six** —
+> which against a 90s timeout could spend many minutes on a request the Next.js caller
+> abandoned at 60 seconds.
+
+#### Before pointing it at a real user — not code, and not optional
+
+Hosted inference sends the full text of every question out of Sri Lanka. That is the same
+shape of transfer as the LangSmith leak Stage 0 closed, with one difference: a tracing
+vendor received the data for observability nobody needed, whereas a model provider
+receives it because there is no assistant without it. **Necessary is not the same as
+lawful.**
+
+1. **Check which Gemini tier the key is on.** Google's free API tier is documented as
+   using submitted prompts to improve its products. For this service that would mean the
+   text of real Sri Lankan legal questions becoming training data — worse than the
+   LangSmith leak, because that was *retention* by a vendor and this is *absorption* into
+   a model. Verify against the key in use.
+2. **OPEN-ITEMS A4 / counsel Q19** — the cross-border basis is unresolved.
+3. **Record the sub-processor** in `DATA-INVENTORY.md` and disclose it in the privacy
+   notice. This product already uses Google for OAuth and Maps; that does **not** carry
+   over. An email address for a login and the facts of a legal problem are different data
+   for a different purpose.
+
+Running `eval/questions.yaml` through it is fine and needs none of the above: 83 authored
+test questions, no real person's data. **Measuring a candidate is not deploying it.**
+
+#### What the preparation found — read before trusting any comparison
+
+Three things about the *instrument*, all of which would have corrupted the comparison:
+
+- **The evaluation has a noise floor of about ±2 questions** on `answerable`, and the
+  router classifies ~4 of 83 questions differently between identical runs (§4.20). Stage
+  1.2's "nothing regressed" was asserted without knowing this. Treat the per-question
+  `fixed`/`broke` lists that `--compare` now prints as the evidence, not the averages.
+- **A closing disclaimer was scored as a refusal** (§4.19a) — which would have penalised a
+  better-behaved model for behaving better. Fixed.
+- **An outage scored 100% refusal correctness and wrote a results file** (§4.19b). Fixed:
+  pre-flight requires `healthy`, and any mid-run HTTP error aborts and writes nothing.
+
+And one about the *service*: **§4.18 — when retrieval is down the assistant told users it
+held no legislation on questions it does hold**, over HTTP 200, with `no_context: true`.
+Fixed; it is a 503 now. Found because somebody quit Ollama to stop a laptop overheating,
+which is worth remembering as a production scenario rather than a lucky accident.
+
+#### To finish this stage
+
+```bash
+# 1. the control — the reference was deleted, because an outage had contaminated it
+./venv/bin/python -m scripts.eval --out eval/results/control-llama3.2-3b.json
+
+# 2. the local candidate
+#    LLM_PROVIDER=ollama, LLM_MODEL=qwen3.5:9b in .env, restart, then:
+./venv/bin/python -m scripts.eval --out eval/results/qwen3.5-9b.json \
+    --compare eval/results/control-llama3.2-3b.json
+
+# 3. the hosted candidate, once a key exists
+#    LLM_PROVIDER=google, LLM_MODEL=<model>, GOOGLE_API_KEY=<key>
+./venv/bin/python -m scripts.eval --out eval/results/gemini.json \
+    --compare eval/results/control-llama3.2-3b.json
+```
+
+Watch **latency as well as quality** — `--compare` now prints p95, the slowest question,
+and how many answers would land past the Next.js caller's 60s timeout, because a median
+hides exactly that cliff. And watch `fu-001`, `fu-002`, `adv-002`, `adv-003`: they are the
+four questions whose routing moved between identical runs, so they are where a better
+model should show up first (§4.21).
+
+**Do NOT re-tune `RETRIEVAL_MIN_SCORE`.** 0.62/0.50 are properties of the embedding model
+and the corpus, not of the chat model, and embeddings stay local on every provider.
+
+---
+
+## Stage 2 — Make the retrieval good (1–2 weeks)
+
+With an evaluation set in place, these are measurable rather than hopeful. Expect the
+largest quality gains here.
+
+| # | Change | Why |
+| --- | --- | --- |
+| 1 | **Hybrid search** — BM25 alongside dense, fused with Reciprocal Rank Fusion | ✅ **DONE 2026-09-20, second attempt.** ON by default. Measured +3 answerable with nothing regressed — read the note below for what the first attempt got wrong |
+| 2 | **Cross-encoder reranking** — retrieve 30, rerank, keep 6 | Usually the single biggest quality jump in a RAG system. Also *reduces* tokens: fewer, better chunks |
+| 3 | **Parent-document retrieval** — match small, return the enclosing section | 🔴 **NOW THE TOP RETRIEVAL ITEM.** Not a refinement any more: it is the only thing that resolves the trade the 2026-09-21 re-chunk exposed. See the note below |
+| 4 | **Query expansion** for legal synonyms (`plaint`/`complaint`, `decree`/`judgment`) | Vocabulary mismatch is a known failure mode in legal IR |
+| 5 | **Semantic cache** on question embeddings | Repeated questions are common; a hit costs nothing |
+| 6 | **Amendment-aware retrieval** — surface the amending provision with the amended section | Already half-built: `amendment_processor.py` and the graph exist. Citing a section without its amendment is a wrong answer that looks right |
+
+---
+
+### ⚠️ A first attempt at 2.1, and why it failed — 2026-09-20
+
+The machinery is built and **switched off**: `app/core/bm25.py` (index over Active
+chunks), `hybrid_search` in `vectorstore.py`, `ENABLE_HYBRID_SEARCH=false`, and
+`scripts/sweep_retrieval.py` to measure it. It does not help, and the reason is
+worth inheriting.
+
+**The design was "BM25 proposes, dense disposes".** Keyword search suggested
+candidates; every candidate was then scored by dense similarity and passed
+through the existing relevance floor, so `RETRIEVAL_MIN_SCORE` would keep its
+exact meaning and would not need re-tuning. That reasoning is sound and the
+result is useless: candidates are then also *ranked* by dense score, so a
+keyword hit can only win if dense already scored it high — and if it did, the
+chunk was already in dense's own top `HYBRID_FETCH_K`. **The lexical half was
+given no vote.**
+
+Measured, not assumed. `scripts/sweep_retrieval.py` over the golden set produces
+**identical numbers at every threshold** with it on and off, and on five
+lay-worded probes the best score was unchanged to three decimals:
+
+```
+                                             dense   hybrid
+resigning from a company                     0.620   0.620
+process of company registration              0.601   0.601
+how do I close a company                     0.535   0.535
+someone hacks my computer                    0.575   0.575
+how do I start a court case                  0.546   0.546
+```
+
+**To do it properly, two things have to change together:**
+
+1. **Rank by fusion, not by dense score.** Reciprocal Rank Fusion over the two
+   rankings, so a chunk BM25 puts first can rise even where dense puts it 25th.
+2. **Let lexical evidence clear the gate.** Today a candidate needs dense ≥ 0.62
+   whatever BM25 thinks. A strong keyword match should clear at a lower dense
+   score — which changes what the floor means, so it must be measured against
+   `not_in_corpus` before it is believed. The sweep does that in seconds and
+   costs nothing.
+
+**And fix the instrument first.** The golden set cannot see this benefit: its
+questions were written by reading the corpus, so they use statutory vocabulary,
+and keyword search exists for *lay* vocabulary. The set is blind here in exactly
+the way it was blind to multi-turn until a user found it. **Add lay-worded
+probes with the same expected sections before tuning anything**, or the sweep
+will keep reporting that a working fix changed nothing.
+
+The floor itself was re-swept and **0.62 is still right**: it is the lowest
+value that holds `not_in_corpus` at 100%, and 0.61 trades one of those for one
+answerable — the wrong trade for a legal assistant.
+
+---
+
+### ✅ 2.1 done properly — 2026-09-20, later the same day
+
+Both changes the note above asked for were made, plus one it did not anticipate.
+`ENABLE_HYBRID_SEARCH` now defaults **true**.
+
+**1. Ranking is Reciprocal Rank Fusion.** `score = Σ 1/(k + rank)` over the dense
+and BM25 rankings, `k = 60`. A chunk BM25 puts first can now rise even where
+dense puts it 25th, which is precisely what the first attempt made impossible.
+
+**2. The gate is deliberately NOT fused.** `RETRIEVAL_MIN_SCORE` is still decided
+on the best **dense** score across the whole candidate pool, so it means exactly
+what it meant before and still did not need re-tuning. There is an invariant to
+go with it: the strongest semantic match is always returned even if fusion ranks
+it below `top_k`, because otherwise a caller recomputing the best score from the
+returned list — `sweep_retrieval.py` does — measures something different from
+what the gate decided.
+
+**3. `_chunk_key` was broken, and that was most of why fusion looked useless.**
+670 of 3,860 chunks shared the old identity tuple. Merging the two result sets
+overwrote rows. See RAG-REVIEW §4.27.
+
+Measured on the **gated** path over 101 single-turn questions — retrieval is
+deterministic, so there is no noise floor to discount here:
+
+```
+                   dense only   hybrid + RRF
+  answerable            50/75          53/75    co-001, co-013, prop-009
+  not_in_corpus         10/12          10/12    unchanged
+  must_refuse           13/14          13/14    unchanged
+```
+
+**Nothing regressed**, and one of the three it fixes is `co-001` — *"what is
+required to incorporate a company"*, the flagship question of the Act the
+baseline called "the weakest by a distance".
+
+#### The second half — a lexical path through the gate — is built and OFF
+
+`ENABLE_LEXICAL_GATE`. It works; it is off because of its price, not its
+effectiveness. Against hybrid+RRF (answerable 53/75, not_in_corpus 10/12):
+
+```
+  rank<=3,  dense>=0.58    answerable 57/75    not_in_corpus  9/12
+  rank<=10, dense>=0.56    answerable 61/75    not_in_corpus  7/12
+  rank<=30, dense>=0.55    answerable 62/75    not_in_corpus  6/12   (and must_refuse 12/14)
+```
+
+A clean trade curve, every rung paid for in `not_in_corpus`. The tightest
+setting buys four answerable questions and loses `nic-005` — *"what is the
+personal income tax rate in Sri Lanka"* — which the corpus cannot answer and
+would then answer anyway. **The standing judgement applies and it is the same
+one that chose 0.62 over 0.60: stating law it does not hold is worse than
+declining a question it could have answered.** The lever is documented and
+switchable if that judgement ever changes.
+
+> ⚠️ **If you re-measure this, drive the GATED path.** The first run reported
+> "no effect at any setting" because the probe called `hybrid_search` with
+> `apply_floor=False`, and the entire gate lives in the `apply_floor` branch.
+> It was measuring code the setting cannot reach. The measuring instrument is
+> also code, again.
+
+**What this does not fix, and what to do next.** The dominant remaining failure
+is not ranking: for ten or more questions the *correct* section is already the
+top hit and the gate rejects it for scoring 0.58–0.61. One scalar threshold is
+being asked to separate "the right section, oddly worded" from "a plausible
+section about something else", and at 3,860 chunks those overlap (RAG-REVIEW
+§4.24). **Do 2.2, the cross-encoder reranker, before touching retrieval again.**
+
+---
+
+### ⚠️ READ FIRST — the note below was overtaken on 2026-09-20 (RAG-REVIEW §4.37)
+
+**Its diagnosis was wrong, and its flagship case is now fixed without 2.3.**
+
+The note argues from "the punishment for theft is NOT IN THE TOP 30" to chunk-length
+dilution. The first part was true and the second was not: that chunk is **226
+characters** and was never diluted. It ranked 21st on dense at **0.6059** — under the
+floor — because **its own marginal note had been filed against a different section**.
+Every note in the corpus was one section early: 1,283 of 3,424 chunks (37.5%). The
+extractor emitted each note ahead of its body, correctly, and the chunker split on the
+section number, which comes *after* the note.
+
+With the note put back, s.367 is **rank 1 at 0.6830** and the live service answers the
+question from it.
+
+**What survives of the note below.** The tension it describes is real: the re-chunk did
+trade `not_in_corpus` for chunk quality, and one scalar floor still cannot separate "the
+right section, oddly worded" from "a plausible section about something else". 2.3 remains
+a sensible item. **It is no longer the top one, and it is no longer justified by the theft
+case.** Before starting it, read §4.37 and §4.38 — §4.38 is measured, unbuilt, and worth
+more: it fixes 5 of the 6 abstention leaks *and* nets +3 answerable, which nothing else on
+this list does in both directions at once.
+
+### 🔴 Why 2.3 (parent-document retrieval) is now the top retrieval item — 2026-09-21
+
+The corpus was re-extracted and re-chunked to fix real defects (RAG-REVIEW §4.29:
+15.7% of chunks were citeable and empty, and the punishment for theft was cited
+as Penal Code s.368 when it is s.367). The data got better and **every retrieval
+number got worse**:
+
+```
+                      pre-re-chunk   re-chunked @0.62
+  answerable              54/75           51/75
+  not_in_corpus           10/12            7/12
+  chunks < 100 chars       15.7%            2.7%
+  theft citation        s.368 WRONG      s.367 correct
+```
+
+The mechanism is chunk length, and it cuts both ways at once. Longer, well-formed
+chunks cover more ground, so they score higher against **everything** — lifting
+out-of-corpus questions through the floor — while the specific sentence a user
+asked about is diluted inside a larger chunk, leaving correct answers just under
+it. The sharpest single example:
+
+```
+Q: "What is the punishment for theft under the Sri Lankan Penal Code?"
+   Penal Code s.367 contains, verbatim:
+   "Whoever commits theft shall be punished with imprisonment ... three years"
+   -> NOT IN THE TOP 30.
+```
+
+Three cheaper fixes were tried and measured, and all three failed:
+
+| tried | result |
+| --- | --- |
+| raise the floor to 0.64 | restores 9/12 abstention, but refuses co-005 — *"how may a director be removed"* — live. Reverted |
+| a margin gate ("does the best hit stand clear?") | separates on a 30-result pool, does nothing on the 6 the service uses. OFF |
+| CHUNK_SIZE 1000 instead of 1500 | 48/75 and 8/12. No better |
+
+**Parent-document retrieval is the one that resolves it rather than trading one
+side against the other:** embed small, focused child chunks so the specific
+sentence matches strongly, and return the enclosing section so the answer is
+complete and citeable. It needs no new dependency, unlike the cross-encoder
+reranker in 2.2, and the ingestion side already produces clean section
+boundaries for the parent to be.
+
+**Do this before anything else in retrieval, and re-sweep the floor afterwards.**
+
+---
+
+## Stage 3 — Make it production software (1 week)
+
+| Item | Detail |
+| --- | --- |
+| **Serving** | gunicorn with a sane worker count; `/api/health` that checks Ollama **and** Chroma, not just process liveness |
+| **Hosted inference** | Local Ollama needs a GPU host and is a second thing to operate. A hosted API removes that and makes Stage 1.6 easy. Keep Ollama for local dev |
+| **Timeouts** | On the LLM client and on `agent.invoke` — currently only the Next.js 60s timeout bounds anything |
+| **Structured logging** | JSON logs with a request id, propagated from the caller |
+| **Metrics** | Latency per stage, tool-call counts, token counts, abstention rate, cache hit rate |
+| **Self-hosted tracing** | Langfuse, or LangSmith with inputs/outputs masked — and record the sub-processor |
+| **Backups** | Chroma and `knowledge_graph.json` are state. Nothing backs them up. Ingestion is expensive to redo |
+| **Concurrency** | `_llm_instance`, `_vectorstore_instance` and the graph are module-level singletons. Verify thread-safety under gunicorn before enabling multiple workers |
+
+---
+
+## Stage 4 — Features, in the order I would build them
+
+### 4.1 Corpus breadth — ⏳ **land and property DONE 2026-09-20**
+
+> **What was loaded**, from `lankalaw.net/consolidated-acts-2024` — the same source and
+> the same `*-Consolidated-2024.pdf` format as the existing corpus. Sources now live in
+> `lawyer-rag/data/acts/`, which is where `ACTS_SOURCE_DIR` should point; before this the
+> documented rebuild command could not run at all, because it pointed at `../Acts` and
+> that directory does not exist in the repository.
+>
+> | Act | chunks | |
+> | --- | --- | --- |
+> | Penal Code | 714 | trespass, mischief, theft |
+> | Partition Law | 208 | co-owned land — the commonest land action in Sri Lanka |
+> | Notaries Ordinance | 179 | |
+> | Land Development Ordinance | 169 | State land, permits and grants |
+> | Registration of Documents Ordinance | 85 | deed registration and priority |
+> | Powers of Attorney Ordinance | 47 | |
+> | Land (Restrictions on Alienation) Act | 42 | foreign ownership |
+> | Prevention of Frauds Ordinance | 27 | **s.2 — the rule that land passes only by notarially attested deed** |
+> | Prescription Ordinance | 21 | **s.3 — ten years' adverse possession** |
+>
+> **2,368 → 3,860 chunks; 5 → 14 documents.** No displacement: every question that found
+> its section in the old corpus still finds it, verified by re-running the golden set
+> restricted to the original five Acts.
+>
+> **⚠️ The Land Acquisition Act is NOT available from this source.** The full alphabetical
+> index holds only Land Development and Land (Restrictions on Alienation). It will have to
+> come from somewhere else, and both official sources are still broken.
+>
+> **Four things to know before the next ingest — all of them cost time here:**
+>
+> 1. **Add a `DOCUMENT_PATTERNS` entry per Act first.** Eight of the nine would otherwise
+>    have been stored as `"Partition  2024"`, `"Notaries  2024"` — §4.12 all over again,
+>    and a name nobody would type is a section nobody can filter to. Take the short title
+>    out of the Act's own section 1, not out of the filename.
+> 2. **Labels expire.** Loading legislation silently invalidated four `not_in_corpus`
+>    answer keys. One of them (`nic-011`) still scores below the floor, so it *looked*
+>    like a correct abstention — only re-reading the corpus for coverage found it. Run
+>    `scripts/validate_questions.py`, which now exists for this.
+> 3. **Write the questions at the same time as the ingest.** Until they existed, 1,492 of
+>    3,860 chunks had no test coverage at all.
+> 4. **The floor gets worse as the corpus grows** — RAG-REVIEW §4.24.
+>
+> **Still to do:** Labour → Family → Criminal Procedure (the PDF is already in
+> `data/uploads/`, tracked, and never ingested) → Tax → Evidence Ordinance → Rent Act.
+
+#### Why corpus breadth is still the highest-value item on this page
+
+The service holds three consolidated Acts plus the Computer Crimes Act. A practising
+lawyer will ask about Land, Labour, Family, Tax and Criminal law within minutes of opening
+it. Every one of those is a correct, honest *"I do not hold that"* — and a product that
+answers that way repeatedly stops being opened.
+
+**Priority order for Sri Lanka:** Land/Property → Labour → Family → Penal Code & Criminal
+Procedure → Tax (Inland Revenue, VAT) → Evidence Ordinance → Rent Act.
+
+Everything else in this section is worth less than this.
+
+### 4.2 Case law and precedent
+
+Sri Lanka Law Reports, Supreme Court and Court of Appeal decisions. `DOCUMENT_CATEGORIES`
+already anticipates them. This is what makes the tool interesting to a litigator rather
+than useful to a citizen — and it needs a citator ("has this been overruled?") to be
+trustworthy.
+
+### 4.3 Sinhala and Tamil
+
+Genuinely underserved, and a real moat. Two prerequisites, in order:
+
+1. **Translate the routing and refusal layers** (§4.8 of the review). Until then the
+   honest interim position is to **disable the assistant for `si`/`ta`** rather than run
+   it unguarded — the application's policy checks are English-only too, so a Sinhala
+   question currently bypasses both the pre- and post-generation checks.
+2. A multilingual embedding model, and evaluation in each language.
+
+### 4.4 Section-level permalinks and a document viewer
+
+Every citation should open the exact section in a reader with the amendment history beside
+it. This makes citations checkable by the person relying on them, which is the whole point
+of citing.
+
+### 4.5 Matter-scoped AI — **for firms, and not before the prerequisites**
+
+A research assistant over the firm's *own* files is the most valuable thing this could
+become for a paying practice. It is also the most dangerous:
+
+- `buildModelContext()` on the application side deliberately **has no parameter through
+  which matter data could travel**. That absence is a guardrail — removing it is the
+  decision, not an implementation detail.
+- Needs firm-scoped tenancy in the vector store, a processor agreement covering the model
+  provider, and **counsel question 4 answered**.
+- Encrypted matter fields would have to be decrypted to be embedded. Where do those
+  embeddings live, and who can query them? **An embedding of a privileged document is a
+  derivative of a privileged document.**
+
+**Do not start this until Stages 0–3 are done and counsel has answered.**
+
+### 4.6 Drafting assistance
+
+Templates for plaints, affidavits, deeds and MOUs, grounded in the held legislation. High
+value to firms, and it pairs with the document-automation module in the main product's
+roadmap. Note the line carefully: generating a document a lawyer reviews is a tool;
+generating one a citizen files is unauthorised practice.
+
+### 4.7 Proactive legislative monitoring
+
+Watch for amendments and gazette notifications; tell a firm when law they have relied on
+changes. Nobody in the market does this well, and it is a renewal reason rather than a
+feature.
+
+---
+
+## Summary — the order
+
+```
+Stage 0  Security + the LangSmith leak                ✅ DONE 2026-09-13
+Stage 1  Eval set ✅; 1.2 ✅ 1.2c ✅; 1.6 seam ✅, Gemini measured (worse), llama control owed
+Stage 2  2.1 hybrid + RRF ✅ DONE 2026-09-20; 2.2 reranking is now the top item
+Stage 3  Production serving                           1 week
+Stage 4  4.1 land/property ✅ DONE 2026-09-20; Labour/Family/Tax/Evidence outstanding
+```
+
+**The one thing to do next: Stage 2.2, the cross-encoder reranker.**
+
+Everything measured on 2026-09-20 points at it from a different direction:
+
+- **Ranking is no longer the bottleneck.** RRF fixed what fusion could fix (+3, nothing
+  regressed). For ten or more remaining failures the correct section is *already the top
+  hit* and the 0.62 gate rejects it at 0.58–0.61.
+- **The gate cannot be tuned out of this.** Lowering it recovers those questions and
+  loses `not_in_corpus` at every rung of the curve; raising it to exclude the two new
+  false positives costs five real answers.
+- **The corpus growing made it worse, and will again.** 0.62 was tuned against 2,368
+  chunks; at 3,860 more near-neighbours reach it (§4.24). Every future ingest degrades a
+  fixed threshold.
+
+A reranker judges the query-chunk **pair** rather than scoring the chunk alone, which is
+the only thing on the list that can separate populations one scalar cannot.
+
+**And the finding that outranks all of the above:** §4.25. The service retrieved the
+Prescription Ordinance and told a user the prescriptive period is **12 years** when s.3
+says **ten** — six times out of six, with grounding and the citation check both passing,
+because the Act it cited genuinely was retrieved. **Loading the legislation fixed the
+retrieval and did not fix the answer**, and a real citation beside a wrong number is more
+dangerous than no citation at all. That is Stage 1.4, and it is no longer a quality item.

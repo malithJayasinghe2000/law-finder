@@ -39,7 +39,8 @@ export type SubjectExport = {
   consents: unknown[];
   aiConversations: unknown[];
   communityActivity: { posts: unknown[]; comments: unknown[]; votesCast: number };
-  enquiriesSent: unknown[];
+  /** The applicant's own record of applying to be listed as an attorney. */
+  attorneyApplication: unknown;
   subjectRequests: unknown[];
   /**
    * Matter data is deliberately absent. This names the firms to ask instead —
@@ -78,7 +79,7 @@ export async function buildSubjectExport(userId: string): Promise<SubjectExport 
 
   if (!user) return null;
 
-  const [consents, aiConversations, posts, comments, votesCast, enquiries, requests, bookings] =
+  const [consents, aiConversations, posts, comments, votesCast, application, requests, bookings] =
     await Promise.all([
       prisma.consentRecord.findMany({
         where: { userId },
@@ -107,9 +108,20 @@ export async function buildSubjectExport(userId: string): Promise<SubjectExport 
         select: { content: true, createdAt: true, isAnonymous: true, isDeleted: true },
       }),
       prisma.vote.count({ where: { userId } }),
-      prisma.inquiry.findMany({
-        where: { clientEmail: user.email },
-        select: { message: true, status: true, createdAt: true },
+      // Replaces the `Inquiry` export removed in Phase 7. `draftData` is now a
+      // validated, documented shape rather than whatever the wizard posted, so
+      // it can honestly be included in a subject-access response — an export
+      // cannot safely release a blob nobody has looked at.
+      prisma.lawyerApplication.findFirst({
+        where: { userId },
+        select: {
+          status: true,
+          currentStep: true,
+          draftData: true,
+          submittedAt: true,
+          createdAt: true,
+          updatedAt: true,
+        },
       }),
       prisma.dataSubjectRequest.findMany({
         where: { userId },
@@ -147,7 +159,7 @@ export async function buildSubjectExport(userId: string): Promise<SubjectExport 
     consents,
     aiConversations,
     communityActivity: { posts, comments, votesCast },
-    enquiriesSent: enquiries,
+    attorneyApplication: application,
     subjectRequests: requests,
     heldByLawFirms: [...byFirm.entries()].map(([firmId, { name, count }]) => ({
       firmId,
@@ -208,10 +220,10 @@ export async function eraseSubject(userId: string): Promise<ErasureResult | null
       await tx.aiConversation.deleteMany({ where: { userId } })
     ).count;
 
-    // Enquiries are keyed by the email they were sent with, not by user id.
-    // Read it before the overwrite below, or this matches nothing.
-    deleted.inquiry = (
-      await tx.inquiry.deleteMany({ where: { clientEmail: user.email } })
+    // Their application to be listed as an attorney, including the NIC number
+    // and the identity/practising-certificate images attached to it.
+    deleted.lawyerApplication = (
+      await tx.lawyerApplication.deleteMany({ where: { userId } })
     ).count;
 
     deleted.vote = (await tx.vote.deleteMany({ where: { userId } })).count;

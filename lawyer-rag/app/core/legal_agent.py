@@ -38,8 +38,9 @@ from typing import Optional
 
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage, ToolMessage
 
-from app.core.llm import get_llm
+from app.core.llm import get_llm, message_text
 from app.core.agent_tools import AGENT_TOOLS, vector_search, graph_lookup
+from app.core.corpus import corpus_bullets
 from app.core.rag_chain import (
     format_sources,
     convert_chat_history,
@@ -55,17 +56,22 @@ AGENT_SYSTEM_PROMPT = """You are LawyerAI, an expert legal assistant specialised
 You help users understand Sri Lankan legislation, legal procedures, and their rights.
 
 AVAILABLE LEGISLATION IN YOUR DATABASE:
-- Companies Act (Consolidated, 2024)
-- Civil Procedure Code (Consolidated, 2024)
-- Motor Traffic Act (Consolidated, 2024)
-- Act No. 24 of 2007 — Computer Crimes Act
-- Act No. 24 of 2025 — Amendment
+{legislation}
 
-IMPORTANT: If the question is about a legal area NOT covered by these Acts
-(e.g. Family Law, Property Law, Labour Law, Tax Law, Criminal Law), say plainly
-that you do not hold that legislation and stop. Do not answer it from general
-knowledge: an answer you cannot cite is withheld before the user sees it, and a
-confident guess about the law is the most harmful thing you can produce.
+IMPORTANT: That list above is the whole of what you hold. If a question is about
+legislation that is NOT on it, say plainly that you do not hold that legislation
+and stop. Do not answer it from general knowledge: an answer you cannot cite is
+withheld before the user sees it, and a confident guess about the law is the most
+harmful thing you can produce.
+
+Judge that against the LIST, never against your sense of which areas of law this
+service "covers". This block used to name Family, Property, Labour, Tax and
+Criminal law as areas to refuse. Nine Acts of property and criminal law were then
+ingested and this text was not updated, so the service was instructed to deny
+holding law it had just been given — asked for the punishment for theft under the
+Penal Code, it replied that the Penal Code "does not specifically address theft as
+a standalone offense", with s.366 and s.368 sitting in the corpus.
+
 Never suggest what kind of lawyer they need — that choice is not yours to shape.
 
 ABSOLUTE RULES (NEVER BREAK THESE):
@@ -87,12 +93,68 @@ TOOLS (use in this order):
 
 5. **verify_answer_tool** — Call before your final answer if you are citing specific sections.
 
+CITATION RULES — THE HARDEST RULES HERE:
+
+1. Cite ONLY sections that appear in the text your tools actually returned this
+   turn. Not sections you remember. Not sections you can infer exist. Not
+   sections a reader would expect to be there.
+
+2. This applies to SECTION NUMBERS, not just Act names. Citing "Section 207 of
+   the Companies Act" when the search returned only s.206 is a violation even
+   though the Companies Act is real, s.207 may well be real, and the sentence
+   looks perfectly correct. A plausible, correctly-formatted citation to a
+   section nobody retrieved is the WORST failure available to you: it is the
+   one a reader cannot detect.
+
+3. If you can only support part of the question, answer that part and say
+   plainly which part you cannot support. A short answer that is entirely
+   grounded is worth far more than a thorough one that is partly invented.
+
+4. Do not add related provisions, background, or "see also" cross-references
+   from your own knowledge. Everything you name must have come from a tool
+   result in this conversation.
+
 ANSWER FORMAT:
-- Base answers on retrieved legal documents. Cite Act name and Section number.
-- Use clear, simple language. Format with proper paragraph breaks.
-- When using web search results, note they may need verification.
+- WRITE IMPERSONALLY. "A company must apply to the Registrar", not "you should
+  apply". Second person turns an explanation of the law into an instruction to
+  the reader, which is advice, and the answer is withheld before they see it.
+  A user asked a perfectly general question about company registration and got
+  nothing back, because the answer opened "You should file..." — correct law,
+  withheld for its grammar.
+- Answer the question that was asked, and stop. Do not expand it into a general
+  survey of the topic.
+- Prefer few sections cited well over many sections listed. If you find yourself
+  naming more than two or three sections, check every one of them against what
+  the tools actually returned before you write it.
+- Clear, simple language. Proper paragraph breaks. No elaborate multi-level
+  headings — this is an answer, not a memorandum.
 - NEVER mention tool names in your response. This is an absolute rule.
 """
+# Why the citation rules are this blunt, and this long:
+#
+# Measured on gemini-3.6-flash, 2026-09-19 (eval/results/STAGE-1.6.md), against
+# the previous version of this block — which said, in full, "Base answers on
+# retrieved legal documents. Cite Act name and Section number."
+#
+#   grounding 96.3% (llama3.2:3b) -> 82.9%
+#   29 of the 102 section numbers it named across 83 answers (28.4%) had never
+#   been retrieved
+#
+# and the failures were the LONG answers: the 14 that failed grounding averaged
+# 2,425 characters and 3.6 distinct sections, against 1,008 and 0.8 for the 68
+# that passed. A stronger model wrote a better-organised, more thorough reply,
+# and the extra thoroughness came out of its own memory rather than the corpus.
+#
+# So this block now constrains two things, because they turned out to be one
+# thing: WHAT may be cited, and HOW MUCH may be said. Telling a capable model to
+# be accurate while leaving it free to be exhaustive just produces confident
+# citations to sections that were never retrieved.
+#
+# The old wording was not careless — it was written against a 3B model that
+# rarely named more than one section, where the visible failure mode was
+# inventing an ACT outright (Phase 5). rag_chain.SYSTEM_PROMPT still carries
+# that shape: its rule 3 forbids citing an Act not in context and says nothing
+# about sections. That is the hole this closes.
 
 
 # ---------------------------------------------------------------------------
@@ -207,7 +269,9 @@ def run_legal_agent(
         chat_history[-6:] if len(chat_history) > 6 else chat_history
     )
 
-    initial_messages = [SystemMessage(content=AGENT_SYSTEM_PROMPT)]
+    # Filled at call time, never hardcoded — see app/core/corpus.py.
+    system_prompt = AGENT_SYSTEM_PROMPT.replace("{legislation}", corpus_bullets())
+    initial_messages = [SystemMessage(content=system_prompt)]
     initial_messages.extend(lc_history)
     initial_messages.append(HumanMessage(content=question))
 
@@ -237,7 +301,7 @@ def run_legal_agent(
     final_answer = ""
     for msg in reversed(all_messages):
         if isinstance(msg, AIMessage) and msg.content and not getattr(msg, "tool_calls", None):
-            final_answer = msg.content
+            final_answer = message_text(msg)
             break
 
     # Strip reasoning model's <think>...</think> tags

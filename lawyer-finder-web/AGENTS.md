@@ -15,6 +15,17 @@ The platform is being repositioned from a **legal-services marketplace** (which 
 cannot legally be in Sri Lanka) into **software that law firms run on**. Booking,
 payments, advertising, and AI output are all mid-restructure.
 
+**Want the whole system feature by feature? Read `docs/TOUR.md`** — the guided walk through
+every screen and why it is built that way.
+
+**Lost the thread, or new here? Read `docs/THE-PROJECT.md` first** — what this is, how a
+matter flows, who may read what, and what state everything is in. Then `docs/DIRECTION.md`
+for what happens next, and `docs/OPEN-ITEMS.md` for everything outstanding.
+
+> ⚠️ The four planning documents at the **repository root** describe the pre-restructure
+> marketplace (sponsored listings, commission on fees, reviews, lead generation). They are
+> marked superseded. **Do not build from them.**
+
 **Before writing any code that touches booking, payments, advertising, ranking, or
 the AI chatbot, read in this order:**
 
@@ -29,8 +40,13 @@ the AI chatbot, read in this order:**
    and whether we are its controller or the firm's processor
 7. `docs/restructure/COUNSEL-MEETING-BRIEF.md` — the five questions to put to an
    attorney, in plain language
+8. `docs/restructure/SYSTEM-REVIEW.md` — a whole-codebase review: what to remove,
+   restructure and add, and what is good and must not be "cleaned up"
 
-Phases 0–6 are complete. Phase 7 (growth) is next.
+Phases 0–8 are complete. **See `docs/restructure/PROGRESS.md` for what is next** — the
+largest open items are an authenticated file-serving route for identity documents, and
+provisioning the encryption-key custody and scheduled jobs that Phase 8 documented but did
+not build.
 
 ### The seven hard rules (full detail in LEGAL-GUARDRAILS.md)
 
@@ -66,6 +82,13 @@ bound by that limit — no fee ranges, no ratings, no promotional copy.
   not prove the assistant refuses to advise on someone's own case. **Every AI answer
   is generated server-side through `/api/ai/ask` and passes that policy file. The
   browser must never call a model service directly**
+- **An advice pattern that looks right can still miss.** *"you may be personally liable
+  for the company's debts"* was published to a user in Stage 1.2: the pattern meant to
+  catch it had no room for the adverb and required liable *to*, not *for*. Reading the
+  regex, you would have said the case was covered. **When you touch these patterns, add
+  a case for the general form too** — *"what must a director do if the company cannot pay
+  its debts"* must still be ANSWERED while *"am I personally liable"* is refused. A check
+  that refuses both is as broken as one that answers both
 - Run `npm run check:billing` after touching `src/lib/consultations/feeNote.ts` or
   `src/lib/firms/billing.ts` — a green build does not prove a fee note is free of a
   platform fee. **The licence belongs to the `LawFirm`; a seat is a person who can
@@ -74,5 +97,25 @@ bound by that limit — no fee ranges, no ratings, no promotional copy.
   prove that an "erasure" erases anything. **We are controller for our own data and
   processor for the firm's matter data at once: never delete, export, or seek consent
   for anything under `Booking`. And never add a content column to `DataAccessLog`**
+- **A published privacy notice is never edited or deleted.** Publishing writes a NEW
+  version (`src/lib/privacy/notice.ts`); consent records point at the exact wording a
+  person was shown, and editing in place destroys that evidence silently. Recording a
+  consent *grant* fails closed when no notice is published — a *withdrawal* never does
+- **If you build a right, build the screen.** Phase 6 shipped the whole PDPA rights engine
+  with no caller and the compliance position was unchanged. The same applies to the firm
+  side: a referral endpoint a firm cannot answer leaves the request open for ever
+- **Authority inside a firm comes from an ACTIVE `FirmMember` row, never the platform
+  role.** A practice manager's role is `CLIENT`. This has now been got wrong in five
+  separate layers — access resolution, route guards, the lawyer layout, the middleware and
+  the sidebar — so check membership, not role
+- Run `npm run check:firm` after touching `src/lib/firms/invitations.ts` — a green build
+  does not prove that an unverified attorney cannot become a partner, or that an attorney
+  cannot carry a client's live matter into a different practice
+- **Privileged matter fields are encrypted at rest** (`src/lib/privacy/encryption.ts`).
+  Never read `Booking.description`, `ConflictCheck.notes`, `Quote.scopeOfWork`,
+  `EngagementLetter.body` or `Message.content` directly — go through `disclose*()` in
+  `src/lib/firms/access.ts`. **A disclosure path must never return ciphertext:** the
+  outcomes are the plaintext or a marker, and a fallback that returns the stored value
+  hands a withheld reader an offline-attackable copy of a client's legal problem
 - **Never break a working flow to make a legal fix** — replace before removing
 - Update `docs/restructure/PROGRESS.md` at the end of every session

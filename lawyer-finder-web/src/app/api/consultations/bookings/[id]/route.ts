@@ -5,8 +5,9 @@ import { CancelBookingSchema, CompleteBookingSchema } from '@/schemas/consultati
 import { formatSriLankaDateIso, formatSriLankaDateIsoOrNull } from '@/lib/utils';
 import { EmailService } from '@/lib/email/EmailService';
 import { canTransition } from '@/lib/consultations/bookingStatus';
-import { getMatterAccess, redactMatter } from '@/lib/firms/access';
+import { getMatterAccess, discloseMatter, discloseQuote } from '@/lib/firms/access';
 import { recordAccess, actorRoleFor } from '@/lib/privacy/audit';
+import { encryptField } from '@/lib/privacy/encryption';
 
 /**
  * Engagement request lifecycle.
@@ -91,7 +92,14 @@ export async function GET(
 
     return NextResponse.json({
       booking: {
-        ...redactMatter(booking, access),
+        ...discloseMatter(booking, access),
+        // The quotes ride along in the `include` above, and a quote's scope of
+        // work says what the firm agreed to do about the client's problem —
+        // privileged in the same way the description is. Before this they were
+        // spread into the response unfiltered, so a paralegal, an unassigned
+        // colleague and platform ADMIN all received the scope of work while the
+        // description one line above was being carefully withheld.
+        quotes: booking.quotes.map((q) => discloseQuote(q, access)),
         // Null until an appointment exists — a firm-first request has none until
         // the firm assigns an attorney and proposes a time with its quote.
         date: formatSriLankaDateIsoOrNull(booking.date),
@@ -204,6 +212,35 @@ export async function PATCH(
       return null;
     };
 
+    /**
+     * Every row returned from this route goes through here.
+     *
+     * `subject`, `description` and `lawyerNotes` are stored encrypted, so a
+     * bare `{ ...updated }` sends the caller base64 instead of the words they
+     * wrote. This applies the same disclosure gate the GET path uses, with the
+     * access this actor actually has — a client, the acting attorney, and an
+     * ADMIN get three different payloads out of the same row, and the ADMIN
+     * gets neither the plaintext nor the ciphertext.
+     *
+     * A helper rather than six copies: the six copies is how Phase 0 shipped a
+     * redaction on one booking read path and missed the other.
+     */
+    const patchAccess = await getMatterAccess({
+      actorUserId: session.userId,
+      actorRole: session.role,
+      actorProfileId: session.profileId,
+      matter: {
+        lawyerId: booking.lawyerId,
+        firmId: booking.firmId,
+        clientId: booking.clientId,
+      },
+    });
+
+    const disclose = <T extends { id: string; date?: Date | null }>(row: T) => ({
+      ...discloseMatter(row as T & { id: string }, patchAccess),
+      date: formatSriLankaDateIsoOrNull(row.date ?? null),
+    });
+
     /** Reject any transition the state machine does not permit. */
     const guard = (to: Parameters<typeof canTransition>[1]) => {
       if (!canTransition(booking.status, to)) {
@@ -280,7 +317,7 @@ export async function PATCH(
 
         return NextResponse.json({
           success: true,
-          booking: { ...updated, date: formatSriLankaDateIsoOrNull(updated.date) },
+          booking: disclose(updated),
         });
       }
 
@@ -389,7 +426,7 @@ export async function PATCH(
 
         return NextResponse.json({
           success: true,
-          booking: { ...updated, date: formatSriLankaDateIsoOrNull(updated.date) },
+          booking: disclose(updated),
           refundAmount,
         });
       }
@@ -428,7 +465,15 @@ export async function PATCH(
 
         const updated = await prisma.booking.update({
           where: { id },
-          data: { status: 'COMPLETED', lawyerNotes: validated.data.lawyerNotes },
+          data: {
+            status: 'COMPLETED',
+            // The attorney's own note on the matter — privileged, encrypted at
+            // rest bound to this booking id.
+            lawyerNotes: encryptField(
+              { model: 'Booking', recordId: id, field: 'lawyerNotes' },
+              validated.data.lawyerNotes
+            ),
+          },
         });
 
         await EmailService.sendConsultationCompleted(
@@ -439,7 +484,7 @@ export async function PATCH(
 
         return NextResponse.json({
           success: true,
-          booking: { ...updated, date: formatSriLankaDateIsoOrNull(updated.date) },
+          booking: disclose(updated),
         });
       }
 
@@ -474,7 +519,7 @@ export async function PATCH(
 
         return NextResponse.json({
           success: true,
-          booking: { ...updated, date: formatSriLankaDateIsoOrNull(updated.date) },
+          booking: disclose(updated),
         });
       }
 
@@ -516,7 +561,7 @@ export async function PATCH(
 
         return NextResponse.json({
           success: true,
-          booking: { ...updated, date: formatSriLankaDateIsoOrNull(updated.date) },
+          booking: disclose(updated),
         });
       }
 
@@ -565,7 +610,7 @@ export async function PATCH(
 
         return NextResponse.json({
           success: true,
-          booking: { ...updated, date: formatSriLankaDateIsoOrNull(updated.date) },
+          booking: disclose(updated),
         });
       }
 
@@ -604,7 +649,7 @@ export async function PATCH(
 
         return NextResponse.json({
           success: true,
-          booking: { ...updated, date: formatSriLankaDateIsoOrNull(updated.date) },
+          booking: disclose(updated),
         });
       }
 

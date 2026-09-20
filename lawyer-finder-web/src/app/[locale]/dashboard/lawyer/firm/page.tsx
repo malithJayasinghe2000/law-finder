@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import { useRouter, usePathname } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -46,6 +47,16 @@ interface FirmMember {
   };
 }
 
+interface FirmInvitation {
+  id: string;
+  email: string;
+  role: string;
+  title: string | null;
+  status: string;
+  expiresAt: string;
+  createdAt: string;
+}
+
 interface FirmOffice {
   id: string;
   label: string;
@@ -61,6 +72,7 @@ interface Firm {
   name: string;
   firmType: string;
   isSoloPractice: boolean;
+  isRegisteredPractice: boolean;
   registrationNumber: string | null;
   principalBaslNumber: string | null;
   establishedYear: number | null;
@@ -110,11 +122,14 @@ const VERIFICATION_STYLE: Record<string, string> = {
 
 export default function FirmPage() {
   const [firm, setFirm] = useState<Firm | null>(null);
+  const router = useRouter();
+  const pathname = usePathname();
   const [canManage, setCanManage] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
   const [memberDialogOpen, setMemberDialogOpen] = useState(false);
+  const [invitations, setInvitations] = useState<FirmInvitation[]>([]);
   const [officeDialogOpen, setOfficeDialogOpen] = useState(false);
 
   const load = useCallback(() => {
@@ -127,7 +142,30 @@ export default function FirmPage() {
       })
       .catch(() => toast.error('Could not load your firm.'))
       .finally(() => setLoading(false));
+
+    // Outstanding invitations. Separate call because a member who cannot manage
+    // the firm has no business seeing who has been asked to join it.
+    fetch('/api/firms/me/invitations')
+      .then((r) => (r.ok ? r.json() : { invitations: [] }))
+      .then((d) => setInvitations(d.invitations ?? []))
+      .catch(() => setInvitations([]));
   }, []);
+
+  const revokeInvitation = async (invitationId: string, email: string) => {
+    try {
+      const res = await fetch('/api/firms/me/invitations', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ invitationId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Could not withdraw that invitation.');
+      toast.success(`Invitation to ${email} withdrawn.`);
+      load();
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Something went wrong.');
+    }
+  };
 
   useEffect(load, [load]);
 
@@ -268,6 +306,44 @@ export default function FirmPage() {
               of legal services. If you later take on another attorney or an assistant,
               you can add them here and share the workload without moving anything.
             </p>
+          </div>
+        </div>
+      )}
+
+      {/*
+        The entry point to firm registration.
+        Shown prominently on an UNREGISTERED practice, because the situation it
+        addresses is a real firm whose partner has just signed up and has no idea
+        that the "Nimal Perera" practice they are looking at is supposed to become
+        "Perera & Associates". Before this existed the only route was to guess
+        that renaming this firm and adding members one at a time was the
+        multi-partner onboarding flow.
+      */}
+      {!firm.isRegisteredPractice && (
+        <div className="border-l-4 border-l-[#bfa37a] border border-neutral-200 bg-white p-5">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-3">
+              <Building2 className="mt-0.5 h-5 w-5 shrink-0 text-[#bfa37a]" />
+              <div className="text-[12px] leading-relaxed text-neutral-600">
+                <p className="font-semibold text-neutral-800">
+                  Practising with partners or staff? Register your practice.
+                </p>
+                <p className="mt-1">
+                  This practice was created automatically and named after you when your own
+                  registration was approved. If you practise as a firm, give it its real name and
+                  address and invite your partners — they each get an email and decide for
+                  themselves. <strong>Your existing matters and licence are unaffected.</strong>
+                </p>
+              </div>
+            </div>
+            {canManage && (
+              <Button
+                className="shrink-0 rounded-none"
+                onClick={() => router.push(`${pathname}/register`)}
+              >
+                Register the practice
+              </Button>
+            )}
           </div>
         </div>
       )}
@@ -512,6 +588,54 @@ export default function FirmPage() {
               </div>
             ))}
           </div>
+
+          {/*
+            Outstanding invitations.
+            Shown next to the member list because "I invited my partner and
+            nothing happened" is the obvious confusion otherwise — an invitation
+            is not a membership, and the difference has to be visible.
+          */}
+          {invitations.filter((i) => i.status === 'PENDING').length > 0 && (
+            <div className="mt-5 border-t border-neutral-200 pt-5">
+              <h3 className="mb-3 text-[11px] font-bold uppercase tracking-widest text-neutral-500">
+                Invited, not yet joined
+              </h3>
+              <div className="space-y-2">
+                {invitations
+                  .filter((i) => i.status === 'PENDING')
+                  .map((inv) => (
+                    <div
+                      key={inv.id}
+                      className="flex flex-col gap-2 border border-dashed border-neutral-300 p-3 sm:flex-row sm:items-center sm:justify-between"
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate text-sm text-neutral-900">{inv.email}</p>
+                        <p className="truncate text-[11px] text-neutral-500">
+                          Invited as {ROLE_LABELS[inv.role] ?? inv.role}
+                          {' · expires '}
+                          {new Date(inv.expiresAt).toLocaleDateString('en-GB', {
+                            day: 'numeric', month: 'short', year: 'numeric',
+                          })}
+                        </p>
+                        <p className="mt-1 text-[10px] text-neutral-400">
+                          They decide for themselves. Nothing about your matters is visible to
+                          them until they accept.
+                        </p>
+                      </div>
+                      {canManage && (
+                        <Button
+                          size="sm" variant="ghost"
+                          className="w-fit shrink-0 rounded-none text-[11px]"
+                          onClick={() => revokeInvitation(inv.id, inv.email)}
+                        >
+                          Withdraw
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 

@@ -14,11 +14,15 @@
     "db:reset": "prisma migrate reset",
     "db:studio": "prisma studio",
     "db:generate": "prisma generate",
-    "check:privilege": "TS_NODE_COMPILER_OPTIONS='{\"module\":\"CommonJS\"}' ts-node -r tsconfig-paths/register ./scripts/check-privilege-policy.ts",
+    "check:privilege": "TS_NODE_COMPILER_OPTIONS='{\"module\":\"CommonJS\"}' ts-node -r dotenv/config -r tsconfig-paths/register ./scripts/check-privilege-policy.ts",
+    "check:firm": "TS_NODE_COMPILER_OPTIONS='{\"module\":\"CommonJS\"}' ts-node -r dotenv/config -r tsconfig-paths/register ./scripts/check-firm-onboarding.ts",
+    "privacy:encrypt": "TS_NODE_COMPILER_OPTIONS='{\"module\":\"CommonJS\"}' ts-node -r dotenv/config -r tsconfig-paths/register ./scripts/encrypt-matter-data.ts",
     "check:ai": "TS_NODE_COMPILER_OPTIONS='{\"module\":\"CommonJS\"}' ts-node -r tsconfig-paths/register ./scripts/check-ai-policy.ts",
     "ai:purge": "TS_NODE_COMPILER_OPTIONS='{\"module\":\"CommonJS\"}' ts-node -r dotenv/config -r tsconfig-paths/register ./scripts/purge-ai-conversations.ts",
     "check:billing": "TS_NODE_COMPILER_OPTIONS='{\"module\":\"CommonJS\"}' ts-node -r dotenv/config -r tsconfig-paths/register ./scripts/check-billing-policy.ts",
     "check:pdpa": "TS_NODE_COMPILER_OPTIONS='{\"module\":\"CommonJS\"}' ts-node -r dotenv/config -r tsconfig-paths/register ./scripts/check-pdpa-policy.ts",
+    "jobs:daily": "npm run privacy:purge && npm run ads:expire",
+    "ads:expire": "node -e \"const u=new URL(process.env.APP_URL+'/api/ads/expire');if(process.env.CRON_SECRET)u.searchParams.set('token',process.env.CRON_SECRET);fetch(u,{method:'POST'}).then(r=>r.text()).then(console.log)\"",
     "privacy:purge": "TS_NODE_COMPILER_OPTIONS='{\"module\":\"CommonJS\"}' ts-node -r dotenv/config -r tsconfig-paths/register ./scripts/purge-expired-personal-data.ts"
   },
   "dependencies": {

@@ -16,3 +16,5 @@ __pycache__/
 _bmad/config.user.toml
 _bmad/custom/*.user.toml
 *.user.toml
+# macOS
+.DS_Store

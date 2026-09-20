@@ -16,6 +16,7 @@ import requests
 from flask import Blueprint, request, jsonify
 
 from app.config import config
+from app.utils.errors import error_response
 from app.core.vectorstore import (
     get_all_document_names,
     delete_document_by_name,
@@ -90,8 +91,7 @@ def list_documents():
         }), 200
 
     except Exception as e:
-        logger.error(f"Error listing documents: {e}\n{traceback.format_exc()}")
-        return jsonify({"error": str(e)}), 500
+        return error_response(e, "Could not list documents", 500, context="list documents")
 
 
 @documents_bp.route("/api/documents/categories", methods=["GET"])
@@ -122,8 +122,7 @@ def list_categories():
         return jsonify({"categories": categories}), 200
 
     except Exception as e:
-        logger.error(f"Error listing categories: {e}")
-        return jsonify({"error": str(e)}), 500
+        return error_response(e, "Could not list categories", 500, context="list categories")
 
 
 @documents_bp.route("/api/documents/<path:doc_name>", methods=["GET"])
@@ -160,8 +159,7 @@ def get_document(doc_name: str):
         }), 200
 
     except Exception as e:
-        logger.error(f"Error getting document: {e}")
-        return jsonify({"error": str(e)}), 500
+        return error_response(e, "Could not load document", 500, context="get document")
 
 
 @documents_bp.route("/api/documents/<path:doc_name>/graph", methods=["GET"])
@@ -180,8 +178,7 @@ def get_document_graph(doc_name: str):
         return jsonify(graph_data), 200
 
     except Exception as e:
-        logger.error(f"Error getting document graph: {e}")
-        return jsonify({"error": str(e)}), 500
+        return error_response(e, "Could not load document graph", 500, context="document graph")
 
 
 @documents_bp.route("/api/documents/<path:doc_name>", methods=["DELETE"])
@@ -216,8 +213,7 @@ def delete_document(doc_name: str):
         }), 200
 
     except Exception as e:
-        logger.error(f"Error deleting document: {e}\n{traceback.format_exc()}")
-        return jsonify({"error": str(e)}), 500
+        return error_response(e, "Could not delete document", 500, context="delete document")
 
 
 @documents_bp.route("/api/health", methods=["GET"])
@@ -236,12 +232,11 @@ def health_check():
         resp = requests.get(f"{config.OLLAMA_BASE_URL}/api/tags", timeout=5)
         if resp.status_code == 200:
             models = [m["name"] for m in resp.json().get("models", [])]
+            # Deliberately no model list, no base URL and no model names: this
+            # route answers without the service token, so it may say whether
+            # the dependency is up and must not describe the host.
             status["services"]["ollama"] = {
                 "status": "connected",
-                "url": config.OLLAMA_BASE_URL,
-                "available_models": models,
-                "llm_model": config.LLM_MODEL,
-                "embedding_model": config.EMBEDDING_MODEL,
                 "llm_available": any(config.LLM_MODEL in m for m in models),
                 "embedding_available": any(config.EMBEDDING_MODEL in m for m in models),
             }
@@ -249,7 +244,8 @@ def health_check():
             status["services"]["ollama"] = {"status": "error", "code": resp.status_code}
             status["status"] = "degraded"
     except Exception as e:
-        status["services"]["ollama"] = {"status": "unreachable", "error": str(e)}
+        logger.warning(f"Health check: Ollama unreachable: {e}")
+        status["services"]["ollama"] = {"status": "unreachable"}
         status["status"] = "degraded"
 
     # Check ChromaDB
@@ -260,7 +256,8 @@ def health_check():
             **stats,
         }
     except Exception as e:
-        status["services"]["chromadb"] = {"status": "error", "error": str(e)}
+        logger.warning(f"Health check: ChromaDB error: {e}")
+        status["services"]["chromadb"] = {"status": "error"}
         status["status"] = "degraded"
 
     # Check Knowledge Graph
@@ -273,7 +270,10 @@ def health_check():
                 **graph_stats,
             }
         except Exception as e:
-            status["services"]["knowledge_graph"] = {"status": "error", "error": str(e)}
+            logger.warning(f"Health check: knowledge graph error: {e}")
+            status["services"]["knowledge_graph"] = {"status": "error"}
+
+    status["tracing_enabled"] = config.TRACING_ENABLED
 
     http_code = 200 if status["status"] == "healthy" else 503
     return jsonify(status), http_code

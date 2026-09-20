@@ -15,7 +15,7 @@ interface AdminData {
   stats: {
     totalVerified: number;
     pendingApprovals: number;
-    totalInquiries: number;
+    totalFirms: number;
     totalArticles: number;
     totalUsers: number;
     totalLawyers: number;
@@ -61,7 +61,7 @@ export default function AdminDashboard() {
     { label: 'Verified Lawyers', value: data.stats.totalVerified, icon: Shield, trend: '+5%', up: true },
     { label: 'Pending Approvals', value: data.stats.pendingApprovals, icon: UserPlus, trend: data.stats.pendingApprovals > 0 ? 'Action needed' : 'Clear', up: false },
     { label: 'Total Clients', value: data.stats.totalClients, icon: Scale, trend: '+8%', up: true },
-    { label: 'Total Inquiries', value: data.stats.totalInquiries, icon: Inbox, trend: '+3%', up: true },
+    { label: 'Law Firms', value: data.stats.totalFirms, icon: Inbox, trend: '', up: true },
     { label: 'Published Articles', value: data.stats.totalArticles, icon: FileText, trend: 'Active', up: true },
     { label: 'Platform Health', value: '99%', icon: TrendingUp, trend: 'Stable', up: true },
   ];
@@ -205,8 +205,8 @@ export default function AdminDashboard() {
               <span className="text-lg font-bold">{data.stats.totalClients}</span>
             </div>
             <div className="flex items-center justify-between py-2 border-b border-neutral-800">
-              <span className="text-xs text-neutral-400 uppercase tracking-wide">Total Inquiries</span>
-              <span className="text-lg font-bold">{data.stats.totalInquiries}</span>
+              <span className="text-xs text-neutral-400 uppercase tracking-wide">Law Firms</span>
+              <span className="text-lg font-bold">{data.stats.totalFirms}</span>
             </div>
             <div className="flex items-center justify-between py-2">
               <span className="text-xs text-neutral-400 uppercase tracking-wide">Articles Published</span>

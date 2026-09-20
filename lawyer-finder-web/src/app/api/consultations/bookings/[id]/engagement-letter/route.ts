@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
-import { getMatterAccess } from '@/lib/firms/access';
+import { getMatterAccess, discloseEngagementLetter } from '@/lib/firms/access';
 import { recordAccess, actorRoleFor } from '@/lib/privacy/audit';
 
 /**
@@ -99,7 +99,11 @@ export async function GET(
 
     return NextResponse.json({
       letter: {
-        ...letter,
+        // `body`, `matterSubject`, `scopeOfWork` and `exclusions` are stored
+        // encrypted. `mayReadLetter` above has already established that this
+        // reader is a party to the retainer, and the gate turns that into
+        // words.
+        ...discloseEngagementLetter(letter, access),
         issuedAt: letter.issuedAt.toISOString(),
         clientViewedAt: letter.clientViewedAt?.toISOString() || null,
         createdAt: letter.createdAt.toISOString(),

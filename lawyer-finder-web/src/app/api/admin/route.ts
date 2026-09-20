@@ -12,7 +12,7 @@ export async function GET() {
     const [
       pendingApplications,
       totalVerified,
-      totalInquiries,
+      totalFirms,
       totalArticles,
       totalUsers,
       totalLawyers,
@@ -26,7 +26,7 @@ export async function GET() {
         include: { user: { select: { email: true, createdAt: true } } },
       }),
       prisma.lawyerProfile.count({ where: { isVerified: true } }),
-      prisma.inquiry.count(),
+      prisma.lawFirm.count({ where: { isActive: true } }),
       prisma.article.count({ where: { status: 'PUBLISHED' } }),
       prisma.user.count(),
       prisma.user.count({ where: { role: 'LAWYER' } }),
@@ -78,7 +78,7 @@ export async function GET() {
       stats: {
         totalVerified,
         pendingApprovals: pendingApplications.length,
-        totalInquiries,
+        totalFirms,
         totalArticles,
         totalUsers,
         totalLawyers,

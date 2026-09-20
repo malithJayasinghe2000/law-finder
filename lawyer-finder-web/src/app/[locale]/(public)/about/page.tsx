@@ -135,15 +135,30 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
                   title: 'BASL Verified Attorneys',
                   desc: 'Every lawyer on TheLawyr is verified against the Bar Association of Sri Lanka registry. No fake profiles, guaranteed authenticity.',
                 },
+                // Three claims on this page were rewritten in Phase 7, and each
+                // described something the restructure had already removed:
+                //
+                //  - "Filter by ... fee range" — `LawyerProfile.baseFeeRange`
+                //    was deleted in Phase 2. A published fee indication is
+                //    beyond the Rule 40 content limit and reads as advertising.
+                //  - "Direct Inquiry System ... with your case details" — the
+                //    unauthenticated `Inquiry` intake, removed in Phase 7.
+                //  - "Verified Reviews" — the `Review` model was deleted in
+                //    Phase 2. Star ratings are unfair attraction under Rule 39
+                //    and make ordering non-neutral under guardrail rule 4.
+                //
+                // Marketing copy is a surface like any other. A page promising
+                // a feature we removed for legal reasons is still holding the
+                // platform out as offering it.
                 {
                   icon: Search,
-                  title: 'Intelligent Search',
-                  desc: 'Filter lawyers by practice area, district, language, and fee range. Find exactly the right legal expert for your case.',
+                  title: 'Search You Control',
+                  desc: 'Filter by practice area, district and language — criteria you choose. Ordering is alphabetical and nothing about position can be bought.',
                 },
                 {
                   icon: MessageSquare,
-                  title: 'Direct Inquiry System',
-                  desc: 'Send secure inquiries directly to lawyers with your case details. Get connected without the hassle of cold calls.',
+                  title: 'Engage a Practice Directly',
+                  desc: 'Send an enquiry to a firm you have chosen. The firm decides whether it can act, checks for conflicts, and quotes its own fee — you pay the firm directly.',
                 },
                 {
                   icon: BookOpen,
@@ -151,9 +166,9 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
                   desc: 'Access expert legal articles written by verified attorneys. Understand your rights before you consult.',
                 },
                 {
-                  icon: Star,
-                  title: 'Verified Reviews',
-                  desc: 'Read honest reviews from real clients. Every review is moderated to ensure trustworthy feedback.',
+                  icon: ShieldCheck,
+                  title: 'Privileged by Design',
+                  desc: 'What you tell a firm about your problem is encrypted, and platform staff cannot read it. Your conversation with your attorney stays between you and them.',
                 },
                 {
                   icon: Languages,

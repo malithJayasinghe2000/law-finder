@@ -14,7 +14,7 @@ import { getFirmMembership, canManageFirm } from '@/lib/firms/access';
 
 async function requireFirmAdmin() {
   const session = await getSession();
-  if (!session || session.role !== 'LAWYER') {
+  if (!session) {
     return { error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) };
   }
 

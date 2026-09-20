@@ -1,6 +1,6 @@
 # Core
 flask>=3.0.0
-flask-cors>=5.0.0
+gunicorn>=23.0.0
 python-dotenv>=1.0.0
 requests>=2.31.0
 
@@ -13,6 +13,20 @@ langchain-text-splitters>=0.3.0
 langgraph>=0.2.0
 langsmith>=0.1.0
 
+# Hosted inference, used only when LLM_PROVIDER=google. Imported lazily in
+# app/core/llm.py so that a local-only install never needs it at import time.
+# Listed here rather than left to whoever happens to have it in their venv:
+# this was already present in one developer's environment and in nobody's
+# requirements, which is the state in which a dependency appears to work right
+# up until a fresh checkout.
+langchain-google-genai>=2.0.0
+
+# Keyword search — the lexical half of hybrid retrieval (app/core/bm25.py).
+# Embeddings match meaning and are weak at matching WORDS, and legal questions
+# are full of words that must match exactly: "Section 14(2)(b)", "incorporation",
+# "resign". Pure Python, no native build.
+rank_bm25>=0.2.2
+
 # Vector Store
 chromadb>=1.0.0
 
@@ -24,4 +38,16 @@ networkx>=3.0
 
 # Utilities
 pydantic>=2.0.0
+
+# flask-cors was here. Nothing in a browser calls this service any more — every
+# caller is a Next.js server route — and CORS was removed from main.py in Phase
+# 5, so the dependency went with it.
+#
+# duckduckgo-search is kept ONLY because app/core/web_search.py still imports
+# it at module level and app/core/agent_tools.web_search_tool still imports
+# that. Phase 5 removed web-search grounding — a search result is not a legal
+# authority — and AGENT_TOOLS deliberately omits the tool, so neither file is
+# reachable from any running path. Delete both files in Stage 1 and this line
+# goes with them. Not done here: Stage 0 is security, and deleting a dependency
+# whose importer still exists is how a dormant path turns into an ImportError.
 duckduckgo-search

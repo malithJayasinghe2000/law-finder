@@ -1,5 +1,6 @@
 import prisma from '@/lib/db';
 import { normaliseLibraryKey, type AiSource, type ModelContext } from './policy';
+import { ragFetch } from './ragService';
 
 /**
  * The only place that talks to the RAG service.
@@ -14,13 +15,16 @@ import { normaliseLibraryKey, type AiSource, type ModelContext } from './policy'
  * variable with no `NEXT_PUBLIC_` prefix, so it is not shipped to the client and
  * the service can sit on a private network.
  *
+ * Since Stage 0 the service also requires a shared secret on every request. The
+ * address and the credential live in `ragService.ts`; see the note there for why
+ * an open ingestion endpoint defeated this file's own guardrails.
+ *
  * Treat the response as untrusted. The RAG service runs its own prompts against
  * a local model and has its own guardrails, but a guardrail we cannot run in CI
  * is a guardrail we do not have. Everything it returns is checked again in
  * `policy.ts` before a user sees it.
  */
 
-const RAG_API_URL = process.env.RAG_API_URL || 'http://localhost:5001';
 const RAG_TIMEOUT_MS = Number(process.env.RAG_TIMEOUT_MS || 60_000);
 
 /** What the RAG service reports back. Field names are its, not ours. */
@@ -45,6 +49,13 @@ type RagResponse = {
    */
   intent?: string;
   chunks_retrieved?: number;
+  /**
+   * The service could not resolve what the question referred to, because no
+   * conversation was sent with it. A SIGNAL, not an answer: the words shown to
+   * the user come from REFUSAL_MESSAGES in policy.ts, like every other refusal,
+   * so the service can never put its own prose in front of a reader.
+   */
+  needs_context?: boolean;
 };
 
 export type RagResult = {
@@ -52,6 +63,8 @@ export type RagResult = {
   sources: AiSource[];
   /** True when the question was small talk, so no legislation is expected. */
   isConversational: boolean;
+  /** True when the question was a follow-up with no conversation behind it. */
+  needsContext: boolean;
 };
 
 export class RagUnavailableError extends Error {}
@@ -69,7 +82,7 @@ export async function askRag(context: ModelContext): Promise<RagResult> {
 
   let payload: RagResponse;
   try {
-    const response = await fetch(`${RAG_API_URL}/api/chat`, {
+    const response = await ragFetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -98,6 +111,7 @@ export async function askRag(context: ModelContext): Promise<RagResult> {
     answer: typeof payload.answer === 'string' ? payload.answer : '',
     sources: (payload.sources ?? []).map(normaliseSource),
     isConversational: payload.intent === 'conversational',
+    needsContext: payload.needs_context === true,
   };
 }
 

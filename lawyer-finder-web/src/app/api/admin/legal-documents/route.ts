@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import prisma from '@/lib/db';
-
-const RAG_API_URL = process.env.RAG_API_URL || 'http://localhost:5001';
+import { ragFetch } from '@/lib/ai/ragService';
 
 // Category mapping for display ↔ enum
 const CATEGORY_MAP: Record<string, string> = {
@@ -216,7 +215,9 @@ export async function POST(req: Request) {
       if (caseNumber) ragFormData.append('case_number', caseNumber);
       if (gazetteNumber) ragFormData.append('gazette_number', gazetteNumber);
 
-      const ragRes = await fetch(`${RAG_API_URL}/api/ingest/upload`, {
+      // No Content-Type: fetch sets the multipart boundary for a FormData
+      // body, and ragFetch only adds the service token.
+      const ragRes = await ragFetch('/api/ingest/upload', {
         method: 'POST',
         body: ragFormData,
       });
