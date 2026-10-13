@@ -67,6 +67,7 @@ asserted by `npm run check:privilege`.
 | `EngagementLetter` | 🔒 `body`, 🔒 `matterSubject`, 🔒 `scopeOfWork` — a full snapshot naming the client, the matter and the terms | Client and firm. Explicitly not platform staff | With the matter file |
 | `FeeNote` | `clientName`, `clientAddress`, `clientEmail`, `lineItems` (a narration of legal work), `content` snapshot | Firm and its client. Platform staff cannot read one | **Statutory tax retention** — cannot expire on a data-protection schedule |
 | `BookingPayment` | `accountHolder`, `accountNumber`, `transactionRef`, `receiptImageUrl` | Client and firm | With the matter file |
+| `ClientIntakeInvitation` | `email`, 🔒 `subject`, 🔒 `description` — a request a practice wrote for a client who contacted it directly, waiting for the client to confirm | The practice's principal/practice manager wrote it; the invited client sees it only when signed in with that address. The practice's list screen shows neither the text nor the link token. Not platform staff | **Text wiped** the moment it stops being pending (accepted → copied to the `Booking`; declined, withdrawn, or expired after 14 days via `jobs:daily`). The email/status row remains as the record that the request was sent |
 | `Message` (+ `Conversation`, `ConversationParticipant`) | 🔒 `content` — direct client↔attorney chat | Participants only, and a lawyer participant must still be an ACTIVE member of `Conversation.firmId`. **Not** the firm's principal unless they are in the thread; **not** platform staff | With the matter file |
 
 > ✅ **Closed in Phase 7.** `Conversation` now carries `firmId`, `clientId` and an
@@ -440,6 +441,7 @@ modes were verified by deliberately breaking the code and watching the check go 
 | `Quote` | `scopeOfWork`, `exclusions`, `declineReason` |
 | `EngagementLetter` | `body`, `matterSubject`, `scopeOfWork`, `exclusions` |
 | `Message` | `content` |
+| `ClientIntakeInvitation` | `subject`, `description` |
 
 `EngagementLetter.matterSubject` and `scopeOfWork` are on that list because they are
 **copies** of encrypted columns on `Booking` and `Quote`. Leaving the copies in the

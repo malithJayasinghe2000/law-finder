@@ -12,6 +12,7 @@ import { randomUUID } from 'crypto';
 import { findAttorneyFirmId } from '@/lib/firms/provisioning';
 import { isListedFirm } from '@/lib/directory';
 import { ATTORNEY_BOOKING_ENABLED } from '@/lib/directoryLinks';
+import { nextBookingNumber } from '@/lib/consultations/bookingNumber';
 
 // GET: List bookings (filtered by role)
 export async function GET(req: Request) {
@@ -335,24 +336,7 @@ export async function POST(req: Request) {
         });
       }
 
-      // Generate booking number, scoped to the current year.
-      // Previously this used count() + 1 across all bookings, which collided
-      // whenever a booking was deleted and restarted numbering incorrectly at
-      // each year boundary. Deriving from the highest existing number for the
-      // year is stable; the Serializable isolation level below prevents races.
-      const year = new Date().getFullYear();
-      const prefix = `BK-${year}-`;
-
-      const latest = await tx.booking.findFirst({
-        where: { bookingNumber: { startsWith: prefix } },
-        orderBy: { bookingNumber: 'desc' },
-        select: { bookingNumber: true },
-      });
-
-      const lastSequence = latest
-        ? parseInt(latest.bookingNumber.slice(prefix.length), 10) || 0
-        : 0;
-      const bookingNumber = `${prefix}${String(lastSequence + 1).padStart(4, '0')}`;
+      const bookingNumber = await nextBookingNumber(tx);
 
       // Create the engagement request.
       //

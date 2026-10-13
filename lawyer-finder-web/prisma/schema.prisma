@@ -465,6 +465,7 @@ model LawFirm {
   feeNotes      FeeNote[]
   conversations Conversation[]
   invitations   FirmInvitation[]
+  clientIntakeInvitations ClientIntakeInvitation[]
 
   subjectRequestResponses SubjectRequestFirmResponse[]
 
@@ -581,6 +582,64 @@ model FirmInvitation {
   @@unique([firmId, email])
   @@index([email, status])
   @@index([status, expiresAt])
+}
+
+/// A practice asking a client to confirm a request the practice opened for them.
+///
+/// ───────────────────────────────────────────────────────────────────────────
+/// WHY THIS EXISTS (2026-10-13).
+///
+/// Clients reach a practice by phone, walk-in and referral, not only through the
+/// directory, and the practice needs that matter in its queue. Before this the
+/// only way was the admin "create booking" tool — platform staff choosing the
+/// attorney (rule 4) and typing in the client's legal problem (rule 5).
+///
+/// Nothing is put in a client's account without the client agreeing. The practice
+/// writes the request; the client signs in with the invited address and accepts;
+/// only then does a `Booking` exist, at REQUESTED, so the conflict check still
+/// runs. A practice cannot use this to put itself in front of a stranger: the
+/// stranger simply never accepts, and the email says nothing about the matter.
+///
+/// `subject` and `description` are encrypted (ENCRYPTED_FIELDS) and WIPED the
+/// moment the invitation stops being pending — accepted (the text now lives on
+/// the Booking), declined, revoked or expired. A dead invitation keeps no copy of
+/// anyone's legal problem.
+/// ───────────────────────────────────────────────────────────────────────────
+model ClientIntakeInvitation {
+  id     String  @id @default(uuid())
+  firmId String
+  firm   LawFirm @relation(fields: [firmId], references: [id], onDelete: Cascade)
+
+  /// Lower-cased. The client may not have an account yet.
+  email String
+
+  /// Encrypted. Null once the invitation is no longer pending.
+  subject      String?
+  description  String?
+  practiceArea String?
+  mode         ConsultationMode
+
+  /// The attorney the PRACTICE chose to handle it, if any. Becomes
+  /// `Booking.lawyerId`; `clientSelectedAttorneyId` stays null — the client
+  /// did not choose, the practice did.
+  attorneyId String?
+
+  /// Single-use secret in the link. The link is not a bearer token: accepting
+  /// also requires signing in with `email`.
+  token  String               @unique
+  status FirmInvitationStatus @default(PENDING)
+
+  invitedById String
+  expiresAt   DateTime
+  respondedAt DateTime?
+  /// Set on acceptance.
+  bookingId   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([firmId, status])
+  @@index([email, status])
 }
 
 model SubscriptionPlan {

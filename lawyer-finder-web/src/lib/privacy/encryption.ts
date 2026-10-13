@@ -398,6 +398,15 @@ export const ENCRYPTED_FIELDS: {
     scalar: ['content'],
     list: [],
   },
+  {
+    // A request a practice opened for a client, waiting for the client to
+    // confirm it. Wiped once the invitation is no longer pending.
+    model: 'ClientIntakeInvitation',
+    prismaModel: 'clientIntakeInvitation',
+    idField: 'id',
+    scalar: ['subject', 'description'],
+    list: [],
+  },
 ];
 
 /**

@@ -114,6 +114,7 @@ DPO designation, which are documents rather than code.
 | 2026-10-13 | The public directory sits behind an **admin switch** (`/dashboard/admin/directory`); a firm's or attorney's own page stays reachable by direct link | DIRECTION.md §2 / SYSTEM-REVIEW §3.7. If counsel answers Q16–18 unfavourably, withdrawal is a switch, not a release. Append-only `DirectorySwitch` rows with a required reason, because "when was it taken down, by whom, and why" is a regulator's question. A failed read answers **off** — showing a directory we cannot confirm is still permitted is the one wrong answer with criminal exposure |
 | 2026-10-13 | Directory order is a **daily shuffle, the same for everyone**, not alphabetical | Alphabetical was neutral but not fair: the same attorney was first on every page every day, and late-alphabet names never reached page one. Ranked by a hash of (Colombo date, id) — nothing an attorney does or pays moves it, every visitor sees the same order, pagination is stable within a day, and over a year each entry spends about the same time on page one (simulated: 129–166 days for 30 entries, fair ≈ 146). Rule 4 asks for neutral and disclosed; this is both, and the notice says so |
 | 2026-10-13 | Consultation requests go to the **practice only**; the practice assigns the attorney (`ATTORNEY_BOOKING_ENABLED = false`) | Owner's decision. The practice is the service provider (rule 7), so engaging the practice is the cleanest shape, and the choice of attorney is the practice's, never ours. A sole practitioner is a practice of one and loses nothing. A switch, not a deletion — refused in the API too, because hiding the button alone left a direct POST able to book an attorney |
+| 2026-10-13 | A practice can open a request for a client who came to it directly; **the client must sign in and accept** before it exists | Owner's choice (option A: invite by email, not only existing accounts). The practice writes it, confirms the client asked it to act, and may pick its own attorney; the client confirms. A practice cannot place itself in front of a stranger — the stranger never accepts, the email says nothing about the matter, and a practice can open 20 a day. Starts at REQUESTED, so the conflict check still runs. Replaces the admin "create booking" tool, where platform staff chose the attorney and typed in the client's legal problem |
 
 ## Session log
 
@@ -2591,3 +2592,38 @@ Verified on the running app: the button in headless Chrome lands on
 logged in and out; a POST naming Kavindu Perera returns 400; a request to the practice
 was created with no attorney, seen only by Perera & Associates, whose owner got the
 assign list. The test request was deleted. All five checks pass; build clean.
+
+### 2026-10-13 — A practice can open a request for its own client
+
+Clients reach a practice by phone, walk-in and referral. Before this the only way to put
+such a matter in the system was the admin "create booking" tool — platform staff choosing
+the attorney and typing the client's legal problem (rules 4 and 5).
+
+- **Practice side:** Consultation bookings → **New request** (principal or practice
+  manager, by membership). Client email, subject, what the client said, area of law,
+  meeting mode, optional attorney, and a required "this client asked our practice to act".
+  The list below shows sent requests with Withdraw.
+- **Client side:** an email with no matter details links to `/client-request?token=…`.
+  Signed out it shows only the practice's name and Sign in / Create account (the redirect
+  survives both). Signed in with the invited address it shows the request; Accept creates
+  the `Booking` at REQUESTED in the client's name. Anyone else sees nothing of the matter.
+- **Rules** (`src/lib/firms/clientIntake.ts`): practice must be registered + verified;
+  attorney must be an active attorney of the same practice, re-checked at acceptance (if
+  they left, the request arrives unassigned); `clientSelectedAttorneyId` stays null;
+  20 requests per practice per 24 h; `subject`/`description` encrypted
+  (`ENCRYPTED_FIELDS`) and wiped on accept, decline, withdraw and expiry.
+- **New table** `ClientIntakeInvitation` (migration `client_intake_invitations`).
+  `npm run invitations:expire` added to `jobs:daily`. Booking numbering moved to
+  `src/lib/consultations/bookingNumber.ts`.
+
+Verified on the running app: 23 API checks (refusals for no confirmation, another
+practice's attorney, own member, unregistered practice, non-member; encrypted at rest;
+list leaks neither token nor text; signed-out and wrong-person views show no details;
+wrong person cannot accept; accept → REQUESTED with the practice's attorney and no client
+choice recorded; text wiped; double accept refused; appears in both queues; decline and
+withdraw wipe; another practice cannot withdraw). Then in headless Chrome: the practice
+form (desktop + 390px phone), and the client opening the email link signed out, signing
+in, being returned to the request, and accepting. All test rows deleted. Checks: privilege
+42 (one new: the registry entry), firm 15, ai 124, billing 21, pdpa 67; build clean.
+
+**Not done:** the admin "create booking" tool is still on — to be switched off next.

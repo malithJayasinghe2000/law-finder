@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { useParams } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -12,7 +14,7 @@ import {
   ChevronLeft, ChevronRight, Eye, FileText,
 } from 'lucide-react';
 import { BOOKING_STATUS_COLORS, BOOKING_STATUS_LABELS } from '@/schemas/consultation.schema';
-import { ShieldCheck, Banknote, UserX, UserCheck, Receipt } from 'lucide-react';
+import { ShieldCheck, Banknote, UserX, UserCheck, Receipt, UserPlus } from 'lucide-react';
 import { AssignMatterDialog } from '@/components/firms/AssignMatterDialog';
 import { formatDateOnlyString } from '@/lib/utils';
 import ConflictCheckDialog from '@/components/consultations/ConflictCheckDialog';
@@ -75,6 +77,17 @@ export default function LawyerBookingsPage() {
   const [quoteTarget, setQuoteTarget] = useState<Booking | null>(null);
   const [assignTarget, setAssignTarget] = useState<Booking | null>(null);
   const [feeNoteBooking, setFeeNoteBooking] = useState<Booking | null>(null);
+
+  // Principals and practice managers can open a request for a client who came
+  // to the practice directly. From membership, not role — see /api/firms/me.
+  const { locale } = useParams<{ locale: string }>();
+  const [canManageFirm, setCanManageFirm] = useState(false);
+  useEffect(() => {
+    fetch('/api/firms/me')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => setCanManageFirm(!!d?.membership?.canManageFirm))
+      .catch(() => {});
+  }, []);
 
   // Verify Modal state
 
@@ -327,6 +340,15 @@ export default function LawyerBookingsPage() {
           <h1 className="text-4xl font-normal tracking-tight text-neutral-900">Consultation Bookings</h1>
           <p className="text-sm text-neutral-500 font-medium">Manage your client consultation appointments</p>
         </div>
+        {canManageFirm && (
+          <Link
+            href={`/${locale}/dashboard/lawyer/consultations/new`}
+            aria-label="New request"
+            className="ml-auto inline-flex items-center gap-2 bg-[#0a0a0a] text-white px-4 py-2.5 text-xs font-bold uppercase tracking-widest hover:bg-neutral-800 transition-colors shrink-0"
+          >
+            <UserPlus className="h-4 w-4" /> <span className="hidden sm:inline">New request</span>
+          </Link>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">

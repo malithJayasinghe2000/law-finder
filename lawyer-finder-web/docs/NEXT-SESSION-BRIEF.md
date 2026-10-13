@@ -91,6 +91,8 @@ After any migration **restart the dev server** — `src/lib/db.ts` keeps the Pri
 8. **Requests go to the practice only** — `ATTORNEY_BOOKING_ENABLED = false` in
    `src/lib/directoryLinks.ts`. The practice assigns the attorney. Off in the UI and the
    API; switch, not deletion.
+9. **A practice opens requests for its own clients** (Consultations → New request). The
+   client must sign in with the invited address and accept. `src/lib/firms/clientIntake.ts`.
 
 Result: the local directory currently lists **only Perera & Associates**.
 

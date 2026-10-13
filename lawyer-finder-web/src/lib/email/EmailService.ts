@@ -22,6 +22,9 @@ async function getAdminEmails(): Promise<string[]> {
   }
 }
 
+const escapeHtml = (s: string) =>
+  s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
 const template = (title: string, body: string) => {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://thelawyr.lk';
   const currentYear = new Date().getFullYear();
@@ -118,6 +121,32 @@ export const EmailService = {
           <a href="${url}" style="background-color: #bfa37a; color: #ffffff; padding: 14px 28px; text-decoration: none; display: inline-block; font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.15em; border-radius: 0;">View the invitation</a>
         </div>
         <p style="font-size: 13px; color: #737373;">This invitation was sent to ${params.to} and can only be accepted by signing in with that address. It expires in 14 days. If you were not expecting it, ignore this email — no account of yours has been changed.</p>
+      `)
+    );
+  },
+
+  /**
+   * A practice asks a client to confirm a request it opened for them.
+   *
+   * Says nothing about the matter: email is not a privileged channel, and the
+   * address may be wrong. The details are shown only after the client signs in
+   * with this address. See src/lib/firms/clientIntake.ts.
+   */
+  async sendClientIntakeInvitation(params: { to: string; firmName: string; token: string }) {
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://thelawyr.lk';
+    const url = `${appUrl}/client-request?token=${params.token}`;
+    const firm = escapeHtml(params.firmName);
+
+    await sendMailSafe(
+      params.to,
+      `${params.firmName} asks you to confirm your request`,
+      template('Confirm your request', `
+        <p><strong>${firm}</strong> says you asked them to act for you, and has opened a request on TheLawyr, the software the practice uses to manage its matters.</p>
+        <p>Nothing is added to your account unless you confirm it. Sign in — or create an account with this email address — to see the request and accept or decline it.</p>
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${url}" style="background-color: #bfa37a; color: #ffffff; padding: 14px 28px; text-decoration: none; display: inline-block; font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.15em; border-radius: 0;">View the request</a>
+        </div>
+        <p style="font-size: 13px; color: #737373;">Sent to ${escapeHtml(params.to)}. The link expires in 14 days. If you did not contact ${firm}, ignore this email.</p>
       `)
     );
   },
