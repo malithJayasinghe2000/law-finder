@@ -145,6 +145,7 @@ export function AppSidebar({
   const clientLinks: NavLink[] = [
     { href: `/${locale}/dashboard/client`, icon: LayoutDashboard, label: 'Dashboard', exact: true },
     { href: `/${locale}/dashboard/client/consultations`, icon: CalendarDays, label: 'My Consultations' },
+    { href: `/${locale}/dashboard/client/messages`, icon: MessageCircle, label: 'Messages', hasBadge: true },
     { href: `/${locale}/dashboard/blog/my-posts`, icon: PenSquare, label: 'Community Posts' },
     { href: `/${locale}/dashboard/profile`, icon: Settings, label: 'Profile Settings', exact: true },
     { href: `/${locale}/dashboard/profile/privacy`, icon: Lock, label: 'Your Data' },
