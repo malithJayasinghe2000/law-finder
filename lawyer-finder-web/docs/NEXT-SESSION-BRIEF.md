@@ -1,10 +1,125 @@
 # Next Session Brief
 
-> Updated 2026-09-21, after an overnight session on the RAG service.
-> **Copy §1 into a new chat as your first message.**
+> Updated 2026-10-13, after a session on the **public directory, firms and the home page**.
+> **Copy §A into a new chat as your first message.** The older brief (2026-09-21, the RAG
+> service) follows from §0 and is still accurate for the AI service.
 >
 > Update this file at the end of every session. A brief that points at work already done is
 > worse than no brief — the next session will trust it.
+
+---
+
+## A. Prompt to start the new chat (2026-10-13)
+
+```
+I'm working on law-finder, a Sri Lankan legal platform under a legal restructure
+(Next.js 16 + Prisma 7 + Postgres in lawyer-finder-web/, a Python RAG service in
+lawyer-rag/). Pick up where the 2026-10-13 session left off.
+
+READ FIRST, IN THIS ORDER:
+  1. lawyer-finder-web/docs/NEXT-SESSION-BRIEF.md §A-§F   today's state and decisions
+  2. lawyer-finder-web/CLAUDE.md / AGENTS.md               rules, checks, conventions
+  3. lawyer-finder-web/docs/restructure/PROGRESS.md        the 2026-10-13 entries at the
+                                                           end, and the Decisions table
+  4. lawyer-finder-web/docs/restructure/LEGAL-GUARDRAILS.md
+
+HOW I WORK (important):
+  - I'm an engineer, not a lawyer. Make the conservative legal call yourself and
+    explain it in plain language.
+  - Keep explanations SHORT and simple: direct answer first, a few bullets.
+  - Verify by running the app (build, start, curl / headless browser), not by
+    reading code. Clean up any test data you create.
+  - Commit each change separately once verified. Ask before pushing or before
+    any destructive git command.
+
+START WITH: §E "Next up" in the brief. Ask me which item to do first.
+```
+
+---
+
+## B. Where things stand
+
+**Branch `restructure-booking-flow`.** Working tree clean. Two commits **not pushed**:
+`5a27e13` (no automatic practices) and `7225a7c` (People tab hidden). Everything earlier
+today is pushed.
+
+**Running it locally:** Postgres `lawfinder` on localhost:5432 (`DATABASE_URL` in
+`lawyer-finder-web/.env`); `cd lawyer-finder-web && npm run dev` (port 3000 is often taken
+by another project, `PORT=3001 npm run dev` works). Seed accounts, all `password123`:
+`admin@thelawyr.lk`, `lawyer@thelawyr.lk` … `lawyer5@thelawyr.lk`, `citizen@thelawyr.lk`.
+After any migration **restart the dev server** — `src/lib/db.ts` keeps the Prisma client on
+`globalThis`, so a stale server is missing new models.
+
+## C. What the law research found (2026-10-13 — primary texts, not the old notes)
+
+- **Rule 45**, Supreme Court (Conduct of and Etiquette for Attorneys-at-Law) Rules 1988:
+  an attorney or law firm *may* appear "in any law list or Legal Directory" with "name,
+  address and description". **A directory is expressly permitted.** The repo used to treat
+  this as existential (counsel Q16–18); it is not.
+- **Rule 40** is the *name-plate* rule (name, qualifications, office hours) — the content
+  reference Rule 45 points at, not a ban on everything else.
+- **Rule 49(1):** no publishing "particulars of his practice" → no self-praise, case
+  histories. **Rule 39:** touting = paying someone to solicit clients, or advertising to
+  *unfairly* attract them.
+- **Intermeddlers with Suitors Ordinance s.2** needs *payment for procuring* a lawyer's
+  employment. Free listing + seat-only billing is outside it. Max fine LKR 500.
+- **Residual risk:** BASL cautionary note (June 2021) — attorneys giving legal advice
+  through publicised non-lawyer online platforms is touting. This hits the **pre-engagement
+  Chat button**, not the directory.
+- Still get a written opinion from a Sri Lankan attorney; show them Rule 45.
+
+## D. Decisions the owner made today (do not reverse without asking)
+
+1. **No automatic practices.** Approval no longer creates a "firm of one". An approved
+   attorney is idle (not listed, not bookable) until they **register a practice** — as a
+   sole practitioner or a firm — and an admin verifies it, or until a firm invites them.
+2. **Only registered + verified practices are listed** (`LISTED_FIRM_WHERE` /
+   `isListedFirm` in `src/lib/directory.ts`, requires `isRegisteredPractice`). The 4
+   auto-created firms of one are *unlisted, not deactivated* — deactivating would cut their
+   attorneys off from open matters (Anura Bandara has one).
+3. **People tab hidden for launch** — `PEOPLE_TAB_ENABLED = false` in
+   `src/lib/directoryLinks.ts`. Switch, not deletion. Links go through `directoryPath()`.
+4. **Directory order changes daily**, same for everyone (`inDailyOrder`), not A–Z.
+5. **Admin kill switch for the whole directory** at Admin → Public Directory
+   (`DirectorySwitch` table, append-only, reason required). Currently ON.
+6. **Hero:** full-width Lady Justice photo (Unsplash, KRNCAqkk8TE, no credit needed), gold
+   headline. **Never a person in the hero** — a stranger reads as "our lawyer", a real one
+   gets free promotion.
+7. **Profiles:** small photo or initials (never a stock face); no bio on cards; no
+   "Member since", gender, or big "Years Exp"; praise words (`src/lib/selfPromotion.ts`)
+   rejected on save and hidden if already saved — filtered server-side, not just in JSX.
+
+Result: the local directory currently lists **only Perera & Associates**.
+
+## E. Next up (owner's list, not yet done)
+
+1. **Chat button on attorney pages** — the biggest remaining legal risk (BASL 2021 note).
+   Recommended: messaging only after the firm accepts the request. Owner said "later".
+2. **Landing-page and footer wording** — practice cards titled "Trusted Lawyer", "Legal
+   Champion", "Discovery Caller"; "get the perfect representation"; "connecting client
+   requirements with dedicated Attorneys-at-Law"; "vetted advocates"; footer "connecting
+   citizens with verified legal professionals". Replace with real area names and
+   "a directory where you choose for yourself". Optional: drop the hero "Chat With AI"
+   link (duplicates the box).
+3. **Admin warning: verified attorneys who are not listed** (no practice, unregistered,
+   or pending) so nobody silently disappears.
+4. **Hiding the word "firm" for sole practitioners** in UI copy (firm page says "Engaging
+   this firm"; dashboard "My Firm" → "My Practice"). Discussed, not approved yet.
+5. **Junior-in-a-senior's-chambers** has no clear model yet — discuss.
+6. Update `LEGAL-GUARDRAILS.md` / `QUESTIONS-FOR-COUNSEL.md` Q16–18 to reflect §C.
+7. A fresh `prisma db seed` now yields an **empty directory** (seed no longer creates
+   firms). Consider seeding one registered practice for demos.
+
+## F. Things that will bite you
+
+- Next.js here streams: `notFound()` / `redirect()` inside a page answer **HTTP 200** with
+  the not-found page / a meta refresh. Check content or use a browser, not the status code.
+- Headless Chrome can't do a window narrower than ~500px; use puppeteer-core with
+  `isMobile` (the session installed it in its scratchpad) for phone checks.
+- `check:ai` (124 cases) after touching `src/lib/ai/policy.ts`; `check:firm` after
+  `src/lib/firms/invitations.ts` or provisioning; lint has ~16 pre-existing `any` errors —
+  not ours, don't "fix" them in passing.
+- The local library (`/legal-library`) is empty in the local DB.
 
 ---
 
