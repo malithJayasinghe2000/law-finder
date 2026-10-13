@@ -11,6 +11,7 @@ import { encryptField } from '@/lib/privacy/encryption';
 import { randomUUID } from 'crypto';
 import { findAttorneyFirmId } from '@/lib/firms/provisioning';
 import { isListedFirm } from '@/lib/directory';
+import { ATTORNEY_BOOKING_ENABLED } from '@/lib/directoryLinks';
 
 // GET: List bookings (filtered by role)
 export async function GET(req: Request) {
@@ -163,6 +164,16 @@ export async function POST(req: Request) {
     //   firm-first     — they engaged a firm and left the practitioner to it
     // See docs/restructure/LEGAL-GUARDRAILS.md (rules 4 and 7).
     const isFirmFirst = !lawyerId;
+
+    // Attorney-first is switched off for launch: requests go to the practice,
+    // which assigns the attorney. Refused here as well as hidden in the UI, or
+    // a direct POST would still book an attorney. See src/lib/directoryLinks.ts.
+    if (!isFirmFirst && !ATTORNEY_BOOKING_ENABLED) {
+      return NextResponse.json(
+        { error: 'Requests are sent to a practice, which assigns the attorney.' },
+        { status: 400 }
+      );
+    }
 
     const targetDate = date ? parseDateOnlyToUtc(date) : null;
 

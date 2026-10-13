@@ -113,6 +113,7 @@ DPO designation, which are documents rather than code.
 | 2026-08-03 | `Booking.clientRating` / `clientFeedback` **dropped**, not disabled | Phase 2 reported ratings "gone entirely" and they were not. A column that exists is a column a future decision can populate, and `clientRating` was one `orderBy` away from being ranking |
 | 2026-10-13 | The public directory sits behind an **admin switch** (`/dashboard/admin/directory`); a firm's or attorney's own page stays reachable by direct link | DIRECTION.md §2 / SYSTEM-REVIEW §3.7. If counsel answers Q16–18 unfavourably, withdrawal is a switch, not a release. Append-only `DirectorySwitch` rows with a required reason, because "when was it taken down, by whom, and why" is a regulator's question. A failed read answers **off** — showing a directory we cannot confirm is still permitted is the one wrong answer with criminal exposure |
 | 2026-10-13 | Directory order is a **daily shuffle, the same for everyone**, not alphabetical | Alphabetical was neutral but not fair: the same attorney was first on every page every day, and late-alphabet names never reached page one. Ranked by a hash of (Colombo date, id) — nothing an attorney does or pays moves it, every visitor sees the same order, pagination is stable within a day, and over a year each entry spends about the same time on page one (simulated: 129–166 days for 30 entries, fair ≈ 146). Rule 4 asks for neutral and disclosed; this is both, and the notice says so |
+| 2026-10-13 | Consultation requests go to the **practice only**; the practice assigns the attorney (`ATTORNEY_BOOKING_ENABLED = false`) | Owner's decision. The practice is the service provider (rule 7), so engaging the practice is the cleanest shape, and the choice of attorney is the practice's, never ours. A sole practitioner is a practice of one and loses nothing. A switch, not a deletion — refused in the API too, because hiding the button alone left a direct POST able to book an attorney |
 
 ## Session log
 
@@ -2575,3 +2576,18 @@ Verified on a running build: `/api/lawyers` 404; no People toggle on `/firms`; n
 the `/lawyers` list on the home page; a browser opening `/en/lawyers?practiceArea=Family
 Law` lands on `/en/firms?practiceArea=Family+Law`; Kavindu Perera's page opens from his
 firm's page with a "Directory" breadcrumb to `/firms`.
+
+### 2026-10-13 — Requests go to the practice only
+
+Owner's decision: a client sends a request to a **practice**; the practice assigns the
+attorney. `ATTORNEY_BOOKING_ENABLED = false` in `src/lib/directoryLinks.ts` — a switch,
+not a deletion. While off: the attorney page's "Request Consultation" opens the
+practice's engage page, `/lawyers/[id]/book` redirects there, and
+`POST /api/consultations/bookings` refuses a request naming an attorney (400). Requests
+made before the switch are untouched; the admin "create booking" tool is not covered.
+
+Verified on the running app: the button in headless Chrome lands on
+`/firms/perera-associates-attorneys-at-law/engage`; the old booking URL redirects there
+logged in and out; a POST naming Kavindu Perera returns 400; a request to the practice
+was created with no attorney, seen only by Perera & Associates, whose owner got the
+assign list. The test request was deleted. All five checks pass; build clean.

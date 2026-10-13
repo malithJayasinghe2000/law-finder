@@ -1,5 +1,5 @@
 import { getSession } from '@/lib/auth';
-import { directoryPath } from '@/lib/directoryLinks';
+import { ATTORNEY_BOOKING_ENABLED, directoryPath, engagePath } from '@/lib/directoryLinks';
 import { redirect } from 'next/navigation';
 import prisma from '@/lib/db';
 import { LISTED_ATTORNEY_WHERE } from '@/lib/directory';
@@ -10,6 +10,16 @@ export default async function BookingPage(props: {
 }) {
   const session = await getSession();
   const { id, locale } = await props.params;
+
+  // Requests go to the practice for launch; it assigns the attorney. An old
+  // link to this page lands on the attorney's practice. See directoryLinks.ts.
+  if (!ATTORNEY_BOOKING_ENABLED) {
+    const listed = await prisma.lawyerProfile.findFirst({
+      where: { id, ...LISTED_ATTORNEY_WHERE },
+      select: { firm: { select: { slug: true } } },
+    });
+    redirect(listed?.firm ? engagePath(locale, listed.firm.slug) : directoryPath(locale));
+  }
 
   if (!session) {
     redirect(`/${locale}/login?redirect=/${locale}/lawyers/${id}/book`);

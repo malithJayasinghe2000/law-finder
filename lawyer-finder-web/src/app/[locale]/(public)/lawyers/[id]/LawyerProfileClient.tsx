@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useDirectoryEnabled } from '@/components/directory/DirectoryProvider';
 import AttorneyPhoto from '@/components/lawyer/AttorneyPhoto';
-import { directoryPath, PEOPLE_TAB_ENABLED } from '@/lib/directoryLinks';
+import { ATTORNEY_BOOKING_ENABLED, directoryPath, engagePath, PEOPLE_TAB_ENABLED } from '@/lib/directoryLinks';
 import { publishableDescription } from '@/lib/selfPromotion';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -165,12 +165,20 @@ export default function LawyerProfileClient({
 
               {/* Action Buttons */}
               <div className="mt-4 flex gap-3">
-                <button
-                  onClick={() => router.push(`/${locale}/lawyers/${lawyer.id}/book`)}
-                  className="flex-1 flex items-center justify-center gap-2 bg-[#1a1a1a] text-white py-4.5 text-xs font-bold uppercase tracking-widest hover:bg-neutral-800 transition-all rounded-none text-center leading-tight px-2"
-                >
-                  <CalendarCheck className="h-4 w-4 shrink-0" /> Request Consultation
-                </button>
+                {/* While attorney-first booking is off, the request goes to the
+                    practice, which assigns the attorney. See directoryLinks.ts. */}
+                {(ATTORNEY_BOOKING_ENABLED || lawyer.firm) && (
+                  <button
+                    onClick={() => router.push(
+                      ATTORNEY_BOOKING_ENABLED
+                        ? `/${locale}/lawyers/${lawyer.id}/book`
+                        : engagePath(locale, lawyer.firm!.slug)
+                    )}
+                    className="flex-1 flex items-center justify-center gap-2 bg-[#1a1a1a] text-white py-4.5 text-xs font-bold uppercase tracking-widest hover:bg-neutral-800 transition-all rounded-none text-center leading-tight px-2"
+                  >
+                    <CalendarCheck className="h-4 w-4 shrink-0" /> Request Consultation
+                  </button>
+                )}
                 <button
                   onClick={handleChatClick}
                   disabled={chatLoading}

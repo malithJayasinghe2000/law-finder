@@ -88,6 +88,9 @@ After any migration **restart the dev server** — `src/lib/db.ts` keeps the Pri
 7. **Profiles:** small photo or initials (never a stock face); no bio on cards; no
    "Member since", gender, or big "Years Exp"; praise words (`src/lib/selfPromotion.ts`)
    rejected on save and hidden if already saved — filtered server-side, not just in JSX.
+8. **Requests go to the practice only** — `ATTORNEY_BOOKING_ENABLED = false` in
+   `src/lib/directoryLinks.ts`. The practice assigns the attorney. Off in the UI and the
+   API; switch, not deletion.
 
 Result: the local directory currently lists **only Perera & Associates**.
 
