@@ -129,7 +129,9 @@ export default function LawyerProfileClient({
                   <AttorneyPhoto
                     src={lawyer.profileImageUrl}
                     name={lawyer.fullName}
-                    className="w-full aspect-[4/5]"
+                    // A photo keeps its portrait shape; initials alone do not need a
+                    // screen-tall block — on a phone that pushed everything below the fold.
+                    className={lawyer.profileImageUrl ? 'w-full aspect-[4/5]' : 'w-full aspect-[3/2] lg:aspect-[4/5]'}
                     initialsClassName="font-serif text-6xl"
                   />
                   {/* Languages - Always Visible */}

@@ -172,7 +172,7 @@ export default async function FirmDirectory({
                     </div>
                   )}
                   <div className="min-w-0">
-                    <h2 className="truncate font-serif text-lg text-neutral-900 transition-colors group-hover:text-[#bfa37a]">
+                    <h2 className="line-clamp-2 font-serif text-lg text-neutral-900 transition-colors group-hover:text-[#bfa37a]">
                       {firm.name}
                     </h2>
                     <p className="text-[11px] uppercase tracking-widest text-[#bfa37a]">
