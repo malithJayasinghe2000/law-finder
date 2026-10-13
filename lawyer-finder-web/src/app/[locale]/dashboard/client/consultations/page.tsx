@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { directoryPath } from '@/lib/directoryLinks';
 import { useParams } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -293,7 +294,7 @@ export default function ClientConsultationsPage() {
           {directoryEnabled ? (
             <>
               <p className="text-xs text-neutral-500 mt-1 mb-4">Browse lawyers and book your first consultation</p>
-              <Link href={`/${locale}/lawyers`}>
+              <Link href={directoryPath(locale)}>
                 <Button className="bg-[#0a0a0a] text-white hover:bg-neutral-800 rounded-none h-9 text-xs font-bold uppercase tracking-wide">Find a Lawyer</Button>
               </Link>
             </>

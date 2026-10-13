@@ -1,4 +1,6 @@
 import prisma from '@/lib/db';
+import { redirect } from 'next/navigation';
+import { directoryPath, PEOPLE_TAB_ENABLED } from '@/lib/directoryLinks';
 import { isPublicDirectoryEnabled, LISTED_ATTORNEY_WHERE, inDailyOrder, DIRECTORY_ORDER_NOTICE } from '@/lib/directory';
 import DirectoryWithdrawn from '@/components/directory/DirectoryWithdrawn';
 import { Card, CardContent } from '@/components/ui/card';
@@ -24,6 +26,15 @@ export default async function LawyerDirectory({
   searchParams: Promise<{ [key: string]: string | undefined }>;
 }) {
   const { locale } = await params;
+
+  // The People tab is hidden for launch (src/lib/directoryLinks.ts). Send the
+  // visitor to Practices with the same filters rather than to a dead page.
+  if (!PEOPLE_TAB_ENABLED) {
+    const sp = await searchParams;
+    const keep = new URLSearchParams();
+    for (const k of ['district', 'practiceArea', 'language']) if (sp[k]) keep.set(k, sp[k]!);
+    redirect(directoryPath(locale, keep.toString()));
+  }
 
   // Withdrawn by an administrator — see src/lib/directory.ts.
   if (!(await isPublicDirectoryEnabled())) {

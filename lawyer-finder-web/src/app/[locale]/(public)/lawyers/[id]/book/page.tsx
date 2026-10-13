@@ -1,4 +1,5 @@
 import { getSession } from '@/lib/auth';
+import { directoryPath } from '@/lib/directoryLinks';
 import { redirect } from 'next/navigation';
 import prisma from '@/lib/db';
 import { LISTED_ATTORNEY_WHERE } from '@/lib/directory';
@@ -26,7 +27,7 @@ export default async function BookingPage(props: {
   });
 
   if (!lawyer) {
-    redirect(`/${locale}/lawyers`);
+    redirect(directoryPath(locale));
   }
 
 

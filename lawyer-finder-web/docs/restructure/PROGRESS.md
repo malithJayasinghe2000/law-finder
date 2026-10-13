@@ -2559,3 +2559,19 @@ a booking to Anura refused 400 while he still sees his open request; a temporary
 with no firm registered "Idle Test Chambers" as a sole practitioner → PENDING, unlisted →
 admin verified → listed with its attorney (firms 1→2, lawyers 1→2). Test records deleted
 afterwards. `check:firm` 15/15.
+
+### 2026-10-13 — The People tab is hidden for launch
+
+Owner's decision: clients browse **practices**; a practice's attorneys are on its own page.
+A switch, not a deletion — `PEOPLE_TAB_ENABLED` in `src/lib/directoryLinks.ts` (a plain
+module, so client components can import it). While false: `/lawyers` redirects to `/firms`
+keeping district / practice area / language, `/api/lawyers` is 404, the Practices/People
+toggle is not rendered, and every link that pointed at `/lawyers` (home hero and
+practice-area cards, footer, about, blog, client consultations, the chat disclaimer, the
+booking page's fallback, the attorney-page breadcrumb) goes through `directoryPath()`.
+An attorney's own page (`/lawyers/[id]`) still works; the firm page links to it.
+
+Verified on a running build: `/api/lawyers` 404; no People toggle on `/firms`; no link to
+the `/lawyers` list on the home page; a browser opening `/en/lawyers?practiceArea=Family
+Law` lands on `/en/firms?practiceArea=Family+Law`; Kavindu Perera's page opens from his
+firm's page with a "Directory" breadcrumb to `/firms`.

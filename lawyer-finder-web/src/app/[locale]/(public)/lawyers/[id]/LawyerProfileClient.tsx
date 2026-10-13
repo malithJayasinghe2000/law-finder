@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useDirectoryEnabled } from '@/components/directory/DirectoryProvider';
 import AttorneyPhoto from '@/components/lawyer/AttorneyPhoto';
+import { directoryPath, PEOPLE_TAB_ENABLED } from '@/lib/directoryLinks';
 import { publishableDescription } from '@/lib/selfPromotion';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -106,8 +107,8 @@ export default function LawyerProfileClient({
           {directoryEnabled && (
             <>
               <span className="text-neutral-300">/</span>
-              <Link href={`/${locale}/lawyers`} className="text-neutral-500 hover:text-[#bfa37a] transition-colors">
-                Lawyers
+              <Link href={directoryPath(locale)} className="text-neutral-500 hover:text-[#bfa37a] transition-colors">
+                {PEOPLE_TAB_ENABLED ? 'Lawyers' : 'Directory'}
               </Link>
             </>
           )}

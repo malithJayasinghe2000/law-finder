@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
+import { PEOPLE_TAB_ENABLED } from '@/lib/directoryLinks';
 import { inDailyOrder } from '@/lib/directory';
 import { isPublicDirectoryEnabled, LISTED_ATTORNEY_WHERE } from '@/lib/directory';
 
@@ -14,8 +15,9 @@ import { isPublicDirectoryEnabled, LISTED_ATTORNEY_WHERE } from '@/lib/directory
  * See docs/restructure/LEGAL-GUARDRAILS.md — "The Rule 40 content limit".
  */
 export async function GET(req: Request) {
-  // Withdrawn by an administrator — see src/lib/directory.ts.
-  if (!(await isPublicDirectoryEnabled())) {
+  // Withdrawn by an administrator (src/lib/directory.ts), or the People tab is
+  // hidden for launch (src/lib/directoryLinks.ts).
+  if (!PEOPLE_TAB_ENABLED || !(await isPublicDirectoryEnabled())) {
     return NextResponse.json({ error: 'Not found.' }, { status: 404 });
   }
 

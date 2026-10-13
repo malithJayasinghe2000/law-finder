@@ -1,4 +1,5 @@
 import { getTranslations } from 'next-intl/server';
+import { directoryPath } from '@/lib/directoryLinks';
 import Link from 'next/link';
 import Footer from '@/components/layout/Footer';
 import { isPublicDirectoryEnabled } from '@/lib/directory';
@@ -212,7 +213,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
                 </Button>
               </Link>
               {directoryEnabled && (
-                <Link href={`/${locale}/lawyers`}>
+                <Link href={directoryPath(locale)}>
                   <Button size="lg" variant="outline" className="gap-2 font-semibold px-8 rounded-none">
                     Browse Directory
                     <ArrowRight className="h-4 w-4" />

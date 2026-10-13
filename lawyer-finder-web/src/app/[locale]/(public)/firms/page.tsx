@@ -1,4 +1,5 @@
 import prisma from '@/lib/db';
+import { PEOPLE_TAB_ENABLED } from '@/lib/directoryLinks';
 import { isPublicDirectoryEnabled, LISTED_FIRM_WHERE, inDailyOrder, DIRECTORY_ORDER_NOTICE } from '@/lib/directory';
 import DirectoryWithdrawn from '@/components/directory/DirectoryWithdrawn';
 import { Card, CardContent } from '@/components/ui/card';
@@ -110,27 +111,30 @@ export default async function FirmDirectory({
             listing both as separate menu items showed a sole practitioner twice
             — once as a person and once as their own firm. The toggle keeps both
             ways of looking without pretending they are different populations. */}
-        <div
-          className="mb-6 inline-flex border border-neutral-200"
-          role="tablist"
-          aria-label="Browse by"
-        >
-          <span
-            role="tab"
-            aria-selected="true"
-            className="bg-neutral-900 px-5 py-2.5 text-[11px] font-bold uppercase tracking-widest text-white"
+        {/* Hidden while the People tab is off (src/lib/directoryLinks.ts). */}
+        {PEOPLE_TAB_ENABLED && (
+          <div
+            className="mb-6 inline-flex border border-neutral-200"
+            role="tablist"
+            aria-label="Browse by"
           >
-            Practices
-          </span>
-          <Link
-            href={`/${locale}/lawyers`}
-            role="tab"
-            aria-selected="false"
-            className="px-5 py-2.5 text-[11px] font-bold uppercase tracking-widest text-neutral-600 transition-colors hover:bg-neutral-50"
-          >
-            People
-          </Link>
-        </div>
+            <span
+              role="tab"
+              aria-selected="true"
+              className="bg-neutral-900 px-5 py-2.5 text-[11px] font-bold uppercase tracking-widest text-white"
+            >
+              Practices
+            </span>
+            <Link
+              href={`/${locale}/lawyers`}
+              role="tab"
+              aria-selected="false"
+              className="px-5 py-2.5 text-[11px] font-bold uppercase tracking-widest text-neutral-600 transition-colors hover:bg-neutral-50"
+            >
+              People
+            </Link>
+          </div>
+        )}
 
         <FirmFilterForm locale={locale} filters={filters} />
 

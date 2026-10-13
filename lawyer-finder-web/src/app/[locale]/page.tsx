@@ -1,4 +1,5 @@
 import { getTranslations } from 'next-intl/server';
+import { directoryPath } from '@/lib/directoryLinks';
 import Link from 'next/link';
 import Footer from '@/components/layout/Footer';
 import { Button } from '@/components/ui/button';
@@ -70,7 +71,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
                 <div className="flex flex-wrap items-center gap-6">
                   {directoryEnabled && (
                     <Link
-                      href={`/${locale}/lawyers`}
+                      href={directoryPath(locale)}
                       className="group inline-flex items-stretch border border-white/70 text-white"
                     >
                       <span className="px-6 py-3.5 text-xs font-bold uppercase tracking-widest">Find Lawyers</span>
@@ -176,7 +177,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
                 <p className="text-neutral-500 text-sm font-light max-w-xs leading-relaxed">
                   Browse our directory segmented by active areas of expertise to get the perfect representation.
                 </p>
-                <Link href={`/${locale}/lawyers`}>
+                <Link href={directoryPath(locale)}>
                   <Button className="bg-[#bfa37a] text-white hover:bg-[#a68d67] rounded-none px-8 py-6 text-xs font-bold uppercase tracking-widest transition-all self-start">
                     All Practices Areas
                   </Button>
@@ -195,7 +196,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
                 ].map((item, idx) => {
                   const Icon = item.icon;
                   return (
-                    <Link key={idx} href={`/${locale}/lawyers?practiceArea=${item.area}`}>
+                    <Link key={idx} href={directoryPath(locale, `practiceArea=${item.area}`)}>
                       <div className="bg-white border border-neutral-100 p-8 hover:shadow-2xl transition-all duration-500 hover:-translate-y-1 group flex flex-col items-start space-y-5">
                         <div className="p-3 bg-[#faf6f0] text-[#bfa37a] group-hover:bg-[#bfa37a] group-hover:text-white transition-all duration-300">
                           <Icon className="w-6 h-6 stroke-[1.5]" />

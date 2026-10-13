@@ -1,4 +1,5 @@
 import React from 'react';
+import { directoryPath } from '@/lib/directoryLinks';
 import Link from 'next/link';
 import { Info } from 'lucide-react';
 
@@ -81,7 +82,7 @@ export function LegalDisclaimer({
             <>
               {' '}
               <Link
-                href={`/${locale}/lawyers`}
+                href={directoryPath(locale)}
                 className="font-semibold text-neutral-700 underline underline-offset-2 hover:text-neutral-900"
               >
                 Browse the directory
