@@ -111,6 +111,7 @@ DPO designation, which are documents rather than code.
 | 2026-09-06 | The firm's answer is **required to carry a reason** and is shown to the person verbatim | A refusal that does not name the duty requiring retention is not a defensible refusal. The outcome that matters most here is the refusal, so the reason is not optional |
 | 2026-09-06 | Sidebar navigation follows **firm membership**, not platform role | Phase 7 fixed this in four layers and missed the fifth. A practice manager's platform role is CLIENT, so they were admitted by the layout and then shown the client menu with no link to their own firm — reachable only by typing a URL. Membership that grants nothing is worse than no membership |
 | 2026-08-03 | `Booking.clientRating` / `clientFeedback` **dropped**, not disabled | Phase 2 reported ratings "gone entirely" and they were not. A column that exists is a column a future decision can populate, and `clientRating` was one `orderBy` away from being ranking |
+| 2026-10-13 | The public directory sits behind an **admin switch** (`/dashboard/admin/directory`); a firm's or attorney's own page stays reachable by direct link | DIRECTION.md §2 / SYSTEM-REVIEW §3.7. If counsel answers Q16–18 unfavourably, withdrawal is a switch, not a release. Append-only `DirectorySwitch` rows with a required reason, because "when was it taken down, by whom, and why" is a regulator's question. A failed read answers **off** — showing a directory we cannot confirm is still permitted is the one wrong answer with criminal exposure |
 
 ## Session log
 
@@ -2392,3 +2393,92 @@ once and declaring victory is how an intermittent bug survives a fix.**
 **The prompt change alone was not the fix.** Telling the model to write impersonally
 (previous commit) removed the second-person *phrasing*, but the numbered list survived and
 that was what the gate was matching. A prompt is a preference; the gate is the rule.
+
+### 2026-10-13 — Public directory switch
+
+An administrator can now turn the consumer directory off at `/dashboard/admin/directory`
+without a release. State is the newest `DirectorySwitch` row (`src/lib/directory.ts`); no
+rows means on, which is how the product behaved before.
+
+**What "off" hides:** `/lawyers` and `/firms` (they show a short "not available" page
+instead), `/api/lawyers` and `/api/firms` (404), the header link, the footer's Services
+column, the home page's attorney grid, practice-area section, "Find Lawyers" button and
+hero search tab, the about/blog "Browse Directory" buttons, the chat disclaimer's
+directory link, the client consultations empty-state link, and the "Other Lawyers"
+marquee and breadcrumb on an attorney's page. **The queries are skipped, not just the
+JSX** — an attorney list in the RSC payload is published whether or not it renders.
+
+**What "off" keeps:** `/firms/[slug]` and `/lawyers/[id]`, reached by a link the firm or
+attorney gave the client — the counsel Q18(d) shape.
+
+Verified against a running production build: flipped off, every surface above checked by
+HTTP, flipped on, checked again; unauthenticated PUT 401, short reason 400, no-op flip 409.
+The test rows were deleted afterwards.
+
+> **A running dev server must be restarted** after this migration. `src/lib/db.ts` keeps
+> the Prisma client on `globalThis`, so a server started before `prisma generate` has no
+> `directorySwitch` model — and the read fails closed, so the directory silently
+> disappears.
+
+
+### 2026-10-13 — Directory cards reduced to what Rule 45 permits
+
+Rule 45 of the 1988 Rules lets an attorney appear in a Legal Directory with "name,
+address and description". The directory now shows that and no more:
+
+- **`LawyerCard`**: no bio, a 64px photo the same size for everyone, initials when there
+  is no photo. Bios read "Expert in…", "Specialist in…", "Senior attorney with 15 years…"
+  — self-promotion, and Rule 49 bars publishing particulars of one's practice. Bios are
+  no longer selected by `/lawyers` or `/api/lawyers`, nor searched. They remain on the
+  attorney's own page only.
+- **Every attorney without a photo showed the same Unsplash stranger.** Gone.
+- **Home page attorney grid removed**, replaced by one "Browse the directory" button.
+  Alphabetical order put the same eight names on the front page permanently.
+- **"Explore Other Lawyers" marquee removed** from the attorney page, for the same reason
+  (the first twelve names, on every other attorney's page).
+
+Verified on a running build: home has no attorney links; `/lawyers` cards carry no bio
+text; `/api/lawyers` returns no `bio`; a search for "expert" returns nothing.
+
+**Not changed, worth a look:** the hero still uses stock "Lawyer Portrait" photos as
+decoration; the practice-area cards say "Trusted Lawyer" / "Legal Champion"; firm cards
+still show the firm's own `description`.
+
+### 2026-10-13 — Home hero: stock photos replaced with an example answer
+
+The hero's right column was a scrolling wall of Unsplash portraits labelled "Lawyer
+Portrait" — models, not anyone on the platform. Replaced with one fixed example of the
+assistant: "Does a sale of land in Sri Lanka need a notary?", answered from **Prevention of
+Frauds Ordinance s.2(1)** as amended by Acts 30 of 2022 and 4 of 2024, read from
+`lawyer-rag/data/acts/Prevention-of-Frauds-Consolidated-2024.pdf`. **It is fixed text:
+re-check it whenever the Ordinance is amended.** The source chip links to
+`/legal-library?search=Prevention of Frauds`, which matches on title — it finds nothing
+until that Act is uploaded to the library (the local library is empty).
+
+Also: "Welcome to LawHub" → TheLawyr, and the "{n}+ Lawyers" counter removed (it read
+"5+" and made the platform look empty).
+
+**Superseded the same day:** the example-answer card was replaced by a photograph of the
+Supreme Court of Sri Lanka, Hulftsdorp (`public/assets/images/home1/supreme-court-colombo.jpg`,
+Mystìc / Wikimedia Commons, **CC BY-SA 3.0 — the credit line under it is a licence
+condition, not decoration**). It is 600×399, shown landscape at column width; a sharper
+licensed photo would be an improvement.
+
+**Superseded again the same day:** the court photograph was removed (and its file
+deleted). The hero is now a split panel — headline on charcoal, and on gold our own
+Lady Justice artwork (`public/justieswomen.png`, the logo figure) with "Equal before the
+law — Constitution of Sri Lanka, Article 12(1)". **The right panel must never be a
+person**: a portrait there is either a stranger presented as our attorney or a real
+attorney given the front page over every other. Checked at 1440px and on an emulated
+390px phone (no horizontal overflow).
+
+**And again:** the split panel was replaced by a full-width hero over a photograph of a
+law library (`public/assets/images/home1/hero-library.jpg` — Dmitrij Paskevic on Unsplash,
+photo YjVa-F9P9kk, Unsplash License, no credit required), darkened from the left, gold
+serif headline. Gavel photos were rejected: Sri Lankan courts do not use gavels. The
+rule stands — **never a person in the hero.** Checked at 1440px and on an emulated
+390px phone, no horizontal overflow.
+
+**Photo swapped:** the library shelves read as empty on the right. Now Lady Justice on
+black (`public/assets/images/home1/hero-justice.jpg` — Sasun Bughdaryan on Unsplash,
+KRNCAqkk8TE, Unsplash License); the library photo file was deleted.

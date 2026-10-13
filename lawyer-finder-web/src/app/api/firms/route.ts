@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
+import { isPublicDirectoryEnabled } from '@/lib/directory';
 
 /**
  * Public firm directory.
@@ -19,6 +20,11 @@ import prisma from '@/lib/db';
  * ─────────────────────────────────────────────────────────────────────────────
  */
 export async function GET(req: Request) {
+  // Withdrawn by an administrator — see src/lib/directory.ts.
+  if (!(await isPublicDirectoryEnabled())) {
+    return NextResponse.json({ error: 'Not found.' }, { status: 404 });
+  }
+
   try {
     const { searchParams } = new URL(req.url);
     const district = searchParams.get('district');

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
+import { isPublicDirectoryEnabled } from '@/lib/directory';
 
 /**
  * Public attorney directory.
@@ -12,6 +13,11 @@ import prisma from '@/lib/db';
  * See docs/restructure/LEGAL-GUARDRAILS.md — "The Rule 40 content limit".
  */
 export async function GET(req: Request) {
+  // Withdrawn by an administrator — see src/lib/directory.ts.
+  if (!(await isPublicDirectoryEnabled())) {
+    return NextResponse.json({ error: 'Not found.' }, { status: 404 });
+  }
+
   try {
     const { searchParams } = new URL(req.url);
     const district = searchParams.get('district');
@@ -31,10 +37,7 @@ export async function GET(req: Request) {
       where.languages = { has: language };
     }
     if (search) {
-      where.OR = [
-        { fullName: { contains: search, mode: 'insensitive' } },
-        { bio: { contains: search, mode: 'insensitive' } },
-      ];
+      where.fullName = { contains: search, mode: 'insensitive' };
     }
 
     const lawyers = await prisma.lawyerProfile.findMany({
@@ -43,10 +46,9 @@ export async function GET(req: Request) {
         id: true,
         fullName: true,
         profileImageUrl: true,
-        // The attorney's own professional description. Retained because removing
-        // it would gut the directory card, but it is the one field here that is
-        // arguably beyond Rule 40's list — counsel question 16(b).
-        bio: true,
+        // No bio: attorneys' own text is self-promotion ("Expert in…") and
+        // Rule 49 bars publishing particulars of one's practice. It stays on the
+        // attorney's own page only. See src/components/lawyer/LawyerCard.tsx.
         practiceAreas: true,
         languages: true,
         district: true,

@@ -1,4 +1,5 @@
 import prisma from '@/lib/db';
+import { isPublicDirectoryEnabled } from '@/lib/directory';
 import { getSession } from '@/lib/auth';
 import { notFound } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
@@ -15,6 +16,7 @@ export default async function PostDetailPage({
   params: Promise<{ locale: string; slug: string }>;
 }) {
   const { locale, slug } = await params;
+  const directoryEnabled = await isPublicDirectoryEnabled();
   const session = await getSession();
 
   const post = await prisma.post.findFirst({
@@ -225,11 +227,13 @@ export default async function PostDetailPage({
                     </button>
                   </Link>
                 )}
-                <Link href={`/${locale}/lawyers`}>
-                  <button className="inline-flex items-center px-6 py-4 border border-[#bfa37a] text-[#bfa37a] hover:bg-[#bfa37a]/5 text-xs font-bold uppercase tracking-widest transition-all">
-                    Browse Directory
-                  </button>
-                </Link>
+                {directoryEnabled && (
+                  <Link href={`/${locale}/lawyers`}>
+                    <button className="inline-flex items-center px-6 py-4 border border-[#bfa37a] text-[#bfa37a] hover:bg-[#bfa37a]/5 text-xs font-bold uppercase tracking-widest transition-all">
+                      Browse Directory
+                    </button>
+                  </Link>
+                )}
               </div>
             </CardContent>
           </Card>

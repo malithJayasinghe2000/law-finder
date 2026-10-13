@@ -13,6 +13,7 @@ import {
 import { BOOKING_STATUS_COLORS, BOOKING_STATUS_LABELS } from '@/schemas/consultation.schema';
 import { formatDateOnlyString } from '@/lib/utils';
 import Link from 'next/link';
+import { useDirectoryEnabled } from '@/components/directory/DirectoryProvider';
 import QuoteReviewDialog from '@/components/consultations/QuoteReviewDialog';
 import EngagementLetterDialog from '@/components/consultations/EngagementLetterDialog';
 import FeeNoteDialog from '@/components/consultations/FeeNoteDialog';
@@ -53,6 +54,7 @@ interface Booking {
 export default function ClientConsultationsPage() {
   const params = useParams();
   const locale = params.locale as string;
+  const directoryEnabled = useDirectoryEnabled();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -288,10 +290,16 @@ export default function ClientConsultationsPage() {
         <div className="text-center py-16 border border-dashed border-neutral-200 bg-neutral-50/50">
           <CalendarDays className="h-10 w-10 text-neutral-300 mx-auto mb-3" />
           <p className="text-sm font-semibold text-neutral-900">No consultations yet</p>
-          <p className="text-xs text-neutral-500 mt-1 mb-4">Browse lawyers and book your first consultation</p>
-          <Link href={`/${locale}/lawyers`}>
-            <Button className="bg-[#0a0a0a] text-white hover:bg-neutral-800 rounded-none h-9 text-xs font-bold uppercase tracking-wide">Find a Lawyer</Button>
-          </Link>
+          {directoryEnabled ? (
+            <>
+              <p className="text-xs text-neutral-500 mt-1 mb-4">Browse lawyers and book your first consultation</p>
+              <Link href={`/${locale}/lawyers`}>
+                <Button className="bg-[#0a0a0a] text-white hover:bg-neutral-800 rounded-none h-9 text-xs font-bold uppercase tracking-wide">Find a Lawyer</Button>
+              </Link>
+            </>
+          ) : (
+            <p className="text-xs text-neutral-500 mt-1">To start one, use the link your law firm gave you.</p>
+          )}
         </div>
       ) : (
         <div className="space-y-3">

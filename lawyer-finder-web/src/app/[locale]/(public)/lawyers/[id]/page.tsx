@@ -54,23 +54,6 @@ export default async function LawyerProfilePage({
 
   if (!lawyer) notFound();
 
-  // Other verified attorneys, alphabetically. Not "similar", not "recommended" —
-  // just the rest of the directory, ordered on a criterion nobody can buy.
-  const otherLawyers = await prisma.lawyerProfile.findMany({
-    where: { isVerified: true, id: { not: lawyer.id } },
-    select: {
-      id: true,
-      fullName: true,
-      profileImageUrl: true,
-      bio: true,
-      practiceAreas: true,
-      district: true,
-      languages: true,
-    },
-    take: 12,
-    orderBy: { fullName: 'asc' },
-  });
-
   const serializedLawyer = {
     ...lawyer,
     user: lawyer.user ? { id: lawyer.user.id, createdAt: lawyer.user.createdAt.toISOString() } : null,
@@ -79,7 +62,6 @@ export default async function LawyerProfilePage({
   return (
     <LawyerProfileClient
       lawyer={serializedLawyer}
-      otherLawyers={otherLawyers}
       locale={locale}
       isLoggedIn={!!session}
       currentUserId={session?.userId || null}

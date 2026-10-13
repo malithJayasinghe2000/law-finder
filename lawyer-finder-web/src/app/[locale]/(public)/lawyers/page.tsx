@@ -1,4 +1,6 @@
 import prisma from '@/lib/db';
+import { isPublicDirectoryEnabled } from '@/lib/directory';
+import DirectoryWithdrawn from '@/components/directory/DirectoryWithdrawn';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -22,6 +24,12 @@ export default async function LawyerDirectory({
   searchParams: Promise<{ [key: string]: string | undefined }>;
 }) {
   const { locale } = await params;
+
+  // Withdrawn by an administrator — see src/lib/directory.ts.
+  if (!(await isPublicDirectoryEnabled())) {
+    return <DirectoryWithdrawn locale={locale} />;
+  }
+
   const filters = await searchParams;
 
   // --- Build Prisma where clause ---
@@ -33,7 +41,6 @@ export default async function LawyerDirectory({
     const searchTerm = filters.search.trim();
     where.OR = [
       { fullName: { contains: searchTerm, mode: 'insensitive' } },
-      { bio: { contains: searchTerm, mode: 'insensitive' } },
       { district: { contains: searchTerm, mode: 'insensitive' } },
       { practiceAreas: { has: searchTerm } },
     ];
@@ -53,7 +60,7 @@ export default async function LawyerDirectory({
         id: true,
         fullName: true,
         profileImageUrl: true,
-        bio: true,
+        // No bio: the directory card does not show it (see LawyerCard).
         practiceAreas: true,
         languages: true,
         district: true,
@@ -146,7 +153,7 @@ export default async function LawyerDirectory({
             </CardContent>
           </Card>
         ) : (
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {/* Sponsored listings removed from the directory in Phase 2.
                 Attorneys were buying an AdCampaign slot and appearing as a
                 "★ Sponsored" card ahead of everyone else in this very list.
@@ -166,13 +173,10 @@ export default async function LawyerDirectory({
                   id={lawyer.id}
                   fullName={lawyer.fullName}
                   profileImageUrl={lawyer.profileImageUrl}
-                  bio={lawyer.bio}
                   practiceAreas={lawyer.practiceAreas}
                   languages={lawyer.languages}
                   district={lawyer.district}
-
                   locale={locale}
-                  imageHeight="h-[280px]"
                 />
               );
             })}

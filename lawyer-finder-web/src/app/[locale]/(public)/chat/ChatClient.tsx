@@ -10,6 +10,7 @@ import Link from 'next/link';
 import ReactMarkdown from 'react-markdown';
 import { SidebarAd } from '@/components/ads/AdComponents';
 import { LegalDisclaimer } from '@/components/shared/LegalDisclaimer';
+import { useDirectoryEnabled } from '@/components/directory/DirectoryProvider';
 
 // ─── Types ─────────────────────────────────────────────────────────────
 /**
@@ -89,6 +90,7 @@ export default function ChatClient({
   isAuthenticated: boolean;
   conversationId?: string;
 }) {
+  const directoryEnabled = useDirectoryEnabled();
   // State
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
@@ -769,7 +771,7 @@ export default function ChatClient({
             <LegalDisclaimer
               variant="ai"
               className="mb-3 rounded-xl"
-              showDirectoryLink
+              showDirectoryLink={directoryEnabled}
               locale={locale}
             />
             <form

@@ -2291,3 +2291,33 @@ model SubjectRequestFirmResponse {
   @@unique([requestId, firmId])
   @@index([firmId, respondedAt])
 }
+
+/// ───────────────────────────────────────────────────────────────────────────
+/// The public directory switch — append-only.
+///
+/// Whether the consumer directory (`/lawyers`, `/firms` and their APIs) is shown
+/// at all. Counsel questions 16–18 ask whether it may lawfully exist; if the
+/// answer is no, an administrator turns it off here instead of shipping a
+/// release. See docs/DIRECTION.md §2.
+///
+/// The current state is the NEWEST row. No rows means ON, which is how the
+/// product behaved before the switch existed. Rows are never edited or deleted:
+/// "when was the directory taken down, by whom, and why" is a question a
+/// regulator can ask, and the answer is this table.
+/// ───────────────────────────────────────────────────────────────────────────
+model DirectorySwitch {
+  id String @id @default(uuid())
+
+  enabled Boolean
+
+  /// Required: a switch flipped with no reason is not a decision anyone can defend.
+  reason String
+
+  /// Not a relation, so it survives the erasure of that person's account,
+  /// like `DataAccessLog.actorUserId`.
+  changedById String
+
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}

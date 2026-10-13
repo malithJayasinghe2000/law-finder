@@ -13,6 +13,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
 import ChatBadge from '@/components/chat/ChatBadge';
+import { useDirectoryEnabled } from '@/components/directory/DirectoryProvider';
 
 interface HeaderProps {
   locale: string;
@@ -27,6 +28,7 @@ export default function Header({ locale, userRole = null, appStatus = null, user
   const t = useTranslations('Navigation');
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const directoryEnabled = useDirectoryEnabled();
   const isPremiumDesign = pathname === `/${locale}` || pathname === '/';
 
   if (pathname.includes('/dashboard')) {
@@ -38,7 +40,8 @@ export default function Header({ locale, userRole = null, appStatus = null, user
     // practitioner IS their practice — so listing both in the nav showed the
     // same people twice. The toggle on the page switches lens.
     // See docs/restructure/LEGAL-GUARDRAILS.md (rules 4 and 7).
-    { href: `/${locale}/firms`, label: t('directory'), icon: Search },
+    // Hidden while the public directory is switched off (src/lib/directory.ts).
+    ...(directoryEnabled ? [{ href: `/${locale}/firms`, label: t('directory'), icon: Search }] : []),
     { href: `/${locale}/chat`, label: t('chat'), icon: MessageCircle },
     { href: `/${locale}/legal-library`, label: t('legalLibrary'), icon: BookOpen },
     { href: `/${locale}/blog`, label: t('blog'), icon: FileText },

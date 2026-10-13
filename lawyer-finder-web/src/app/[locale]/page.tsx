@@ -4,6 +4,7 @@ import Footer from '@/components/layout/Footer';
 import { Button } from '@/components/ui/button';
 import {
   ArrowRight,
+  ArrowUpRight,
   Star,
   Scale,
   Building2,
@@ -13,153 +14,86 @@ import {
   PhoneCall,
   Facebook,
   Linkedin,
-  Users
 } from 'lucide-react';
 import HeroChatInput from '@/components/home/HeroChatInput';
+import { isPublicDirectoryEnabled } from '@/lib/directory';
 
 import { AdBanner } from '@/components/ads/AdComponents';
-import prisma from '@/lib/db';
-import LawyerCard from '@/components/lawyer/LawyerCard';
 
 export default async function HomePage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
+  const directoryEnabled = await isPublicDirectoryEnabled();
   const t = await getTranslations({ locale });
 
-
-
-  // Verified attorneys shown on the home page.
-  //
-  // Not "top" attorneys — there is no such thing here and there must not be. The
-  // ordering is alphabetical so that no attorney can occupy this space for any
-  // reason other than their name, and the select list is the Rule 40 content
-  // limit rather than the whole row (a bare findMany serializes every column,
-  // including fee ranges, into the RSC payload).
-  // See docs/restructure/LEGAL-GUARDRAILS.md (rules 3 and 4).
-  const directoryAttorneys = await prisma.lawyerProfile.findMany({
-    where: { isVerified: true },
-    select: {
-      id: true,
-      fullName: true,
-      profileImageUrl: true,
-      bio: true,
-      practiceAreas: true,
-      languages: true,
-      district: true,
-    },
-    orderBy: { fullName: 'asc' },
-    take: 8,
-  });
-
-  // Fetch actual active user count (Clients & Lawyers)
-  const userCount = await prisma.user.count({
-    where: { role: { in: ['LAWYER'] } }
-  });
 
   return (
     <div className="flex min-h-screen flex-col font-sans bg-white selection:bg-[#bfa37a]/30">
       <main className="flex-1">
 
-        {/* 1. Premium White Hero Section */}
-        <section className="relative bg-white pt-36 pb-16 px-6 lg:px-12 xl:px-24 overflow-hidden border-b border-neutral-100">
-          <div className="max-w-[1200px] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
-            {/* Left Content Column */}
-            <div className="lg:col-span-8 space-y-8">
-              <h1 className="text-4xl sm:text-6xl font-serif text-neutral-900 leading-[1.1] tracking-tight">
-                Defending Your Rights <br />
-                Delivering 
-                <span className="inline-flex items-center mx-3 bg-neutral-500 rounded-full h-9 w-20 sm:h-12 sm:w-24 overflow-hidden relative align-middle">
-                  <img 
-                    src="/justieswomen.png" 
-                    className="object-cover object-top w-full h-full scale-125 opacity-80 bg-white" 
-                    alt="Justice Decor" 
-                  />
-                </span>
-                Justice
-              </h1>
+        {/* 1. Hero — full-width photograph of Lady Justice on black, darkened from the
+            left so the text sits on near-black and the statue carries the right side.
+            Photo: Sasun Bughdaryan on Unsplash (unsplash.com/photos/KRNCAqkk8TE),
+            Unsplash License — free to use, no credit required.
+            The background must never be a person. Earlier versions used stock
+            portraits of models, which read as "our lawyers" and were not anyone on
+            the platform; a real attorney here would be given the front page over
+            every other. Guardrail rules 3 and 4. */}
+        <section className="relative bg-white pt-24">
+          <div className="relative isolate overflow-hidden bg-[#0f0f0f]">
+            <img
+              src="/assets/images/home1/hero-justice.jpg"
+              alt=""
+              aria-hidden="true"
+              width={2000}
+              height={1333}
+              className="absolute inset-y-0 right-0 -z-20 h-full w-full object-cover object-[65%_center] lg:w-[64%] lg:object-[60%_center]"
+            />
+            <div
+              aria-hidden="true"
+              className="absolute inset-0 -z-10 bg-gradient-to-r from-[#0f0f0f] via-[#0f0f0f]/90 to-[#0f0f0f]/30 lg:bg-[linear-gradient(to_right,#0f0f0f_40%,rgba(15,15,15,0.55)_55%,transparent_74%)]"
+            />
 
-              <p className="text-neutral-500 text-base sm:text-lg max-w-xl font-light leading-relaxed">
-                Welcome to LawHub, Sri Lanka&apos;s comprehensive legal platform. Connect seamlessly with verified legal professionals across the island.
-              </p>
+            <div className="mx-auto max-w-[1200px] px-6 py-20 sm:py-24 lg:px-12 lg:py-28">
+              <div className="max-w-2xl space-y-8 text-white">
+                <p className="font-serif text-lg text-white/85">Welcome to TheLawyr.</p>
 
-              {/* Action Buttons & Badges */}
-              <div className="flex flex-wrap items-center gap-6">
-                <div className="flex flex-wrap items-center gap-4">
-                  <Link href={`/${locale}/lawyers`}>
-                    <Button className="bg-[#bfa37a] text-white hover:bg-[#a68d67] rounded-none px-8 py-6 text-xs font-bold uppercase tracking-widest transition-all">
-                      Find Lawyers
-                    </Button>
+                <h1 className="font-serif text-5xl leading-[1.05] tracking-tight text-[#d8c29d] sm:text-6xl">
+                  Defending Your Rights, <br className="hidden sm:block" />
+                  Delivering Justice
+                </h1>
+
+                <p className="max-w-md text-sm font-light leading-relaxed text-white/75 sm:text-base">
+                  Sri Lanka&apos;s legal platform. Read what the law says, with the source for every
+                  answer{directoryEnabled ? ', and find a verified law firm when you need one' : ''}.
+                </p>
+
+                <div className="flex flex-wrap items-center gap-6">
+                  {directoryEnabled && (
+                    <Link
+                      href={`/${locale}/lawyers`}
+                      className="group inline-flex items-stretch border border-white/70 text-white"
+                    >
+                      <span className="px-6 py-3.5 text-xs font-bold uppercase tracking-widest">Find Lawyers</span>
+                      <span className="flex items-center bg-[#bfa37a] px-3.5 text-[#0f0f0f] transition-colors group-hover:bg-[#d8c29d]">
+                        <ArrowUpRight className="h-4 w-4" />
+                      </span>
+                    </Link>
+                  )}
+                  <Link
+                    href={`/${locale}/chat`}
+                    className="text-xs font-bold uppercase tracking-widest text-white/85 underline underline-offset-8 decoration-[#bfa37a] hover:text-white"
+                  >
+                    Chat With AI
                   </Link>
-                  <Link href={`/${locale}/chat`}>
-                    <Button variant="outline" className="border border-[#bfa37a] text-[#bfa37a] hover:bg-[#bfa37a]/5 rounded-none px-8 py-6 text-xs font-bold uppercase tracking-widest transition-all">
-                      Chat With AI
-                    </Button>
-                  </Link>
                 </div>
 
-                <div className="flex items-center gap-3">
-                  <div className="flex -space-x-3">
-                    <div className="w-9 h-9 rounded-full border-2 border-white bg-[#bfa37a] text-white flex items-center justify-center">
-                      <Users className="w-4 h-4" />
-                    </div>
-                  </div>
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-neutral-400">
-                    {userCount}+ Lawyers
-                  </p>
-                </div>
-              </div>
-
-              {/* Embedded Chat or Search Option matching UI */}
-              <div className="pt-2 w-full max-w-[580px] text-neutral-950">
-                <HeroChatInput locale={locale} />
-              </div>
-            </div>
-
-            {/* Right Column - Infinite Scrolling Vertical Lawyer Marquees */}
-            <div className="lg:col-span-4 h-[500px] overflow-hidden grid grid-cols-2 gap-4 relative">
-              {/* Left Column moves UP */}
-              <div className="relative h-full overflow-hidden">
-                <div className="flex flex-col gap-4 animate-marquee-vertical-up hover:[animation-play-state:paused] py-1">
-                  <div className="overflow-hidden rounded-tr-[60px] h-56 w-full shrink-0 bg-neutral-100 border border-neutral-100 shadow-sm">
-                    <img src="https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=400&h=500&q=80" className="object-cover w-full h-full" alt="Lawyer Portrait 1" />
-                  </div>
-                  <div className="overflow-hidden h-48 w-full shrink-0 bg-neutral-100 border border-neutral-100 shadow-sm">
-                    <img src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=400&h=500&q=80" className="object-cover w-full h-full" alt="Lawyer Portrait 2" />
-                  </div>
-                  
-                  {/* Duplicates for seamless vertical loop */}
-                  <div className="overflow-hidden rounded-tr-[60px] h-56 w-full shrink-0 bg-neutral-100 border border-neutral-100 shadow-sm">
-                    <img src="https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=400&h=500&q=80" className="object-cover w-full h-full" alt="Lawyer Portrait 1 Duplicate" />
-                  </div>
-                  <div className="overflow-hidden h-48 w-full shrink-0 bg-neutral-100 border border-neutral-100 shadow-sm">
-                    <img src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=400&h=500&q=80" className="object-cover w-full h-full" alt="Lawyer Portrait 2 Duplicate" />
-                  </div>
-                </div>
-              </div>
-
-              {/* Right Column moves DOWN */}
-              <div className="relative h-full overflow-hidden pt-8">
-                <div className="flex flex-col gap-4 animate-marquee-vertical-down hover:[animation-play-state:paused] py-1">
-                  <div className="overflow-hidden rounded-br-[60px] h-56 w-full shrink-0 bg-neutral-100 border border-neutral-100 shadow-sm">
-                    <img src="https://images.unsplash.com/photo-1556157382-97eda2d62296?auto=format&fit=crop&w=400&h=500&q=80" className="object-cover w-full h-full" alt="Lawyer Portrait 3" />
-                  </div>
-                  <div className="overflow-hidden h-48 w-full shrink-0 bg-neutral-100 border border-neutral-100 shadow-sm">
-                    <img src="https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=400&h=500&q=80" className="object-cover w-full h-full" alt="Lawyer Portrait 4" />
-                  </div>
-
-                  {/* Duplicates for seamless vertical loop */}
-                  <div className="overflow-hidden rounded-br-[60px] h-56 w-full shrink-0 bg-neutral-100 border border-neutral-100 shadow-sm">
-                    <img src="https://images.unsplash.com/photo-1556157382-97eda2d62296?auto=format&fit=crop&w=400&h=500&q=80" className="object-cover w-full h-full" alt="Lawyer Portrait 3 Duplicate" />
-                  </div>
-                  <div className="overflow-hidden h-48 w-full shrink-0 bg-neutral-100 border border-neutral-100 shadow-sm">
-                    <img src="https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=400&h=500&q=80" className="object-cover w-full h-full" alt="Lawyer Portrait 4 Duplicate" />
-                  </div>
+                <div className="w-full max-w-[580px] pt-2 text-neutral-950">
+                  <HeroChatInput locale={locale} tone="dark" />
                 </div>
               </div>
             </div>
           </div>
 
-
-          
           <AdBanner placement="HOMEPAGE_BELOW_HERO" locale={locale} className="w-full max-w-[1200px] mx-auto mt-8 rounded-none overflow-hidden shadow-sm border border-neutral-100" />
         </section>
 
@@ -194,106 +128,91 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
           </div>
         </section>
 
-        {/* 5. The Best Lawyers In Our House (Dynamic dynamic database list B&W) */}
-        <section className="bg-neutral-100 py-24 px-6 lg:px-12 xl:px-24 border-t border-neutral-100">
-          <div className="max-w-[1400px] mx-auto space-y-16">
-            
-            {/* Header */}
-            <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-neutral-200 pb-8">
+        {/* 5. Directory entry point.
+            This used to be a grid of eight attorney portrait cards with their bios.
+            Ordered alphabetically, it put the same eight names on the front page
+            for ever — free prominence for some attorneys over all the others —
+            and the bios ("Expert in…", "Specialist in…") were self-promotion.
+            A single neutral entry point instead. See src/components/lawyer/LawyerCard.tsx. */}
+        {directoryEnabled && (
+          <section className="bg-neutral-100 py-20 px-6 lg:px-12 xl:px-24 border-t border-neutral-100">
+            <div className="max-w-[1400px] mx-auto flex flex-col md:flex-row md:items-end justify-between gap-6">
               <div className="space-y-3">
-                <span className="text-[10px] text-[#bfa37a] uppercase tracking-[0.2em] font-bold">Verified Directory</span>
+                <span className="text-[10px] text-[#bfa37a] uppercase tracking-[0.2em] font-bold">Directory</span>
                 <h2 className="text-3xl md:text-4xl font-serif text-neutral-900">
-                  Browse Our Legal <br /> Professionals
+                  Find an Attorney-at-Law
                 </h2>
+                <p className="text-neutral-500 text-sm max-w-md font-light leading-relaxed">
+                  Verified law firms and attorneys, listed alphabetically. Filter by practice area, district and language.
+                </p>
               </div>
-              <p className="text-neutral-500 text-sm max-w-md font-light leading-relaxed">
-                Connect with our active directory of Attorneys-at-Law, fully verified by the BASL and ready to assist you.
-              </p>
-            </div>
-
-            {/* Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
-              {/* Ad/Sponsored placement */}
-              {/* Sponsored attorney listings removed here in Phase 2 for the
-                  same reason as on /lawyers: an attorney could pay to appear
-                  above other attorneys. Guardrail rule 3.
-                  See docs/restructure/LEGAL-GUARDRAILS.md. */}
-
-              {directoryAttorneys.map((lawyer) => {
-                return (
-                  <LawyerCard
-                    key={lawyer.id}
-                    id={lawyer.id}
-                    fullName={lawyer.fullName}
-                    profileImageUrl={lawyer.profileImageUrl}
-                    bio={lawyer.bio}
-                    practiceAreas={lawyer.practiceAreas}
-                    languages={lawyer.languages}
-                    district={lawyer.district}
-                    locale={locale}
-                    imageHeight="h-[360px]"
-                  />
-                );
-              })}
-            </div>
-          </div>
-        </section>
-
-        {/* 4. My Legal Practice Area section (Watermarked with specified bg asset) */}
-        <section 
-          className="relative bg-white py-24 px-6 lg:px-12 xl:px-24 overflow-hidden -mt-10 pt-32"
-          style={{ 
-            backgroundImage: "url('/assets/images/home1/practicearea-bg.webp')",
-            backgroundPosition: 'left 5% center',
-            backgroundRepeat: 'no-repeat',
-            backgroundSize: '35% auto'
-          }}
-        >
-          <div className="max-w-[1200px] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-12 relative z-10">
-            {/* Title / Info on Left */}
-            <div className="lg:col-span-4 flex flex-col justify-center space-y-8">
-              <h2 className="text-3xl sm:text-4xl font-serif text-neutral-900">
-                My Legal Practice <br /> Area
-              </h2>
-              <p className="text-neutral-500 text-sm font-light max-w-xs leading-relaxed">
-                Browse our directory segmented by active areas of expertise to get the perfect representation.
-              </p>
-              <Link href={`/${locale}/lawyers`}>
-                <Button className="bg-[#bfa37a] text-white hover:bg-[#a68d67] rounded-none px-8 py-6 text-xs font-bold uppercase tracking-widest transition-all self-start">
-                  All Practices Areas
+              <Link href={`/${locale}/firms`}>
+                <Button className="bg-[#bfa37a] text-white hover:bg-[#a68d67] rounded-none px-8 py-6 text-xs font-bold uppercase tracking-widest transition-all">
+                  Browse the directory
                 </Button>
               </Link>
             </div>
+          </section>
+        )}
 
-            {/* Grid on Right */}
-            <div className="lg:col-span-8 grid grid-cols-1 sm:grid-cols-2 gap-6">
-              {[
-                { title: 'Trusted Lawyer', desc: 'Expert assistance on criminal, civil litigation and family disputes.', icon: Scale, area: 'Civil' },
-                { title: 'Business Consulting', desc: 'Corporate advice, commercial contracts, IP registration, and audits.', icon: Building2, area: 'Corporate' },
-                { title: 'Legal Champion', desc: 'Accidents, injuries representation and insurance claim collection.', icon: Gavel, area: 'Employment' },
-                { title: 'Dedicated Legalist', desc: 'Administrative tribunals, banking and labor law assistance.', icon: ShieldCheck, area: 'Administrative' },
-                { title: 'Case Analysis', desc: 'Deep analytics and automated templates check for business audits.', icon: FileText, area: 'Civil' },
-                { title: 'Discovery Caller', desc: 'Direct secure communication lines and scheduling options.', icon: PhoneCall, area: 'Corporate' }
-              ].map((item, idx) => {
-                const Icon = item.icon;
-                return (
-                  <Link key={idx} href={`/${locale}/lawyers?practiceArea=${item.area}`}>
-                    <div className="bg-white border border-neutral-100 p-8 hover:shadow-2xl transition-all duration-500 hover:-translate-y-1 group flex flex-col items-start space-y-5">
-                      <div className="p-3 bg-[#faf6f0] text-[#bfa37a] group-hover:bg-[#bfa37a] group-hover:text-white transition-all duration-300">
-                        <Icon className="w-6 h-6 stroke-[1.5]" />
+        {/* 4. My Legal Practice Area section (Watermarked with specified bg asset).
+            Every card is a directory search, so the section goes with the directory. */}
+        {directoryEnabled && (
+          <section 
+            className="relative bg-white py-24 px-6 lg:px-12 xl:px-24 overflow-hidden -mt-10 pt-32"
+            style={{ 
+              backgroundImage: "url('/assets/images/home1/practicearea-bg.webp')",
+              backgroundPosition: 'left 5% center',
+              backgroundRepeat: 'no-repeat',
+              backgroundSize: '35% auto'
+            }}
+          >
+            <div className="max-w-[1200px] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-12 relative z-10">
+              {/* Title / Info on Left */}
+              <div className="lg:col-span-4 flex flex-col justify-center space-y-8">
+                <h2 className="text-3xl sm:text-4xl font-serif text-neutral-900">
+                  My Legal Practice <br /> Area
+                </h2>
+                <p className="text-neutral-500 text-sm font-light max-w-xs leading-relaxed">
+                  Browse our directory segmented by active areas of expertise to get the perfect representation.
+                </p>
+                <Link href={`/${locale}/lawyers`}>
+                  <Button className="bg-[#bfa37a] text-white hover:bg-[#a68d67] rounded-none px-8 py-6 text-xs font-bold uppercase tracking-widest transition-all self-start">
+                    All Practices Areas
+                  </Button>
+                </Link>
+              </div>
+
+              {/* Grid on Right */}
+              <div className="lg:col-span-8 grid grid-cols-1 sm:grid-cols-2 gap-6">
+                {[
+                  { title: 'Trusted Lawyer', desc: 'Expert assistance on criminal, civil litigation and family disputes.', icon: Scale, area: 'Civil' },
+                  { title: 'Business Consulting', desc: 'Corporate advice, commercial contracts, IP registration, and audits.', icon: Building2, area: 'Corporate' },
+                  { title: 'Legal Champion', desc: 'Accidents, injuries representation and insurance claim collection.', icon: Gavel, area: 'Employment' },
+                  { title: 'Dedicated Legalist', desc: 'Administrative tribunals, banking and labor law assistance.', icon: ShieldCheck, area: 'Administrative' },
+                  { title: 'Case Analysis', desc: 'Deep analytics and automated templates check for business audits.', icon: FileText, area: 'Civil' },
+                  { title: 'Discovery Caller', desc: 'Direct secure communication lines and scheduling options.', icon: PhoneCall, area: 'Corporate' }
+                ].map((item, idx) => {
+                  const Icon = item.icon;
+                  return (
+                    <Link key={idx} href={`/${locale}/lawyers?practiceArea=${item.area}`}>
+                      <div className="bg-white border border-neutral-100 p-8 hover:shadow-2xl transition-all duration-500 hover:-translate-y-1 group flex flex-col items-start space-y-5">
+                        <div className="p-3 bg-[#faf6f0] text-[#bfa37a] group-hover:bg-[#bfa37a] group-hover:text-white transition-all duration-300">
+                          <Icon className="w-6 h-6 stroke-[1.5]" />
+                        </div>
+                        <h3 className="text-sm font-serif font-bold text-neutral-900 uppercase tracking-wider">{item.title}</h3>
+                        <p className="text-neutral-500 text-xs font-light leading-relaxed">{item.desc}</p>
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-neutral-400 group-hover:text-[#bfa37a] transition-colors flex items-center gap-1.5 pt-2">
+                          Read More <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
+                        </span>
                       </div>
-                      <h3 className="text-sm font-serif font-bold text-neutral-900 uppercase tracking-wider">{item.title}</h3>
-                      <p className="text-neutral-500 text-xs font-light leading-relaxed">{item.desc}</p>
-                      <span className="text-[10px] font-bold uppercase tracking-widest text-neutral-400 group-hover:text-[#bfa37a] transition-colors flex items-center gap-1.5 pt-2">
-                        Read More <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
-                      </span>
-                    </div>
-                  </Link>
-                );
-              })}
+                    </Link>
+                  );
+                })}
+              </div>
             </div>
-          </div>
-        </section>
+          </section>
+        )}
 
         
 

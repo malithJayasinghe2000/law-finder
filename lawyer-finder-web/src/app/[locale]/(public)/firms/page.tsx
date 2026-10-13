@@ -1,4 +1,6 @@
 import prisma from '@/lib/db';
+import { isPublicDirectoryEnabled } from '@/lib/directory';
+import DirectoryWithdrawn from '@/components/directory/DirectoryWithdrawn';
 import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import Link from 'next/link';
@@ -36,6 +38,12 @@ export default async function FirmDirectory({
   searchParams: Promise<{ [key: string]: string | undefined }>;
 }) {
   const { locale } = await params;
+
+  // Withdrawn by an administrator — see src/lib/directory.ts.
+  if (!(await isPublicDirectoryEnabled())) {
+    return <DirectoryWithdrawn locale={locale} />;
+  }
+
   const filters = await searchParams;
 
   const where: Record<string, unknown> = {
