@@ -2670,3 +2670,16 @@ list and the owner's queue are unchanged.
 `unread-count`), sidebar counts, refunds, and the subscription routes (a manager cannot see
 the practice's licence).
 
+### 2026-10-13 — Conflict check and quote buttons shown only to the assigned attorney
+
+The queue showed "Conflict check" on every new request, including unassigned ones, so a
+principal could fill in the whole form and only then be refused ("not assigned to an
+attorney yet") — the server allows only the assigned attorney to screen and to quote. The
+buttons now follow `access.basis === 'ASSIGNED_ATTORNEY'`, and an unassigned request
+shows "Assign an attorney first" beside Assign. Checked in Chrome as the owner on
+BK-2026-0003, unassigned and then temporarily assigned to the owner (restored exactly).
+
+**Found, not changed:** choosing **Unresolved** in the conflict check declines the request
+at once, the same as Conflict found (`outcome !== 'CLEAR'` → DECLINED), although the
+dialog describes it as "cannot act without further review".
+

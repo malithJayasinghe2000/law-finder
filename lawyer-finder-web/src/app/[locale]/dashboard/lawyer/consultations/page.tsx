@@ -438,7 +438,17 @@ export default function LawyerBookingsPage() {
 
                       <div className="text-right shrink-0">
                         <div className="flex gap-1.5 mt-3">
-                          {booking.status === 'REQUESTED' && (
+                          {/* The conflict check and the quote are the assigned attorney's
+                              own professional acts — the server refuses anyone else, so the
+                              buttons are shown only to them. Until someone is assigned, the
+                              principal sees a prompt to assign instead. */}
+                          {!booking.lawyerId && booking.access?.canAssign &&
+                            (booking.status === 'REQUESTED' || booking.status === 'CONFLICT_CHECK') && (
+                            <span className="self-center text-[10px] font-semibold text-amber-800">
+                              Assign an attorney first
+                            </span>
+                          )}
+                          {booking.status === 'REQUESTED' && booking.access?.basis === 'ASSIGNED_ATTORNEY' && (
                             <Button
                               size="sm"
                               onClick={() => setConflictTarget(booking)}
@@ -448,7 +458,7 @@ export default function LawyerBookingsPage() {
                               <ShieldCheck className="w-3 h-3 mr-1" /> Conflict check
                             </Button>
                           )}
-                          {booking.status === 'CONFLICT_CHECK' && (
+                          {booking.status === 'CONFLICT_CHECK' && booking.access?.basis === 'ASSIGNED_ATTORNEY' && (
                             <Button
                               size="sm"
                               onClick={() => setQuoteTarget(booking)}
