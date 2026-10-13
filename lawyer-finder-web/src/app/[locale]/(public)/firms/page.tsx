@@ -49,6 +49,7 @@ export default async function FirmDirectory({
   const where: Record<string, unknown> = { ...LISTED_FIRM_WHERE };
   if (filters.district) where.district = filters.district;
   if (filters.practiceArea) where.practiceAreas = { has: filters.practiceArea };
+  if (filters.language) where.languages = { has: filters.language };
   if (filters.search) {
     where.name = { contains: filters.search.trim(), mode: 'insensitive' };
   }
@@ -81,13 +82,14 @@ export default async function FirmDirectory({
   ]);
 
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
-  const hasFilters = !!(filters.search || filters.district || filters.practiceArea);
+  const hasFilters = !!(filters.search || filters.district || filters.practiceArea || filters.language);
 
   function buildPageUrl(page: number) {
     const params = new URLSearchParams();
     if (filters.search) params.set('search', filters.search);
     if (filters.district) params.set('district', filters.district);
     if (filters.practiceArea) params.set('practiceArea', filters.practiceArea);
+    if (filters.language) params.set('language', filters.language);
     if (page > 1) params.set('page', String(page));
     const qs = params.toString();
     return `/${locale}/firms${qs ? `?${qs}` : ''}`;
