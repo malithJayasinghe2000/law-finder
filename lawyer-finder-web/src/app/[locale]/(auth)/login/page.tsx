@@ -14,6 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Scale, LogIn, Loader2, ArrowLeft } from 'lucide-react';
 import { FieldError } from '@/components/ui/FieldError';
+import { currentRedirect, withRedirect } from '@/lib/safeRedirect';
 
 export default function LoginPage() {
   const [loading, setLoading] = useState(false);
@@ -22,13 +23,17 @@ export default function LoginPage() {
   const [resendCooldown, setResendCooldown] = useState(0);
   const { locale } = useParams();
   const router = useRouter();
+  // Where to go after signing in — an invitation link, or a page that asked for
+  // a session. Read once on mount; only paths on this site (see safeRedirect).
+  const [redirectTo, setRedirectTo] = useState<string | null>(null);
 
   useEffect(() => {
+    setRedirectTo(currentRedirect());
     fetch('/api/auth/session')
       .then(res => res.json())
       .then(data => {
         if (data.authenticated) {
-          window.location.href = data.role === 'CLIENT' ? `/${locale}` : `/${locale}/dashboard/${data.role.toLowerCase()}`;
+          window.location.href = currentRedirect() ?? (data.role === 'CLIENT' ? `/${locale}` : `/${locale}/dashboard/${data.role.toLowerCase()}`);
         }
       });
 
@@ -87,9 +92,10 @@ export default function LoginPage() {
 
       toast.success('Signed in successfully.');
       window.location.href =
-        result.role === 'CLIENT'
+        redirectTo ??
+        (result.role === 'CLIENT'
           ? `/${locale}`
-          : `/${locale}/dashboard/${result.role.toLowerCase()}`;
+          : `/${locale}/dashboard/${result.role.toLowerCase()}`);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Login failed';
       toast.error(message);
@@ -177,7 +183,7 @@ export default function LoginPage() {
 
           <p className="text-center text-sm text-neutral-500 mt-8 font-light">
             Don&apos;t have an account?{' '}
-            <Link href={`/${locale}/register`} className="font-bold text-[#bfa37a] hover:text-[#a68d67] hover:underline transition-colors">
+            <Link href={withRedirect(`/${locale}/register`, redirectTo)} className="font-bold text-[#bfa37a] hover:text-[#a68d67] hover:underline transition-colors">
               Create one
             </Link>
           </p>

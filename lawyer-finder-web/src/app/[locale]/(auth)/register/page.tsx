@@ -9,6 +9,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Scale, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
 import { FieldError } from '@/components/ui/FieldError';
+import { currentRedirect, withRedirect } from '@/lib/safeRedirect';
 import {
   Dialog,
   DialogContent,
@@ -36,13 +37,16 @@ export default function RegisterPage() {
   });
   const { locale } = useParams();
   const router = useRouter();
+  // Carried through to sign-in, so an invitation link survives creating an account.
+  const [redirectTo, setRedirectTo] = useState<string | null>(null);
+  useEffect(() => setRedirectTo(currentRedirect()), []);
 
   useEffect(() => {
     fetch('/api/auth/session')
       .then(res => res.json())
       .then(data => {
         if (data.authenticated) {
-          window.location.href = data.role === 'CLIENT' ? `/${locale}` : `/${locale}/dashboard/${data.role.toLowerCase()}`;
+          window.location.href = currentRedirect() ?? (data.role === 'CLIENT' ? `/${locale}` : `/${locale}/dashboard/${data.role.toLowerCase()}`);
         }
       });
   }, [locale]);
@@ -61,7 +65,7 @@ export default function RegisterPage() {
   const handleModalClose = () => {
     closeModal();
     if (modal.type === 'success') {
-      window.location.href = '/en/login';
+      window.location.href = withRedirect(`/${locale}/login`, redirectTo);
     }
   };
 
@@ -202,7 +206,7 @@ export default function RegisterPage() {
 
           <p className="text-center text-sm text-neutral-500 mt-6 font-light">
             Already have an account?{' '}
-            <Link href={`/${locale}/login`} className="font-bold text-[#bfa37a] hover:text-[#a68d67] hover:underline transition-colors">
+            <Link href={withRedirect(`/${locale}/login`, redirectTo)} className="font-bold text-[#bfa37a] hover:text-[#a68d67] hover:underline transition-colors">
               Sign in
             </Link>
           </p>
