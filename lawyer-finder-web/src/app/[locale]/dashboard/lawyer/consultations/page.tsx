@@ -47,6 +47,8 @@ interface Booking {
   createdAt: string;
   client: { id: string; fullName: string | null; email: string; profileImageUrl: string | null };
   lawyer?: { fullName: string } | null;
+  /** Firm side only: the last conflict-check outcome, if one was recorded. */
+  conflictOutcome?: 'CLEAR' | 'CONFLICT_FOUND' | 'NEEDS_REVIEW' | null;
   payment: any;
   /**
    * What this member of the firm may do with this matter, decided server-side in
@@ -413,6 +415,11 @@ export default function LawyerBookingsPage() {
                           {!booking.lawyerId && (
                             <span className="border border-amber-300 bg-amber-50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-widest text-amber-800">
                               Unassigned
+                            </span>
+                          )}
+                          {booking.status === 'REQUESTED' && booking.conflictOutcome === 'NEEDS_REVIEW' && (
+                            <span className="border border-amber-300 bg-amber-50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-widest text-amber-800">
+                              Check on hold
                             </span>
                           )}
                         </div>

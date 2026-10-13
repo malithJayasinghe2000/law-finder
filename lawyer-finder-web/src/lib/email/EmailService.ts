@@ -151,6 +151,27 @@ export const EmailService = {
     );
   },
 
+  /**
+   * A practice cannot act for this client. Never says why: the reason is a
+   * conflict with another client, and that is confidential to them.
+   */
+  async sendRequestDeclined(params: { to: string; clientName: string; firmName: string; bookingNumber: string }) {
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://thelawyr.lk';
+    const firm = escapeHtml(params.firmName);
+    await sendMailSafe(
+      params.to,
+      `Your request ${params.bookingNumber} — ${params.firmName} is unable to act`,
+      template('Request not accepted', `
+        <p>Dear ${escapeHtml(params.clientName)},</p>
+        <p><strong>${firm}</strong> has told us it is unable to act for you in request <strong>${params.bookingNumber}</strong>.</p>
+        <p>Practices decline for professional reasons they cannot share, and this is not a judgment on your matter. You are free to approach another practice.</p>
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${appUrl}/firms" style="background-color: #bfa37a; color: #ffffff; padding: 14px 28px; text-decoration: none; display: inline-block; font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.15em; border-radius: 0;">Browse practices</a>
+        </div>
+      `)
+    );
+  },
+
   async sendApplicationSubmitted(email: string, fullName: string) {
     await sendMailSafe(email, 'Lawyer Application Received', template('Application Received', `
       <p>Dear ${fullName},</p>

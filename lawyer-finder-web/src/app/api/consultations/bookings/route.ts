@@ -90,6 +90,7 @@ export async function GET(req: Request) {
           client: { select: { id: true, fullName: true, email: true, profileImageUrl: true } },
           lawyer: { select: { id: true, fullName: true, profileImageUrl: true, district: true, address: true, contactPhone: true } },
           payment: true,
+          conflictCheck: { select: { outcome: true } },
         },
         orderBy: { createdAt: 'desc' },
         skip,
@@ -105,7 +106,7 @@ export async function GET(req: Request) {
     // staff never may; inside a firm, only the assigned attorney and the
     // principal do. See docs/restructure/LEGAL-GUARDRAILS.md (rule 5).
     return NextResponse.json({
-      bookings: bookings.map((b) => {
+      bookings: bookings.map(({ conflictCheck, ...b }) => {
         const access = resolveMatterAccess({
           actorUserId: session.userId,
           actorRole: session.role,
@@ -122,6 +123,12 @@ export async function GET(req: Request) {
           canAssign: access.canAssign,
           basis: access.basis,
         },
+        // Firm side only. The client is told whether the firm can act, never
+        // the screening behind it — that concerns another client.
+        conflictOutcome:
+          access.basis === 'CLIENT' || access.basis === 'PLATFORM_STAFF'
+            ? null
+            : conflictCheck?.outcome ?? null,
         date: formatSriLankaDateIsoOrNull(b.date),
         createdAt: b.createdAt.toISOString(),
         updatedAt: b.updatedAt.toISOString(),

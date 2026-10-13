@@ -2679,7 +2679,28 @@ buttons now follow `access.basis === 'ASSIGNED_ATTORNEY'`, and an unassigned req
 shows "Assign an attorney first" beside Assign. Checked in Chrome as the owner on
 BK-2026-0003, unassigned and then temporarily assigned to the owner (restored exactly).
 
-**Found, not changed:** choosing **Unresolved** in the conflict check declines the request
-at once, the same as Conflict found (`outcome !== 'CLEAR'` → DECLINED), although the
-dialog describes it as "cannot act without further review".
+Unresolved was fixed the same day — next entry.
+
+### 2026-10-13 — "Unresolved" holds a request; the client is told when a practice cannot act
+
+- **Unresolved (`NEEDS_REVIEW`) no longer declines.** It declined at once, exactly like
+  Conflict found. Now the screening is recorded and the request stays (or goes back to)
+  REQUESTED, shown in the queue as **Check on hold**; the attorney re-runs the check, and
+  nothing can be quoted until it is cleared. Screening may be recorded while REQUESTED or
+  CONFLICT_CHECK only. The dialog's hint reads "On hold — check again before quoting".
+- **The client is emailed when a practice cannot act** (`sendRequestDeclined`) — that it
+  cannot, never why. Before, they found out only by opening their dashboard.
+- **The outcome reaches the firm's list only** (`conflictOutcome`), null for the client and
+  platform staff.
+
+Verified on the running app with a temporary client at example.com (13 checks): unassigned
+check refused; Unresolved → REQUESTED + on hold; a valid quote refused while on hold
+("Run the conflict check before quoting a fee") and the same quote accepted once cleared;
+the client sees neither the outcome nor the screened names; Clear → CONFLICT_CHECK;
+Unresolved after Clear → back on hold; Conflict found → DECLINED with the generic remark;
+a declined request cannot be re-screened. Test client, requests, checks and quote deleted.
+
+**Note:** local `.env` has live SMTP credentials, so every test that creates a request or
+an invitation sends real email. Tests today mailed citizen@thelawyr.lk; later ones used
+example.com addresses.
 

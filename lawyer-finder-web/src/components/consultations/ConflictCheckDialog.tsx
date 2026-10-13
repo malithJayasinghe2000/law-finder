@@ -101,7 +101,7 @@ export function ConflictCheckDialog({
   const OUTCOMES: { value: Outcome; label: string; hint: string; tone: string }[] = [
     { value: 'CLEAR', label: 'No conflict', hint: 'The firm is free to act', tone: 'border-green-500 bg-green-50 text-green-900' },
     { value: 'CONFLICT_FOUND', label: 'Conflict found', hint: 'The firm cannot act', tone: 'border-red-500 bg-red-50 text-red-900' },
-    { value: 'NEEDS_REVIEW', label: 'Unresolved', hint: 'Cannot act without further review', tone: 'border-amber-500 bg-amber-50 text-amber-900' },
+    { value: 'NEEDS_REVIEW', label: 'Unresolved', hint: 'On hold — check again before quoting', tone: 'border-amber-500 bg-amber-50 text-amber-900' },
   ];
 
   return (
