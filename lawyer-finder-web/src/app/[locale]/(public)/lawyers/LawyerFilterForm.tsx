@@ -50,7 +50,7 @@ export default function LawyerFilterForm({ locale, filters }: LawyerFilterFormPr
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             name="search"
-            placeholder="Search by name, specialty, or district..."
+            placeholder="Search by name or district..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-10 h-9"
