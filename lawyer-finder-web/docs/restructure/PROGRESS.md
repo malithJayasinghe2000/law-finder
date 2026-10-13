@@ -2753,3 +2753,16 @@ thread and its two audit rows deleted.
 **Not changed:** an existing thread stays usable after the request is declined — the
 firm can still write in it. Closing a thread is a separate decision.
 
+
+### 2026-10-14 — Client dashboard Messages; chat names and phone layout
+
+- **Messages in the client dashboard** (`/dashboard/client/messages`, sidebar item with the
+  unread badge), as attorneys have. `/messages` behind the header link is unchanged.
+- **Names:** the conversation list showed the seeded attorney as "None" — their *account*
+  `fullName` is the literal string. It now shows the attorney's profile name, then the
+  account name, then the email.
+- **Phone layout:** the list and the conversation sat side by side and the conversation was
+  cut off. Below `md` they take turns, with a back arrow. Desktop unchanged.
+
+Verified in Chrome as the client (390px phone: list → tap → conversation with back arrow
+→ list, no overflow; desktop side by side) and as the attorney (list unchanged).
