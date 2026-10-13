@@ -14,6 +14,7 @@ import {
   Building2, Users, MapPin, Info, Loader2, Plus, Trash2, ArrowLeft, ArrowRight, ShieldCheck,
 } from 'lucide-react';
 import { DISTRICTS, PRACTICE_AREAS, LANGUAGES } from '@/schemas/profile.schema';
+import SelfPromotionNotice from '@/components/shared/SelfPromotionNotice';
 
 /**
  * Registering a real law firm.
@@ -342,6 +343,7 @@ export default function RegisterFirmPage({ params }: { params: Promise<{ locale:
                 className="rounded-none"
                 placeholder="A factual description of the practice and the work it does."
               />
+              <SelfPromotionNotice text={form.description} />
             </div>
 
             <div>

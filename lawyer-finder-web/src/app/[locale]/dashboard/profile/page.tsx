@@ -9,6 +9,7 @@ import {
   Shield, Calendar, CreditCard, AlertTriangle, CheckCircle, XCircle,
 } from 'lucide-react';
 import { DISTRICTS, PRACTICE_AREAS } from '@/schemas/profile.schema';
+import SelfPromotionNotice from '@/components/shared/SelfPromotionNotice';
 
 const LANGUAGES = ['Sinhala', 'Tamil', 'English'];
 const PRACTICE_TYPES = ['Independent', 'Law Firm'];
@@ -496,6 +497,7 @@ export default function ProfileSettingsPage() {
                     rows={4}
                     className="w-full bg-white border border-neutral-200 text-[#0a0a0a] px-4 py-3 outline-none focus:border-[#bfa37a] focus:bg-[#faf8f6]/30 transition-all text-sm rounded-none resize-none"
                   />
+                  <SelfPromotionNotice text={bio} />
                 </div>
               </div>
             </div>

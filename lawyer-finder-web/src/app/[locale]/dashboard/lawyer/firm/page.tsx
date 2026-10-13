@@ -17,6 +17,7 @@ import {
   Building2, Users, MapPin, ShieldCheck, Info, Loader2, Plus, Lock, Landmark, Clock,
 } from 'lucide-react';
 import { DISTRICTS, PRACTICE_AREAS, LANGUAGES } from '@/schemas/profile.schema';
+import SelfPromotionNotice from '@/components/shared/SelfPromotionNotice';
 
 /**
  * The firm console.
@@ -122,6 +123,8 @@ const VERIFICATION_STYLE: Record<string, string> = {
 
 export default function FirmPage() {
   const [firm, setFirm] = useState<Firm | null>(null);
+  // Live copy of the description field, for the self-praise notice. null = untouched.
+  const [descriptionDraft, setDescriptionDraft] = useState<string | null>(null);
   const router = useRouter();
   const pathname = usePathname();
   const [canManage, setCanManage] = useState(false);
@@ -473,9 +476,11 @@ export default function FirmPage() {
               <Textarea
                 id="description" name="description" rows={3}
                 defaultValue={firm.description || ''}
+                onChange={(e) => setDescriptionDraft(e.target.value)}
                 disabled={!canManage} className="rounded-none text-sm"
                 placeholder="A factual description of the practice and the work it does."
               />
+              <SelfPromotionNotice text={descriptionDraft ?? firm.description} />
               <p className="text-[10px] text-neutral-400">
                 Keep this factual. Claims of superiority, success rates and testimonials
                 are not permitted.
