@@ -330,7 +330,21 @@ export const RecordConflictCheckSchema = z.object({
     .max(2000, 'Notes cannot exceed 2000 characters')
     .optional()
     .transform((v) => (v ? sanitizeString(v, 2000) : undefined)),
-});
+  /** The attorney confirms they checked the practice does not act for the other side. */
+  confirmedNoConflict: z.boolean().optional(),
+})
+  // Accepting is the attorney's statement that they screened for conflicts. The
+  // names list is optional (2026-10-13), so this confirmation is the record.
+  .refine((d) => d.outcome !== 'CLEAR' || d.confirmedNoConflict === true, {
+    message: 'Confirm that you checked your practice does not act for the other side.',
+    path: ['confirmedNoConflict'],
+  })
+  // Declining is final and the client is never told why, so the practice keeps
+  // its own reason.
+  .refine((d) => d.outcome !== 'CONFLICT_FOUND' || !!d.notes, {
+    message: 'Note why your practice cannot act — it stays private to your practice.',
+    path: ['notes'],
+  });
 
 export type RecordConflictCheckInput = z.infer<typeof RecordConflictCheckSchema>;
 

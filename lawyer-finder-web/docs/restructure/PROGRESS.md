@@ -116,6 +116,7 @@ DPO designation, which are documents rather than code.
 | 2026-10-13 | Consultation requests go to the **practice only**; the practice assigns the attorney (`ATTORNEY_BOOKING_ENABLED = false`) | Owner's decision. The practice is the service provider (rule 7), so engaging the practice is the cleanest shape, and the choice of attorney is the practice's, never ours. A sole practitioner is a practice of one and loses nothing. A switch, not a deletion — refused in the API too, because hiding the button alone left a direct POST able to book an attorney |
 | 2026-10-13 | A practice can open a request for a client who came to it directly; **the client must sign in and accept** before it exists | Owner's choice (option A: invite by email, not only existing accounts). The practice writes it, confirms the client asked it to act, and may pick its own attorney; the client confirms. A practice cannot place itself in front of a stranger — the stranger never accepts, the email says nothing about the matter, and a practice can open 20 a day. Starts at REQUESTED, so the conflict check still runs. Replaces the admin "create booking" tool, where platform staff chose the attorney and typed in the client's legal problem |
 | 2026-10-13 | The admin **"create booking" tool is off** (`ADMIN_CREATE_BOOKING_ENABLED = false`) | Platform staff chose the attorney (rule 4), typed in the client's legal problem (rule 5), and sent the matter straight to SCHEDULED past the conflict check. Replaced first by the practice-side New request, then switched off — a switch, not a deletion |
+| 2026-10-13 | The conflict check is a simple **Review request: Accept / Decline / Hold + a private note**; the "parties screened" list is gone from the screen | Owner's decision. Requests are often not disputes (wills, deeds, advice), and the screening duty is the attorney's own. Two safeguards kept and enforced on the server: Accept requires the attorney to tick "I have checked that my practice does not act, and has not acted, for the other side" (that tick is now the record, in place of the names); Decline requires a private reason and never reaches the client. The names column stays in the schema, optional, so old records still read |
 
 ## Session log
 
@@ -2703,4 +2704,29 @@ a declined request cannot be re-screened. Test client, requests, checks and quot
 **Note:** local `.env` has live SMTP credentials, so every test that creates a request or
 an invitation sends real email. Tests today mailed citizen@thelawyr.lk; later ones used
 example.com addresses.
+
+### 2026-10-13 — Conflict check simplified to "Review request"
+
+Owner's decision. The dialog is now **Review request**: the client's own request at the
+top, then **Accept** ("you can then send a quote"), **Decline** ("the client is told you
+cannot act — never why") or **Hold** ("decide later, e.g. after speaking to the client"),
+and a private note. The "Parties screened" names box is removed.
+
+- **Accept** requires ticking "I have checked that my practice does not act, and has not
+  acted, for the other side". **Decline** requires a note and warns it cannot be undone and
+  emails the client. Both rules are in `RecordConflictCheckSchema`, which the dialog also
+  uses, so the server refuses what the screen would not allow.
+- Queue labels: "Conflict check" → "Review request"; "Check on hold" → "On hold".
+- No migration: `screenedParties` stays, optional, and existing values still decrypt.
+
+Verified on the running app with a temporary example.com client: API refuses Accept
+without the tick and Decline without a note, accepts Hold alone and Accept with the tick
+and no names. In Chrome (desktop and 390px phone): the dialog shows the client's request,
+no names box, the save button follows the rules for each choice, and Hold puts the request
+"On hold" in the queue. Test client and requests deleted.
+
+**Test-harness note:** in headless Chrome a *physical* mouse click or Enter on any of the
+queue's dialog buttons (Details included, and before this change too) does not open the
+dialog; a DOM click does. The owner opened the dialog in real Chrome, so this looks like a
+headless/Base UI quirk, but it is unexplained.
 

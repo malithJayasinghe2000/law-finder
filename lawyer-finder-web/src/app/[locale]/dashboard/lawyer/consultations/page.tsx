@@ -419,7 +419,7 @@ export default function LawyerBookingsPage() {
                           )}
                           {booking.status === 'REQUESTED' && booking.conflictOutcome === 'NEEDS_REVIEW' && (
                             <span className="border border-amber-300 bg-amber-50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-widest text-amber-800">
-                              Check on hold
+                              On hold
                             </span>
                           )}
                         </div>
@@ -471,7 +471,7 @@ export default function LawyerBookingsPage() {
                               disabled={actionLoading}
                               className="bg-[#0a0a0a] text-white hover:bg-neutral-800 rounded-none h-7 text-[10px] px-2.5 font-bold"
                             >
-                              <ShieldCheck className="w-3 h-3 mr-1" /> Conflict check
+                              <ShieldCheck className="w-3 h-3 mr-1" /> Review request
                             </Button>
                           )}
                           {booking.status === 'CONFLICT_CHECK' && booking.access?.basis === 'ASSIGNED_ATTORNEY' && (
@@ -831,7 +831,9 @@ export default function LawyerBookingsPage() {
         <ConflictCheckDialog
           bookingId={conflictTarget.id}
           bookingNumber={conflictTarget.bookingNumber}
-          clientName={conflictTarget.client?.fullName || 'Client'}
+          clientName={conflictTarget.client?.fullName || conflictTarget.client?.email || 'Client'}
+          subject={conflictTarget.subject}
+          description={conflictTarget.description}
           open={Boolean(conflictTarget)}
           onOpenChange={(o) => { if (!o) setConflictTarget(null); }}
           onCompleted={() => { loadBookings(); loadCalendarBookings(); }}
