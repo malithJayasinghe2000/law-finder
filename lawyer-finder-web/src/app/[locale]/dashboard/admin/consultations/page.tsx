@@ -110,11 +110,13 @@ export default function AdminConsultationsPage() {
                     <tr key={b.id} className="hover:bg-neutral-50 transition-colors">
                       <td className="px-6 py-4 font-mono text-xs">{b.bookingNumber}</td>
                       <td className="px-6 py-4">
-                        <p className="font-semibold text-neutral-900">{formatDateOnlyString(b.date, 'en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</p>
+                        {/* A request to a practice has no appointment until the attorney
+                            proposes one with the quote — date is null, not a string. */}
+                        <p className="font-semibold text-neutral-900">{b.date ? formatDateOnlyString(b.date, 'en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : 'No appointment yet'}</p>
                         <p className="text-xs text-neutral-500">{b.startTime}</p>
                       </td>
                       <td className="px-6 py-4">
-                        <p className="font-semibold text-neutral-900">{b.lawyer?.fullName}</p>
+                        <p className="font-semibold text-neutral-900">{b.lawyer?.fullName ?? 'Unassigned'}</p>
                         <p className="text-xs text-neutral-500 truncate max-w-[150px]">{b.lawyer?.id}</p>
                       </td>
                       <td className="px-6 py-4">
