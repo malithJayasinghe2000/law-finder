@@ -348,7 +348,9 @@ export default function LawyerBookingsPage() {
     { value: 'REQUESTED', label: 'New requests' },
     { value: 'CONFLICT_CHECK', label: 'To quote' },
     { value: 'QUOTED', label: 'Awaiting client' },
-    { value: 'CONFIRMED', label: 'Upcoming' },
+    // Was 'CONFIRMED', which is not a status — the API refused it and the tab
+    // was always empty.
+    { value: 'SCHEDULED', label: 'Upcoming' },
     { value: 'ACCEPTED', label: 'Awaiting payment' },
     { value: 'COMPLETED', label: 'Completed' },
     { value: 'CANCELLED_BY_CLIENT', label: 'Cancelled by Client' },

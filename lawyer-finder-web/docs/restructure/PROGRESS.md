@@ -2786,3 +2786,23 @@ Verified in Chrome at 412px and 1440px with a temporary example.com client holdi
 invitation, one quote and one unread message (all three listed; "View request" opens the
 invitation with its details), and as citizen@ (nothing needing attention, three requests).
 No horizontal overflow. Test client and its data deleted.
+
+### 2026-10-14 — Client "My Consultations": Upcoming tab, phone layout, practice name
+
+- **The Upcoming tab was always empty** — on both the client page and the firm queue it
+  filtered on `CONFIRMED`, which is not a status; the API answered 400. Now `SCHEDULED`.
+- **Tabs added** for Payment due (`ACCEPTED`) and New time proposed
+  (`RESCHEDULE_REQUESTED`); tabs scroll sideways on a phone instead of wrapping.
+- **Phone layout:** details, then the status panel, then the actions in their own row —
+  the side-by-side layout wrapped "BK-2026-0005" over three lines and the title a word
+  per line.
+- **Practice shown** on each card (list API now includes `firm.name`); "Lawyer: Not
+  assigned yet" instead of a blank. The fee proposal dialog names the practice, not the
+  attorney.
+- **Empty states:** "Find a Lawyer" → "Find a practice"; a filtered tab with nothing in it
+  says "Nothing in this list" instead of "No consultations yet".
+
+Verified with a temporary example.com client holding a submitted, a quoted and an
+accepted request: every tab's API call 200, Payment due shows the accepted one, the
+proposal dialog names Perera & Associates, no overflow at 412px. Test client, requests,
+quotes, reviews and engagement letter deleted.

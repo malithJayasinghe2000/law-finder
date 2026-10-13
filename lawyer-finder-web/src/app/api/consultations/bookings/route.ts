@@ -89,6 +89,7 @@ export async function GET(req: Request) {
         include: {
           client: { select: { id: true, fullName: true, email: true, profileImageUrl: true } },
           lawyer: { select: { id: true, fullName: true, profileImageUrl: true, district: true, address: true, contactPhone: true } },
+          firm: { select: { name: true } },
           payment: true,
           conflictCheck: { select: { outcome: true } },
         },
