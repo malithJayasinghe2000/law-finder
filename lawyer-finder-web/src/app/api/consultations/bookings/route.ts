@@ -9,7 +9,8 @@ import { expireStaleQuotes } from '@/lib/consultations/expireQuotes';
 import { getFirmMembership, resolveMatterAccess, discloseMatter } from '@/lib/firms/access';
 import { encryptField } from '@/lib/privacy/encryption';
 import { randomUUID } from 'crypto';
-import { ensureAttorneyHasFirm } from '@/lib/firms/provisioning';
+import { findAttorneyFirmId } from '@/lib/firms/provisioning';
+import { isListedFirm } from '@/lib/directory';
 
 // GET: List bookings (filtered by role)
 export async function GET(req: Request) {
@@ -190,21 +191,24 @@ export async function POST(req: Request) {
     // firm the client named. Either way the FIRM is the provider of legal
     // services, not the individual and certainly not us.
     let firmId: string | null;
-    let firm: { id: string; name: string; contactEmail: string | null; verificationStatus: string } | null = null;
+    let firm: {
+      id: string; name: string; contactEmail: string | null; verificationStatus: string;
+      isActive: boolean; isRegisteredPractice: boolean;
+    } | null = null;
 
     if (isFirmFirst) {
       firm = await prisma.lawFirm.findUnique({
         where: { id: requestedFirmId! },
-        select: { id: true, name: true, contactEmail: true, verificationStatus: true, isActive: true },
+        select: { id: true, name: true, contactEmail: true, verificationStatus: true, isActive: true, isRegisteredPractice: true },
       });
 
-      if (!firm || !(firm as any).isActive) {
+      if (!firm || !firm.isActive) {
         return NextResponse.json({ error: 'Firm not found' }, { status: 404 });
       }
 
-      // Only a verified practice can receive an engagement request. An
-      // unverified firm is one we have not confirmed exists.
-      if (firm.verificationStatus !== 'VERIFIED') {
+      // Only a registered, verified practice can receive an engagement request.
+      // An unverified firm is one we have not confirmed exists.
+      if (!isListedFirm(firm)) {
         return NextResponse.json(
           { error: 'This firm is not currently accepting requests through the platform.' },
           { status: 400 }
@@ -225,7 +229,10 @@ export async function POST(req: Request) {
 
       firmId = firm.id;
     } else {
-      firmId = await ensureAttorneyHasFirm(prisma, lawyerId!);
+      // No practice is created here. An attorney with none — or with a firm of
+      // one that was never registered — cannot be engaged until they register
+      // their practice. See src/lib/directory.ts.
+      firmId = await findAttorneyFirmId(prisma, lawyerId!);
 
       // The same test as the firm-first path above. Without it, a request sent
       // from an attorney's page reached a firm an administrator had
@@ -233,9 +240,9 @@ export async function POST(req: Request) {
       if (firmId) {
         const attorneyFirm = await prisma.lawFirm.findUnique({
           where: { id: firmId },
-          select: { isActive: true, verificationStatus: true },
+          select: { isActive: true, isRegisteredPractice: true, verificationStatus: true },
         });
-        if (!attorneyFirm?.isActive || attorneyFirm.verificationStatus !== 'VERIFIED') {
+        if (!isListedFirm(attorneyFirm)) {
           return NextResponse.json(
             { error: "This attorney's firm is not currently accepting requests through the platform." },
             { status: 400 }

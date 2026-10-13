@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
-import { inDailyOrder } from '@/lib/directory';
+import { inDailyOrder, LISTED_FIRM_WHERE } from '@/lib/directory';
 import { isPublicDirectoryEnabled } from '@/lib/directory';
 
 /**
@@ -33,10 +33,7 @@ export async function GET(req: Request) {
     const language = searchParams.get('language');
     const search = searchParams.get('search');
 
-    const where: Record<string, unknown> = {
-      isActive: true,
-      verificationStatus: 'VERIFIED',
-    };
+    const where: Record<string, unknown> = { ...LISTED_FIRM_WHERE };
 
     if (district) where.district = district;
     if (practiceArea) where.practiceAreas = { has: practiceArea };

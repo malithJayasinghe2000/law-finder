@@ -1,5 +1,4 @@
 import { PrismaClient } from '@prisma/client'
-import { ensureAttorneyHasFirm } from '../src/lib/firms/provisioning'
 import { Pool } from 'pg'
 import { PrismaPg } from '@prisma/adapter-pg'
 import * as bcrypt from 'bcryptjs'
@@ -170,23 +169,10 @@ async function main() {
     },
   })
 
-  // 3.9 Give every seeded attorney a firm of one.
-  //
-  // Since Phase 2 the FIRM is the provider of legal services, so an attorney
-  // must never exist on the system without one. This mirrors what
-  // api/applications/[id]/approve does on real approval, and what the
-  // 20260801210442_law_firm_entity migration did for existing data.
-  // See docs/restructure/LEGAL-GUARDRAILS.md (rule 7).
-  console.log('Provisioning firms for seeded attorneys...')
-
-  const seededProfiles = await prisma.lawyerProfile.findMany({
-    where: { firmId: null },
-    select: { id: true },
-  })
-
-  for (const { id } of seededProfiles) {
-    await ensureAttorneyHasFirm(prisma, id)
-  }
+  // 3.9 No firms are provisioned for seeded attorneys. Since 2026-10-13 an
+  // approved attorney has no practice until they register one, exactly as on
+  // real approval (api/applications/[id]/approve). Register a practice from the
+  // lawyer dashboard (My Firm) and verify it from Admin → Law Firms to list it.
 
   // 4. Seed Subscription Roles
   console.log('Creating subscription tiers...')

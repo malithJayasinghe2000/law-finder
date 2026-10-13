@@ -2530,3 +2530,32 @@ Verified on a running build: no stock photo on any attorney or firm page; Anura 
 Kavindu Perera's factual bio still shows; saving "Expert in tax law" returns 400 with the
 reason. Note: seeded bios that praise (Anura Bandara's "Expert in…", Nethmi Wijesinghe's
 "Specialist in…") now publish as "has not added a description".
+
+### 2026-10-13 — No automatic practices; only registered practices are listed
+
+Decided by the owner: a practice exists because a principal registered it, never as a
+side effect of approval.
+
+- **Approval no longer creates a firm of one** (`api/applications/[id]/approve`). An
+  approved attorney has no practice — not listed, cannot be engaged — until they register
+  one (sole practitioner or firm) or accept an invitation. The seed no longer provisions
+  firms either, so a fresh seed has an empty directory until a practice is registered and
+  verified.
+- **`ensureAttorneyHasFirm` is gone.** Booking (client and admin) uses
+  `findAttorneyFirmId`, which never creates; registration uses `createPracticeForAttorney`,
+  the one place a practice is made — because registering is the attorney's choice.
+- **Listing requires `isRegisteredPractice`** (`LISTED_FIRM_WHERE`, `isListedFirm`), applied
+  to `/firms`, `/api/firms`, `/lawyers`, `/api/lawyers`, the firm and engage pages, the
+  attorney and booking pages, and both booking APIs. This is how the four firms of one
+  created automatically before today were "removed": they are **not deactivated**, because
+  `getFirmMembership` requires an active firm and Anura Bandara's has an open request he
+  would have lost access to. They are simply unlisted and unbookable. Registering one
+  converts it (and re-activates it) into a PENDING practice, history intact.
+- **My Firm** now tells an attorney with no practice how to register one, and tells an
+  attorney with an unregistered automatic one that it is not listed.
+
+Verified on a running build: directory shows only Perera & Associates (1 firm, 1 attorney);
+a booking to Anura refused 400 while he still sees his open request; a temporary attorney
+with no firm registered "Idle Test Chambers" as a sole practitioner → PENDING, unlisted →
+admin verified → listed with its attorney (firms 1→2, lawyers 1→2). Test records deleted
+afterwards. `check:firm` 15/15.

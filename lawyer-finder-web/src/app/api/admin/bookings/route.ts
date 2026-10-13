@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { formatSriLankaDateIso, formatSriLankaDateIsoOrNull, parseDateOnlyToUtc } from '@/lib/utils';
-import { ensureAttorneyHasFirm } from '@/lib/firms/provisioning';
+import { findAttorneyFirmId } from '@/lib/firms/provisioning';
+import { isListedFirm } from '@/lib/directory';
 import { z } from 'zod';
 import { SLOT_BLOCKING_STATUSES } from '@/lib/consultations/bookingStatus';
 
@@ -70,11 +71,19 @@ export async function POST(req: Request) {
     // `clientSelectedAttorneyId` is set for the same reason it is at normal
     // intake: the choice was theirs, not ours.
     // See docs/restructure/LEGAL-GUARDRAILS.md (rules 4 and 7).
-    const firmId = await ensureAttorneyHasFirm(prisma, lawyerId);
+    const firmId = await findAttorneyFirmId(prisma, lawyerId);
+    const attorneyFirm = firmId
+      ? await prisma.lawFirm.findUnique({
+          where: { id: firmId },
+          select: { isActive: true, isRegisteredPractice: true, verificationStatus: true },
+        })
+      : null;
 
-    if (!firmId) {
+    // The same rule as client intake: only a registered, verified practice can
+    // be engaged. Support staff booking by phone do not get a way around it.
+    if (!firmId || !isListedFirm(attorneyFirm)) {
       return NextResponse.json(
-        { error: 'That attorney is not attached to a firm, so cannot be engaged.' },
+        { error: "That attorney's practice is not registered and verified, so cannot be engaged." },
         { status: 400 }
       );
     }

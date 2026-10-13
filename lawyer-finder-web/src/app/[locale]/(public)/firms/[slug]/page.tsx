@@ -1,7 +1,7 @@
 import prisma from '@/lib/db';
 import AttorneyPhoto from '@/components/lawyer/AttorneyPhoto';
 import { publishableDescription } from '@/lib/selfPromotion';
-import { inDailyOrder, DIRECTORY_ORDER_NOTICE } from '@/lib/directory';
+import { inDailyOrder, DIRECTORY_ORDER_NOTICE, isListedFirm } from '@/lib/directory';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -52,6 +52,7 @@ export default async function FirmProfilePage({
       registrationNumber: true,
       verificationStatus: true,
       isActive: true,
+      isRegisteredPractice: true,
       offices: {
         where: { isActive: true },
         orderBy: [{ isPrimary: 'desc' }, { label: 'asc' }],
@@ -73,7 +74,7 @@ export default async function FirmProfilePage({
     },
   });
 
-  if (!firm || !firm.isActive || firm.verificationStatus !== 'VERIFIED') notFound();
+  if (!firm || !isListedFirm(firm)) notFound();
 
   return (
     <div className="py-8 sm:py-10">

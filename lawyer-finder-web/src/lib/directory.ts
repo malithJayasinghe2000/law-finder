@@ -44,11 +44,25 @@ export const isPublicDirectoryEnabled = cache(async (): Promise<boolean> => {
  * rule 7), so an attorney whose firm has been deactivated or un-verified must
  * disappear from "People" at the same moment the firm disappears from
  * "Practices". Before this, `/lawyers` checked only the attorney.
+ *
+ * And it must be a REGISTERED practice. Since 2026-10-13 no practice is created
+ * automatically; the firms of one that approval used to create silently are
+ * not listed and cannot be engaged until their attorney registers the practice
+ * (which sends it to an administrator for verification). Their existing
+ * matters are untouched — the firm stays active so its members keep access.
  */
 export const LISTED_FIRM_WHERE = {
   isActive: true,
+  isRegisteredPractice: true,
   verificationStatus: 'VERIFIED',
 } as const;
+
+/** The same test as LISTED_FIRM_WHERE, for a firm already loaded. */
+export function isListedFirm(
+  firm: { isActive: boolean; isRegisteredPractice: boolean; verificationStatus: string } | null | undefined
+): boolean {
+  return !!firm && firm.isActive && firm.isRegisteredPractice && firm.verificationStatus === 'VERIFIED';
+}
 
 export const LISTED_ATTORNEY_WHERE = {
   isVerified: true,

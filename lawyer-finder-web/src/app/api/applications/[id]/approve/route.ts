@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { EmailService } from '@/lib/email/EmailService';
-import { createSoloFirmForAttorney } from '@/lib/firms/provisioning';
 import { fullApplicationSchema, APPROVED_DRAFT_STUB } from '@/schemas/application.schema';
 
 /**
@@ -121,28 +120,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         },
       });
 
-      // 3. Give the attorney a firm of one, and make them its owner.
-      //
-      // The firm — not this platform — is the provider of legal services, so an
-      // attorney must never exist on the system without one. Created inside the
-      // same transaction as the profile so the two cannot come apart.
-      // See docs/restructure/LEGAL-GUARDRAILS.md (rule 7).
-      await createSoloFirmForAttorney(tx, {
-        userId: application.userId,
-        profileId: profile.id,
-        fullName: profile.fullName,
-        baslNumber: profile.baslNumber,
-        bio: profile.bio,
-        practiceAreas: profile.practiceAreas,
-        languages: profile.languages,
-        courts: profile.courts,
-        district: profile.district,
-        contactPhone: profile.contactPhone,
-        contactEmail: application.user.email,
-        address: profile.address,
-        profileImageUrl: profile.profileImageUrl,
-        isVerified: profile.isVerified,
-      });
+      // 3. No practice is created. Until 2026-10-13 a firm of one was made here
+      // silently; now an approved attorney has none — is not listed and cannot be
+      // engaged — until they register their practice (as a sole practitioner or
+      // a firm) or accept an invitation into one. See src/lib/firms/provisioning.ts.
 
       // 4. Elevate the account role.
       await tx.user.update({

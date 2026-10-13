@@ -265,11 +265,16 @@ export default function FirmPage() {
       <Card className="rounded-none">
         <CardContent className="p-8 text-center">
           <Building2 className="mx-auto h-8 w-8 text-neutral-300" />
-          <p className="mt-3 text-sm text-neutral-600">
-            Your account is not linked to a firm yet. This is set up automatically when
-            an attorney application is approved — contact support if you think this is
-            wrong.
+          <p className="mt-3 font-serif text-lg text-neutral-900">You don&apos;t have a practice yet</p>
+          <p className="mx-auto mt-2 max-w-md text-sm text-neutral-600">
+            Until you have one, you are not listed in the directory and clients cannot send you
+            requests. Register your own practice — as a sole practitioner or a firm — or accept an
+            invitation from a firm that has added you. A registered practice is checked by our
+            team before it is listed.
           </p>
+          <Button className="mt-5 rounded-none" onClick={() => router.push(`${pathname}/register`)}>
+            Register your practice
+          </Button>
         </CardContent>
       </Card>
     );
@@ -296,7 +301,7 @@ export default function FirmPage() {
       </div>
 
       {/* Why does a solo practitioner have a firm? Answer it before they ask. */}
-      {firm.isSoloPractice && (
+      {firm.isSoloPractice && firm.isRegisteredPractice && (
         <div className="flex items-start gap-3 border border-neutral-200 bg-neutral-50 p-4 text-[12px] leading-relaxed text-neutral-600">
           <Info className="mt-0.5 h-4 w-4 shrink-0" />
           <div>
@@ -329,13 +334,14 @@ export default function FirmPage() {
               <Building2 className="mt-0.5 h-5 w-5 shrink-0 text-[#bfa37a]" />
               <div className="text-[12px] leading-relaxed text-neutral-600">
                 <p className="font-semibold text-neutral-800">
-                  Practising with partners or staff? Register your practice.
+                  Your practice is not registered, so it is not listed.
                 </p>
                 <p className="mt-1">
-                  This practice was created automatically and named after you when your own
-                  registration was approved. If you practise as a firm, give it its real name and
-                  address and invite your partners — they each get an email and decide for
-                  themselves. <strong>Your existing matters and licence are unaffected.</strong>
+                  This practice was created automatically when your own registration was approved.
+                  Automatic practices are no longer listed in the directory or able to receive new
+                  requests. Register it — as a sole practitioner or a firm, with its real name and
+                  address — and our team will check it before it is listed.{' '}
+                  <strong>Your existing matters and licence are unaffected.</strong>
                 </p>
               </div>
             </div>

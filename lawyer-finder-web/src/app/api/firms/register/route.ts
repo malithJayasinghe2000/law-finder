@@ -3,7 +3,7 @@ import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { RegisterFirmSchema } from '@/schemas/firm.schema';
 import { getFirmMembership } from '@/lib/firms/access';
-import { allocateFirmSlug, ensureAttorneyHasFirm } from '@/lib/firms/provisioning';
+import { allocateFirmSlug, createPracticeForAttorney } from '@/lib/firms/provisioning';
 import {
   checkJoinEligibility,
   invitationExpiry,
@@ -103,13 +103,15 @@ export async function POST(req: Request) {
 
     const data = validated.data;
 
-    // The firm they already have — the one holding their matters. Created here
-    // if it is somehow missing (a profile from before Phase 2).
+    // The firm they already have, if any — an attorney approved before
+    // 2026-10-13 has the firm of one created then, holding their matters, and
+    // registering converts it. An attorney approved since has none: this is the
+    // one place a practice is created, because registering it is their choice.
     const membership = await getFirmMembership(session.userId);
     let firmId = membership?.firmId ?? profile.firmId ?? null;
 
     if (!firmId) {
-      firmId = await prisma.$transaction((tx) => ensureAttorneyHasFirm(tx, profile.id));
+      firmId = await prisma.$transaction((tx) => createPracticeForAttorney(tx, profile.id));
     }
 
     if (!firmId) {
@@ -249,6 +251,7 @@ export async function POST(req: Request) {
 
           isRegisteredPractice: true,
           registeredAt: new Date(),
+          isActive: true,
 
           // Back into the queue. A registered practice makes a claim we have not
           // checked — that a firm of this name exists at this address with these
