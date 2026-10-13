@@ -2766,3 +2766,23 @@ firm can still write in it. Closing a thread is a separate decision.
 
 Verified in Chrome as the client (390px phone: list → tap → conversation with back arrow
 → list, no overflow; desktop side by side) and as the attorney (list unchanged).
+
+### 2026-10-14 — Client dashboard home: what needs the client, not post counters
+
+The client dashboard home was entirely about community posts (four post counters, recent
+posts, "create post"). Replaced, with the owner's agreement, by:
+
+- **Needs your attention** — requests a practice opened for the client (link to the
+  confirm page), requests awaiting the client (fee proposal, payment after accepting
+  terms, a proposed new time), and unread conversations. A count badge on the heading.
+- **Your requests** — the three newest, with status and practice, and "View all".
+- **Find a practice** — only while the public directory is switched on.
+
+Community posts stay in the menu; whether they stay at all is the next decision in the
+section-by-section review of the client dashboard. The unread count moved to
+`src/lib/chat/unread.ts`, shared by `/api/chat/unread-count` and this page.
+
+Verified in Chrome at 412px and 1440px with a temporary example.com client holding one
+invitation, one quote and one unread message (all three listed; "View request" opens the
+invitation with its details), and as citizen@ (nothing needing attention, three requests).
+No horizontal overflow. Test client and its data deleted.

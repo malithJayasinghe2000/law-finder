@@ -1,12 +1,40 @@
 import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { redirect } from 'next/navigation';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { FileText, Eye, PenSquare, ArrowRight, LayoutDashboard, Clock } from 'lucide-react';
 import Link from 'next/link';
-import { STATUS_COLORS, STATUS_LABELS } from '@/schemas/community.schema';
 import { Badge } from '@/components/ui/badge';
+import {
+  LayoutDashboard, ArrowRight, Bell, CalendarDays, MessageCircle, FileSignature, Search, Inbox,
+} from 'lucide-react';
+import { BOOKING_STATUS_COLORS, BOOKING_STATUS_LABELS } from '@/schemas/consultation.schema';
+import { AWAITING_CLIENT_STATUSES } from '@/lib/consultations/bookingStatus';
+import { resolveMatterAccess, discloseMatter } from '@/lib/firms/access';
+import { countUnreadConversations } from '@/lib/chat/unread';
+import { isPublicDirectoryEnabled } from '@/lib/directory';
+import { directoryPath } from '@/lib/directoryLinks';
+
+/**
+ * The client's home: what needs them, and where their requests stand.
+ *
+ * It used to be entirely about community posts — counters, recent posts and a
+ * "create post" panel — and said nothing about the reason a client is here.
+ * Community posts are still in the menu; whether they stay is a separate
+ * decision (see PROGRESS.md, 2026-10-14).
+ */
+
+// Link styles. Plain classes: `buttonVariants` lives in a 'use client' module
+// and cannot be called from this server component.
+const ACTION_LINK =
+  'inline-flex items-center justify-center shrink-0 h-8 px-3 rounded-none bg-[#0a0a0a] text-white text-xs font-semibold hover:bg-neutral-800 transition-colors';
+const PRIMARY_LINK =
+  'inline-flex items-center justify-center w-full sm:w-auto rounded-none h-11 px-6 bg-[#0a0a0a] text-white hover:bg-neutral-800 text-xs font-bold uppercase tracking-widest transition-colors';
+
+/** What the client is being asked to do, per status. */
+const NEXT_STEP: Record<string, string> = {
+  QUOTED: 'The practice sent its fee and terms. Accept or decline them.',
+  ACCEPTED: 'You accepted the terms. Pay the practice as its terms say.',
+  RESCHEDULE_REQUESTED: 'The practice proposed a new time. Accept it or ask for another.',
+};
 
 export default async function ClientDashboardPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
@@ -16,151 +44,186 @@ export default async function ClientDashboardPage({ params }: { params: Promise<
     redirect(`/${locale}/login`);
   }
 
-  // Fetch client's posts stats
-  const posts = await prisma.post.findMany({
-    where: { authorId: session.userId },
-    orderBy: { createdAt: 'desc' },
-    select: {
-      id: true,
-      title: true,
-      status: true,
-      createdAt: true,
-      viewCount: true,
-      slug: true,
-    }
+  const user = await prisma.user.findUnique({
+    where: { id: session.userId },
+    select: { email: true, fullName: true },
   });
 
-  const stats = {
-    total: posts.length,
-    published: posts.filter(p => p.status === 'PUBLISHED').length,
-    pending: posts.filter(p => p.status === 'PENDING_REVIEW').length,
-    rejected: posts.filter(p => p.status === 'REJECTED').length,
-    totalViews: posts.reduce((sum, p) => sum + p.viewCount, 0),
-  };
+  const [needsClient, recent, invitations, unread, directoryOn] = await Promise.all([
+    prisma.booking.findMany({
+      where: { clientId: session.userId, status: { in: AWAITING_CLIENT_STATUSES } },
+      orderBy: { updatedAt: 'desc' },
+      select: { id: true, bookingNumber: true, status: true, firm: { select: { name: true } } },
+    }),
+    prisma.booking.findMany({
+      where: { clientId: session.userId },
+      orderBy: { createdAt: 'desc' },
+      take: 3,
+      select: {
+        id: true, bookingNumber: true, status: true, subject: true, firmId: true, lawyerId: true, clientId: true,
+        firm: { select: { name: true } },
+      },
+    }),
+    // Requests a practice opened for this client and is waiting for them to
+    // confirm. The token is the client's own link; they are signed in as its
+    // addressee, so showing it to them is showing them their own invitation.
+    user
+      ? prisma.clientIntakeInvitation.findMany({
+          where: { email: user.email.toLowerCase(), status: 'PENDING', expiresAt: { gt: new Date() } },
+          orderBy: { createdAt: 'desc' },
+          select: { id: true, token: true, firm: { select: { name: true } } },
+        })
+      : [],
+    countUnreadConversations(session),
+    isPublicDirectoryEnabled(),
+  ]);
 
-  const recentPosts = posts.slice(0, 3);
+  // The client reads their own matters; subjects are encrypted at rest.
+  const ownSubject = (b: (typeof recent)[number]) =>
+    discloseMatter(
+      b,
+      resolveMatterAccess({
+        actorUserId: session.userId,
+        actorRole: session.role,
+        actorProfileId: session.profileId,
+        membership: null,
+        matter: { lawyerId: b.lawyerId, firmId: b.firmId, clientId: b.clientId },
+      })
+    ).subject;
+
+  const attentionCount = needsClient.length + invitations.length + (unread > 0 ? 1 : 0);
+  const consultationsHref = `/${locale}/dashboard/client/consultations`;
 
   return (
-    <div className="w-full space-y-8">
-      {/* Page Header */}
+    <div className="w-full space-y-6 sm:space-y-8">
       <div className="flex items-center gap-4">
-        <div className="flex h-11 w-11 items-center justify-center bg-[#0a0a0a] text-white">
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center bg-[#0a0a0a] text-white">
           <LayoutDashboard className="h-5 w-5" />
         </div>
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-neutral-900">Welcome back</h1>
-          <p className="text-sm text-neutral-500 font-medium">Manage your community posts and interactions</p>
+        <div className="min-w-0">
+          <h1 className="text-2xl font-bold tracking-tight text-neutral-900 truncate">
+            Welcome back{user?.fullName ? `, ${user.fullName}` : ''}
+          </h1>
+          <p className="text-sm text-neutral-500 font-medium">Your requests to practices, and what needs you</p>
         </div>
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-white border border-neutral-200 p-5 hover:shadow-sm transition-shadow">
-          <div className="w-9 h-9 bg-neutral-100 flex items-center justify-center mb-3">
-            <FileText className="h-4 w-4 text-neutral-600" />
-          </div>
-          <p className="text-2xl font-bold text-neutral-900 tracking-tight">{stats.total}</p>
-          <p className="text-[11px] text-neutral-500 font-medium uppercase tracking-wide">Total Posts</p>
-        </div>
-        
-        <div className="bg-white border border-neutral-200 p-5 hover:shadow-sm transition-shadow">
-          <div className="w-9 h-9 bg-emerald-50 flex items-center justify-center mb-3">
-            <Eye className="h-4 w-4 text-emerald-600" />
-          </div>
-          <p className="text-2xl font-bold text-neutral-900 tracking-tight">{stats.published}</p>
-          <p className="text-[11px] text-neutral-500 font-medium uppercase tracking-wide">Published Posts</p>
-        </div>
+      {/* Needs your attention */}
+      <section className="bg-white border border-neutral-200 p-5 sm:p-6" aria-labelledby="attention-heading">
+        <h2 id="attention-heading" className="text-sm font-bold text-neutral-900 uppercase tracking-wide flex items-center gap-2 mb-4">
+          <Bell className="w-4 h-4" /> Needs your attention
+          {attentionCount > 0 && (
+            <span className="bg-red-500 text-white text-[10px] font-bold px-1.5 rounded-full">{attentionCount}</span>
+          )}
+        </h2>
 
-        <div className="bg-white border border-neutral-200 p-5 hover:shadow-sm transition-shadow">
-          <div className="w-9 h-9 bg-amber-50 flex items-center justify-center mb-3">
-            <Clock className="h-4 w-4 text-amber-600" />
-          </div>
-          <p className="text-2xl font-bold text-neutral-900 tracking-tight">{stats.pending}</p>
-          <p className="text-[11px] text-neutral-500 font-medium uppercase tracking-wide">Pending Review</p>
-        </div>
-
-        <div className="bg-white border border-neutral-200 p-5 hover:shadow-sm transition-shadow">
-          <div className="w-9 h-9 bg-neutral-100 flex items-center justify-center mb-3">
-            <Eye className="h-4 w-4 text-neutral-600" />
-          </div>
-          <p className="text-2xl font-bold text-neutral-900 tracking-tight">{stats.totalViews}</p>
-          <p className="text-[11px] text-neutral-500 font-medium uppercase tracking-wide">Total Views</p>
-        </div>
-      </div>
-
-      {/* Main Content Area */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
-        {/* Recent Activity */}
-        <div className="lg:col-span-2 bg-white border border-neutral-200 p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-sm font-bold text-neutral-900 uppercase tracking-wide flex items-center gap-2">
-              <PenSquare className="w-4 h-4" />
-              Recent Posts
-            </h3>
-            <Link href={`/${locale}/dashboard/blog/my-posts`} className="text-xs font-semibold text-neutral-600 hover:text-neutral-900 flex items-center gap-1">
-              View All <ArrowRight className="w-3 h-3" />
-            </Link>
-          </div>
-          
-          {recentPosts.length === 0 ? (
-            <div className="text-center py-12 border border-dashed border-neutral-200 bg-neutral-50/50">
-              <FileText className="h-8 w-8 text-neutral-300 mx-auto mb-3" />
-              <p className="text-sm font-medium text-neutral-900">No posts yet</p>
-              <p className="text-xs text-neutral-500 mb-4 mt-1">Start engaging with the community by creating your first post.</p>
-              <Link href={`/${locale}/blog/create`}>
-                <Button className="bg-[#0a0a0a] text-white hover:bg-neutral-800 text-xs px-4 h-8 rounded-none">
-                  Create Post
-                </Button>
-              </Link>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {recentPosts.map((post) => (
-                <div key={post.id} className="flex items-center justify-between border border-neutral-100 p-4 hover:shadow-sm transition-shadow">
-                  <div className="flex-1 min-w-0 pr-4">
-                    <Link
-                      href={post.status === 'PUBLISHED' ? `/${locale}/blog/${post.slug}` : `/${locale}/dashboard/blog/my-posts`}
-                      className="block truncate text-sm font-semibold text-neutral-900 hover:text-neutral-600 transition-colors mb-1"
-                    >
-                      {post.title}
-                    </Link>
-                    <div className="flex items-center gap-3 text-xs text-neutral-500">
-                      <span>{new Date(post.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
-                      <span className="flex items-center gap-1"><Eye className="w-3 h-3" /> {post.viewCount}</span>
-                    </div>
-                  </div>
-                  <div>
-                    <Badge className={`text-[10px] uppercase tracking-wider px-2 py-0.5 whitespace-nowrap rounded-sm ${STATUS_COLORS[post.status] || 'bg-neutral-100 text-neutral-700'}`}>
-                      {STATUS_LABELS[post.status] || post.status}
-                    </Badge>
+        {attentionCount === 0 ? (
+          <p className="text-sm text-neutral-500">Nothing right now. We will show it here when a practice needs you.</p>
+        ) : (
+          <ul className="divide-y divide-neutral-100">
+            {invitations.map((inv) => (
+              <li key={inv.id} className="py-3 flex flex-col sm:flex-row sm:items-center gap-3 justify-between">
+                <div className="flex items-start gap-3 min-w-0">
+                  <FileSignature className="w-4 h-4 mt-0.5 shrink-0 text-[#8c6d3f]" />
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-neutral-900">{inv.firm.name} opened a request for you</p>
+                    <p className="text-xs text-neutral-500">Check it, then accept or decline.</p>
                   </div>
                 </div>
-              ))}
-            </div>
+                <Link
+                  href={`/${locale}/client-request?token=${inv.token}`}
+                  className={ACTION_LINK}
+                >
+                  View request
+                </Link>
+              </li>
+            ))}
+            {needsClient.map((b) => (
+              <li key={b.id} className="py-3 flex flex-col sm:flex-row sm:items-center gap-3 justify-between">
+                <div className="flex items-start gap-3 min-w-0">
+                  <CalendarDays className="w-4 h-4 mt-0.5 shrink-0 text-[#8c6d3f]" />
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-neutral-900">{b.firm.name}</p>
+                    <p className="text-xs text-neutral-500">
+                      <span className="font-mono">{b.bookingNumber}</span> · {NEXT_STEP[b.status]}
+                    </p>
+                  </div>
+                </div>
+                <Link href={consultationsHref} className={ACTION_LINK}>
+                  Open
+                </Link>
+              </li>
+            ))}
+            {unread > 0 && (
+              <li className="py-3 flex flex-col sm:flex-row sm:items-center gap-3 justify-between">
+                <div className="flex items-start gap-3 min-w-0">
+                  <MessageCircle className="w-4 h-4 mt-0.5 shrink-0 text-[#8c6d3f]" />
+                  <p className="text-sm font-semibold text-neutral-900">
+                    {unread === 1 ? '1 conversation has' : `${unread} conversations have`} new messages
+                  </p>
+                </div>
+                <Link
+                  href={`/${locale}/dashboard/client/messages`}
+                  className={ACTION_LINK}
+                >
+                  Read
+                </Link>
+              </li>
+            )}
+          </ul>
+        )}
+      </section>
+
+      {/* Your requests */}
+      <section className="bg-white border border-neutral-200 p-5 sm:p-6" aria-labelledby="requests-heading">
+        <div className="flex items-center justify-between mb-4 gap-3">
+          <h2 id="requests-heading" className="text-sm font-bold text-neutral-900 uppercase tracking-wide flex items-center gap-2">
+            <CalendarDays className="w-4 h-4" /> Your requests
+          </h2>
+          {recent.length > 0 && (
+            <Link href={consultationsHref} className="text-xs font-semibold text-neutral-600 hover:text-neutral-900 flex items-center gap-1 shrink-0">
+              View all <ArrowRight className="w-3 h-3" />
+            </Link>
           )}
         </div>
 
-        {/* Quick Actions */}
-        <div className="bg-[#0a0a0a] text-white p-6 flex flex-col">
-          <h3 className="text-sm font-bold uppercase tracking-wide mb-4">Quick Actions</h3>
-          <p className="text-xs text-neutral-400 mb-6 flex-1">
-            Share your legal questions or experiences with the community. Admins will review your post before it gets published.
-          </p>
-          <div className="space-y-3">
-            <Link href={`/${locale}/blog/create`} className="block">
-              <Button className="w-full bg-white text-black hover:bg-neutral-200 rounded-none h-11 text-sm font-bold uppercase tracking-wide flex items-center justify-center gap-2">
-                <PenSquare className="w-4 h-4" /> Create New Post
-              </Button>
-            </Link>
-            <Link href={`/${locale}/dashboard/blog/my-posts`} className="block">
-              <Button variant="outline" className="w-full bg-transparent border-neutral-700 text-white hover:bg-neutral-800 hover:text-white rounded-none h-11 text-sm font-bold uppercase tracking-wide flex items-center justify-center gap-2">
-                <FileText className="w-4 h-4" /> Manage My Posts
-              </Button>
-            </Link>
+        {recent.length === 0 ? (
+          <div className="text-center py-10 border border-dashed border-neutral-200 bg-neutral-50/50">
+            <Inbox className="h-8 w-8 text-neutral-300 mx-auto mb-3" />
+            <p className="text-sm font-medium text-neutral-900">No requests yet</p>
+            <p className="text-xs text-neutral-500 mt-1">When you send a request to a practice, you can follow it here.</p>
           </div>
-        </div>
-      </div>
+        ) : (
+          <ul className="space-y-3">
+            {recent.map((b) => (
+              <li key={b.id}>
+                <Link
+                  href={consultationsHref}
+                  className="block border border-neutral-100 p-4 hover:shadow-sm transition-shadow"
+                >
+                  <div className="flex flex-wrap items-center gap-2 mb-1">
+                    <span className="text-xs font-mono text-neutral-400">{b.bookingNumber}</span>
+                    <Badge className={`text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-sm ${BOOKING_STATUS_COLORS[b.status] || 'bg-neutral-100 text-neutral-700'}`}>
+                      {BOOKING_STATUS_LABELS[b.status] || b.status}
+                    </Badge>
+                  </div>
+                  <p className="text-sm font-semibold text-neutral-900 truncate">{ownSubject(b)}</p>
+                  <p className="text-xs text-neutral-500 truncate">{b.firm.name}</p>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      {directoryOn && (
+        <Link
+          href={directoryPath(locale)}
+          className={PRIMARY_LINK}
+        >
+          <Search className="w-4 h-4 mr-2" /> Find a practice
+        </Link>
+      )}
     </div>
   );
 }
