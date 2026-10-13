@@ -2,13 +2,15 @@
 
 import { useState } from 'react';
 import { useDirectoryEnabled } from '@/components/directory/DirectoryProvider';
+import AttorneyPhoto from '@/components/lawyer/AttorneyPhoto';
+import { publishableDescription } from '@/lib/selfPromotion';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import {
   Star, MapPin, Languages, ShieldCheck, Phone, Clock, Calendar,
   Briefcase, Scale, Gavel, BookOpen, ArrowRight, ArrowLeft,
-  MessageSquare, CalendarCheck, Send, X, Loader2, Globe, User, Zap,
+  MessageSquare, CalendarCheck, Send, X, Loader2, Globe, Zap,
   Facebook, Linkedin
 } from 'lucide-react';
 
@@ -32,13 +34,13 @@ interface LawyerData {
   practiceAreas: string[];
   languages: string[];
   district: string | null;
-  gender: string | null;
   yearsOfExperience: number | null;
   practiceType: string | null;
   courts: string[];
   isNotary: boolean;
   isVerified: boolean;
   user: { id: string; createdAt: string } | null;
+  firm: { name: string; slug: string; firmType: string } | null;
 }
 
 interface Props {
@@ -124,10 +126,11 @@ export default function LawyerProfileClient({
               {/* Profile Image Card */}
               <div className="relative group overflow-hidden bg-[#1a1a1a] rounded-none border border-[#efeae0] p-3 bg-[#fdfcfb]">
                 <div className="relative overflow-hidden bg-neutral-900">
-                  <img
-                    src={lawyer.profileImageUrl || 'https://images.unsplash.com/photo-1556157382-97eda2d62296?auto=format&fit=crop&w=800&q=80'}
-                    alt={lawyer.fullName}
-                    className="w-full aspect-[4/5] object-cover transition-all duration-750 group-hover:grayscale group-hover:scale-102"
+                  <AttorneyPhoto
+                    src={lawyer.profileImageUrl}
+                    name={lawyer.fullName}
+                    className="w-full aspect-[4/5]"
+                    initialsClassName="font-serif text-6xl"
                   />
                   {/* Languages - Always Visible */}
                   <div className="absolute top-4 left-4 z-10 flex flex-wrap items-center gap-1.5">
@@ -175,13 +178,6 @@ export default function LawyerProfileClient({
                 </button>
               </div>
 
-              {/* Quick Stats under card */}
-              <div className="mt-4 border border-[#efeae0] bg-[#faf8f6]">
-                <div className="py-4 text-center">
-                  <p className="text-xl font-serif font-bold text-[#1a1a1a]">{lawyer.yearsOfExperience || '--'}</p>
-                  <p className="text-[9px] text-neutral-400 font-bold uppercase tracking-widest mt-1">Years Exp</p>
-                </div>
-              </div>
             </div>
           </div>
 
@@ -204,6 +200,18 @@ export default function LawyerProfileClient({
               <p className="text-lg text-[#bfa37a] font-serif italic mb-4">
                 {lawyer.practiceAreas.join(' · ') || 'Legal Professional'}
               </p>
+              {/* The client engages the firm, not the individual (rule 7). */}
+              {lawyer.firm && (
+                <p className="text-sm text-neutral-600">
+                  {lawyer.firm.firmType === 'SOLE_PRACTITIONER' ? 'Sole practitioner' : 'Practises at'}{' '}
+                  <Link
+                    href={`/${locale}/firms/${lawyer.firm.slug}`}
+                    className="font-semibold text-[#1a1a1a] underline underline-offset-4 hover:text-[#bfa37a]"
+                  >
+                    {lawyer.firm.firmType === 'SOLE_PRACTITIONER' ? 'View practice' : lawyer.firm.name}
+                  </Link>
+                </p>
+              )}
 
 
             </div>
@@ -213,7 +221,9 @@ export default function LawyerProfileClient({
             <div className="mb-8 pb-8 border-b border-[#efeae0]">
               <h3 className="text-xs font-bold text-[#bfa37a] uppercase tracking-[0.2em] mb-4">About</h3>
               <p className="text-neutral-600 leading-relaxed font-light">
-                {lawyer.bio || 'This attorney has not yet added a biography. Contact them directly for more information about their practice and expertise.'}
+                {/* Saved text that praises rather than describes is not published
+                    (src/lib/selfPromotion.ts — Rules 39 and 49). */}
+                {publishableDescription(lawyer.bio) || 'This attorney has not added a description of their practice.'}
               </p>
             </div>
 
@@ -244,28 +254,17 @@ export default function LawyerProfileClient({
                     </div>
                   </div>
                 )}
-                {lawyer.user?.createdAt && (
+                {lawyer.yearsOfExperience ? (
                   <div className="flex items-start gap-3.5">
                     <div className="flex h-10 w-10 items-center justify-center bg-[#faf8f6] border border-[#efeae0] text-[#bfa37a] shrink-0 rounded-none">
                       <Calendar className="h-4 w-4" />
                     </div>
                     <div>
-                      <p className="text-[9px] text-neutral-455 font-bold uppercase tracking-widest">Member Since</p>
-                      <p className="text-sm font-serif font-bold text-[#1a1a1a] mt-0.5">{new Date(lawyer.user.createdAt).getFullYear()}</p>
+                      <p className="text-[9px] text-neutral-455 font-bold uppercase tracking-widest">In practice</p>
+                      <p className="text-sm font-serif font-bold text-[#1a1a1a] mt-0.5">{lawyer.yearsOfExperience} years</p>
                     </div>
                   </div>
-                )}
-                {lawyer.gender && (
-                  <div className="flex items-start gap-3.5">
-                    <div className="flex h-10 w-10 items-center justify-center bg-[#faf8f6] border border-[#efeae0] text-[#bfa37a] shrink-0 rounded-none">
-                      <User className="h-4 w-4" />
-                    </div>
-                    <div>
-                      <p className="text-[9px] text-neutral-455 font-bold uppercase tracking-widest">Gender</p>
-                      <p className="text-sm font-serif font-bold text-[#1a1a1a] mt-0.5">{lawyer.gender}</p>
-                    </div>
-                  </div>
-                )}
+                ) : null}
                 {lawyer.baslNumber && (
                   <div className="flex items-start gap-3.5">
                     <div className="flex h-10 w-10 items-center justify-center bg-[#faf8f6] border border-[#efeae0] text-[#bfa37a] shrink-0 rounded-none">

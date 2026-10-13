@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { rejectSelfPromotion } from '@/lib/selfPromotion';
 import { sanitizeString } from '@/lib/security';
 import { DISTRICTS, PRACTICE_AREAS, LANGUAGES } from '@/schemas/profile.schema';
 
@@ -28,6 +29,9 @@ const optionalText = (max: number) =>
     z.string().max(max).optional().or(z.literal(''))
   );
 
+/** A firm's public description: describes the practice, never praises it. */
+const publicDescription = (max: number) => optionalText(max).superRefine(rejectSelfPromotion);
+
 const SRI_LANKA_PHONE = /^(?:0|(?:\+94))(?:7[0-9]{8}|[1-9][0-9]{8})$/;
 
 export const FirmRoleEnum = z.enum([
@@ -56,7 +60,7 @@ export const UpdateFirmSchema = z.object({
 
   // Factual practice information. Neutral, client-relevant, and the basis on
   // which a client makes their own choice.
-  description: optionalText(1200),
+  description: publicDescription(1200),
   practiceAreas: z
     .array(z.enum(PRACTICE_AREAS as unknown as [string, ...string[]]))
     .max(12, 'You may list up to 12 practice areas.')
@@ -181,7 +185,7 @@ export const RegisterFirmSchema = z.object({
     .nullable()
     .optional(),
 
-  description: optionalText(1200),
+  description: publicDescription(1200),
   practiceAreas: z
     .array(z.enum(PRACTICE_AREAS as unknown as [string, ...string[]]))
     .max(12, 'You may list up to 12 practice areas.')

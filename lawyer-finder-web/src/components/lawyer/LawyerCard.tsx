@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import AttorneyPhoto from '@/components/lawyer/AttorneyPhoto';
 
 /**
  * One attorney in the public directory.
@@ -14,6 +15,8 @@ import Link from 'next/link';
  *     advertisement; a passport-sized one identifies the person.
  *   - No stock photo. Every attorney without a photo used to show the SAME
  *     stranger's face; initials instead.
+ *   - The firm. The client engages the firm, not the individual (rule 7), so
+ *     the card says which practice the attorney belongs to.
  * ─────────────────────────────────────────────────────────────────────────────
  */
 interface LawyerCardProps {
@@ -23,16 +26,8 @@ interface LawyerCardProps {
   practiceAreas: string[];
   languages: string[];
   district: string | null;
+  firm?: { name: string; firmType: string } | null;
   locale: string;
-}
-
-function initials(name: string): string {
-  return name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase() ?? '')
-    .join('');
 }
 
 export default function LawyerCard({
@@ -42,25 +37,23 @@ export default function LawyerCard({
   practiceAreas,
   languages,
   district,
+  firm,
   locale,
 }: LawyerCardProps) {
   return (
     <Link href={`/${locale}/lawyers/${id}`} className="w-full">
       <div className="group flex h-full items-start gap-4 border border-neutral-200 bg-white p-4 transition-colors hover:border-neutral-400">
-        <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden bg-neutral-100">
-          {profileImageUrl ? (
-            <img src={profileImageUrl} alt={fullName} className="h-full w-full object-cover" />
-          ) : (
-            <span className="text-sm font-bold text-neutral-500" aria-hidden="true">
-              {initials(fullName)}
-            </span>
-          )}
-        </div>
+        <AttorneyPhoto src={profileImageUrl} name={fullName} className="h-16 w-16 shrink-0" />
 
         <div className="min-w-0 flex-1 space-y-1.5 text-left">
           <h4 className="font-serif text-base font-bold text-neutral-900 group-hover:underline">
             {fullName}
           </h4>
+          {firm && (
+            <p className="text-xs text-neutral-500">
+              {firm.firmType === 'SOLE_PRACTITIONER' ? 'Sole practitioner' : firm.name}
+            </p>
+          )}
           {practiceAreas.length > 0 && (
             <p className="text-xs text-neutral-600">{practiceAreas.join(', ')}</p>
           )}

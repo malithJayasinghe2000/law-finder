@@ -1,6 +1,7 @@
 import { getSession } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import prisma from '@/lib/db';
+import { LISTED_ATTORNEY_WHERE } from '@/lib/directory';
 import BookingWizardClient from './BookingWizardClient';
 
 export default async function BookingPage(props: {
@@ -13,8 +14,9 @@ export default async function BookingPage(props: {
     redirect(`/${locale}/login?redirect=/${locale}/lawyers/${id}/book`);
   }
 
-  const lawyer = await prisma.lawyerProfile.findUnique({
-    where: { id },
+  // Only an attorney listed through an active, verified firm can be engaged.
+  const lawyer = await prisma.lawyerProfile.findFirst({
+    where: { id, ...LISTED_ATTORNEY_WHERE },
     include: {
       user: { select: { fullName: true } },
       // consultationPricing is deliberately NOT loaded — it would be serialized

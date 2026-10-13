@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
-import { isPublicDirectoryEnabled } from '@/lib/directory';
+import { isPublicDirectoryEnabled, LISTED_ATTORNEY_WHERE } from '@/lib/directory';
 
 /**
  * Public attorney directory.
@@ -25,7 +25,7 @@ export async function GET(req: Request) {
     const language = searchParams.get('language');
     const search = searchParams.get('search');
 
-    const where: Record<string, unknown> = { isVerified: true };
+    const where: Record<string, unknown> = { ...LISTED_ATTORNEY_WHERE };
 
     if (district) {
       where.district = district;
@@ -56,6 +56,7 @@ export async function GET(req: Request) {
         yearsOfExperience: true,
         isNotary: true,
         isVerified: true,
+        firm: { select: { name: true, slug: true, firmType: true } },
       },
       orderBy: { fullName: 'asc' },
     });

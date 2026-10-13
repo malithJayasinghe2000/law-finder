@@ -1,5 +1,5 @@
 import prisma from '@/lib/db';
-import { isPublicDirectoryEnabled } from '@/lib/directory';
+import { isPublicDirectoryEnabled, LISTED_ATTORNEY_WHERE } from '@/lib/directory';
 import DirectoryWithdrawn from '@/components/directory/DirectoryWithdrawn';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -33,7 +33,7 @@ export default async function LawyerDirectory({
   const filters = await searchParams;
 
   // --- Build Prisma where clause ---
-  const where: Record<string, unknown> = { isVerified: true };
+  const where: Record<string, unknown> = { ...LISTED_ATTORNEY_WHERE };
   if (filters.district) where.district = filters.district;
   if (filters.practiceArea) where.practiceAreas = { has: filters.practiceArea };
   if (filters.language) where.languages = { has: filters.language };
@@ -64,6 +64,7 @@ export default async function LawyerDirectory({
         practiceAreas: true,
         languages: true,
         district: true,
+        firm: { select: { name: true, firmType: true } },
       },
       // Alphabetical, and disclosed as such below. Nobody can buy a position.
       orderBy: { fullName: 'asc' },
@@ -176,6 +177,7 @@ export default async function LawyerDirectory({
                   practiceAreas={lawyer.practiceAreas}
                   languages={lawyer.languages}
                   district={lawyer.district}
+                  firm={lawyer.firm}
                   locale={locale}
                 />
               );

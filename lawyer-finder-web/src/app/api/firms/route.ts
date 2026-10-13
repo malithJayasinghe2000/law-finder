@@ -51,7 +51,6 @@ export async function GET(req: Request) {
         slug: true,
         name: true,
         firmType: true,
-        description: true,
         practiceAreas: true,
         languages: true,
         courts: true,

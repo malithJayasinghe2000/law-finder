@@ -7,6 +7,8 @@ import {
   Globe, Calendar, Scale, Gavel, BookOpen, ArrowRight,
 } from 'lucide-react';
 import LawyerProfileClient from './LawyerProfileClient';
+import { LISTED_ATTORNEY_WHERE } from '@/lib/directory';
+import { publishableDescription } from '@/lib/selfPromotion';
 
 export default async function LawyerProfilePage({
   params,
@@ -29,8 +31,10 @@ export default async function LawyerProfilePage({
   //                         client, in the payload or as a badge (rules 3 and 4)
   //
   // See docs/restructure/LEGAL-GUARDRAILS.md — "The Rule 40 content limit".
-  const lawyer = await prisma.lawyerProfile.findUnique({
-    where: { id },
+  // The same rule as the directory: an attorney is shown only through an active,
+  // verified firm. A deactivated firm's attorneys are not reachable by old links.
+  const lawyer = await prisma.lawyerProfile.findFirst({
+    where: { id, ...LISTED_ATTORNEY_WHERE },
     select: {
       id: true,
       fullName: true,
@@ -42,13 +46,13 @@ export default async function LawyerProfilePage({
       practiceAreas: true,
       languages: true,
       district: true,
-      gender: true,
       yearsOfExperience: true,
       practiceType: true,
       courts: true,
       isNotary: true,
       isVerified: true,
       user: { select: { id: true, createdAt: true } },
+      firm: { select: { name: true, slug: true, firmType: true } },
     },
   });
 
@@ -56,6 +60,9 @@ export default async function LawyerProfilePage({
 
   const serializedLawyer = {
     ...lawyer,
+    // Filtered here, not only in the JSX: the props are serialized into the page
+    // payload, so text withheld on screen would still be published in source.
+    bio: publishableDescription(lawyer.bio),
     user: lawyer.user ? { id: lawyer.user.id, createdAt: lawyer.user.createdAt.toISOString() } : null,
   };
 

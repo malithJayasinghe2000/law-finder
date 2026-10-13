@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { rejectSelfPromotion } from '@/lib/selfPromotion';
 import { PRACTICE_AREAS, LANGUAGES, DISTRICTS } from '@/schemas/profile.schema';
 import { sanitizeString } from '@/lib/sanitize';
 
@@ -19,7 +20,8 @@ export const applicationStep1Schema = z.object({
     .max(2000, 'Bio must not exceed 2,000 characters.')
     .optional()
     .or(z.literal(''))
-    .transform((val) => val ? sanitizeString(val) : val),
+    .transform((val) => val ? sanitizeString(val) : val)
+    .superRefine(rejectSelfPromotion),
   phone: z.string()
     .min(1, 'Mobile number is required.')
     .regex(/^(?:0|(?:\+94))7[0-9]{8}$/, 'Enter a valid Sri Lankan mobile number (e.g. 07XXXXXXXX or +947XXXXXXXX).'),

@@ -86,6 +86,7 @@ export async function GET(req: NextRequest) {
 import { z } from 'zod';
 import { sanitizeString } from '@/lib/sanitize';
 import { DISTRICTS, PRACTICE_AREAS, LANGUAGES } from '@/schemas/profile.schema';
+import { rejectSelfPromotion } from '@/lib/selfPromotion';
 
 const updateBasicProfileSchema = z.object({
   fullName: z.preprocess(
@@ -113,7 +114,7 @@ const updateLawyerProfileSchema = z.object({
   ),
   bio: z.preprocess(
     (val) => typeof val === 'string' ? sanitizeString(val) : val,
-    z.string().max(2000).optional().nullable()
+    z.string().max(2000).superRefine(rejectSelfPromotion).optional().nullable()
   ),
   practiceAreas: z.preprocess(
     (val) => Array.isArray(val) ? val.filter(v => PRACTICE_AREAS.includes(v as any)) : val,

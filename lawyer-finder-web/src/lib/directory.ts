@@ -35,3 +35,22 @@ export const isPublicDirectoryEnabled = cache(async (): Promise<boolean> => {
     return false;
   }
 });
+
+/**
+ * Who appears in the public directory.
+ *
+ * A firm is listed when it is active and verified. An attorney is listed only
+ * through such a firm: the firm is the provider of legal services (guardrail
+ * rule 7), so an attorney whose firm has been deactivated or un-verified must
+ * disappear from "People" at the same moment the firm disappears from
+ * "Practices". Before this, `/lawyers` checked only the attorney.
+ */
+export const LISTED_FIRM_WHERE = {
+  isActive: true,
+  verificationStatus: 'VERIFIED',
+} as const;
+
+export const LISTED_ATTORNEY_WHERE = {
+  isVerified: true,
+  firm: { is: LISTED_FIRM_WHERE },
+} as const;

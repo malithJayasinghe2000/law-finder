@@ -1,5 +1,5 @@
 import prisma from '@/lib/db';
-import { isPublicDirectoryEnabled } from '@/lib/directory';
+import { isPublicDirectoryEnabled, LISTED_FIRM_WHERE } from '@/lib/directory';
 import DirectoryWithdrawn from '@/components/directory/DirectoryWithdrawn';
 import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
@@ -46,10 +46,7 @@ export default async function FirmDirectory({
 
   const filters = await searchParams;
 
-  const where: Record<string, unknown> = {
-    isActive: true,
-    verificationStatus: 'VERIFIED',
-  };
+  const where: Record<string, unknown> = { ...LISTED_FIRM_WHERE };
   if (filters.district) where.district = filters.district;
   if (filters.practiceArea) where.practiceAreas = { has: filters.practiceArea };
   if (filters.search) {
@@ -67,7 +64,6 @@ export default async function FirmDirectory({
         slug: true,
         name: true,
         firmType: true,
-        description: true,
         practiceAreas: true,
         languages: true,
         district: true,
@@ -187,11 +183,8 @@ export default async function FirmDirectory({
                   </div>
                 </div>
 
-                {firm.description && (
-                  <p className="mt-3 line-clamp-2 text-sm font-light leading-relaxed text-neutral-600">
-                    {firm.description}
-                  </p>
-                )}
+                {/* No description on the card: the same rule as attorney bios
+                    (src/components/lawyer/LawyerCard.tsx). It is on the firm's page. */}
 
                 <div className="mt-4 space-y-1.5 text-[11px] text-neutral-500">
                   {firm.district && (

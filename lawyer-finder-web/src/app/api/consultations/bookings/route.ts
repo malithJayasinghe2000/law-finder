@@ -226,6 +226,22 @@ export async function POST(req: Request) {
       firmId = firm.id;
     } else {
       firmId = await ensureAttorneyHasFirm(prisma, lawyerId!);
+
+      // The same test as the firm-first path above. Without it, a request sent
+      // from an attorney's page reached a firm an administrator had
+      // deactivated or un-verified, because only the firm-first path checked.
+      if (firmId) {
+        const attorneyFirm = await prisma.lawFirm.findUnique({
+          where: { id: firmId },
+          select: { isActive: true, verificationStatus: true },
+        });
+        if (!attorneyFirm?.isActive || attorneyFirm.verificationStatus !== 'VERIFIED') {
+          return NextResponse.json(
+            { error: "This attorney's firm is not currently accepting requests through the platform." },
+            { status: 400 }
+          );
+        }
+      }
     }
 
     if (!firmId) {

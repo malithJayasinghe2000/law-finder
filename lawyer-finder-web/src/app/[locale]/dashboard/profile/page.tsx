@@ -343,7 +343,7 @@ export default function ProfileSettingsPage() {
                 <div className="relative group">
                   <div className="h-32 w-24 bg-neutral-50 overflow-hidden border border-neutral-200 shadow-sm">
                     <img
-                      src={lawyerProfileImageUrl || 'https://images.unsplash.com/photo-1556157382-97eda2d62296?auto=format&fit=crop&w=800&q=80'}
+                      src={lawyerProfileImageUrl || '/avatar.png'}
                       alt="Card"
                       className="h-full w-full object-cover"
                     />

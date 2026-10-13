@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { rejectSelfPromotion } from '@/lib/selfPromotion';
 import { sanitizeString } from '@/lib/sanitize';
 
 export const PRACTICE_AREAS = [
@@ -34,7 +35,7 @@ export const profileSchema = z.object({
   ),
   bio: z.preprocess(
     (val) => typeof val === 'string' ? sanitizeString(val) : val,
-    z.string().max(2000, 'Bio must not exceed 2000 characters.').optional()
+    z.string().max(2000, 'Bio must not exceed 2000 characters.').superRefine(rejectSelfPromotion).optional()
   ),
   practiceAreas: z.array(z.enum(PRACTICE_AREAS as unknown as [string, ...string[]]))
     .min(1, 'Select at least one practice area.')

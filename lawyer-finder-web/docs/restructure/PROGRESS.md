@@ -2482,3 +2482,50 @@ rule stands — **never a person in the hero.** Checked at 1440px and on an emul
 **Photo swapped:** the library shelves read as empty on the right. Now Lady Justice on
 black (`public/assets/images/home1/hero-justice.jpg` — Sasun Bughdaryan on Unsplash,
 KRNCAqkk8TE, Unsplash License); the library photo file was deleted.
+
+### 2026-10-13 — An attorney is listed only through a listed firm
+
+`/lawyers`, `/api/lawyers`, the attorney page and the booking page checked only
+`LawyerProfile.isVerified`. An administrator deactivating or un-verifying a firm removed
+it from "Practices" while its attorneys stayed in "People" and stayed bookable. One rule
+now, in `src/lib/directory.ts`: `LISTED_FIRM_WHERE` (active + VERIFIED) and
+`LISTED_ATTORNEY_WHERE` (verified attorney in such a firm), used by all of them and by
+`/firms`.
+
+**And a real gap in `POST /api/consultations/bookings`:** the firm-first path refused an
+inactive or unverified firm, the attorney-first path did not — a request from an
+attorney's page reached a deactivated firm. Both paths now apply the same test.
+
+The attorney card and page now say which firm the attorney practises in ("Sole
+practitioner" for a firm of one), linked to the firm's page.
+
+Verified against a running build by deactivating one firm in the local DB: its attorney
+left `/lawyers` (5 → 4) and `/api/lawyers`, the attorney page rendered not-found, and a
+booking from the attorney's page was refused with 400; the firm was then re-activated
+and everything returned. (Not-found pages answer HTTP 200 here because the layout has
+already streamed; the content is the not-found page, with `noindex`.)
+
+### 2026-10-13 — Profile pages: no stock faces, no self-praise, no non-listing fields
+
+- **Stock photo fallback removed everywhere.** The attorney page, the firm page's attorney
+  list and the attorney's own dashboard preview all fell back to the same Unsplash model
+  when no photo was uploaded — a stranger's face presented as the attorney's.
+  `src/components/lawyer/AttorneyPhoto.tsx` shows initials instead and is used by every
+  public surface.
+- **Self-praise blocked** (`src/lib/selfPromotion.ts`): "expert", "specialist", "best",
+  "leading firm", "No. 1", "guarantee", "renowned"… Rejected on save in all four places a
+  bio or firm description is written (`profile.schema`, `/api/profile`,
+  `application.schema`, `firm.schema`), and **not published** when already saved —
+  filtered in the server component, because props are serialized into the page source.
+  Narrow on purpose: "best interests of the child" and "leading question" pass.
+- **Removed from the attorney page:** "Member Since" (platform tenure reads as seniority),
+  gender (no part of choosing counsel), and the large "Years Exp" stat — now a plain
+  "In practice: N years" line.
+- **Firm description off the `/firms` cards and `/api/firms`**, same rule as attorney bios;
+  it stays on the firm's own page, through the same filter.
+
+Verified on a running build: no stock photo on any attorney or firm page; Anura Bandara's
+"Expert in Criminal Law…" appears nowhere in the page source (attorney or firm page);
+Kavindu Perera's factual bio still shows; saving "Expert in tax law" returns 400 with the
+reason. Note: seeded bios that praise (Anura Bandara's "Expert in…", Nethmi Wijesinghe's
+"Specialist in…") now publish as "has not added a description".
