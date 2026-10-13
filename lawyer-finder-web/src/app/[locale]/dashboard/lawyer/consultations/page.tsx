@@ -46,6 +46,7 @@ interface Booking {
   status: string;
   createdAt: string;
   client: { id: string; fullName: string | null; email: string; profileImageUrl: string | null };
+  lawyer?: { fullName: string } | null;
   payment: any;
   /**
    * What this member of the firm may do with this matter, decided server-side in
@@ -395,11 +396,13 @@ export default function LawyerBookingsPage() {
           ) : (
             <div className="space-y-3">
               {bookings.map((booking) => (
-                <Card key={booking.id} className="rounded-none shadow-sm hover:shadow-md transition-shadow border-neutral-200">
+                <Card key={booking.id} className="py-0 rounded-none shadow-sm hover:shadow-md transition-shadow border-neutral-200">
                   <CardContent className="p-5">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-3 mb-2">
+                    {/* Details on top, actions in their own row underneath — side by side,
+                        the actions squeezed the details into one-word lines. */}
+                    <div className="flex flex-col gap-3">
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2 mb-2">
                           <span className="text-xs font-mono text-neutral-400">{booking.bookingNumber}</span>
                           <Badge className={`text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-sm ${BOOKING_STATUS_COLORS[booking.status] || 'bg-neutral-100 text-neutral-700'}`}>
                             {BOOKING_STATUS_LABELS[booking.status] || booking.status}
@@ -407,27 +410,33 @@ export default function LawyerBookingsPage() {
                           <Badge variant="outline" className="text-[10px] rounded-sm border-neutral-200">
                             {booking.mode === 'PHYSICAL' ? <><MapPin className="w-3 h-3 mr-1" /> Physical</> : <><Video className="w-3 h-3 mr-1" /> Online</>}
                           </Badge>
+                          {!booking.lawyerId && (
+                            <span className="border border-amber-300 bg-amber-50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-widest text-amber-800">
+                              Unassigned
+                            </span>
+                          )}
                         </div>
 
                         <h3 className="text-sm font-bold text-neutral-900 truncate">{booking.subject}</h3>
 
-                        <div className="flex items-center gap-4 mt-2 text-xs text-neutral-500">
-                          <span className="flex items-center gap-1">
-                            <User className="w-3 h-3" />
-                            {booking.client?.fullName || booking.client?.fullName || booking.client?.email}
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-xs text-neutral-500">
+                          <span className="flex items-center gap-1 min-w-0">
+                            <User className="w-3 h-3 shrink-0" />
+                            <span className="truncate">{booking.client?.fullName || booking.client?.email}</span>
                           </span>
-                          <span className="flex items-center gap-1">
+                          {booking.lawyer?.fullName && (
+                            <span className="flex items-center gap-1 whitespace-nowrap">
+                              <UserCheck className="w-3 h-3" />
+                              {booking.lawyer.fullName}
+                            </span>
+                          )}
+                          <span className="flex items-center gap-1 whitespace-nowrap">
                             <CalendarDays className="w-3 h-3" />
                             {booking.date
                               ? formatDateOnlyString(booking.date, 'en-US', { weekday: 'short', month: 'short', day: 'numeric' })
                               : 'No appointment yet'}
-                            {!booking.lawyerId && (
-                              <span className="ml-2 border border-amber-300 bg-amber-50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-widest text-amber-800">
-                                Unassigned
-                              </span>
-                            )}
                           </span>
-                          <span className="flex items-center gap-1">
+                          <span className="flex items-center gap-1 whitespace-nowrap">
                             <Clock className="w-3 h-3" />
                             {booking.startTime && booking.endTime
                               ? `${booking.startTime} – ${booking.endTime}`
@@ -436,15 +445,15 @@ export default function LawyerBookingsPage() {
                         </div>
                       </div>
 
-                      <div className="text-right shrink-0">
-                        <div className="flex gap-1.5 mt-3">
+                      <div className="border-t border-neutral-100 pt-3">
+                        <div className="flex flex-wrap items-center justify-end gap-1.5">
                           {/* The conflict check and the quote are the assigned attorney's
                               own professional acts — the server refuses anyone else, so the
                               buttons are shown only to them. Until someone is assigned, the
                               principal sees a prompt to assign instead. */}
                           {!booking.lawyerId && booking.access?.canAssign &&
                             (booking.status === 'REQUESTED' || booking.status === 'CONFLICT_CHECK') && (
-                            <span className="self-center text-[10px] font-semibold text-amber-800">
+                            <span className="mr-auto text-[10px] font-semibold text-amber-800">
                               Assign an attorney first
                             </span>
                           )}
