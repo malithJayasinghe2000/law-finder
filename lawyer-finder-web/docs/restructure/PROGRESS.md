@@ -115,6 +115,7 @@ DPO designation, which are documents rather than code.
 | 2026-10-13 | Directory order is a **daily shuffle, the same for everyone**, not alphabetical | Alphabetical was neutral but not fair: the same attorney was first on every page every day, and late-alphabet names never reached page one. Ranked by a hash of (Colombo date, id) — nothing an attorney does or pays moves it, every visitor sees the same order, pagination is stable within a day, and over a year each entry spends about the same time on page one (simulated: 129–166 days for 30 entries, fair ≈ 146). Rule 4 asks for neutral and disclosed; this is both, and the notice says so |
 | 2026-10-13 | Consultation requests go to the **practice only**; the practice assigns the attorney (`ATTORNEY_BOOKING_ENABLED = false`) | Owner's decision. The practice is the service provider (rule 7), so engaging the practice is the cleanest shape, and the choice of attorney is the practice's, never ours. A sole practitioner is a practice of one and loses nothing. A switch, not a deletion — refused in the API too, because hiding the button alone left a direct POST able to book an attorney |
 | 2026-10-13 | A practice can open a request for a client who came to it directly; **the client must sign in and accept** before it exists | Owner's choice (option A: invite by email, not only existing accounts). The practice writes it, confirms the client asked it to act, and may pick its own attorney; the client confirms. A practice cannot place itself in front of a stranger — the stranger never accepts, the email says nothing about the matter, and a practice can open 20 a day. Starts at REQUESTED, so the conflict check still runs. Replaces the admin "create booking" tool, where platform staff chose the attorney and typed in the client's legal problem |
+| 2026-10-13 | The admin **"create booking" tool is off** (`ADMIN_CREATE_BOOKING_ENABLED = false`) | Platform staff chose the attorney (rule 4), typed in the client's legal problem (rule 5), and sent the matter straight to SCHEDULED past the conflict check. Replaced first by the practice-side New request, then switched off — a switch, not a deletion |
 
 ## Session log
 
@@ -2626,4 +2627,21 @@ form (desktop + 390px phone), and the client opening the email link signed out, 
 in, being returned to the request, and accepting. All test rows deleted. Checks: privilege
 42 (one new: the registry entry), firm 15, ai 124, billing 21, pdpa 67; build clean.
 
-**Not done:** the admin "create booking" tool is still on — to be switched off next.
+The admin "create booking" tool was switched off right after — see the next entry.
+
+### 2026-10-13 — Admin "create booking" switched off; admin list crash fixed
+
+- **Off:** `ADMIN_CREATE_BOOKING_ENABLED = false` (`src/lib/consultations/adminBooking.ts`).
+  The "Create Booking" button is gone from Admin → All Consultations, the old URL shows a
+  notice pointing to the practice-side New request, and `POST /api/admin/bookings` and its
+  lawyer/client lists answer 410.
+- **Crash fixed (pre-existing):** Admin → All Consultations rendered "Something went wrong"
+  whenever any request had been sent to a practice — its `date` is null and the table
+  formatted it unconditionally. Now "No appointment yet" / "Unassigned".
+
+Verified in headless Chrome as admin: the list renders (3 bookings, two with no date), no
+Create Booking button, notice on the old URL, API 410 for create and lists. Checks and
+build clean.
+
+**Seen, not changed:** the admin table's amount column says "Paid to lawyer" under Rs. 0 for
+every request that has no quote yet.

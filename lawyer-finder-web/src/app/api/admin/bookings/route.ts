@@ -6,6 +6,7 @@ import { findAttorneyFirmId } from '@/lib/firms/provisioning';
 import { isListedFirm } from '@/lib/directory';
 import { z } from 'zod';
 import { SLOT_BLOCKING_STATUSES } from '@/lib/consultations/bookingStatus';
+import { ADMIN_CREATE_BOOKING_ENABLED, ADMIN_CREATE_BOOKING_OFF_REASON } from '@/lib/consultations/adminBooking';
 
 const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
@@ -29,6 +30,11 @@ export async function POST(req: Request) {
     const session = await getSession();
     if (!session || session.role !== 'ADMIN') {
       return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
+    }
+
+    // Off: see src/lib/consultations/adminBooking.ts.
+    if (!ADMIN_CREATE_BOOKING_ENABLED) {
+      return NextResponse.json({ error: ADMIN_CREATE_BOOKING_OFF_REASON }, { status: 410 });
     }
 
     const body = await req.json();
@@ -194,6 +200,11 @@ export async function GET(req: Request) {
     const session = await getSession();
     if (!session || session.role !== 'ADMIN') {
       return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
+    }
+
+    // The lists exist only to feed the create form, which is off.
+    if (!ADMIN_CREATE_BOOKING_ENABLED) {
+      return NextResponse.json({ error: ADMIN_CREATE_BOOKING_OFF_REASON }, { status: 410 });
     }
 
     const { searchParams } = new URL(req.url);
