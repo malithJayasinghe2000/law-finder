@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useSocket } from '@/hooks/useSocket';
 import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { Send, Lock, MessageCircle, Search } from 'lucide-react';
+import { Send, Lock, MessageCircle, Search, ArrowLeft } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
@@ -129,6 +129,12 @@ export default function ChatInterface({ userId, locale }: { userId: string; loca
     if (unreadCount > 0) markAsRead(convId);
   };
 
+  // Phones show the list or one conversation, not both; this goes back to the list.
+  const closeConversation = () => {
+    if (activeConvId && socket) socket.emit('leave_conversation', activeConvId);
+    setActiveConvId(null);
+  };
+
   const selectConversation = (conv: Conversation) => {
     selectConversationId(conv.id, conv.unreadCount);
   };
@@ -179,7 +185,9 @@ export default function ChatInterface({ userId, locale }: { userId: string; loca
   return (
     <div className="flex bg-[#faf8f6] border border-[#efeae0] rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.025)] font-sans relative selection:bg-[#bfa37a]/30">
       {/* Sidebar - Sticky layout */}
-      <aside className="w-80 md:w-1/3 shrink-0 bg-[#fbf9f6] border-r border-[#efeae0] sticky top-24 h-[calc(100vh-10rem)] min-h-[500px] flex flex-col rounded-l-2xl">
+      {/* Side by side from md up. On a phone the list and the open conversation
+          take turns — side by side, the conversation was cut off at the edge. */}
+      <aside className={`${activeConvId ? 'hidden md:flex' : 'flex'} w-full md:w-1/3 shrink-0 bg-[#fbf9f6] md:border-r border-[#efeae0] sticky top-24 h-[calc(100vh-10rem)] min-h-[500px] flex-col rounded-2xl md:rounded-r-none`}>
         {/* Sidebar Header */}
         <div className="px-5 py-4.5 flex items-center justify-between border-b border-[#efeae0] bg-[#fbf9f6] shrink-0 rounded-tl-2xl">
           <h2 className="text-xs font-bold text-neutral-800 uppercase tracking-widest font-serif">Messages</h2>
@@ -249,12 +257,20 @@ export default function ChatInterface({ userId, locale }: { userId: string; loca
       </aside>
 
       {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col bg-[#faf8f6] rounded-r-2xl min-h-[500px]">
+      <div className={`${activeConvId ? 'flex' : 'hidden md:flex'} flex-1 min-w-0 flex-col bg-[#faf8f6] rounded-2xl md:rounded-l-none min-h-[500px]`}>
         {activeConvId ? (
           <>
             {/* Sticky Chat Header */}
-            <div className="sticky top-24 z-20 h-16 border-b border-[#efeae0] flex items-center justify-between px-6 bg-[#faf8f6]/95 backdrop-blur-sm shrink-0 rounded-tr-2xl">
-              <div className="flex items-center">
+            <div className="sticky top-24 z-20 h-16 border-b border-[#efeae0] flex items-center justify-between px-4 md:px-6 bg-[#faf8f6]/95 backdrop-blur-sm shrink-0 rounded-t-2xl md:rounded-tl-none">
+              <div className="flex items-center min-w-0">
+                <button
+                  type="button"
+                  onClick={closeConversation}
+                  className="md:hidden mr-2 p-1 -ml-1 text-neutral-600 hover:text-neutral-900"
+                  aria-label="Back to conversations"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                </button>
                 <Avatar className="h-9 w-9 border border-[#efeae0] rounded-full mr-3 overflow-hidden shrink-0">
                   {activeConv?.otherUser?.profileImageUrl ? (
                     <img src={activeConv.otherUser.profileImageUrl} alt="Profile" className="object-cover h-full w-full" />

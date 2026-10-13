@@ -58,6 +58,7 @@ export async function GET() {
                 profileImageUrl: true,
                 email: true,
                 role: true,
+                profile: { select: { fullName: true } },
               },
             },
           },
@@ -93,7 +94,14 @@ export async function GET() {
 
         return {
           id: c.id,
-          otherUser: otherParticipant?.user,
+          // An attorney is shown by their professional name (the profile), not
+          // the account name — seeded accounts carry the literal "None" there.
+          otherUser: otherParticipant
+            ? (({ profile, ...u }) => ({
+                ...u,
+                fullName: profile?.fullName || u.fullName || u.email,
+              }))(otherParticipant.user)
+            : undefined,
           firmId: c.firmId,
           bookingId: c.bookingId,
           lastMessage: lastMessage ? discloseMessage(lastMessage, access) : null,
