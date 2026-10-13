@@ -117,6 +117,7 @@ DPO designation, which are documents rather than code.
 | 2026-10-13 | A practice can open a request for a client who came to it directly; **the client must sign in and accept** before it exists | Owner's choice (option A: invite by email, not only existing accounts). The practice writes it, confirms the client asked it to act, and may pick its own attorney; the client confirms. A practice cannot place itself in front of a stranger — the stranger never accepts, the email says nothing about the matter, and a practice can open 20 a day. Starts at REQUESTED, so the conflict check still runs. Replaces the admin "create booking" tool, where platform staff chose the attorney and typed in the client's legal problem |
 | 2026-10-13 | The admin **"create booking" tool is off** (`ADMIN_CREATE_BOOKING_ENABLED = false`) | Platform staff chose the attorney (rule 4), typed in the client's legal problem (rule 5), and sent the matter straight to SCHEDULED past the conflict check. Replaced first by the practice-side New request, then switched off — a switch, not a deletion |
 | 2026-10-13 | The conflict check is a simple **Review request: Accept / Decline / Hold + a private note**; the "parties screened" list is gone from the screen | Owner's decision. Requests are often not disputes (wills, deeds, advice), and the screening duty is the attorney's own. Two safeguards kept and enforced on the server: Accept requires the attorney to tick "I have checked that my practice does not act, and has not acted, for the other side" (that tick is now the record, in place of the names); Decline requires a private reason and never reaches the client. The names column stays in the schema, optional, so old records still read |
+| 2026-10-13 | A firm-side attorney may open a chat with a client **only about a live request that client sent to their practice, as the attorney assigned to it** | The client made contact first, so it is not soliciting. Before this, `POST /api/chat/conversations` let any LAWYER open a thread with any CLIENT on the platform — a stranger who never contacted them, which is touting. Closed requests (declined, cancelled, quote declined or expired) cannot get a new thread from the firm; an existing one stays readable |
 
 ## Session log
 
@@ -2729,4 +2730,26 @@ no names box, the save button follows the rules for each choice, and Hold puts t
 queue's dialog buttons (Details included, and before this change too) does not open the
 dialog; a DOM click does. The owner opened the dialog in real Chrome, so this looks like a
 headless/Base UI quirk, but it is unexplained.
+
+### 2026-10-13 — "Message client" on a request; the firm can no longer message strangers
+
+- **Button:** the assigned attorney sees **Message client** on a live request in the queue.
+  It opens (or reuses) the thread linked to that request and goes to
+  `/dashboard/lawyer/chat?conv=…`.
+- **Gap closed:** `POST /api/chat/conversations` let any `LAWYER` open a thread with any
+  `CLIENT` on the platform. Now a firm-side thread needs a `bookingId` that is the client's
+  request to the attorney's practice, assigned to that attorney, and not in
+  `CHAT_CLOSED_STATUSES` (`src/lib/consultations/bookingStatus.ts`: DECLINED,
+  CLIENT_DECLINED, QUOTE_EXPIRED, CANCELLED_BY_CLIENT, CANCELLED_BY_FIRM). The button uses
+  the same list. Client-initiated threads are unchanged — the pre-engagement Chat button on
+  attorney pages is still open item §E1.
+
+Verified with a temporary example.com client: refused with no request named, on an
+unassigned request, on another client's request, and for another practice's attorney;
+opened by the assigned attorney; in Chrome the button opens the chat page on that client;
+after a decline the button is gone and the server refuses (403). Test client, request,
+thread and its two audit rows deleted.
+
+**Not changed:** an existing thread stays usable after the request is declined — the
+firm can still write in it. Closing a thread is a separate decision.
 

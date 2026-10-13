@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -14,7 +14,9 @@ import {
   ChevronLeft, ChevronRight, Eye, FileText,
 } from 'lucide-react';
 import { BOOKING_STATUS_COLORS, BOOKING_STATUS_LABELS } from '@/schemas/consultation.schema';
-import { ShieldCheck, Banknote, UserX, UserCheck, Receipt, UserPlus } from 'lucide-react';
+import { ShieldCheck, Banknote, UserX, UserCheck, Receipt, UserPlus, MessageSquare } from 'lucide-react';
+import { firmMayMessageClient } from '@/lib/consultations/bookingStatus';
+import type { BookingStatus } from '@prisma/client';
 import { AssignMatterDialog } from '@/components/firms/AssignMatterDialog';
 import { formatDateOnlyString } from '@/lib/utils';
 import ConflictCheckDialog from '@/components/consultations/ConflictCheckDialog';
@@ -84,7 +86,28 @@ export default function LawyerBookingsPage() {
   // Principals and practice managers can open a request for a client who came
   // to the practice directly. From membership, not role — see /api/firms/me.
   const { locale } = useParams<{ locale: string }>();
+  const router = useRouter();
   const [canManageFirm, setCanManageFirm] = useState(false);
+  const [openingChat, setOpeningChat] = useState<string | null>(null);
+
+  // The assigned attorney messages the client about THIS request. The server
+  // refuses a thread that is not tied to a live request the client sent.
+  async function messageClient(booking: Booking) {
+    setOpeningChat(booking.id);
+    try {
+      const res = await fetch('/api/chat/conversations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ targetUserId: booking.client.id, bookingId: booking.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Could not open the conversation');
+      router.push(`/${locale}/dashboard/lawyer/chat?conv=${data.id}`);
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Could not open the conversation');
+      setOpeningChat(null);
+    }
+  }
   useEffect(() => {
     fetch('/api/firms/me')
       .then((r) => (r.ok ? r.json() : null))
@@ -564,6 +587,18 @@ export default function LawyerBookingsPage() {
                               className="rounded-none h-7 text-[10px] px-2.5 font-bold border-neutral-300"
                             >
                               <Receipt className="w-3 h-3 mr-1" /> Fee note
+                            </Button>
+                          )}
+                          {booking.access?.basis === 'ASSIGNED_ATTORNEY' &&
+                            firmMayMessageClient(booking.status as BookingStatus) && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => messageClient(booking)}
+                              disabled={openingChat === booking.id}
+                              className="rounded-none h-7 text-[10px] px-2.5 font-bold border-neutral-300"
+                            >
+                              <MessageSquare className="w-3 h-3 mr-1" /> Message client
                             </Button>
                           )}
                           {booking.access?.canAssign && (

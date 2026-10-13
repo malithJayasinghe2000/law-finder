@@ -87,6 +87,27 @@ const TRANSITIONS: Record<BookingStatus, BookingStatus[]> = {
   NO_SHOW: [],
 };
 
+/**
+ * Requests on which the firm may no longer open a conversation with the client.
+ *
+ * The firm's attorney may message a client about a request the CLIENT sent —
+ * the client made contact first, so it is not soliciting them. Once the firm
+ * has said it cannot act, or either side has walked away, a new message from
+ * the firm is the firm approaching someone who is no longer its prospective
+ * client. An existing thread stays readable; this only governs opening one.
+ */
+export const CHAT_CLOSED_STATUSES: BookingStatus[] = [
+  'DECLINED',
+  'CLIENT_DECLINED',
+  'QUOTE_EXPIRED',
+  'CANCELLED_BY_CLIENT',
+  'CANCELLED_BY_FIRM',
+];
+
+export function firmMayMessageClient(status: BookingStatus): boolean {
+  return !CHAT_CLOSED_STATUSES.includes(status);
+}
+
 export function canTransition(from: BookingStatus, to: BookingStatus): boolean {
   return TRANSITIONS[from]?.includes(to) ?? false;
 }
