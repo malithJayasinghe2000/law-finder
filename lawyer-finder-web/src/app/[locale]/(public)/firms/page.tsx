@@ -1,5 +1,5 @@
 import prisma from '@/lib/db';
-import { isPublicDirectoryEnabled, LISTED_FIRM_WHERE } from '@/lib/directory';
+import { isPublicDirectoryEnabled, LISTED_FIRM_WHERE, inDailyOrder, DIRECTORY_ORDER_NOTICE } from '@/lib/directory';
 import DirectoryWithdrawn from '@/components/directory/DirectoryWithdrawn';
 import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
@@ -57,9 +57,13 @@ export default async function FirmDirectory({
   const currentPage = Math.max(1, parseInt(filters.page || '1', 10) || 1);
   const skip = (currentPage - 1) * PAGE_SIZE;
 
-  const [firms, totalCount] = await Promise.all([
-    prisma.lawFirm.findMany({
-      where,
+  // Daily order (src/lib/directory.ts): rank every match, then load one page.
+  const orderedIds = inDailyOrder(await prisma.lawFirm.findMany({ where, select: { id: true } }));
+  const totalCount = orderedIds.length;
+  const pageIds = orderedIds.slice(skip, skip + PAGE_SIZE).map((r) => r.id);
+
+  const rows = await prisma.lawFirm.findMany({
+      where: { id: { in: pageIds } },
       select: {
         id: true,
         slug: true,
@@ -73,13 +77,8 @@ export default async function FirmDirectory({
         logoUrl: true,
         _count: { select: { lawyers: true } },
       },
-      // Alphabetical. Nobody can buy a position in this list.
-      orderBy: { name: 'asc' },
-      skip,
-      take: PAGE_SIZE,
-    }),
-    prisma.lawFirm.count({ where }),
-  ]);
+    });
+  const firms = pageIds.flatMap((id) => rows.filter((r) => r.id === id));
 
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
   const hasFilters = !!(filters.search || filters.district || filters.practiceArea || filters.language);
@@ -101,9 +100,8 @@ export default async function FirmDirectory({
         <div className="mb-10 max-w-2xl">
           <h1 className="text-3xl font-light tracking-tight sm:text-4xl">Law Firms</h1>
           <p className="mt-3 text-muted-foreground">
-            Browse verified Sri Lankan law firms. Listings are ordered alphabetically
-            and cannot be paid for. Use the filters to narrow the list, then choose for
-            yourself.
+            Browse verified Sri Lankan law firms. {DIRECTORY_ORDER_NOTICE} Use the filters to
+            narrow the list, then choose for yourself.
           </p>
         </div>
 

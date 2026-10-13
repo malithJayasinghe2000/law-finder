@@ -155,7 +155,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
                 {
                   icon: Search,
                   title: 'Search You Control',
-                  desc: 'Filter by practice area, district and language — criteria you choose. Ordering is alphabetical and nothing about position can be bought.',
+                  desc: 'Filter by practice area, district and language — criteria you choose. The order changes every day, is the same for everyone, and nothing about position can be bought.',
                 },
                 {
                   icon: MessageSquare,

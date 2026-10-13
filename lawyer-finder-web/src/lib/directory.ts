@@ -54,3 +54,45 @@ export const LISTED_ATTORNEY_WHERE = {
   isVerified: true,
   firm: { is: LISTED_FIRM_WHERE },
 } as const;
+
+/**
+ * The directory's ordering: a fresh shuffle every day, the same for everyone.
+ *
+ * Alphabetical order was neutral but not fair — "Anura Bandara" sat first on
+ * every page, every day, and an attorney named Zainab never reached page one.
+ * Instead each entry is ranked by a hash of (today's date in Sri Lanka, its id):
+ *
+ *   - nothing anyone does, pays or clicks can move an entry (rules 3 and 4);
+ *   - every visitor sees the same order on a given day, so pagination is stable
+ *     and the order can be disclosed truthfully as "changes daily";
+ *   - over time every entry spends as long at the top as any other.
+ *
+ * Do not seed this with anything about the viewer or the entry beyond its id —
+ * an order that differs per person, or that knows anything about an attorney,
+ * is a ranking, and a ranking needs counsel (question 18).
+ */
+function fnv1a(input: string): number {
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < input.length; i++) {
+    hash ^= input.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return hash >>> 0;
+}
+
+export function directoryDayKey(now: Date = new Date()): string {
+  // en-CA formats as YYYY-MM-DD.
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Colombo' }).format(now);
+}
+
+export function inDailyOrder<T extends { id: string }>(items: T[], now: Date = new Date()): T[] {
+  const day = directoryDayKey(now);
+  return items
+    .map((item) => ({ item, key: fnv1a(`${day}:${item.id}`) }))
+    .sort((a, b) => a.key - b.key || (a.item.id < b.item.id ? -1 : 1))
+    .map(({ item }) => item);
+}
+
+/** The disclosure shown wherever the daily order is used. Keep it true. */
+export const DIRECTORY_ORDER_NOTICE =
+  'The order changes every day and is the same for everyone. Nobody can pay for a position.';

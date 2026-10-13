@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
+import { inDailyOrder } from '@/lib/directory';
 import { isPublicDirectoryEnabled, LISTED_ATTORNEY_WHERE } from '@/lib/directory';
 
 /**
@@ -8,7 +9,7 @@ import { isPublicDirectoryEnabled, LISTED_ATTORNEY_WHERE } from '@/lib/directory
  * Every field returned here is bound by the Rule 40 content limit: name,
  * qualifications, and factual practice information only. No fee indication, no
  * rating, no review count, no subscription signal, and no ordering derived from
- * anything an attorney pays us. Ordering is alphabetical and disclosed.
+ * anything an attorney pays us. Ordering is the daily order (src/lib/directory.ts) and is disclosed.
  *
  * See docs/restructure/LEGAL-GUARDRAILS.md — "The Rule 40 content limit".
  */
@@ -58,10 +59,9 @@ export async function GET(req: Request) {
         isVerified: true,
         firm: { select: { name: true, slug: true, firmType: true } },
       },
-      orderBy: { fullName: 'asc' },
     });
 
-    return NextResponse.json(lawyers, { status: 200 });
+    return NextResponse.json(inDailyOrder(lawyers), { status: 200 });
   } catch (error) {
     console.error('[LAWYERS_GET_ERROR]', error);
     return NextResponse.json({ error: 'Failed to fetch lawyers.' }, { status: 500 });

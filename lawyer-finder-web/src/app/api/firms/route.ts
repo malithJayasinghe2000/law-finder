@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
+import { inDailyOrder } from '@/lib/directory';
 import { isPublicDirectoryEnabled } from '@/lib/directory';
 
 /**
@@ -11,7 +12,7 @@ import { isPublicDirectoryEnabled } from '@/lib/directory';
  * practice information. There is no fee indication, no rating, no review count,
  * no subscription signal, and no ordering that anyone can buy.
  *
- * Ordering is alphabetical and is disclosed on the page. Filtering is on
+ * Ordering is the daily order (src/lib/directory.ts), disclosed on the page. Filtering is on
  * criteria the client supplies — district, practice area, language — never on
  * anything we decide about a firm.
  *
@@ -63,11 +64,10 @@ export async function GET(req: Request) {
         establishedYear: true,
         _count: { select: { lawyers: true } },
       },
-      orderBy: { name: 'asc' },
     });
 
     return NextResponse.json(
-      firms.map((f) => ({
+      inDailyOrder(firms).map((f) => ({
         ...f,
         attorneyCount: f._count.lawyers,
         _count: undefined,

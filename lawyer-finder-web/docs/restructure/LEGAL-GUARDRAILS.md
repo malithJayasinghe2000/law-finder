@@ -230,8 +230,8 @@ the RAG service's practice-area detection and lawyer-recommendation tools are go
 This is the conservative answer to **counsel question 6**, taken rather than deferred:
 if suggesting a *category* of practitioner turns out to be permissible, restoring it
 is a feature; if it is not, we never did it. The replacement is a standing link to the
-alphabetical directory that is identical for every user and unaffected by anything
-they typed — the user navigating, not the platform channelling.
+directory — in a daily order (`src/lib/directory.ts`) that is identical for every user
+and unaffected by anything they typed — the user navigating, not the platform channelling.
 
 ### Confidentiality
 

@@ -143,7 +143,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
                   Find an Attorney-at-Law
                 </h2>
                 <p className="text-neutral-500 text-sm max-w-md font-light leading-relaxed">
-                  Verified law firms and attorneys, listed alphabetically. Filter by practice area, district and language.
+                  Verified law firms and attorneys, in an order that changes daily. Filter by practice area, district and language.
                 </p>
               </div>
               <Link href={`/${locale}/firms`}>

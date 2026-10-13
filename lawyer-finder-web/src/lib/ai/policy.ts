@@ -190,8 +190,8 @@ export const REFUSAL_MESSAGES: Record<RefusalCategory, string> = {
   REPRESENTATION_REQUEST:
     'I do not choose attorneys or firms, and I will not suggest one to you — not by name, not by type, ' +
     'and not based on what you have told me. The choice has to be yours, made from neutral information.\n\n' +
-    'You can browse every verified practice and practitioner in the directory. It is listed alphabetically, ' +
-    'position in it cannot be bought, and nothing you say to me affects what you see there.',
+    'You can browse every verified practice and practitioner in the directory. Its order changes every day ' +
+    'and is the same for everyone, position in it cannot be bought, and nothing you say to me affects what you see there.',
 
   NO_CITABLE_SOURCE:
     'I could not find this in the legislation I hold, so I am not going to answer it.\n\n' +
@@ -207,8 +207,8 @@ export const REFUSAL_MESSAGES: Record<RefusalCategory, string> = {
 
   PRACTITIONER_STEERING:
     'I withheld that answer because it began steering you toward a particular kind of practitioner.\n\n' +
-    'Choosing who advises you is your decision, not mine. The directory lists every verified practice ' +
-    'alphabetically if you want to look.',
+    'Choosing who advises you is your decision, not mine. The directory lists every verified practice, ' +
+    'in an order that changes daily, if you want to look.',
 
   UNSUPPORTED_CITATION:
     'I withheld that answer because it referred to legislation I had not actually retrieved, ' +
@@ -371,7 +371,7 @@ const DOCUMENT_DECISION_PATTERNS: RegExp[] = [
  * Refused outright. The platform does not choose the practitioner (rule 4), and
  * the assistant choosing on the basis of what a person just described about
  * their legal problem would be both channelling and targeting on privileged
- * material. The refusal points at the directory, which is alphabetical,
+ * material. The refusal points at the directory, which is in a neutral daily order,
  * unfiltered by anything the user said here, and identical for everyone.
  */
 /**
@@ -424,7 +424,7 @@ const QUALIFIED = String.raw`[^.?!]{0,40}?\b`;
  * Refused outright. The platform does not choose the practitioner (rule 4), and
  * the assistant choosing on the basis of what a person just described about
  * their legal problem would be both channelling and targeting on privileged
- * material. The refusal points at the directory, which is alphabetical,
+ * material. The refusal points at the directory, which is in a neutral daily order,
  * unfiltered by anything the user said here, and identical for everyone.
  */
 const REPRESENTATION_PATTERNS: RegExp[] = [

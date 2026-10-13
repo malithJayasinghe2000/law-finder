@@ -1,6 +1,7 @@
 import prisma from '@/lib/db';
 import AttorneyPhoto from '@/components/lawyer/AttorneyPhoto';
 import { publishableDescription } from '@/lib/selfPromotion';
+import { inDailyOrder, DIRECTORY_ORDER_NOTICE } from '@/lib/directory';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -219,8 +220,8 @@ export default async function FirmProfilePage({
               Attorneys at this firm
             </h2>
             <p className="mb-5 text-xs text-neutral-500">
-              Listed alphabetically. Choosing an attorney is entirely your decision — this
-              ordering is not a recommendation and cannot be paid for.
+              {DIRECTORY_ORDER_NOTICE} Choosing an attorney is entirely your decision — this
+              ordering is not a recommendation.
             </p>
 
             {firm.lawyers.length === 0 ? (
@@ -229,7 +230,7 @@ export default async function FirmProfilePage({
               </p>
             ) : (
               <div className="grid gap-3 sm:grid-cols-2">
-                {firm.lawyers.map((a) => (
+                {inDailyOrder(firm.lawyers).map((a) => (
                   <Link
                     key={a.id}
                     href={`/${locale}/lawyers/${a.id}`}

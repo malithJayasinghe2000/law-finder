@@ -1,5 +1,5 @@
 import prisma from '@/lib/db';
-import { isPublicDirectoryEnabled, LISTED_ATTORNEY_WHERE } from '@/lib/directory';
+import { isPublicDirectoryEnabled, LISTED_ATTORNEY_WHERE, inDailyOrder, DIRECTORY_ORDER_NOTICE } from '@/lib/directory';
 import DirectoryWithdrawn from '@/components/directory/DirectoryWithdrawn';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -50,9 +50,13 @@ export default async function LawyerDirectory({
   const currentPage = Math.max(1, parseInt(filters.page || '1', 10) || 1);
   const skip = (currentPage - 1) * PAGE_SIZE;
 
-  const [lawyers, totalCount] = await Promise.all([
-    prisma.lawyerProfile.findMany({
-      where,
+  // Daily order (src/lib/directory.ts): rank every match, then load one page.
+  const orderedIds = inDailyOrder(await prisma.lawyerProfile.findMany({ where, select: { id: true } }));
+  const totalCount = orderedIds.length;
+  const pageIds = orderedIds.slice(skip, skip + PAGE_SIZE).map((r) => r.id);
+
+  const rows = await prisma.lawyerProfile.findMany({
+      where: { id: { in: pageIds } },
       // Rule 40 content limit: no fee range, no rating, no subscription signal.
       // A bare findMany would serialize every column into the RSC payload.
       // See docs/restructure/LEGAL-GUARDRAILS.md.
@@ -66,13 +70,8 @@ export default async function LawyerDirectory({
         district: true,
         firm: { select: { name: true, firmType: true } },
       },
-      // Alphabetical, and disclosed as such below. Nobody can buy a position.
-      orderBy: { fullName: 'asc' },
-      skip,
-      take: PAGE_SIZE,
-    }),
-    prisma.lawyerProfile.count({ where }),
-  ]);
+    });
+  const lawyers = pageIds.flatMap((id) => rows.filter((r) => r.id === id));
 
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
   const hasFilters = !!(filters.search || filters.district || filters.practiceArea || filters.language);
@@ -96,7 +95,7 @@ export default async function LawyerDirectory({
         <div className="mb-10 max-w-2xl">
           <h1 className="text-3xl font-light tracking-tight sm:text-4xl">Attorneys</h1>
           <p className="mt-3 text-muted-foreground">
-            Browse verified Sri Lankan Attorneys-at-Law. Listings are ordered alphabetically and cannot be paid for. Use the filters to narrow the list, then choose for yourself.
+            Browse verified Sri Lankan Attorneys-at-Law. {DIRECTORY_ORDER_NOTICE} Use the filters to narrow the list, then choose for yourself.
           </p>
         </div>
 

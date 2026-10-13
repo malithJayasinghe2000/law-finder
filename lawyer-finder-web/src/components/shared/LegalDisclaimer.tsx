@@ -38,7 +38,7 @@ const COPY: Record<Variant, { title: string; body: string }> = {
   directory: {
     title: 'How these results are ordered',
     body:
-      'Listed alphabetically and matched only on practice area, location and language. Ordering is never influenced by any payment to this platform, and this listing is not a recommendation or endorsement — the choice is yours.',
+      'The order changes every day and is the same for everyone, and results are matched only on practice area, location and language. Ordering is never influenced by any payment to this platform, and this listing is not a recommendation or endorsement — the choice is yours.',
   },
 };
 
