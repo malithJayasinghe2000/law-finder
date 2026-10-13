@@ -141,7 +141,7 @@ export default function LawyerBookingsPage() {
   async function loadBookings() {
     setLoading(true);
     try {
-      const params = new URLSearchParams({ page: String(page), limit: '10' });
+      const params = new URLSearchParams({ scope: 'firm', page: String(page), limit: '10' });
       if (statusFilter) params.set('status', statusFilter);
       if (selectedDate) {
         const dateStr = getFormattedDateString(selectedDate);
@@ -170,7 +170,7 @@ export default function LawyerBookingsPage() {
       const dateFrom = getFormattedDateString(firstDay);
       const dateTo = getFormattedDateString(lastDay);
       
-      const res = await fetch(`/api/consultations/bookings?dateFrom=${dateFrom}&dateTo=${dateTo}&limit=100`);
+      const res = await fetch(`/api/consultations/bookings?scope=firm&dateFrom=${dateFrom}&dateTo=${dateTo}&limit=100`);
       const data = await res.json();
       setCalendarBookings(data.bookings || []);
     } catch (e) {

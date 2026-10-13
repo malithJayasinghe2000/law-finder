@@ -49,12 +49,20 @@ export async function GET(req: Request) {
     // is what makes a firm queue possible — a principal has to be able to see a
     // request in order to assign it. What each of them may *read* about those
     // matters is decided per row below, by src/lib/firms/access.ts.
+    //
+    // Membership is loaded for everyone but platform staff: a practice manager
+    // or paralegal is not an admitted attorney, so their account is CLIENT, and
+    // gating this on LAWYER left a manager with an empty queue. The client and
+    // firm dashboards share this endpoint, so a CLIENT account gets the firm's
+    // queue only when the firm dashboard asks for it (`scope=firm`) — otherwise
+    // a manager's own requests as a client would vanish from their client view.
     const membership =
-      session.role === 'LAWYER' ? await getFirmMembership(session.userId) : null;
+      session.role === 'ADMIN' ? null : await getFirmMembership(session.userId);
+    const firmView = session.role === 'LAWYER' || searchParams.get('scope') === 'firm';
 
-    if (session.role === 'CLIENT') {
+    if (session.role === 'CLIENT' && !firmView) {
       where.clientId = session.userId;
-    } else if (session.role === 'LAWYER') {
+    } else if (session.role !== 'ADMIN') {
       if (membership) {
         where.firmId = membership.firmId;
       } else if (session.profileId) {

@@ -2645,3 +2645,28 @@ build clean.
 
 **Seen, not changed:** the admin table's amount column says "Paid to lawyer" under Rs. 0 for
 every request that has no quote yet.
+
+### 2026-10-13 — A practice manager can see the queue and assign
+
+A practice manager is not an attorney, so their account is `CLIENT`; their authority is
+the `FIRM_ADMIN` membership. Two routes still loaded membership only for `LAWYER`
+accounts — the sixth layer of the same mistake:
+
+- `GET /api/consultations/bookings` — a manager's queue was **empty**. Membership is now
+  loaded for every non-admin. Because the client and firm dashboards share this endpoint,
+  a `CLIENT` account gets the firm queue only with `scope=firm` (sent by the firm
+  dashboard), so a manager's own requests as a client stay in their client view.
+- `GET/POST /api/consultations/bookings/[id]/assign` — a manager got **403** on the very
+  job the role exists for. Now from membership.
+
+Verified with a temporary FIRM_ADMIN in Perera & Associates (deleted afterwards): before,
+queue empty and assign 403; after, the queue shows BK-2026-0003 with its text, the assign
+list offers Kavindu Perera, and assigning to another practice's attorney is refused by the
+same-firm rule (400), not the role check. In Chrome the manager sees the queue, New
+request and the assign dialog. A plain client with `scope=firm` gets nothing; their own
+list and the owner's queue are unchanged.
+
+**Still role-gated, not checked here:** chat (`/api/chat/conversations`,
+`unread-count`), sidebar counts, refunds, and the subscription routes (a manager cannot see
+the practice's licence).
+

@@ -50,7 +50,9 @@ export async function GET(
     }
 
     const membership =
-      session.role === 'LAWYER' ? await getFirmMembership(session.userId) : null;
+      // Not gated on LAWYER: a practice manager's account is CLIENT, and
+      // assigning is exactly their job. Authority comes from membership.
+      session.role === 'ADMIN' ? null : await getFirmMembership(session.userId);
 
     const access = resolveMatterAccess({
       actorUserId: session.userId,
@@ -159,7 +161,9 @@ export async function POST(
     }
 
     const membership =
-      session.role === 'LAWYER' ? await getFirmMembership(session.userId) : null;
+      // Not gated on LAWYER: a practice manager's account is CLIENT, and
+      // assigning is exactly their job. Authority comes from membership.
+      session.role === 'ADMIN' ? null : await getFirmMembership(session.userId);
 
     const access = resolveMatterAccess({
       actorUserId: session.userId,
