@@ -7,7 +7,7 @@ import {
   LayoutDashboard, ArrowRight, Bell, CalendarDays, MessageCircle, UserPlus, ShieldCheck, FileText, Banknote, Inbox, Building2, PenLine, Globe, KeyRound, Shield,
 } from 'lucide-react';
 import type { BookingStatus } from '@prisma/client';
-import { BOOKING_STATUS_COLORS, BOOKING_STATUS_LABELS } from '@/schemas/consultation.schema';
+import { BOOKING_STATUS_COLORS, FIRM_STATUS_LABELS } from '@/schemas/consultation.schema';
 import { getFirmMembership, resolveMatterAccess, discloseMatter, canManageFirm } from '@/lib/firms/access';
 import { countUnreadConversations } from '@/lib/chat/unread';
 import { isListedFirm, isPublicDirectoryEnabled } from '@/lib/directory';
@@ -306,7 +306,7 @@ export default async function LawyerDashboardPage({ params }: { params: Promise<
                     <div className="flex flex-wrap items-center gap-2 mb-1">
                       <span className="text-xs font-mono text-neutral-400">{b.bookingNumber}</span>
                       <Badge className={`text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-sm ${BOOKING_STATUS_COLORS[b.status] || 'bg-neutral-100 text-neutral-700'}`}>
-                        {BOOKING_STATUS_LABELS[b.status] || b.status}
+                        {FIRM_STATUS_LABELS[b.status] || b.status}
                       </Badge>
                     </div>
                     {subject && <p className="text-sm font-semibold text-neutral-900 truncate">{subject}</p>}

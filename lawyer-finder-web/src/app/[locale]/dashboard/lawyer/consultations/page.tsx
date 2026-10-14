@@ -13,7 +13,7 @@ import {
   CalendarDays, Clock, MapPin, Video, User, CheckCircle, XCircle,
   ChevronLeft, ChevronRight, Eye, FileText,
 } from 'lucide-react';
-import { BOOKING_STATUS_COLORS, BOOKING_STATUS_LABELS } from '@/schemas/consultation.schema';
+import { BOOKING_STATUS_COLORS, FIRM_STATUS_LABELS } from '@/schemas/consultation.schema';
 import { ShieldCheck, Banknote, UserX, UserCheck, Receipt, UserPlus, MessageSquare } from 'lucide-react';
 import { firmMayMessageClient } from '@/lib/consultations/bookingStatus';
 import type { BookingStatus } from '@prisma/client';
@@ -436,7 +436,7 @@ export default function LawyerBookingsPage() {
                         <div className="flex flex-wrap items-center gap-2 mb-2">
                           <span className="text-xs font-mono text-neutral-400">{booking.bookingNumber}</span>
                           <Badge className={`text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-sm ${BOOKING_STATUS_COLORS[booking.status] || 'bg-neutral-100 text-neutral-700'}`}>
-                            {BOOKING_STATUS_LABELS[booking.status] || booking.status}
+                            {FIRM_STATUS_LABELS[booking.status] || booking.status}
                           </Badge>
                           <Badge variant="outline" className="text-[10px] rounded-sm border-neutral-200">
                             {booking.mode === 'PHYSICAL' ? <><MapPin className="w-3 h-3 mr-1" /> Physical</> : <><Video className="w-3 h-3 mr-1" /> Online</>}
@@ -756,7 +756,7 @@ export default function LawyerBookingsPage() {
                           </p>
                         </div>
                         <Badge className={`text-[8px] uppercase tracking-wider px-1.5 py-0.5 rounded-sm shrink-0 ${BOOKING_STATUS_COLORS[booking.status] || 'bg-neutral-100 text-neutral-700'}`}>
-                          {BOOKING_STATUS_LABELS[booking.status] || booking.status}
+                          {FIRM_STATUS_LABELS[booking.status] || booking.status}
                         </Badge>
                       </div>
                     ))
@@ -784,7 +784,7 @@ export default function LawyerBookingsPage() {
             <div className="p-6 space-y-4">
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div><p className="text-neutral-500 text-xs">Client</p><p className="font-semibold">{selectedBooking.client?.fullName || selectedBooking.client?.email}</p></div>
-                <div><p className="text-neutral-500 text-xs">Status</p><Badge className={`text-[10px] ${BOOKING_STATUS_COLORS[selectedBooking.status]}`}>{BOOKING_STATUS_LABELS[selectedBooking.status]}</Badge></div>
+                <div><p className="text-neutral-500 text-xs">Status</p><Badge className={`text-[10px] ${BOOKING_STATUS_COLORS[selectedBooking.status]}`}>{FIRM_STATUS_LABELS[selectedBooking.status]}</Badge></div>
                 <div><p className="text-neutral-500 text-xs">Date</p><p className="font-semibold">{selectedBooking.date ? formatDateOnlyString(selectedBooking.date, 'en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }) : 'Not yet arranged'}</p></div>
                 <div><p className="text-neutral-500 text-xs">Time</p><p className="font-semibold">{selectedBooking.startTime && selectedBooking.endTime ? `${selectedBooking.startTime} – ${selectedBooking.endTime}${selectedBooking.duration ? ` (${selectedBooking.duration} min)` : ''}` : 'Not yet arranged'}</p></div>
                 <div><p className="text-neutral-500 text-xs">Mode</p><p className="font-semibold">{selectedBooking.mode}</p></div>

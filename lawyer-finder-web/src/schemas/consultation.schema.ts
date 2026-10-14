@@ -298,6 +298,28 @@ export const BOOKING_STATUS_LABELS: Record<string, string> = {
   DISPUTED: 'Disputed',
 };
 
+/**
+ * The same statuses as the PRACTICE sees them, matching the tabs on its queue.
+ * The client's wording read wrongly on the firm side: a request the attorney had
+ * already accepted showed "Under review" while sitting under the "To quote" tab.
+ */
+export const FIRM_STATUS_LABELS: Record<string, string> = {
+  REQUESTED: 'New request',
+  CONFLICT_CHECK: 'To quote',
+  DECLINED: 'Not accepted',
+  QUOTED: 'Awaiting client',
+  QUOTE_EXPIRED: 'Proposal expired',
+  CLIENT_DECLINED: 'Client declined',
+  ACCEPTED: 'Awaiting payment',
+  SCHEDULED: 'Scheduled',
+  RESCHEDULE_REQUESTED: 'New time proposed',
+  COMPLETED: 'Completed',
+  CANCELLED_BY_CLIENT: 'Cancelled by client',
+  CANCELLED_BY_FIRM: 'Cancelled by practice',
+  NO_SHOW: 'Missed',
+  DISPUTED: 'Disputed',
+};
+
 export const DAY_ORDER: string[] = [
   'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY',
 ];
