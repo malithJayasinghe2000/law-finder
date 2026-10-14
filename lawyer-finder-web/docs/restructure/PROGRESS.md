@@ -2877,3 +2877,32 @@ were not clicked — each click writes a consent record, which is evidence and i
 
 **Client dashboard review complete:** Dashboard, My Consultations, Messages, Community,
 Profile Settings, Your Data.
+
+### 2026-10-14 — Lawyer dashboard home: what needs the firm, not counters
+
+First section of the lawyer-side review. The home page was a welcome banner, a licence
+card, "Open Matters", "Published Articles" and a read-only profile summary. Replaced by a
+server page built from **firm membership** (`a752a99`, `f482b23`, `f0df2e6`, `981aab8`):
+
+- **Practice manager crash fixed.** The page loaded `/api/lawyers/profile`, which answers
+  LAWYER only, so a manager (account CLIENT) got a 401 and "Something went wrong".
+- **Needs your attention:** assign (principal/manager, unassigned), review or on hold
+  (assigned attorney), quote, check payment (`ACCEPTED`), unread messages. Each shown only
+  to the person the server would let act.
+- **Latest requests:** firm-wide for principal, manager and paralegal; an attorney's own
+  otherwise. Subject only where `canReadMatterDetail` — a paralegal sees none.
+- **Your practice:** directory status (listed / not registered / being checked / not
+  granted / directory off), licence in one line (Plans link for the principal only), and
+  **My community posts** in place of "Published Articles".
+- **"Published Articles" was always 0:** it counted the `Article` table, which has no
+  editor and nothing writes to — lawyers write community posts. Removed from the page and
+  from `/api/lawyers/profile`. What is left of `Article` is listed in the brief §E.
+
+Verified at 412px and 1440px as Kavindu (principal: Quote + On hold), Anura (Assign),
+Nuwan (unregistered: "Register"), and a temporary example.com manager and paralegal (no
+crash; paralegal sees no subjects). Post count checked with a temporary published and a
+pending post (only published counted). Temporary account and posts deleted by id.
+
+**Mistake in passing:** a cleanup by pattern (`%@example.com`) also deleted
+`newpartner@example.com`, a test paralegal at Perera & Associates from 2026-08-16, with
+its membership row. No posts, messages or matters. Clean up by exact id.
