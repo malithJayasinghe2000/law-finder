@@ -1,6 +1,7 @@
 # Next Session Brief
 
-> Updated 2026-10-13, after a session on the **public directory, firms and the home page**.
+> Updated 2026-10-14, after a session on **booking, the firm queue, conflict review, chat,
+> and a section-by-section review of the client dashboard**.
 > **Copy §A into a new chat as your first message.** The older brief (2026-09-21, the RAG
 > service) follows from §0 and is still accurate for the AI service.
 >
@@ -9,48 +10,70 @@
 
 ---
 
-## A. Prompt to start the new chat (2026-10-13)
+## A. Prompt to start the new chat (2026-10-14)
 
 ```
 I'm working on law-finder, a Sri Lankan legal platform under a legal restructure
 (Next.js 16 + Prisma 7 + Postgres in lawyer-finder-web/, a Python RAG service in
-lawyer-rag/). Pick up where the 2026-10-13 session left off.
+lawyer-rag/). Pick up where the 2026-10-14 session left off.
 
 READ FIRST, IN THIS ORDER:
   1. lawyer-finder-web/docs/NEXT-SESSION-BRIEF.md §A-§F   today's state and decisions
   2. lawyer-finder-web/CLAUDE.md / AGENTS.md               rules, checks, conventions
-  3. lawyer-finder-web/docs/restructure/PROGRESS.md        the 2026-10-13 entries at the
-                                                           end, and the Decisions table
+  3. lawyer-finder-web/docs/restructure/PROGRESS.md        the 2026-10-13 and 2026-10-14
+                                                           entries at the end, and the
+                                                           Decisions table
   4. lawyer-finder-web/docs/restructure/LEGAL-GUARDRAILS.md
 
 HOW I WORK (important):
   - I'm an engineer, not a lawyer. Make the conservative legal call yourself and
-    explain it in plain language.
-  - Keep explanations SHORT and simple: direct answer first, a few bullets.
+    explain it in plain language. If I push back, weigh my point honestly — say
+    what the research actually supports, and what is your own judgement.
+  - Keep explanations SHORT and simple: direct answer first, a few bullets or a
+    small table. I often reply "ok" — that means go ahead.
   - Verify by running the app (build, start, curl / headless browser), not by
-    reading code. Clean up any test data you create.
+    reading code. Check phone width (412px) too. Clean up any test data you create.
   - Commit each change separately once verified. Ask before pushing or before
     any destructive git command.
 
-START WITH: §E "Next up" in the brief. Ask me which item to do first.
+WHAT WE ARE DOING: a section-by-section review of every dashboard, one section at a
+time — what it is for, keep / change / hide, and mobile layout. For each section:
+look at it on a phone, say what it does, list problems in a small table with a
+recommendation, and wait for my "ok" before changing anything.
+The CLIENT side is finished. START WITH: the LAWYER side, §E item 1 in the brief —
+the lawyer Dashboard first.
 ```
 
 ---
 
 ## B. Where things stand
 
-**Branch `restructure-booking-flow`.** Working tree clean. Two commits **not pushed**:
-`5a27e13` (no automatic practices) and `7225a7c` (People tab hidden). Everything earlier
-today is pushed.
+**Branch `restructure-booking-flow`.** Run `git log origin/restructure-booking-flow..HEAD`
+to see what is unpushed — ask before pushing.
 
 **Running it locally:** Postgres `lawfinder` on localhost:5432 (`DATABASE_URL` in
-`lawyer-finder-web/.env`); `cd lawyer-finder-web && npm run dev` (port 3000 is often taken
-by another project, `PORT=3001 npm run dev` works). Seed accounts, all `password123`:
-`admin@thelawyr.lk`, `lawyer@thelawyr.lk` … `lawyer5@thelawyr.lk`, `citizen@thelawyr.lk`.
+`lawyer-finder-web/.env`; note the spaces around `=`); `cd lawyer-finder-web && PORT=3001
+npm run dev` (port 3000 belongs to another project). Seed accounts, all `password123`:
+`admin@thelawyr.lk`, `lawyer@thelawyr.lk` (Kavindu Perera, FIRM_OWNER of **Perera &
+Associates**, the only listed practice) … `lawyer5@thelawyr.lk`, `citizen@thelawyr.lk`.
 After any migration **restart the dev server** — `src/lib/db.ts` keeps the Prisma client on
-`globalThis`, so a stale server is missing new models.
+`globalThis`. Local DB requests the owner created by hand: BK-2026-0003 (assigned to
+Kavindu), BK-2026-0004 (declined), BK-2026-0005 — leave them alone.
 
-## C. What the law research found (2026-10-13 — primary texts, not the old notes)
+**How a request flows now (all practice-side):**
+1. A client sends a request to a **practice** (practice page → Request Consultation), or a
+   practice opens one for its own client (**New request** → the client accepts by email
+   link). Booking a named attorney is switched off (`ATTORNEY_BOOKING_ENABLED = false`);
+   the admin "create booking" tool is off (`ADMIN_CREATE_BOOKING_ENABLED = false`).
+2. The owner or practice manager **assigns** an attorney.
+3. The assigned attorney **reviews** it: Accept (must tick "I checked my practice does not
+   act for the other side") / Decline (private note required; client emailed "cannot act",
+   never why) / Hold (stays a new request, shown "On hold").
+4. Quote → client accepts → client pays the practice directly → scheduled → completed.
+5. The assigned attorney can **Message client** on a live request; nobody on the firm side
+   can open a thread with a client who has not sent their practice a request.
+
+## C. Law research (primary texts) — and how it was applied
 
 - **Rule 45**, Supreme Court (Conduct of and Etiquette for Attorneys-at-Law) Rules 1988:
   an attorney or law firm *may* appear "in any law list or Legal Directory" with "name,
@@ -67,63 +90,87 @@ After any migration **restart the dev server** — `src/lib/db.ts` keeps the Pri
   through publicised non-lawyer online platforms is touting. This hits the **pre-engagement
   Chat button**, not the directory.
 - Still get a written opinion from a Sri Lankan attorney; show them Rule 45.
+- **Applied 2026-10-14 to the community forum** (owner pushed back on hiding it, rightly):
+  the BASL note puts the risk of *advising* on the attorney, who answers for their own
+  conduct; the platform answers for what it builds. So the forum stays open to attorneys,
+  but the platform no longer ranks them by votes, no longer turns a post into a lead
+  (no profile link / "Contact Author" / practice areas), shows a "general discussion, not
+  legal advice" notice, and reminds attorneys of the BASL note and Rules 39/49 where they
+  write. Inform, don't block.
 
-## D. Decisions the owner made today (do not reverse without asking)
+## D. Decisions the owner has made (do not reverse without asking)
 
-1. **No automatic practices.** Approval no longer creates a "firm of one". An approved
-   attorney is idle (not listed, not bookable) until they **register a practice** — as a
-   sole practitioner or a firm — and an admin verifies it, or until a firm invites them.
+1. **No automatic practices.** An approved attorney is idle until they register a practice
+   (sole practitioner or firm) and an admin verifies it, or a firm invites them.
 2. **Only registered + verified practices are listed** (`LISTED_FIRM_WHERE` /
-   `isListedFirm` in `src/lib/directory.ts`, requires `isRegisteredPractice`). The 4
-   auto-created firms of one are *unlisted, not deactivated* — deactivating would cut their
-   attorneys off from open matters (Anura Bandara has one).
-3. **People tab hidden for launch** — `PEOPLE_TAB_ENABLED = false` in
-   `src/lib/directoryLinks.ts`. Switch, not deletion. Links go through `directoryPath()`.
-4. **Directory order changes daily**, same for everyone (`inDailyOrder`), not A–Z.
-5. **Admin kill switch for the whole directory** at Admin → Public Directory
-   (`DirectorySwitch` table, append-only, reason required). Currently ON.
-6. **Hero:** full-width Lady Justice photo (Unsplash, KRNCAqkk8TE, no credit needed), gold
-   headline. **Never a person in the hero** — a stranger reads as "our lawyer", a real one
-   gets free promotion.
-7. **Profiles:** small photo or initials (never a stock face); no bio on cards; no
-   "Member since", gender, or big "Years Exp"; praise words (`src/lib/selfPromotion.ts`)
-   rejected on save and hidden if already saved — filtered server-side, not just in JSX.
-8. **Requests go to the practice only** — `ATTORNEY_BOOKING_ENABLED = false` in
-   `src/lib/directoryLinks.ts`. The practice assigns the attorney. Off in the UI and the
-   API; switch, not deletion.
-9. **A practice opens requests for its own clients** (Consultations → New request). The
-   client must sign in with the invited address and accept. `src/lib/firms/clientIntake.ts`.
+   `isListedFirm` in `src/lib/directory.ts`).
+3. **People tab hidden for launch** — `PEOPLE_TAB_ENABLED = false`
+   (`src/lib/directoryLinks.ts`).
+4. **Directory order changes daily**, same for everyone (`inDailyOrder`).
+5. **Admin kill switch for the whole directory** (Admin → Public Directory). Currently ON.
+6. **Hero:** Lady Justice photo, gold headline. **Never a person in the hero.**
+7. **Profiles:** small photo or initials; no bio on cards; praise words rejected.
+8. **Requests go to the practice only** — `ATTORNEY_BOOKING_ENABLED = false`, off in UI
+   and API. Switch, not deletion.
+9. **A practice can open a request for its own client**; the client must sign in with the
+   invited address and accept (`src/lib/firms/clientIntake.ts`).
+10. **Admin "create booking" is off** — `ADMIN_CREATE_BOOKING_ENABLED = false`
+    (`src/lib/consultations/adminBooking.ts`).
+11. **Conflict check = "Review request": Accept / Decline / Hold + a note.** No names list
+    on screen (the `screenedParties` column stays, optional). Accept requires the tick;
+    Decline requires a note. Only the **assigned attorney** may review and quote.
+12. **Chat:** the assigned attorney may open a thread only about a live request the client
+    sent to their practice (`CHAT_CLOSED_STATUSES` in `src/lib/consultations/bookingStatus.ts`).
+    Owner said **not now** to: making a thread read-only after a decline, and removing the
+    pre-engagement Chat button on attorney pages.
+13. **Community stays open to everyone**, with the platform-side fixes in §C.
+14. **Client profile: no new fields** (no phone/address) — collect only what is needed.
 
-Result: the local directory currently lists **only Perera & Associates**.
+## E. Next up
 
-## E. Next up (owner's list, not yet done)
-
-1. **Chat button on attorney pages** — the biggest remaining legal risk (BASL 2021 note).
-   Recommended: messaging only after the firm accepts the request. Owner said "later".
-2. **Landing-page and footer wording** — practice cards titled "Trusted Lawyer", "Legal
-   Champion", "Discovery Caller"; "get the perfect representation"; "connecting client
-   requirements with dedicated Attorneys-at-Law"; "vetted advocates"; footer "connecting
-   citizens with verified legal professionals". Replace with real area names and
-   "a directory where you choose for yourself". Optional: drop the hero "Chat With AI"
-   link (duplicates the box).
-3. **Admin warning: verified attorneys who are not listed** (no practice, unregistered,
-   or pending) so nobody silently disappears.
-4. **Hiding the word "firm" for sole practitioners** in UI copy (firm page says "Engaging
-   this firm"; dashboard "My Firm" → "My Practice"). Discussed, not approved yet.
-5. **Junior-in-a-senior's-chambers** has no clear model yet — discuss.
+1. **Lawyer-side section-by-section review** (same method as the client side). Lawyer
+   menu: Dashboard · My Firm (Practice, Data Requests) · Consultations (Bookings, Set
+   Availability, Pricing, Consultation Income, Refunds) · Messages · Payments (Invoices,
+   Payment History) · Community Posts · Profile Settings. Things already suspected:
+   - **Set Availability / Pricing** are per-attorney slot and price tools from the old
+     attorney-booking flow; with practice-only requests they may be unused — check.
+   - Several firm-side routes still gate on `role === 'LAWYER'` instead of membership:
+     `/api/chat/conversations` + `unread-count`, `/api/dashboard/sidebar-counts`,
+     `/api/consultations/refunds`, all `/api/subscriptions/*` (a practice manager cannot
+     see the practice's licence).
+   - Sidebar title says "Lawyer Portal" / "My Firm" even for a sole practitioner (old §E4).
+2. **Admin-side review** after the lawyer side.
+3. **Landing-page and footer wording** — "Trusted Lawyer", "Legal Champion", "perfect
+   representation", "vetted advocates"; footer *Services* list ("Civil Litigation,
+   Criminal Defense…") and "connecting citizens with verified legal professionals".
+4. **Admin warning: verified attorneys who are not listed.**
+5. **Junior-in-a-senior's-chambers** — no model yet; discuss.
 6. Update `LEGAL-GUARDRAILS.md` / `QUESTIONS-FOR-COUNSEL.md` Q16–18 to reflect §C.
-7. A fresh `prisma db seed` now yields an **empty directory** (seed no longer creates
-   firms). Consider seeding one registered practice for demos.
+7. Seed one registered practice for demos (a fresh seed has an empty directory).
+8. Pre-engagement Chat button on attorney pages, and read-only threads after a decline —
+   owner said later.
 
 ## F. Things that will bite you
 
-- Next.js here streams: `notFound()` / `redirect()` inside a page answer **HTTP 200** with
-  the not-found page / a meta refresh. Check content or use a browser, not the status code.
-- Headless Chrome can't do a window narrower than ~500px; use puppeteer-core with
-  `isMobile` (the session installed it in its scratchpad) for phone checks.
-- `check:ai` (124 cases) after touching `src/lib/ai/policy.ts`; `check:firm` after
-  `src/lib/firms/invitations.ts` or provisioning; lint has ~16 pre-existing `any` errors —
-  not ours, don't "fix" them in passing.
+- **Local `.env` has live SMTP.** Every request, invitation, quote or decline you create
+  sends a real email. Create test clients at `@example.com` (a throwaway script under
+  `scripts/_tmp_*.ts` run with ts-node, then delete the script), and delete everything
+  they created afterwards — bookings, quotes, engagement letters, conflict checks,
+  conversations/participants/messages, client-intake invitations, `DataAccessLog` rows.
+  Scan every `*id` column for leftovers before calling it clean.
+- **Headless Chrome: a physical mouse click or Enter does not open the Base UI dialogs**
+  on the firm queue (Details too, and before any of this work). A DOM `el.click()` does,
+  and real Chrome does. Typing into a dialog textarea needs the native value setter +
+  an `input` event. Not explained; don't burn time on it.
+- `buttonVariants` lives in a `'use client'` module — calling it from a **server**
+  component crashes the page. Use plain class strings there.
+- Next.js here streams: `notFound()` / `redirect()` answer **HTTP 200**. Check content.
+- Phone checks: puppeteer-core with `isMobile` at 412px (installed in the scratchpad).
+- Checks: `check:privilege` (42) · `check:firm` (15) · `check:ai` (124) · `check:billing`
+  (21) · `check:pdpa` (67), plus `npx tsc --noEmit` and `npm run build`. Lint has
+  pre-existing `any` errors — compare before/after rather than fixing them in passing.
+- Postgres `timestamp` columns read back shifted by +5:30 through the `pg` driver; compare
+  with `::text` when restoring a value.
 - The local library (`/legal-library`) is empty in the local DB.
 
 ---
