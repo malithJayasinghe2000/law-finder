@@ -330,6 +330,24 @@ export default function FirmPage() {
         </Badge>
       </div>
 
+      {/* The page runs to about six phone screens; the bank details were at the bottom. */}
+      <nav aria-label="On this page" className="flex flex-wrap gap-2 text-xs">
+        {[
+          ['#profile', 'Public profile'],
+          ['#members', 'Members'],
+          ['#offices', 'Offices'],
+          ...(canManage ? [['#account', 'Client account']] : []),
+        ].map(([href, label]) => (
+          <a
+            key={href}
+            href={href}
+            className="rounded-full border border-neutral-300 bg-white px-3 py-1.5 font-semibold text-neutral-700 hover:bg-neutral-50"
+          >
+            {label}
+          </a>
+        ))}
+      </nav>
+
       {/* Why does a solo practitioner have a firm? Answer it before they ask. */}
       {firm.isSoloPractice && firm.isRegisteredPractice && (
         <div className="flex items-start gap-3 border border-neutral-200 bg-neutral-50 p-4 text-[12px] leading-relaxed text-neutral-600">
@@ -395,7 +413,7 @@ export default function FirmPage() {
       )}
 
       {/* Public profile */}
-      <Card className="rounded-none">
+      <Card id="profile" className="scroll-mt-20 rounded-none">
         <CardContent className="p-5 sm:p-6">
           <div className="mb-4 flex items-center gap-2">
             <Building2 className="h-4 w-4" />
@@ -574,7 +592,7 @@ export default function FirmPage() {
       </Card>
 
       {/* Members */}
-      <Card className="rounded-none">
+      <Card id="members" className="scroll-mt-20 rounded-none">
         <CardContent className="p-5 sm:p-6">
           <div className="mb-4 flex items-center justify-between gap-3">
             <div className="flex items-center gap-2">
@@ -700,7 +718,7 @@ export default function FirmPage() {
       </Card>
 
       {/* Offices */}
-      <Card className="rounded-none">
+      <Card id="offices" className="scroll-mt-20 rounded-none">
         <CardContent className="p-5 sm:p-6">
           <div className="mb-4 flex items-center justify-between gap-3">
             <div className="flex items-center gap-2">
@@ -766,7 +784,7 @@ export default function FirmPage() {
 
       {/* Client account */}
       {canManage && (
-        <Card className="rounded-none">
+        <Card id="account" className="scroll-mt-20 rounded-none">
           <CardContent className="p-5 sm:p-6">
             <div className="mb-4 flex items-center gap-2">
               <Landmark className="h-4 w-4" />
