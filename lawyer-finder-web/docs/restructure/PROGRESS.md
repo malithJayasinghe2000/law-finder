@@ -2896,7 +2896,7 @@ server page built from **firm membership** (`a752a99`, `f482b23`, `f0df2e6`, `98
   **My community posts** in place of "Published Articles".
 - **"Published Articles" was always 0:** it counted the `Article` table, which has no
   editor and nothing writes to — lawyers write community posts. Removed from the page and
-  from `/api/lawyers/profile`. What is left of `Article` is listed in the brief §E.
+  from `/api/lawyers/profile`. The rest of `Article` was then removed — see the next entry.
 
 Verified at 412px and 1440px as Kavindu (principal: Quote + On hold), Anura (Assign),
 Nuwan (unregistered: "Register"), and a temporary example.com manager and paralegal (no
@@ -2906,3 +2906,25 @@ pending post (only published counted). Temporary account and posts deleted by id
 **Mistake in passing:** a cleanup by pattern (`%@example.com`) also deleted
 `newpartner@example.com`, a test paralegal at Perera & Associates from 2026-08-16, with
 its membership row. No posts, messages or matters. Clean up by exact id.
+
+### 2026-10-14 — `Article` removed: it was the blog before community posts
+
+`Article` was the first blog (lawyers only). Community posts replaced it, but the model
+stayed, with no editor and no rows. Owner agreed to remove it all:
+
+- **Admin dashboard** "Published Articles" tile and count (`2f538b3`).
+- **Plans:** `articles_per_month` (Basic 2 → Premium 50 → unlimited) and the four
+  `*_article` permissions — the signed-in pricing page showed "10 articles/mo" and
+  "50 articles/mo". A tier that lets a firm publish more about itself for more money is
+  selling visibility (rule 3). Removed from seed, pricing labels and, by a **data-only
+  migration** `remove_article_plan_limit`, from the database (`b21dfff`). Earlier tier
+  removals were done by hand in the local DB only; this one reaches every database.
+- **Table dropped** by migration `drop_article` (empty, checked first) (`ffbd153`).
+
+Verified: lawyer dashboard, admin dashboard and pricing page load after the drop and a
+dev-server restart; no "article" on the pricing page; build passes; `check:billing` 21/21.
+
+**Seen, not changed (Payments / licence review):** the plans still carry
+`access_paid_promo` / `create_promo` permissions and show "Priority Ad Placement" on the
+pricing page — paid promotion for attorneys is rule 3. The admin dashboard shows invented
+figures ("+12%", "99% Platform health") — admin review.

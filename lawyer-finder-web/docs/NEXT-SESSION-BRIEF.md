@@ -166,8 +166,10 @@ no date (`06dc7d8`).
 
 ## E. Next up
 
-1. **Lawyer-side section-by-section review** (same method as the client side). Lawyer
-   menu: Dashboard · My Firm (Practice, Data Requests) · Consultations (Bookings, Set
+1. **Lawyer-side section-by-section review** (same method as the client side). **Dashboard
+   done 2026-10-14** (needs-attention list, latest requests, directory/licence/community
+   lines; works for a practice manager; `Article` removed entirely — PROGRESS.md). **Next:
+   My Firm → Practice.** Lawyer menu: Dashboard · My Firm (Practice, Data Requests) · Consultations (Bookings, Set
    Availability, Pricing, Consultation Income, Refunds) · Messages · Payments (Invoices,
    Payment History) · Community Posts · Profile Settings. Things already suspected:
    - **Set Availability / Pricing** are per-attorney slot and price tools from the old
@@ -177,6 +179,9 @@ no date (`06dc7d8`).
      `/api/consultations/refunds`, all `/api/subscriptions/*` (a practice manager cannot
      see the practice's licence).
    - Sidebar title says "Lawyer Portal" / "My Firm" even for a sole practitioner (old §E4).
+   - **Plans still sell promotion:** `access_paid_promo` / `create_promo` permissions and
+     "Priority Ad Placement" on the pricing page (rule 3) — at Payments / licence.
+   - Admin dashboard shows invented figures ("+12%", "99% Platform health") — admin review.
 2. **Admin-side review** after the lawyer side.
 3. **Landing-page and footer wording** — "Trusted Lawyer", "Legal Champion", "perfect
    representation", "vetted advocates"; footer *Services* list ("Civil Litigation,
