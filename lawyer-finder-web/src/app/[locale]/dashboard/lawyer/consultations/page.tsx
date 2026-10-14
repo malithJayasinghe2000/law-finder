@@ -131,6 +131,9 @@ export default function LawyerBookingsPage() {
   // Calendar states
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  // Phones only: the calendar filled a whole screen under the list, mostly
+  // empty because few requests have an appointment. Always shown on desktop.
+  const [showCalendar, setShowCalendar] = useState(false);
   const [calendarBookings, setCalendarBookings] = useState<Booking[]>([]);
   const [loadingCalendar, setLoadingCalendar] = useState(false);
 
@@ -378,14 +381,14 @@ export default function LawyerBookingsPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-4">
-        <div className="flex h-11 w-11 items-center justify-center bg-[#0a0a0a] text-white">
+      <div className="flex flex-wrap items-center gap-4">
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center bg-[#0a0a0a] text-white">
           <CalendarDays className="h-5 w-5" />
         </div>
-        <div>
+        <div className="min-w-0">
           {/* "Bookings" was marketplace language: these are requests to the
               practice, and most have no appointment yet. */}
-          <h1 className="text-4xl font-normal tracking-tight text-neutral-900">Requests</h1>
+          <h1 className="text-2xl sm:text-4xl font-normal tracking-tight text-neutral-900">Requests</h1>
           <p className="text-sm text-neutral-500 font-medium">Requests clients have sent your practice</p>
         </div>
         {canManageFirm && (
@@ -394,7 +397,7 @@ export default function LawyerBookingsPage() {
             aria-label="New request"
             className="ml-auto inline-flex items-center gap-2 bg-[#0a0a0a] text-white px-4 py-2.5 text-xs font-bold uppercase tracking-widest hover:bg-neutral-800 transition-colors shrink-0"
           >
-            <UserPlus className="h-4 w-4" /> <span className="hidden sm:inline">New request</span>
+            <UserPlus className="h-4 w-4" /> <span>New request</span>
           </Link>
         )}
       </div>
@@ -673,7 +676,16 @@ export default function LawyerBookingsPage() {
         </div>
 
         {/* Right Column: Calendar & Day Schedule */}
-        <div className="lg:col-span-1 space-y-6">
+        <button
+          type="button"
+          onClick={() => setShowCalendar((v) => !v)}
+          aria-expanded={showCalendar}
+          className="lg:hidden w-full border border-neutral-200 bg-white py-2.5 text-xs font-bold uppercase tracking-widest text-neutral-700"
+        >
+          <CalendarDays className="mr-2 inline h-4 w-4" />
+          {showCalendar ? 'Hide calendar' : 'Show calendar'}
+        </button>
+        <div className={`lg:col-span-1 space-y-6 ${showCalendar ? '' : 'hidden'} lg:block`}>
           <Card className="rounded-none border border-neutral-200 shadow-sm p-5 bg-white">
             {/* Calendar Month Selector */}
             <div className="flex items-center justify-between pb-4 mb-4 border-b border-neutral-100">
