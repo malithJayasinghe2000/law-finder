@@ -142,18 +142,22 @@ export default function LawyerBookingsPage() {
   useEffect(() => { loadCalendarBookings(); }, [currentMonth]);
   useEffect(() => { loadPricing(); }, []);
 
+  // The quote's payment details come from the PRACTICE's bank details (My Firm →
+  // Practice), not the attorney's own Pricing page. The client engages and pays
+  // the firm; a pre-fill from an attorney's personal settings could send the fee
+  // to a different account from the one on the firm's fee note.
   async function loadPricing() {
     try {
-      const res = await fetch('/api/consultations/pricing');
+      const res = await fetch('/api/firms/me');
       const data = await res.json();
-      if (data.pricing) {
-        setDefaultBankName(data.pricing.bankName || '');
-        setDefaultAccountName(data.pricing.accountName || '');
-        setDefaultAccountNumber(data.pricing.accountNumber || '');
-        setDefaultBankBranch(data.pricing.bankBranch || '');
+      if (data.firm) {
+        setDefaultBankName(data.firm.bankName || '');
+        setDefaultAccountName(data.firm.accountName || '');
+        setDefaultAccountNumber(data.firm.accountNumber || '');
+        setDefaultBankBranch(data.firm.bankBranch || '');
       }
     } catch (e) {
-      console.error('Failed to load pricing', e);
+      console.error('Failed to load the practice bank details', e);
     }
   }
 

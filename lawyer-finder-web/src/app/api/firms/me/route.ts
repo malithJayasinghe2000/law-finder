@@ -6,6 +6,7 @@ import {
   UpdateFirmBankDetailsSchema,
 } from '@/schemas/firm.schema';
 import { getFirmMembership, canManageFirm, canManageMembers } from '@/lib/firms/access';
+import { roleRequiresAdmittedAttorney } from '@/lib/firms/invitations';
 import { getSeatAllowance } from '@/lib/firms/billing';
 import { allocateFirmSlug } from '@/lib/firms/provisioning';
 
@@ -76,19 +77,22 @@ export async function GET() {
     }
 
     const canManage = canManageFirm(membership);
+    // Attorneys write the quotes, and a quote tells the client where to pay, so
+    // they see the account too. Tax identity stays with those who administer.
+    const canSeeBank = canManage || roleRequiresAdmittedAttorney(membership.role);
 
     const seats = await getSeatAllowance(firm.id);
 
     return NextResponse.json({
       firm: {
         ...firm,
-        // The firm's own bank details are only shown to those who administer the
-        // firm. They are not secret from the client — a quote carries them — but
-        // an unassigned paralegal has no reason to see them.
-        bankName: canManage ? firm.bankName : null,
-        accountName: canManage ? firm.accountName : null,
-        accountNumber: canManage ? firm.accountNumber : null,
-        bankBranch: canManage ? firm.bankBranch : null,
+        // The firm's own bank details go to those who administer the firm and to
+        // its attorneys, who put them on quotes. They are not secret from the
+        // client — a quote carries them — but a paralegal has no reason to see them.
+        bankName: canSeeBank ? firm.bankName : null,
+        accountName: canSeeBank ? firm.accountName : null,
+        accountNumber: canSeeBank ? firm.accountNumber : null,
+        bankBranch: canSeeBank ? firm.bankBranch : null,
         taxIdentificationNumber: canManage ? firm.taxIdentificationNumber : null,
         vatNumber: canManage ? firm.vatNumber : null,
         isVatRegistered: firm.isVatRegistered,
