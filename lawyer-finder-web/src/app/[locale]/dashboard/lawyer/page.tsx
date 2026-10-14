@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import {
-  LayoutDashboard, ArrowRight, Bell, CalendarDays, MessageCircle, UserPlus, ShieldCheck, FileText, Banknote, Inbox,
+  LayoutDashboard, ArrowRight, Bell, CalendarDays, MessageCircle, UserPlus, ShieldCheck, FileText, Banknote, Inbox, Building2, PenLine,
 } from 'lucide-react';
 import type { BookingStatus } from '@prisma/client';
 import { BOOKING_STATUS_COLORS, BOOKING_STATUS_LABELS } from '@/schemas/consultation.schema';
@@ -77,7 +77,7 @@ export default async function LawyerDashboardPage({ params }: { params: Promise<
   const firmWide = membership.role === 'FIRM_OWNER' || membership.role === 'FIRM_ADMIN' || !profileId;
   const recentWhere = firmWide ? { firmId: membership.firmId } : { firmId: membership.firmId, lawyerId: profileId };
 
-  const [open, recent, unread] = await Promise.all([
+  const [open, recent, unread, publishedPosts] = await Promise.all([
     prisma.booking.findMany({
       where: { firmId: membership.firmId, status: { in: FIRM_TODO_STATUSES } },
       orderBy: { createdAt: 'asc' },
@@ -96,6 +96,9 @@ export default async function LawyerDashboardPage({ params }: { params: Promise<
       },
     }),
     countUnreadConversations(session),
+    // Community posts are the only thing anyone writes; the old `Article` table
+    // has no editor and nothing writes to it.
+    prisma.post.count({ where: { authorId: session.userId, status: 'PUBLISHED' } }),
   ]);
 
   const accessTo = (b: { lawyerId: string | null; firmId: string; clientId: string }) =>
@@ -231,6 +234,26 @@ export default async function LawyerDashboardPage({ params }: { params: Promise<
             })}
           </ul>
         )}
+      </section>
+
+      {/* Your practice */}
+      <section className="bg-white border border-neutral-200 p-5 sm:p-6" aria-labelledby="practice-heading">
+        <h2 id="practice-heading" className="text-sm font-bold text-neutral-900 uppercase tracking-wide flex items-center gap-2 mb-2">
+          <Building2 className="w-4 h-4" /> Your practice
+        </h2>
+        <ul className="divide-y divide-neutral-100">
+          <li className="py-3 flex flex-col sm:flex-row sm:items-center gap-2 justify-between">
+            <div className="flex items-start gap-3 min-w-0">
+              <PenLine className="w-4 h-4 mt-0.5 shrink-0 text-neutral-500" />
+              <p className="text-sm text-neutral-700">
+                <span className="font-semibold text-neutral-900">My community posts:</span> {publishedPosts} published
+              </p>
+            </div>
+            <Link href={`/${locale}/dashboard/blog/my-posts`} className="text-xs font-semibold text-neutral-600 hover:text-neutral-900 flex items-center gap-1 shrink-0 pl-7 sm:pl-0">
+              View <ArrowRight className="w-3 h-3" />
+            </Link>
+          </li>
+        </ul>
       </section>
     </div>
   );
