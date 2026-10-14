@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import {
-  Shield, Users, Inbox, FileText, Star,
+  Shield, Users, Inbox, Star,
   LayoutDashboard, TrendingUp, UserPlus, Scale,
   ArrowUpRight, ArrowDownRight
 } from 'lucide-react';
@@ -16,7 +16,6 @@ interface AdminData {
     totalVerified: number;
     pendingApprovals: number;
     totalFirms: number;
-    totalArticles: number;
     totalUsers: number;
     totalLawyers: number;
     totalClients: number;
@@ -62,7 +61,6 @@ export default function AdminDashboard() {
     { label: 'Pending Approvals', value: data.stats.pendingApprovals, icon: UserPlus, trend: data.stats.pendingApprovals > 0 ? 'Action needed' : 'Clear', up: false },
     { label: 'Total Clients', value: data.stats.totalClients, icon: Scale, trend: '+8%', up: true },
     { label: 'Law Firms', value: data.stats.totalFirms, icon: Inbox, trend: '', up: true },
-    { label: 'Published Articles', value: data.stats.totalArticles, icon: FileText, trend: 'Active', up: true },
     { label: 'Platform Health', value: '99%', icon: TrendingUp, trend: 'Stable', up: true },
   ];
 
@@ -204,13 +202,9 @@ export default function AdminDashboard() {
               <span className="text-xs text-neutral-400 uppercase tracking-wide">Active Clients</span>
               <span className="text-lg font-bold">{data.stats.totalClients}</span>
             </div>
-            <div className="flex items-center justify-between py-2 border-b border-neutral-800">
+            <div className="flex items-center justify-between py-2">
               <span className="text-xs text-neutral-400 uppercase tracking-wide">Law Firms</span>
               <span className="text-lg font-bold">{data.stats.totalFirms}</span>
-            </div>
-            <div className="flex items-center justify-between py-2">
-              <span className="text-xs text-neutral-400 uppercase tracking-wide">Articles Published</span>
-              <span className="text-lg font-bold">{data.stats.totalArticles}</span>
             </div>
           </div>
         </div>
