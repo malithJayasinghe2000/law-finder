@@ -31,6 +31,10 @@ const MODE_LABELS: Record<string, string> = {
   BOTH: 'In person or online',
 };
 
+// Requests that ended before or without an appointment. "No appointment yet ·
+// Time proposed with the quote" promised a next step that will never come.
+const CLOSED_STATUSES = ['DECLINED', 'QUOTE_EXPIRED', 'CLIENT_DECLINED', 'CANCELLED_BY_CLIENT', 'CANCELLED_BY_FIRM'];
+
 interface Booking {
   id: string;
   bookingNumber: string;
@@ -474,18 +478,22 @@ export default function LawyerBookingsPage() {
                               {booking.lawyer.fullName}
                             </span>
                           )}
-                          <span className="flex items-center gap-1 whitespace-nowrap">
-                            <CalendarDays className="w-3 h-3" />
-                            {booking.date
-                              ? formatDateOnlyString(booking.date, 'en-US', { weekday: 'short', month: 'short', day: 'numeric' })
-                              : 'No appointment yet'}
-                          </span>
-                          <span className="flex items-center gap-1 whitespace-nowrap">
-                            <Clock className="w-3 h-3" />
-                            {booking.startTime && booking.endTime
-                              ? `${booking.startTime} – ${booking.endTime}`
-                              : 'Time proposed with the quote'}
-                          </span>
+                          {(booking.date || !CLOSED_STATUSES.includes(booking.status)) && (
+                            <span className="flex items-center gap-1 whitespace-nowrap">
+                              <CalendarDays className="w-3 h-3" />
+                              {booking.date
+                                ? formatDateOnlyString(booking.date, 'en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+                                : 'No appointment yet'}
+                            </span>
+                          )}
+                          {(booking.startTime || !CLOSED_STATUSES.includes(booking.status)) && (
+                            <span className="flex items-center gap-1 whitespace-nowrap">
+                              <Clock className="w-3 h-3" />
+                              {booking.startTime && booking.endTime
+                                ? `${booking.startTime} – ${booking.endTime}`
+                                : 'Time proposed with the quote'}
+                            </span>
+                          )}
                         </div>
                       </div>
 
