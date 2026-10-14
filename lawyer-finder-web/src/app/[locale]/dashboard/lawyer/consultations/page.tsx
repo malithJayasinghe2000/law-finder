@@ -380,8 +380,10 @@ export default function LawyerBookingsPage() {
           <CalendarDays className="h-5 w-5" />
         </div>
         <div>
-          <h1 className="text-4xl font-normal tracking-tight text-neutral-900">Consultation Bookings</h1>
-          <p className="text-sm text-neutral-500 font-medium">Manage your client consultation appointments</p>
+          {/* "Bookings" was marketplace language: these are requests to the
+              practice, and most have no appointment yet. */}
+          <h1 className="text-4xl font-normal tracking-tight text-neutral-900">Requests</h1>
+          <p className="text-sm text-neutral-500 font-medium">Requests clients have sent your practice</p>
         </div>
         {canManageFirm && (
           <Link
@@ -432,8 +434,10 @@ export default function LawyerBookingsPage() {
           ) : bookings.length === 0 ? (
             <div className="text-center py-16 border border-dashed border-neutral-200 bg-neutral-50/50">
               <CalendarDays className="h-10 w-10 text-neutral-300 mx-auto mb-3" />
-              <p className="text-sm font-semibold text-neutral-900">No bookings found</p>
-              <p className="text-xs text-neutral-500 mt-1">Bookings from clients will appear here</p>
+              <p className="text-sm font-semibold text-neutral-900">
+                {statusFilter || selectedDate ? 'Nothing in this list' : 'No requests yet'}
+              </p>
+              <p className="text-xs text-neutral-500 mt-1">Requests clients send your practice will appear here</p>
             </div>
           ) : (
             <div className="space-y-3">
