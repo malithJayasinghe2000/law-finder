@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import {
-  LayoutDashboard, ArrowRight, Bell, CalendarDays, MessageCircle, UserPlus, ShieldCheck, FileText, Banknote, Inbox, Building2, PenLine, Globe,
+  LayoutDashboard, ArrowRight, Bell, CalendarDays, MessageCircle, UserPlus, ShieldCheck, FileText, Banknote, Inbox, Building2, PenLine, Globe, KeyRound,
 } from 'lucide-react';
 import type { BookingStatus } from '@prisma/client';
 import { BOOKING_STATUS_COLORS, BOOKING_STATUS_LABELS } from '@/schemas/consultation.schema';
@@ -61,6 +61,19 @@ function listingLine(
   return { text: 'Not listed yet: our team is checking your practice.', href: practiceHref, link: 'Practice' };
 }
 
+const formatDay = (d: Date) =>
+  d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Colombo' });
+
+/** The practice's software licence in one sentence. The licence belongs to the firm, not the attorney. */
+function licenceLine(sub: { status: string; endDate: Date | null; plan: { name: string } } | null): string {
+  if (!sub) return 'No licence yet.';
+  const lapsed = sub.status === 'EXPIRED' || (sub.endDate !== null && sub.endDate < new Date());
+  if (lapsed) return `${sub.plan.name}: expired${sub.endDate ? ` on ${formatDay(sub.endDate)}` : ''}.`;
+  if (sub.status === 'CANCELED') return `${sub.plan.name}: cancelled${sub.endDate ? `, works until ${formatDay(sub.endDate)}` : ''}.`;
+  if (sub.status === 'PAST_DUE') return `${sub.plan.name}: payment due.`;
+  return `${sub.plan.name}: active${sub.endDate ? ` until ${formatDay(sub.endDate)}` : ''}.`;
+}
+
 type Todo = { id: string; icon: typeof Bell; title: string; detail: string; action: string };
 
 export default async function LawyerDashboardPage({ params }: { params: Promise<{ locale: string }> }) {
@@ -103,7 +116,7 @@ export default async function LawyerDashboardPage({ params }: { params: Promise<
   const firmWide = membership.role === 'FIRM_OWNER' || membership.role === 'FIRM_ADMIN' || !profileId;
   const recentWhere = firmWide ? { firmId: membership.firmId } : { firmId: membership.firmId, lawyerId: profileId };
 
-  const [open, recent, unread, publishedPosts, firm, directoryOn] = await Promise.all([
+  const [open, recent, unread, publishedPosts, firm, directoryOn, subscription] = await Promise.all([
     prisma.booking.findMany({
       where: { firmId: membership.firmId, status: { in: FIRM_TODO_STATUSES } },
       orderBy: { createdAt: 'asc' },
@@ -130,6 +143,11 @@ export default async function LawyerDashboardPage({ params }: { params: Promise<
       select: { slug: true, isActive: true, isRegisteredPractice: true, verificationStatus: true },
     }),
     isPublicDirectoryEnabled(),
+    prisma.subscription.findFirst({
+      where: { firmId: membership.firmId },
+      orderBy: { createdAt: 'desc' },
+      select: { status: true, endDate: true, plan: { select: { name: true } } },
+    }),
   ]);
 
   const listing = firm ? listingLine(firm, directoryOn, locale) : null;
@@ -288,6 +306,20 @@ export default async function LawyerDashboardPage({ params }: { params: Promise<
               </Link>
             </li>
           )}
+          <li className="py-3 flex flex-col sm:flex-row sm:items-center gap-2 justify-between">
+            <div className="flex items-start gap-3 min-w-0">
+              <KeyRound className="w-4 h-4 mt-0.5 shrink-0 text-neutral-500" />
+              <p className="text-sm text-neutral-700">
+                <span className="font-semibold text-neutral-900">Licence:</span> {licenceLine(subscription)}
+              </p>
+            </div>
+            {/* Only the principal may buy or change the firm's licence. */}
+            {membership.role === 'FIRM_OWNER' && (
+              <Link href={`/${locale}/pricing`} className="text-xs font-semibold text-neutral-600 hover:text-neutral-900 flex items-center gap-1 shrink-0 pl-7 sm:pl-0">
+                Plans <ArrowRight className="w-3 h-3" />
+              </Link>
+            )}
+          </li>
           <li className="py-3 flex flex-col sm:flex-row sm:items-center gap-2 justify-between">
             <div className="flex items-start gap-3 min-w-0">
               <PenLine className="w-4 h-4 mt-0.5 shrink-0 text-neutral-500" />
