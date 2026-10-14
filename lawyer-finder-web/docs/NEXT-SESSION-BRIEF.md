@@ -19,6 +19,8 @@ lawyer-rag/). Pick up where the 2026-10-14 session left off.
 
 READ FIRST, IN THIS ORDER:
   1. lawyer-finder-web/docs/NEXT-SESSION-BRIEF.md §A-§F   today's state and decisions
+     — §B2 lists every firm-side change from the last session; read it before
+       reviewing the lawyer dashboard
   2. lawyer-finder-web/CLAUDE.md / AGENTS.md               rules, checks, conventions
   3. lawyer-finder-web/docs/restructure/PROGRESS.md        the 2026-10-13 and 2026-10-14
                                                            entries at the end, and the
