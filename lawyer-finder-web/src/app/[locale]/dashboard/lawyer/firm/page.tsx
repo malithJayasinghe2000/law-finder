@@ -142,6 +142,8 @@ export default function FirmPage() {
   const [removeTarget, setRemoveTarget] = useState<FirmMember | null>(null);
   const [invitations, setInvitations] = useState<FirmInvitation[]>([]);
   const [officeDialogOpen, setOfficeDialogOpen] = useState(false);
+  const [editOffice, setEditOffice] = useState<FirmOffice | null>(null);
+  const [retireTarget, setRetireTarget] = useState<FirmOffice | null>(null);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -691,7 +693,7 @@ export default function FirmPage() {
             {canManage && (
               <Button
                 size="sm" variant="outline" className="rounded-none"
-                onClick={() => setOfficeDialogOpen(true)}
+                onClick={() => { setEditOffice(null); setOfficeDialogOpen(true); }}
               >
                 <Plus className="mr-1.5 h-3.5 w-3.5" /> Add office
               </Button>
@@ -720,6 +722,22 @@ export default function FirmPage() {
                       </Badge>
                     )}
                   </div>
+                  {canManage && (
+                    <div className="mt-2 flex gap-1.5">
+                      <Button
+                        size="sm" variant="outline" className="h-7 rounded-none px-2.5 text-[11px]"
+                        onClick={() => { setEditOffice(o); setOfficeDialogOpen(true); }}
+                      >
+                        Edit
+                      </Button>
+                      <Button
+                        size="sm" variant="outline" className="h-7 rounded-none px-2.5 text-[11px]"
+                        onClick={() => setRetireTarget(o)}
+                      >
+                        Retire
+                      </Button>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -823,11 +841,13 @@ export default function FirmPage() {
       />
       <ChangeRoleDialog member={roleTarget} onClose={() => setRoleTarget(null)} onChanged={load} />
       <RemoveMemberDialog member={removeTarget} onClose={() => setRemoveTarget(null)} onRemoved={load} />
-      <AddOfficeDialog
+      <OfficeDialog
         open={officeDialogOpen}
+        office={editOffice}
         onOpenChange={setOfficeDialogOpen}
-        onAdded={load}
+        onSaved={load}
       />
+      <RetireOfficeDialog office={retireTarget} onClose={() => setRetireTarget(null)} onRetired={load} />
     </div>
   );
 }
@@ -1100,12 +1120,14 @@ function RemoveMemberDialog({
   );
 }
 
-function AddOfficeDialog({
-  open, onOpenChange, onAdded,
+/** Add an office, or edit one when `office` is given. */
+function OfficeDialog({
+  open, office, onOpenChange, onSaved,
 }: {
   open: boolean;
+  office: FirmOffice | null;
   onOpenChange: (v: boolean) => void;
-  onAdded: () => void;
+  onSaved: () => void;
 }) {
   const [submitting, setSubmitting] = useState(false);
 
@@ -1116,9 +1138,10 @@ function AddOfficeDialog({
 
     try {
       const res = await fetch('/api/firms/me/offices', {
-        method: 'POST',
+        method: office ? 'PATCH' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          ...(office ? { officeId: office.id } : {}),
           label: fd.get('label'),
           address: fd.get('address'),
           district: fd.get('district') || '',
@@ -1132,8 +1155,8 @@ function AddOfficeDialog({
           typeof data.error === 'string' ? data.error : 'Some details need correcting.'
         );
       }
-      toast.success('Office added.');
-      onAdded();
+      toast.success(office ? 'Office saved.' : 'Office added.');
+      onSaved();
       onOpenChange(false);
     } catch (err: any) {
       toast.error(err.message);
@@ -1146,25 +1169,25 @@ function AddOfficeDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="rounded-none sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-base">Add an office</DialogTitle>
+          <DialogTitle className="text-base">{office ? 'Edit office' : 'Add an office'}</DialogTitle>
           <DialogDescription className="text-xs">
             Where the firm practises from. Attorneys keep their own calendars.
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={submit} className="space-y-4">
+        <form key={office?.id ?? 'new'} onSubmit={submit} className="space-y-4">
           <div className="space-y-1.5">
             <Label htmlFor="label" className="text-[11px] font-bold uppercase tracking-widest text-neutral-500">Name</Label>
-            <Input id="label" name="label" required className="rounded-none" placeholder="Colombo (head office)" />
+            <Input id="label" name="label" required defaultValue={office?.label ?? ''} className="rounded-none" placeholder="Colombo (head office)" />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="address" className="text-[11px] font-bold uppercase tracking-widest text-neutral-500">Address</Label>
-            <Textarea id="address" name="address" required rows={2} className="rounded-none text-sm" />
+            <Textarea id="address" name="address" required rows={2} defaultValue={office?.address ?? ''} className="rounded-none text-sm" />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="office-district" className="text-[11px] font-bold uppercase tracking-widest text-neutral-500">District</Label>
             <select
-              id="office-district" name="district"
+              id="office-district" name="district" defaultValue={office?.district ?? ''}
               className="w-full rounded-none border border-neutral-200 bg-white px-3 py-2 text-sm outline-none focus:border-neutral-900"
             >
               <option value="">Select</option>
@@ -1173,10 +1196,10 @@ function AddOfficeDialog({
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="office-phone" className="text-[11px] font-bold uppercase tracking-widest text-neutral-500">Telephone</Label>
-            <Input id="office-phone" name="contactPhone" className="rounded-none" />
+            <Input id="office-phone" name="contactPhone" defaultValue={office?.contactPhone ?? ''} className="rounded-none" />
           </div>
           <label className="flex items-center gap-2 text-xs text-neutral-600">
-            <input type="checkbox" name="isPrimary" className="h-3.5 w-3.5" />
+            <input type="checkbox" name="isPrimary" defaultChecked={office?.isPrimary ?? false} className="h-3.5 w-3.5" />
             This is the firm&apos;s registered office
           </label>
 
@@ -1186,10 +1209,70 @@ function AddOfficeDialog({
             </Button>
             <Button type="submit" disabled={submitting} className="rounded-none">
               {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Add office
+              {office ? 'Save' : 'Add office'}
             </Button>
           </DialogFooter>
         </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/**
+ * Retire an office. It is kept, not deleted — an old address may still appear
+ * on an engagement letter issued while the firm sat there — but it no longer
+ * shows on the firm's profile.
+ */
+function RetireOfficeDialog({
+  office, onClose, onRetired,
+}: {
+  office: FirmOffice | null;
+  onClose: () => void;
+  onRetired: () => void;
+}) {
+  const [submitting, setSubmitting] = useState(false);
+
+  const retire = async () => {
+    if (!office) return;
+    setSubmitting(true);
+    try {
+      const res = await fetch('/api/firms/me/offices', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ officeId: office.id, isActive: false }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(typeof data.error === 'string' ? data.error : 'Could not retire that office.');
+      toast.success(`${office.label} retired.`);
+      onRetired();
+      onClose();
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Something went wrong.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <Dialog open={!!office} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="rounded-none sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="text-base">Retire {office?.label}?</DialogTitle>
+          <DialogDescription className="text-xs leading-relaxed">
+            It stops showing on your practice&apos;s profile. The record is kept, because past
+            engagement letters may name this address.
+            {office?.isPrimary && ' This is your registered office — mark another office as registered afterwards.'}
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter className="gap-2 sm:gap-2">
+          <Button type="button" variant="outline" className="rounded-none" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="button" disabled={submitting} onClick={retire} className="rounded-none">
+            {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Retire
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
