@@ -73,6 +73,25 @@ const TIER_LABEL: Record<number, string> = {
   4: 'Ordinary',
 };
 
+// The person's own requests, in words. These showed the raw values ("ACCESS",
+// "AWAITING_FIRM").
+const REQUEST_TYPE_LABEL: Record<string, string> = {
+  ACCESS: 'Copy of your data',
+  PORTABILITY: 'Your data in a portable form',
+  ERASURE: 'Delete your data',
+  RECTIFICATION: 'Correct your data',
+  OBJECTION: 'Objection',
+};
+
+const REQUEST_STATUS_LABEL: Record<string, string> = {
+  RECEIVED: 'Received',
+  IN_PROGRESS: 'In progress',
+  AWAITING_FIRM: 'Waiting for a practice to answer',
+  COMPLETED: 'Done',
+  PARTIALLY_FULFILLED: 'Partly done',
+  REFUSED: 'Refused',
+};
+
 export default function YourDataPage() {
   const { locale } = useParams();
 
@@ -604,9 +623,11 @@ export default function YourDataPage() {
             {requests.map((r) => (
               <li key={r.id} className="rounded-2xl border border-neutral-200 bg-white p-5">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="text-sm font-semibold text-neutral-900">{r.type}</span>
+                  <span className="text-sm font-semibold text-neutral-900">
+                    {REQUEST_TYPE_LABEL[r.type] ?? r.type}
+                  </span>
                   <span className="text-xs text-neutral-500">
-                    {r.status} · raised{' '}
+                    {REQUEST_STATUS_LABEL[r.status] ?? r.status} · raised{' '}
                     {new Date(r.createdAt).toLocaleDateString('en-GB', {
                       day: 'numeric',
                       month: 'short',
