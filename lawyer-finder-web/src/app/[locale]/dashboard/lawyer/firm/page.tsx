@@ -128,6 +128,8 @@ export default function FirmPage() {
   const router = useRouter();
   const pathname = usePathname();
   const [canManage, setCanManage] = useState(false);
+  // Only the principal may bring people in or change who is in the firm.
+  const [canManageMembers, setCanManageMembers] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -142,6 +144,7 @@ export default function FirmPage() {
       .then((d) => {
         setFirm(d.firm);
         setCanManage(!!d.membership?.canManageFirm);
+        setCanManageMembers(!!d.membership?.canManageMembers);
       })
       .catch(() => toast.error('Could not load your firm.'))
       .finally(() => setLoading(false));
@@ -553,12 +556,12 @@ export default function FirmPage() {
                 Members
               </h2>
             </div>
-            {canManage && (
+            {canManageMembers && (
               <Button
                 size="sm" variant="outline" className="rounded-none"
                 onClick={() => setMemberDialogOpen(true)}
               >
-                <Plus className="mr-1.5 h-3.5 w-3.5" /> Add member
+                <Plus className="mr-1.5 h-3.5 w-3.5" /> Invite
               </Button>
             )}
           </div>
@@ -633,7 +636,7 @@ export default function FirmPage() {
                           them until they accept.
                         </p>
                       </div>
-                      {canManage && (
+                      {canManageMembers && (
                         <Button
                           size="sm" variant="ghost"
                           className="w-fit shrink-0 rounded-none text-[11px]"
@@ -788,7 +791,7 @@ export default function FirmPage() {
         </Card>
       )}
 
-      <AddMemberDialog
+      <InviteMemberDialog
         open={memberDialogOpen}
         onOpenChange={setMemberDialogOpen}
         onAdded={load}
@@ -802,7 +805,16 @@ export default function FirmPage() {
   );
 }
 
-function AddMemberDialog({
+/**
+ * Invite someone into the firm.
+ *
+ * This used to add an existing user directly — no email, no consent — and, for
+ * an attorney, move their practice into this firm. Being a member means seeing
+ * that the firm's clients' matters exist, so nobody is put inside that boundary
+ * without being asked (PROGRESS.md decisions, 2026-08-16). The person gets an
+ * email link and joins only if they accept, within 14 days.
+ */
+function InviteMemberDialog({
   open, onOpenChange, onAdded,
 }: {
   open: boolean;
@@ -818,7 +830,7 @@ function AddMemberDialog({
     setSubmitting(true);
 
     try {
-      const res = await fetch('/api/firms/me/members', {
+      const res = await fetch('/api/firms/me/invitations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -830,10 +842,10 @@ function AddMemberDialog({
       const data = await res.json();
       if (!res.ok) {
         throw new Error(
-          typeof data.error === 'string' ? data.error : 'Could not add that member.'
+          typeof data.error === 'string' ? data.error : 'Could not send that invitation.'
         );
       }
-      toast.success('Member added to the firm.');
+      toast.success(`Invitation sent to ${fd.get('email')}.`);
       onAdded();
       onOpenChange(false);
     } catch (err: any) {
@@ -847,10 +859,11 @@ function AddMemberDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="rounded-none sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-base">Add someone to the firm</DialogTitle>
+          <DialogTitle className="text-base">Invite someone to the firm</DialogTitle>
           <DialogDescription className="text-xs leading-relaxed">
-            They need an account on the platform already. Adding an attorney moves their
-            practice into this firm.
+            We email them a link. They join only if they accept, within 14 days — nothing about
+            your matters is visible to them until then. They can accept with an existing account
+            or create one.
           </DialogDescription>
         </DialogHeader>
 
@@ -867,7 +880,7 @@ function AddMemberDialog({
               Role in the firm
             </Label>
             <div className="space-y-1.5">
-              {(['ATTORNEY', 'FIRM_ADMIN', 'PARALEGAL'] as const).map((r) => (
+              {(['FIRM_OWNER', 'ATTORNEY', 'FIRM_ADMIN', 'PARALEGAL'] as const).map((r) => (
                 <button
                   key={r} type="button" onClick={() => setRole(r)}
                   className={`w-full border p-2.5 text-left transition-colors ${
@@ -896,7 +909,7 @@ function AddMemberDialog({
             </Button>
             <Button type="submit" disabled={submitting} className="rounded-none">
               {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Add member
+              Send invitation
             </Button>
           </DialogFooter>
         </form>

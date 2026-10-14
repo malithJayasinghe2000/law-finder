@@ -5,7 +5,7 @@ import {
   UpdateFirmSchema,
   UpdateFirmBankDetailsSchema,
 } from '@/schemas/firm.schema';
-import { getFirmMembership, canManageFirm } from '@/lib/firms/access';
+import { getFirmMembership, canManageFirm, canManageMembers } from '@/lib/firms/access';
 import { getSeatAllowance } from '@/lib/firms/billing';
 import { allocateFirmSlug } from '@/lib/firms/provisioning';
 
@@ -109,6 +109,7 @@ export async function GET() {
       membership: {
         role: membership.role,
         canManageFirm: canManage,
+        canManageMembers: canManageMembers(membership),
         isSoloPractice: firm.isSoloPractice,
       },
       // Seats are people who can sign in — never matters, clients or messages.

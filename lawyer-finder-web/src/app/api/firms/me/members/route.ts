@@ -23,6 +23,17 @@ import { checkJoinEligibility, admitMemberToFirm } from '@/lib/firms/invitations
  * counsel question 8(b).
  */
 
+/**
+ * Adding someone directly — without their consent — is switched off.
+ *
+ * It put an existing user inside the firm's privilege boundary with no email and
+ * no say, and for an attorney moved their practice into this firm. Joining is by
+ * an invitation the person accepts (`/api/firms/me/invitations`), which the
+ * Practice page now uses. A switch, not a deletion, like the other restructure
+ * switches; the code below is kept for reference.
+ */
+const DIRECT_ADD_ENABLED = false;
+
 /** POST: add an existing platform user to the firm. */
 export async function POST(req: Request) {
   try {
@@ -43,6 +54,13 @@ export async function POST(req: Request) {
       return NextResponse.json(
         { error: 'Only the principal of the firm can add members.' },
         { status: 403 }
+      );
+    }
+
+    if (!DIRECT_ADD_ENABLED) {
+      return NextResponse.json(
+        { error: 'People join a firm by invitation. Send them an invitation instead.' },
+        { status: 410 }
       );
     }
 
