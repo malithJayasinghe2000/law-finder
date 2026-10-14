@@ -4,7 +4,8 @@ import { getSession } from '@/lib/auth';
 import { AddFirmMemberSchema, UpdateFirmMemberSchema } from '@/schemas/firm.schema';
 import { getFirmMembership, canManageMembers } from '@/lib/firms/access';
 import { canAddFirmMember } from '@/lib/firms/billing';
-import { checkJoinEligibility, admitMemberToFirm } from '@/lib/firms/invitations';
+import { checkJoinEligibility, admitMemberToFirm, roleRequiresAdmittedAttorney } from '@/lib/firms/invitations';
+import { TERMINAL_STATUSES } from '@/lib/consultations/bookingStatus';
 
 /**
  * Firm membership.
@@ -163,12 +164,58 @@ export async function PATCH(req: Request) {
         userId: true,
         role: true,
         status: true,
-        user: { select: { profile: { select: { id: true } } } },
+        user: { select: { profile: { select: { id: true, isVerified: true, firmId: true } } } },
       },
     });
 
     if (!member || member.firmId !== membership!.firmId) {
       return NextResponse.json({ error: 'Member not found.' }, { status: 404 });
+    }
+
+    // A role change is held to the same rules as joining in that role. Without
+    // this a principal could make a paralegal — whose account is not an admitted
+    // attorney at all — a partner, or an attorney who can be given matters.
+    const profile = member.user.profile;
+    const becomesAttorney =
+      !!role && roleRequiresAdmittedAttorney(role) && !roleRequiresAdmittedAttorney(member.role);
+    const stopsBeingAttorney =
+      !!role && !roleRequiresAdmittedAttorney(role) && roleRequiresAdmittedAttorney(member.role);
+
+    if (becomesAttorney) {
+      if (!profile?.isVerified) {
+        return NextResponse.json(
+          { error: 'Only a verified Attorney-at-Law can be a principal or an attorney in the firm.' },
+          { status: 400 }
+        );
+      }
+      if (profile.firmId && profile.firmId !== membership!.firmId) {
+        return NextResponse.json(
+          {
+            error:
+              'That attorney practises at another firm. They can take this role once they ' +
+              'have left it — invite them as an attorney then.',
+          },
+          { status: 409 }
+        );
+      }
+    }
+
+    // An attorney who stops being one cannot keep matters: the assigned attorney
+    // reads the client's account of their problem and acts on it.
+    if (stopsBeingAttorney && profile) {
+      const open = await prisma.booking.count({
+        where: { lawyerId: profile.id, firmId: membership!.firmId, status: { notIn: TERMINAL_STATUSES } },
+      });
+      if (open > 0) {
+        return NextResponse.json(
+          {
+            error: `That attorney is still responsible for ${open} open ${
+              open === 1 ? 'matter' : 'matters'
+            }. Reassign them before changing their role.`,
+          },
+          { status: 409 }
+        );
+      }
     }
 
     // Bringing a removed member back consumes a seat just as adding a new one
@@ -239,10 +286,16 @@ export async function PATCH(req: Request) {
       },
     });
 
-    // A removed member no longer practises in the firm.
-    if (status === 'REMOVED' && member.user.profile) {
+    // An attorney practises in the firm they now act for.
+    if (becomesAttorney && profile) {
+      await prisma.lawyerProfile.update({ where: { id: profile.id }, data: { firmId: membership!.firmId } });
+    }
+
+    // A removed member no longer practises in the firm. Only this firm's link is
+    // cleared — a member who practises elsewhere keeps their own practice.
+    if (status === 'REMOVED' && profile && profile.firmId === membership!.firmId) {
       await prisma.lawyerProfile.update({
-        where: { id: member.user.profile.id },
+        where: { id: profile.id },
         data: { firmId: null },
       });
     }

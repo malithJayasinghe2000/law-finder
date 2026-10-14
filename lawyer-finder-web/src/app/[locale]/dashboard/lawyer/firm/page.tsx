@@ -114,6 +114,10 @@ const ROLE_ACCESS_NOTE: Record<string, string> = {
   PARALEGAL: 'Sees that matters exist, never what they are about.',
 };
 
+function memberName(m: FirmMember): string {
+  return m.user.fullName || m.user.email;
+}
+
 const VERIFICATION_STYLE: Record<string, string> = {
   VERIFIED: 'bg-green-100 text-green-800',
   PENDING: 'bg-amber-100 text-amber-800',
@@ -134,6 +138,8 @@ export default function FirmPage() {
   const [saving, setSaving] = useState(false);
 
   const [memberDialogOpen, setMemberDialogOpen] = useState(false);
+  const [roleTarget, setRoleTarget] = useState<FirmMember | null>(null);
+  const [removeTarget, setRemoveTarget] = useState<FirmMember | null>(null);
   const [invitations, setInvitations] = useState<FirmInvitation[]>([]);
   const [officeDialogOpen, setOfficeDialogOpen] = useState(false);
 
@@ -596,9 +602,28 @@ export default function FirmPage() {
                     {ROLE_ACCESS_NOTE[m.role]}
                   </p>
                 </div>
-                <Badge variant="secondary" className="w-fit shrink-0 rounded-none text-[10px] uppercase tracking-widest">
-                  {ROLE_LABELS[m.role]}
-                </Badge>
+                <div className="flex shrink-0 flex-wrap items-center gap-1.5">
+                  <Badge variant="secondary" className="w-fit rounded-none text-[10px] uppercase tracking-widest">
+                    {ROLE_LABELS[m.role]}
+                  </Badge>
+                  {canManageMembers && (
+                    <>
+                      <Button
+                        size="sm" variant="outline" className="h-7 rounded-none px-2.5 text-[11px]"
+                        onClick={() => setRoleTarget(m)}
+                      >
+                        Change role
+                      </Button>
+                      <Button
+                        size="sm" variant="outline"
+                        className="h-7 rounded-none border-red-300 px-2.5 text-[11px] text-red-600"
+                        onClick={() => setRemoveTarget(m)}
+                      >
+                        Remove
+                      </Button>
+                    </>
+                  )}
+                </div>
               </div>
             ))}
           </div>
@@ -796,6 +821,8 @@ export default function FirmPage() {
         onOpenChange={setMemberDialogOpen}
         onAdded={load}
       />
+      <ChangeRoleDialog member={roleTarget} onClose={() => setRoleTarget(null)} onChanged={load} />
+      <RemoveMemberDialog member={removeTarget} onClose={() => setRemoveTarget(null)} onRemoved={load} />
       <AddOfficeDialog
         open={officeDialogOpen}
         onOpenChange={setOfficeDialogOpen}
@@ -913,6 +940,161 @@ function InviteMemberDialog({
             </Button>
           </DialogFooter>
         </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/** PATCH a member. The server decides; its refusal is shown as it is worded. */
+async function updateMember(body: Record<string, unknown>): Promise<void> {
+  const res = await fetch('/api/firms/me/members', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(typeof data.error === 'string' ? data.error : 'Could not change that member.');
+  }
+}
+
+/**
+ * Change what a member can do. The server holds a role change to the same rules
+ * as joining in that role: only a verified attorney can be a principal or an
+ * attorney, and an attorney holding open matters cannot stop being one.
+ */
+function ChangeRoleDialog({
+  member, onClose, onChanged,
+}: {
+  member: FirmMember | null;
+  onClose: () => void;
+  onChanged: () => void;
+}) {
+  const [role, setRole] = useState('ATTORNEY');
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (member) setRole(member.role);
+  }, [member]);
+
+  const submit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!member) return;
+    const fd = new FormData(e.currentTarget);
+    setSubmitting(true);
+    try {
+      await updateMember({ memberId: member.id, role, title: String(fd.get('title') || '') });
+      toast.success('Role changed.');
+      onChanged();
+      onClose();
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Something went wrong.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <Dialog open={!!member} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="rounded-none sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="text-base">Change role</DialogTitle>
+          <DialogDescription className="text-xs leading-relaxed">
+            {member ? memberName(member) : ''}. What they can see changes at once.
+          </DialogDescription>
+        </DialogHeader>
+
+        <form onSubmit={submit} className="space-y-4">
+          <div className="space-y-1.5">
+            {(['FIRM_OWNER', 'ATTORNEY', 'FIRM_ADMIN', 'PARALEGAL'] as const).map((r) => (
+              <button
+                key={r} type="button" onClick={() => setRole(r)}
+                className={`w-full border p-2.5 text-left transition-colors ${
+                  role === r ? 'border-neutral-900 bg-neutral-50' : 'border-neutral-200'
+                }`}
+              >
+                <p className="text-sm font-semibold text-neutral-900">{ROLE_LABELS[r]}</p>
+                <p className="mt-0.5 text-[10px] leading-relaxed text-neutral-500">{ROLE_ACCESS_NOTE[r]}</p>
+              </button>
+            ))}
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="memberTitle" className="text-[11px] font-bold uppercase tracking-widest text-neutral-500">
+              Title <span className="font-normal normal-case tracking-normal text-neutral-400">(optional)</span>
+            </Label>
+            <Input
+              id="memberTitle" name="title" key={member?.id}
+              defaultValue={member?.title ?? ''} className="rounded-none" placeholder="Senior Associate"
+            />
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-2">
+            <Button type="button" variant="outline" className="rounded-none" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={submitting} className="rounded-none">
+              {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Save
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/**
+ * Remove someone from the firm. Members are never deleted — the row is marked
+ * REMOVED so the record of who could have seen a matter survives — but access
+ * ends at once. A firm whose staff member has left had no way to do this.
+ */
+function RemoveMemberDialog({
+  member, onClose, onRemoved,
+}: {
+  member: FirmMember | null;
+  onClose: () => void;
+  onRemoved: () => void;
+}) {
+  const [submitting, setSubmitting] = useState(false);
+
+  const remove = async () => {
+    if (!member) return;
+    setSubmitting(true);
+    try {
+      await updateMember({ memberId: member.id, status: 'REMOVED' });
+      toast.success(`${memberName(member)} removed from the firm.`);
+      onRemoved();
+      onClose();
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Something went wrong.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <Dialog open={!!member} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="rounded-none sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="text-base">Remove {member ? memberName(member) : ''}?</DialogTitle>
+          <DialogDescription className="text-xs leading-relaxed">
+            They lose access to the firm and its matters at once, including conversations with
+            clients. An attorney who still has open matters must have them reassigned first.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter className="gap-2 sm:gap-2">
+          <Button type="button" variant="outline" className="rounded-none" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button
+            type="button" disabled={submitting} onClick={remove}
+            className="rounded-none bg-red-600 text-white hover:bg-red-700"
+          >
+            {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Remove
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
