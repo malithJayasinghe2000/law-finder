@@ -265,7 +265,7 @@ export default function FirmPage() {
         }),
       });
       if (!res.ok) throw new Error('Could not save the account details.');
-      toast.success('Client account details saved.');
+      toast.success('Bank and tax details saved.');
       load();
     } catch (err: any) {
       toast.error(err.message);
@@ -336,7 +336,7 @@ export default function FirmPage() {
           ['#profile', 'Public profile'],
           ['#members', 'Members'],
           ['#offices', 'Offices'],
-          ...(canManage ? [['#account', 'Client account']] : []),
+          ...(canManage ? [['#account', 'Bank and tax details']] : []),
         ].map(([href, label]) => (
           <a
             key={href}
@@ -782,22 +782,24 @@ export default function FirmPage() {
         </CardContent>
       </Card>
 
-      {/* Client account */}
+      {/* Bank and tax details. Not called "client account": to a lawyer that is a
+          trust account holding clients' money, and this is the firm's ordinary
+          account where its fees are paid. */}
       {canManage && (
         <Card id="account" className="scroll-mt-20 rounded-none">
           <CardContent className="p-5 sm:p-6">
             <div className="mb-4 flex items-center gap-2">
               <Landmark className="h-4 w-4" />
               <h2 className="text-sm font-bold uppercase tracking-widest text-neutral-800">
-                Client account
+                Bank and tax details
               </h2>
             </div>
 
             <p className="mb-5 flex items-start gap-2 border border-neutral-200 bg-neutral-50 p-3 text-[11px] leading-relaxed text-neutral-600">
               <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
               <span>
-                These details are printed on the quotes you send, so clients pay
-                <strong> your firm directly</strong>. This platform never receives, holds
+                New quotes start with this account and your fee notes print it, so clients
+                pay <strong>your firm directly</strong>. This platform never receives, holds
                 or handles client money, and never takes any part of your fee.
               </span>
             </p>
