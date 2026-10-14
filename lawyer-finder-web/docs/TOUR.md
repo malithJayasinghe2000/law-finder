@@ -202,7 +202,7 @@ Everything under `src/app/[locale]/(public)/` is reachable without signing in.
 | An attorney | `/en/lawyers/[id]` | One attorney's public profile |
 | Legal library | `/en/legal-library` | Acts and legislation you can read |
 | Ask the assistant | `/en/chat` | The AI |
-| Community | `/en/blog` | Articles and community posts |
+| Community | `/en/blog` | Community posts |
 | Pricing | `/en/pricing` | What a firm pays |
 | Privacy notice | `/en/privacy` | The published notice, and every past version |
 | Apply | `/en/apply` | An attorney applying to join |
@@ -658,7 +658,7 @@ The softest part of the system, and the easiest to understand.
 
 | Thing | Where |
 | --- | --- |
-| Articles and posts | `/en/blog`, `Post`, `Article` |
+| Community posts | `/en/blog`, `Post` |
 | Communities | `Community`, `CommunityMember`, `CommunityRequest` |
 | Comments and voting | `Comment`, `Vote` |
 | Moderation | `Report`, `/admin/content-moderation` |
@@ -724,7 +724,7 @@ Those three files are the product's conscience.
 | **Our revenue** | `SubscriptionPlan`, `Subscription`, `SubscriptionCycle`, `Invoice`, `InvoiceRemark`, `SubscriptionDetails` | The firm's licence |
 | **The firm's revenue** | `FeeNote` | The firm's bill to its client. **No commission column** |
 | **Advertising** | `Advertiser`, `AdCampaign`, `AdPlacementConfig`, `AdSlotBooking`, `AdAnalytics` | **No lawyer relation, by design** |
-| **Content & community** | `Article`, `Post`, `PostTranslation`, `Comment`, `CommentTranslation`, `Vote`, `Community`, `CommunityMember`, `CommunityRequest`, `Report`, `LegalDocument` | |
+| **Content & community** | `Post`, `PostTranslation`, `Comment`, `CommentTranslation`, `Vote`, `Community`, `CommunityMember`, `CommunityRequest`, `Report`, `LegalDocument` | |
 | **Messaging & AI** | `Conversation`, `ConversationParticipant`, `Message`, `AiConversation`, `AiMessage` | `Message.content` is encrypted |
 | **Privacy** | `ConsentRecord`, `PrivacyNotice`, `DataAccessLog`, `DataSubjectRequest`, `SubjectRequestFirmResponse` | |
 | **Permissions (mostly dead)** | `SubscriptionRole`, `Permission`, `SubscriptionRolePermission`, `Feature`, `FeatureLimitConfig`, `FeatureUsage` | See Part 16 |

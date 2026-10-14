@@ -131,7 +131,6 @@ auto-deleted; the purge refuses to touch matter data rather than guess.
 | `Post`, `Comment` (+ `PostTranslation`, `CommentTranslation`) | `authorId`, `content`, `images` | Contract | Life of account, or until the author deletes |
 | `Vote` | `userId` + what they voted on — a record of opinion | Contract | Life of account |
 | `Report` | `reporterId`, `reason`, `description`, `adminNotes` — who reported whom | Legitimate interest (moderation) | 12 months after resolution (proposed) |
-| `Article` | `authorId`, `content` | Contract | Life of account |
 | `SlotHold` | `clientId` + which attorney's diary they were looking at — an **interest signal** even when no booking follows | Steps at the subject's request | 7 days after `expiresAt` (proposed) |
 | `LawyerAvailability`, `AvailabilityOverride` | `reason` on a blocked day can be personal ("medical leave") | Contract | Life of profile |
 | `ConsultationPricing` | Firm bank details | Contract | Life of profile |

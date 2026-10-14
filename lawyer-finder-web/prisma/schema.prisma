@@ -25,11 +25,6 @@ enum ApplicationStatus {
   REJECTED
 }
 
-enum ArticleStatus {
-  DRAFT
-  PUBLISHED
-}
-
 enum PostStatus {
   DRAFT
   PENDING_REVIEW
@@ -309,8 +304,6 @@ model LawyerProfile {
   /// have to happen in the same statement.
   firmId String?
   firm   LawFirm? @relation(fields: [firmId], references: [id], onDelete: SetNull)
-
-  articles  Article[]
 
   // Consultation & Booking relations
   availability          LawyerAvailability[]
@@ -892,16 +885,9 @@ model SubscriptionDetails {
 //
 // See docs/restructure/DATA-INVENTORY.md §7 finding A.
 
-model Article {
-  id        String        @id @default(uuid())
-  authorId  String
-  author    LawyerProfile @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  title     String
-  slug      String        @unique
-  content   String
-  status    ArticleStatus @default(DRAFT)
-  createdAt DateTime      @default(now())
-}
+// The `Article` model was removed on 2026-10-14. It was the first version of
+// the blog, lawyers only, and was replaced by community posts (`Post`); it had
+// no editor, nothing wrote to it, and the table was empty.
 
 // The `Review` model was removed in Phase 2.
 //
