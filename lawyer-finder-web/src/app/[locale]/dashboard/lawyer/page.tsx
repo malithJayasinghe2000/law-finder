@@ -4,12 +4,13 @@ import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import {
-  LayoutDashboard, ArrowRight, Bell, CalendarDays, MessageCircle, UserPlus, ShieldCheck, FileText, Banknote, Inbox, Building2, PenLine,
+  LayoutDashboard, ArrowRight, Bell, CalendarDays, MessageCircle, UserPlus, ShieldCheck, FileText, Banknote, Inbox, Building2, PenLine, Globe,
 } from 'lucide-react';
 import type { BookingStatus } from '@prisma/client';
 import { BOOKING_STATUS_COLORS, BOOKING_STATUS_LABELS } from '@/schemas/consultation.schema';
 import { getFirmMembership, resolveMatterAccess, discloseMatter } from '@/lib/firms/access';
 import { countUnreadConversations } from '@/lib/chat/unread';
+import { isListedFirm, isPublicDirectoryEnabled } from '@/lib/directory';
 
 /**
  * The firm-side home: what needs this person, and the practice's latest requests.
@@ -34,6 +35,31 @@ const FIRM_ROLE_LABELS: Record<string, string> = {
 
 /** Requests the firm still has to move: triage, quote, or confirm payment. */
 const FIRM_TODO_STATUSES: BookingStatus[] = ['REQUESTED', 'CONFLICT_CHECK', 'ACCEPTED'];
+
+/**
+ * Whether the practice is in the public directory, and if not, why. Only a
+ * registered practice that our team has verified is listed (LISTED_FIRM_WHERE),
+ * and before this nothing on the home page told an attorney they were not.
+ */
+function listingLine(
+  firm: { slug: string; isActive: boolean; isRegisteredPractice: boolean; verificationStatus: string },
+  directoryOn: boolean,
+  locale: string
+): { text: string; href: string; link: string } {
+  const practiceHref = `/${locale}/dashboard/lawyer/firm`;
+  if (isListedFirm(firm)) {
+    return directoryOn
+      ? { text: 'Listed in the public directory.', href: `/${locale}/firms/${firm.slug}`, link: 'View' }
+      : { text: 'Ready to be listed. The public directory is switched off for everyone at the moment.', href: practiceHref, link: 'Practice' };
+  }
+  if (!firm.isRegisteredPractice) {
+    return { text: 'Not listed: your practice is not registered yet.', href: practiceHref, link: 'Register' };
+  }
+  if (firm.verificationStatus === 'REJECTED') {
+    return { text: 'Not listed: verification was not granted.', href: practiceHref, link: 'See why' };
+  }
+  return { text: 'Not listed yet: our team is checking your practice.', href: practiceHref, link: 'Practice' };
+}
 
 type Todo = { id: string; icon: typeof Bell; title: string; detail: string; action: string };
 
@@ -77,7 +103,7 @@ export default async function LawyerDashboardPage({ params }: { params: Promise<
   const firmWide = membership.role === 'FIRM_OWNER' || membership.role === 'FIRM_ADMIN' || !profileId;
   const recentWhere = firmWide ? { firmId: membership.firmId } : { firmId: membership.firmId, lawyerId: profileId };
 
-  const [open, recent, unread, publishedPosts] = await Promise.all([
+  const [open, recent, unread, publishedPosts, firm, directoryOn] = await Promise.all([
     prisma.booking.findMany({
       where: { firmId: membership.firmId, status: { in: FIRM_TODO_STATUSES } },
       orderBy: { createdAt: 'asc' },
@@ -99,7 +125,14 @@ export default async function LawyerDashboardPage({ params }: { params: Promise<
     // Community posts are the only thing anyone writes; the old `Article` table
     // has no editor and nothing writes to it.
     prisma.post.count({ where: { authorId: session.userId, status: 'PUBLISHED' } }),
+    prisma.lawFirm.findUnique({
+      where: { id: membership.firmId },
+      select: { slug: true, isActive: true, isRegisteredPractice: true, verificationStatus: true },
+    }),
+    isPublicDirectoryEnabled(),
   ]);
+
+  const listing = firm ? listingLine(firm, directoryOn, locale) : null;
 
   const accessTo = (b: { lawyerId: string | null; firmId: string; clientId: string }) =>
     resolveMatterAccess({
@@ -242,6 +275,19 @@ export default async function LawyerDashboardPage({ params }: { params: Promise<
           <Building2 className="w-4 h-4" /> Your practice
         </h2>
         <ul className="divide-y divide-neutral-100">
+          {listing && (
+            <li className="py-3 flex flex-col sm:flex-row sm:items-center gap-2 justify-between">
+              <div className="flex items-start gap-3 min-w-0">
+                <Globe className="w-4 h-4 mt-0.5 shrink-0 text-neutral-500" />
+                <p className="text-sm text-neutral-700">
+                  <span className="font-semibold text-neutral-900">Directory:</span> {listing.text}
+                </p>
+              </div>
+              <Link href={listing.href} className="text-xs font-semibold text-neutral-600 hover:text-neutral-900 flex items-center gap-1 shrink-0 pl-7 sm:pl-0">
+                {listing.link} <ArrowRight className="w-3 h-3" />
+              </Link>
+            </li>
+          )}
           <li className="py-3 flex flex-col sm:flex-row sm:items-center gap-2 justify-between">
             <div className="flex items-start gap-3 min-w-0">
               <PenLine className="w-4 h-4 mt-0.5 shrink-0 text-neutral-500" />
