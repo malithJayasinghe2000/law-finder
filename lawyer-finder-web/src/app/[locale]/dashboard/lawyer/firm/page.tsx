@@ -123,6 +123,13 @@ function memberName(m: FirmMember): string {
   return m.user.profile?.fullName || m.user.fullName || m.user.email;
 }
 
+const VERIFICATION_LABEL: Record<string, string> = {
+  VERIFIED: 'Verified practice',
+  PENDING: 'Being checked',
+  UNVERIFIED: 'Not verified',
+  REJECTED: 'Not granted',
+};
+
 const VERIFICATION_STYLE: Record<string, string> = {
   VERIFIED: 'bg-green-100 text-green-800',
   PENDING: 'bg-amber-100 text-amber-800',
@@ -307,12 +314,19 @@ export default function FirmPage() {
             {firm.district && ` · ${firm.district}`}
           </p>
         </div>
+        {/* An automatic practice can carry VERIFIED from its founder's own
+            check, yet is not registered and not listed — the badge must not say
+            "verified" right above the notice saying it is not listed. */}
         <Badge
           className={`w-fit rounded-none text-[10px] uppercase tracking-widest ${
-            VERIFICATION_STYLE[firm.verificationStatus] ?? ''
+            firm.isRegisteredPractice
+              ? VERIFICATION_STYLE[firm.verificationStatus] ?? ''
+              : VERIFICATION_STYLE.UNVERIFIED
           }`}
         >
-          {firm.verificationStatus === 'VERIFIED' ? 'Verified firm' : firm.verificationStatus}
+          {firm.isRegisteredPractice
+            ? VERIFICATION_LABEL[firm.verificationStatus] ?? firm.verificationStatus
+            : 'Not registered'}
         </Badge>
       </div>
 
