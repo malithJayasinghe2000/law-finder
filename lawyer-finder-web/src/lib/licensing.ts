@@ -6,10 +6,11 @@
  *
  * While it is off:
  *   - the lawyer dashboard does not show the practice's licence line
+ *   - there is no seat limit (`canAddFirmMember`): any practice may invite as
+ *     many colleagues as it needs, free (owner's choice, 2026-10-14)
  *
- * Still to be wired to it, as each section is reviewed: the pricing page, the
- * Payments menu (Invoices, Payment History) and the seat limit in
- * src/lib/firms/billing.ts, which still refuses a practice with no licence.
+ * Still to be wired to it, as each section is reviewed: the pricing page and
+ * the Payments menu (Invoices, Payment History).
  *
  * Plain module, no database: client components import it.
  * ─────────────────────────────────────────────────────────────────────────────

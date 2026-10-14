@@ -1,4 +1,5 @@
 import prisma from '@/lib/db';
+import { LICENSING_ENABLED } from '@/lib/licensing';
 
 /**
  * Whose licence is it, and how many seats does it cover?
@@ -151,6 +152,11 @@ export type SeatCheck = { allowed: true } | { allowed: false; reason: string };
  * one seat can run a thousand matters; it just does so with one login.
  */
 export async function canAddFirmMember(firmId: string): Promise<SeatCheck> {
+  // Licensing is off for launch (src/lib/licensing.ts): with no plans on sale, a
+  // seat limit would leave every new practice unable to add a single colleague.
+  // Owner's decision, 2026-10-14: no limit while it is off; it returns with it.
+  if (!LICENSING_ENABLED) return { allowed: true };
+
   const seats = await getSeatAllowance(firmId);
 
   if (!seats.hasLicence) {
