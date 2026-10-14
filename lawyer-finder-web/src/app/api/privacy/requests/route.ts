@@ -9,6 +9,7 @@ import {
 import { eraseSubject, erasurePreview } from '@/lib/privacy/subject';
 import { firmResponsesForSubject } from '@/lib/privacy/firmResponse';
 import { SubjectRequestCreateSchema } from '@/schemas/privacy.schema';
+import { EmailService } from '@/lib/email/EmailService';
 
 /**
  * Data-subject requests under the PDPA.
@@ -111,6 +112,25 @@ export async function POST(req: NextRequest) {
       status: firmIds.length > 0 ? 'AWAITING_FIRM' : 'IN_PROGRESS',
     },
   });
+
+  // Tell each practice the request was sent to. It has a legal deadline and the
+  // practice had no other way to learn of it. Only those who may answer it — the
+  // principal and the practice manager — and never a word about the request.
+  if (firmIds.length > 0) {
+    const answerers = await prisma.firmMember.findMany({
+      where: { firmId: { in: firmIds }, status: 'ACTIVE', role: { in: ['FIRM_OWNER', 'FIRM_ADMIN'] } },
+      select: { user: { select: { email: true } }, firm: { select: { name: true } } },
+    });
+    // Not awaited: the mail server took ~18s here, and the person making the
+    // request should not wait on it. This runs on a long-lived Node server
+    // (server.js), so the sends complete after the response; a failure is logged
+    // by sendMailSafe and never fails the request.
+    void Promise.allSettled(
+      answerers.map((m) =>
+        EmailService.sendDataRequestReferred({ to: m.user.email, firmName: m.firm.name, dueBy: request.dueBy })
+      )
+    );
+  }
 
   // Erasure runs immediately against platform-controlled data. Access and
   // portability are served by /api/privacy/export; rectification by

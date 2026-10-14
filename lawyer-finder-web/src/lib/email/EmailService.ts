@@ -172,6 +172,28 @@ export const EmailService = {
     );
   },
 
+  // A data-protection request has been passed to a practice for the part that is
+  // its own matter file. It carries a legal deadline, so the people who may answer
+  // it are told. Deliberately nothing about the person or their request — the
+  // practice reads that on the signed-in page, not in an inbox.
+  async sendDataRequestReferred(params: { to: string; firmName: string; dueBy: Date }) {
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://thelawyr.lk';
+    const due = params.dueBy.toLocaleDateString('en-GB', {
+      day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Colombo',
+    });
+    await sendMailSafe(
+      params.to,
+      `A data-protection request is waiting for ${params.firmName}`,
+      template('Data-protection request', `
+        <p>A client has asked for their personal data, and part of it is a matter file held by <strong>${escapeHtml(params.firmName)}</strong>.</p>
+        <p>Your practice decides what happens to its own files. Please answer by <strong>${due}</strong>.</p>
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${appUrl}/en/dashboard/lawyer/firm/requests" style="background-color: #bfa37a; color: #ffffff; padding: 14px 28px; text-decoration: none; display: inline-block; font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.15em; border-radius: 0;">Open data requests</a>
+        </div>
+      `)
+    );
+  },
+
   async sendApplicationSubmitted(email: string, fullName: string) {
     await sendMailSafe(email, 'Lawyer Application Received', template('Application Received', `
       <p>Dear ${fullName},</p>
