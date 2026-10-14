@@ -27,6 +27,7 @@ import { toast } from 'sonner';
 import {
   Shield, Loader2, AlertTriangle, Clock, Check, Building2, Scale,
 } from 'lucide-react';
+import { outcomeOptions, outcomeLabel, ERASURE_NOT_AVAILABLE_NOTE } from '@/lib/privacy/firmOutcomes';
 
 type Request = {
   id: string;
@@ -39,30 +40,6 @@ type Request = {
   mattersHeldByThisFirm: number;
   ourResponse: { outcome: string; reason: string; respondedAt: string } | null;
 };
-
-const OUTCOMES: { value: string; label: string; help: string }[] = [
-  {
-    value: 'RELEASED',
-    label: 'Released to them',
-    help: 'You gave the person their matter data.',
-  },
-  {
-    value: 'ERASED',
-    label: 'Erased',
-    help: 'You deleted the matter data you hold for them.',
-  },
-  {
-    value: 'REFUSED_RETAINED',
-    label: 'Kept — a duty requires it',
-    help: 'You are keeping the file. Name the duty; the person is shown your reason.',
-  },
-  {
-    value: 'PARTIAL',
-    label: 'Partly done',
-    help: 'Some released or erased, some kept. Say which, and why.',
-  },
-  { value: 'NO_DATA', label: 'We hold nothing', help: 'No matter data for this person.' },
-];
 
 const TYPE_LABEL: Record<string, string> = {
   ACCESS: 'Access — wants a copy of what you hold',
@@ -111,7 +88,15 @@ export default function FirmSubjectRequestsPage() {
 
   const startAnswer = (r: Request) => {
     setAnswering(r.id);
-    setOutcome(r.ourResponse?.outcome ?? (r.mattersHeldByThisFirm === 0 ? 'NO_DATA' : 'REFUSED_RETAINED'));
+    // Start from the firm's earlier answer if it still fits this request, else
+    // "we hold nothing" when no matter is held here, else the first option.
+    const options = outcomeOptions(r.type).map((o) => o.value as string);
+    const previous = r.ourResponse?.outcome;
+    setOutcome(
+      previous && options.includes(previous)
+        ? previous
+        : r.mattersHeldByThisFirm === 0 ? 'NO_DATA' : options[0]
+    );
     setReason(r.ourResponse?.reason ?? '');
   };
 
@@ -252,8 +237,11 @@ export default function FirmSubjectRequestsPage() {
                       <label className="text-xs font-bold uppercase tracking-wider text-neutral-500">
                         What did you decide?
                       </label>
+                      {r.type === 'ERASURE' && (
+                        <p className="mt-2 text-xs leading-relaxed text-amber-800">{ERASURE_NOT_AVAILABLE_NOTE}</p>
+                      )}
                       <div className="mt-2 space-y-2">
-                        {OUTCOMES.map((o) => (
+                        {outcomeOptions(r.type).map((o) => (
                           <label
                             key={o.value}
                             className={`flex cursor-pointer gap-3 rounded-xl border p-3 ${
@@ -343,8 +331,7 @@ export default function FirmSubjectRequestsPage() {
                     <p className="mt-1 text-sm text-neutral-600">{TYPE_LABEL[r.type] ?? r.type}</p>
                   </div>
                   <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-emerald-800">
-                    {OUTCOMES.find((o) => o.value === r.ourResponse?.outcome)?.label ??
-                      r.ourResponse?.outcome}
+                    {r.ourResponse && outcomeLabel(r.type, r.ourResponse.outcome)}
                   </span>
                 </div>
                 <p className="mt-3 rounded-xl bg-neutral-50 p-3 text-sm leading-relaxed text-neutral-700">
@@ -377,8 +364,11 @@ export default function FirmSubjectRequestsPage() {
                         version.
                       </p>
                     </div>
+                    {r.type === 'ERASURE' && (
+                      <p className="mt-3 text-xs leading-relaxed text-amber-800">{ERASURE_NOT_AVAILABLE_NOTE}</p>
+                    )}
                     <div className="mt-3 space-y-2">
-                      {OUTCOMES.map((o) => (
+                      {outcomeOptions(r.type).map((o) => (
                         <label
                           key={o.value}
                           className={`flex cursor-pointer gap-3 rounded-xl border p-3 ${

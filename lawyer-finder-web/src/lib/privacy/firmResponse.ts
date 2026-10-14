@@ -33,6 +33,7 @@
  */
 import prisma from '@/lib/db';
 import type { FirmSubjectResponseOutcome } from '@prisma/client';
+import { isOutcomeAllowed } from '@/lib/privacy/firmOutcomes';
 
 /** Outcomes in which the firm is still holding matter data afterwards. */
 const RETAINING_OUTCOMES: FirmSubjectResponseOutcome[] = ['REFUSED_RETAINED', 'PARTIAL'];
@@ -79,7 +80,7 @@ export async function recordFirmResponse(params: {
 }): Promise<{ ok: true; allFirmsResponded: boolean } | { ok: false; error: string }> {
   const request = await prisma.dataSubjectRequest.findUnique({
     where: { id: params.requestId },
-    select: { id: true, referredFirmIds: true, status: true },
+    select: { id: true, type: true, referredFirmIds: true, status: true },
   });
 
   if (!request) return { ok: false, error: 'That request does not exist.' };
@@ -89,6 +90,18 @@ export async function recordFirmResponse(params: {
   // person's request — and would learn that the request exists at all.
   if (!request.referredFirmIds.includes(params.firmId)) {
     return { ok: false, error: 'That request was not referred to your firm.' };
+  }
+
+  // The answer has to fit the question: no "erased" (a firm cannot delete a
+  // matter here), and no "kept" as a refusal of a copy. See firmOutcomes.ts.
+  if (!isOutcomeAllowed(request.type, params.outcome)) {
+    return {
+      ok: false,
+      error:
+        request.type === 'ERASURE'
+          ? 'For a deletion request, answer that you are keeping the file (and why) or that you hold nothing. Deleting a matter file cannot be done from here yet.'
+          : 'That answer does not fit a request for a copy. Say whether you gave a copy, part of it, refused (with the legal ground), or hold nothing.',
+    };
   }
 
   const reasonOk = assertFirmReason(params.outcome, params.reason);
