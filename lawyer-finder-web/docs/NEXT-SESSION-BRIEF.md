@@ -168,8 +168,9 @@ no date (`06dc7d8`).
 
 1. **Lawyer-side section-by-section review** (same method as the client side). **Dashboard
    done 2026-10-14** (needs-attention list, latest requests, directory/licence/community
-   lines; works for a practice manager; `Article` removed entirely — PROGRESS.md). **Next:
-   My Firm → Practice.** Lawyer menu: Dashboard · My Firm (Practice, Data Requests) · Consultations (Bookings, Set
+   lines; works for a practice manager; `Article` removed entirely). **My Firm → Practice
+   done** (invite instead of add, change role / remove, offices edit / retire — PROGRESS.md).
+   **Next: My Firm → Data Requests.** Lawyer menu: Dashboard · My Firm (Practice, Data Requests) · Consultations (Bookings, Set
    Availability, Pricing, Consultation Income, Refunds) · Messages · Payments (Invoices,
    Payment History) · Community Posts · Profile Settings. Things already suspected:
    - **Set Availability / Pricing** are per-attorney slot and price tools from the old

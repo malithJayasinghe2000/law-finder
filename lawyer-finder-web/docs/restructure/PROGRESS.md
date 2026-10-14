@@ -2928,3 +2928,36 @@ dev-server restart; no "article" on the pricing page; build passes; `check:billi
 `access_paid_promo` / `create_promo` permissions and show "Priority Ad Placement" on the
 pricing page — paid promotion for attorneys is rule 3. The admin dashboard shows invented
 figures ("+12%", "99% Platform health") — admin review.
+
+### 2026-10-14 — My Firm → Practice: people join by invitation; members and offices can be managed
+
+Second section of the lawyer-side review. Kept: the public profile form (Rule 45 limits,
+self-praise notice) and the client account / tax details. Changed, each its own commit:
+
+- **Invite, never add** (`3755d77`). "Add member" put an existing user straight into the
+  firm — no email, no consent — and for an attorney moved their practice here. That broke
+  the 2026-08-16 decision (joining is by an invitation the person accepts). Invitations
+  could only be sent while registering. The button now sends the invitation; direct adding
+  is switched off in the API (`DIRECT_ADD_ENABLED = false`, 410). Invite and Withdraw show
+  only to the principal — a practice manager saw a button the server refused.
+- **Change role / Remove** for the principal (`1fed579`). The API could; no screen did, so
+  a firm could not take access away from someone who had left. **Hole closed on the way:**
+  a role change skipped the joining rules, so a paralegal (CLIENT account) could be made a
+  principal or attorney. Now: into those roles needs a verified attorney not practising
+  elsewhere; an attorney with open matters cannot be moved out of an attorney role. Removal
+  clears the profile's practice link only if it points at this firm.
+- **`/dashboard` page** (`714a4ba`). There was none, yet five places redirect there — a
+  removed manager landed on a 404. It now routes admin / attorney or member / client.
+- **Offices: Edit and Retire** (`f7c843f`) — the API could, the page could only add.
+- **Member names** by attorney profile name (`b056acd`) — Kavindu showed as "None".
+- **Badge** "Not registered" on an unregistered practice instead of "Verified firm"
+  (`50a5078`); readable labels for the other statuses.
+- **Jump links** (`5b895cb`).
+
+Verified at 412px as Kavindu with a temporary example.com manager: invitation sent to an
+example.com address, listed, withdrawn (row deleted); direct add 410; manager sees no
+Invite/Withdraw; manager → Principal refused, → Support staff saved; demoting or removing
+the only principal refused; manager removed, then routed to the client dashboard;
+temporary office added, edited (pre-filled), retired (row deleted). `check:firm` 15/15,
+`check:privilege` 42/42. **Not driven:** demoting an attorney who holds open matters (needs
+a second verified attorney in one firm). Temporary account deleted by id.
