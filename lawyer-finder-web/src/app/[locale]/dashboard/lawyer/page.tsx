@@ -1,248 +1,237 @@
-'use client';
-
-import { useEffect, useState } from 'react';
-import { useRouter, useParams } from 'next/navigation';
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Separator } from '@/components/ui/separator';
-import { Inbox, FileText, Star, ShieldCheck, AlertCircle, Eye, CreditCard, Zap, Crown, Shield, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
+import prisma from '@/lib/db';
+import { getSession } from '@/lib/auth';
+import { redirect } from 'next/navigation';
 import Link from 'next/link';
+import { Badge } from '@/components/ui/badge';
+import {
+  LayoutDashboard, ArrowRight, Bell, CalendarDays, MessageCircle, UserPlus, ShieldCheck, FileText, Banknote, Inbox,
+} from 'lucide-react';
+import type { BookingStatus } from '@prisma/client';
+import { BOOKING_STATUS_COLORS, BOOKING_STATUS_LABELS } from '@/schemas/consultation.schema';
+import { getFirmMembership, resolveMatterAccess, discloseMatter } from '@/lib/firms/access';
+import { countUnreadConversations } from '@/lib/chat/unread';
 
-interface ProfileData {
-  id: string;
-  fullName: string;
-  baslNumber: string;
-  isVerified: boolean;
-  practiceAreas: string[];
-  languages: string[];
-  district: string | null;
-  bio: string | null;
-  openMatters: number;
-  articles: { id: string; title: string; status: string; createdAt: string }[];
-}
+/**
+ * The firm-side home: what needs this person, and the practice's latest requests.
+ *
+ * Built from firm MEMBERSHIP, not the platform role. It used to load the
+ * attorney's own LawyerProfile from an API that answered LAWYER only, so a
+ * practice manager (account CLIENT) got a 401 and the page crashed. What each
+ * person sees of a request is still decided per row by src/lib/firms/access.ts.
+ */
 
-export default function LawyerDashboard() {
-  const params = useParams();
-  const locale = params.locale as string;
-  const [profile, setProfile] = useState<ProfileData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [subscriptionData, setSubscriptionData] = useState<any>(null);
+// Plain classes: `buttonVariants` lives in a 'use client' module and cannot be
+// called from this server component.
+const ACTION_LINK =
+  'inline-flex items-center justify-center shrink-0 h-8 px-3 rounded-none bg-[#0a0a0a] text-white text-xs font-semibold hover:bg-neutral-800 transition-colors';
 
-  useEffect(() => {
-    fetch('/api/lawyers/profile')
-      .then((res) => res.json())
-      .then(setProfile)
-      .catch(() => {})
-      .finally(() => setLoading(false));
+const FIRM_ROLE_LABELS: Record<string, string> = {
+  FIRM_OWNER: 'Principal',
+  FIRM_ADMIN: 'Practice manager',
+  ATTORNEY: 'Attorney',
+  PARALEGAL: 'Paralegal',
+};
 
-    fetch('/api/subscriptions/status')
-      .then((res) => res.json())
-      .then(setSubscriptionData)
-      .catch(() => {});
-  }, []);
+/** Requests the firm still has to move: triage, quote, or confirm payment. */
+const FIRM_TODO_STATUSES: BookingStatus[] = ['REQUESTED', 'CONFLICT_CHECK', 'ACCEPTED'];
 
-  if (loading) {
+type Todo = { id: string; icon: typeof Bell; title: string; detail: string; action: string };
+
+export default async function LawyerDashboardPage({ params }: { params: Promise<{ locale: string }> }) {
+  const { locale } = await params;
+  const session = await getSession();
+
+  if (!session) {
+    redirect(`/${locale}/login`);
+  }
+
+  const [user, membership] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: session.userId },
+      select: { fullName: true, profile: { select: { id: true, fullName: true } } },
+    }),
+    getFirmMembership(session.userId),
+  ]);
+
+  const name = user?.profile?.fullName || user?.fullName || '';
+  const profileId = user?.profile?.id ?? session.profileId ?? null;
+  const queueHref = `/${locale}/dashboard/lawyer/consultations`;
+
+  if (!membership) {
     return (
-      <div className="p-6 lg:p-10 space-y-6 max-w-5xl">
-        <Skeleton className="h-8 w-64 rounded-none" />
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          {[1, 2, 3].map((i) => <Skeleton key={i} className="h-28 rounded-none" />)}
-        </div>
-        <Skeleton className="h-64 rounded-none" />
+      <div className="w-full space-y-6">
+        <h1 className="text-2xl font-bold tracking-tight text-neutral-900">Welcome{name ? `, ${name}` : ''}</h1>
+        <section className="bg-white border border-neutral-200 p-5 sm:p-6 text-sm text-neutral-600">
+          You are not part of a practice yet. Register your practice, or accept an invitation from a firm,
+          to receive requests.
+          <div className="mt-4">
+            <Link href={`/${locale}/dashboard/lawyer/firm`} className={ACTION_LINK}>Go to Practice</Link>
+          </div>
+        </section>
       </div>
     );
   }
 
-  if (!profile) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh] p-6">
-        <Card className="max-w-md w-full rounded-none shadow-sm">
-          <CardContent className="flex flex-col items-center gap-4 py-12 text-center">
-            <AlertCircle className="h-10 w-10 text-muted-foreground/50" />
-            <h2 className="text-lg font-semibold">Profile Not Found</h2>
-            <p className="text-sm text-muted-foreground">
-              Your lawyer profile has not been set up yet. Please contact support.
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-    );
+  // Firm-wide for the principal and practice manager (they assign) and for a
+  // paralegal (no matters of their own); an attorney sees the requests they act on.
+  const firmWide = membership.role === 'FIRM_OWNER' || membership.role === 'FIRM_ADMIN' || !profileId;
+  const recentWhere = firmWide ? { firmId: membership.firmId } : { firmId: membership.firmId, lawyerId: profileId };
+
+  const [open, recent, unread] = await Promise.all([
+    prisma.booking.findMany({
+      where: { firmId: membership.firmId, status: { in: FIRM_TODO_STATUSES } },
+      orderBy: { createdAt: 'asc' },
+      select: {
+        id: true, bookingNumber: true, status: true, firmId: true, lawyerId: true, clientId: true,
+        conflictCheck: { select: { outcome: true } },
+      },
+    }),
+    prisma.booking.findMany({
+      where: recentWhere,
+      orderBy: { createdAt: 'desc' },
+      take: 5,
+      select: {
+        id: true, bookingNumber: true, status: true, subject: true, firmId: true, lawyerId: true, clientId: true,
+        lawyer: { select: { fullName: true } },
+      },
+    }),
+    countUnreadConversations(session),
+  ]);
+
+  const accessTo = (b: { lawyerId: string | null; firmId: string; clientId: string }) =>
+    resolveMatterAccess({
+      actorUserId: session.userId,
+      actorRole: session.role,
+      actorProfileId: profileId,
+      membership,
+      matter: { lawyerId: b.lawyerId, firmId: b.firmId, clientId: b.clientId },
+    });
+
+  // Each request appears once, as the one thing this person can do next. The
+  // server refuses the same actions to anyone else, so nothing here is shown to
+  // someone who could not do it.
+  const todos: Todo[] = [];
+  for (const b of open) {
+    const access = accessTo(b);
+    const assigned = access.basis === 'ASSIGNED_ATTORNEY';
+    if (!b.lawyerId && access.canAssign && b.status !== 'ACCEPTED') {
+      todos.push({ id: b.id, icon: UserPlus, title: b.bookingNumber, detail: 'New request. Assign an attorney.', action: 'Assign' });
+    } else if (assigned && b.status === 'REQUESTED') {
+      const onHold = b.conflictCheck?.outcome === 'NEEDS_REVIEW';
+      todos.push({
+        id: b.id, icon: ShieldCheck, title: b.bookingNumber,
+        detail: onHold ? 'On hold. Accept or decline when you are ready.' : 'Assigned to you. Review the request.',
+        action: 'Review',
+      });
+    } else if (assigned && b.status === 'CONFLICT_CHECK') {
+      todos.push({ id: b.id, icon: FileText, title: b.bookingNumber, detail: 'You accepted it. Send the client a fee proposal.', action: 'Quote' });
+    } else if (assigned && b.status === 'ACCEPTED') {
+      todos.push({ id: b.id, icon: Banknote, title: b.bookingNumber, detail: 'The client accepted your terms. Check their payment.', action: 'Open' });
+    }
   }
 
-  // Was `pendingInquiries`, counted from the unauthenticated `Inquiry` intake
-  // removed in Phase 7. The replacement counts matters that have actually
-  // reached the firm through the engagement flow — which is the number an
-  // attorney needs anyway, since an enquiry created no relationship and no
-  // obligation to respond.
-  const openMatters = profile.openMatters;
-  const publishedArticles = profile.articles.filter((a) => a.status === 'PUBLISHED').length;
-
-  const sub = subscriptionData?.subscription;
+  const attentionCount = todos.length + (unread > 0 ? 1 : 0);
 
   return (
-    <div className="p-6 lg:p-10 max-w-[2400px]">
-      {/* Header */}
-      <div className="mb-8">
-        <div className="flex items-center gap-3 mb-1">
-          <h1 className="text-4xl font-normal tracking-tight">Welcome, {profile.fullName}</h1>
-          {profile.isVerified ? (
-            <Badge className="gap-1 rounded-none bg-[#0a0a0a] text-white">
-              <ShieldCheck className="h-3 w-3" />
-              Verified
-            </Badge>
-          ) : (
-            <Badge variant="outline" className="rounded-none text-amber-600 border-amber-300 bg-amber-50">
-              Pending Verification
-            </Badge>
-          )}
+    <div className="w-full space-y-6 sm:space-y-8">
+      <div className="flex items-center gap-4">
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center bg-[#0a0a0a] text-white">
+          <LayoutDashboard className="h-5 w-5" />
         </div>
-        <p className="text-sm text-muted-foreground">BASL: {profile.baslNumber}</p>
+        <div className="min-w-0">
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-neutral-900">
+            Welcome back{name ? `, ${name}` : ''}
+          </h1>
+          <p className="text-sm text-neutral-500 font-medium">
+            {membership.firmName} · {FIRM_ROLE_LABELS[membership.role] ?? membership.role}
+          </p>
+        </div>
       </div>
 
-      {/* Subscription Status Card */}
-      <Card className={`rounded-none shadow-sm mb-6 border-l-4 ${
-        sub?.status === 'ACTIVE' ? 'border-l-green-500' :
-        sub?.status === 'CANCELED' ? 'border-l-amber-500' :
-        sub?.status === 'EXPIRED' ? 'border-l-red-500' :
-        sub?.status === 'PAST_DUE' ? 'border-l-blue-500' :
-        'border-l-neutral-300'
-      }`}>
-        <CardContent className="p-5">
-          {sub ? (
-            <div className="flex items-center justify-between flex-wrap gap-4">
-              <div className="flex items-center gap-4">
-                <div className={`flex h-11 w-11 items-center justify-center rounded-none ${
-                  sub.status === 'ACTIVE' ? 'bg-green-100' :
-                  sub.status === 'CANCELED' ? 'bg-amber-100' :
-                  sub.status === 'EXPIRED' ? 'bg-red-100' :
-                  'bg-blue-100'
-                }`}>
-                  {sub.status === 'ACTIVE' ? <CheckCircle className="h-5 w-5 text-green-700" /> :
-                   sub.status === 'CANCELED' ? <AlertTriangle className="h-5 w-5 text-amber-700" /> :
-                   sub.status === 'EXPIRED' ? <XCircle className="h-5 w-5 text-red-700" /> :
-                   <CreditCard className="h-5 w-5 text-blue-700" />}
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <p className="font-bold text-sm">{sub.planName}</p>
-                    <span className={`px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider ${
-                      sub.status === 'ACTIVE' ? 'bg-green-100 text-green-800' :
-                      sub.status === 'CANCELED' ? 'bg-amber-100 text-amber-800' :
-                      sub.status === 'EXPIRED' ? 'bg-red-100 text-red-800' :
-                      'bg-blue-100 text-blue-800'
-                    }`}>
-                      {sub.status}
-                    </span>
+      {/* Needs your attention */}
+      <section className="bg-white border border-neutral-200 p-5 sm:p-6" aria-labelledby="attention-heading">
+        <h2 id="attention-heading" className="text-sm font-bold text-neutral-900 uppercase tracking-wide flex items-center gap-2 mb-4">
+          <Bell className="w-4 h-4" /> Needs your attention
+          {attentionCount > 0 && (
+            <span className="bg-red-500 text-white text-[10px] font-bold px-1.5 rounded-full">{attentionCount}</span>
+          )}
+        </h2>
+
+        {attentionCount === 0 ? (
+          <p className="text-sm text-neutral-500">Nothing right now. New requests and messages will show here.</p>
+        ) : (
+          <ul className="divide-y divide-neutral-100">
+            {todos.map((t) => (
+              <li key={t.id} className="py-3 flex flex-col sm:flex-row sm:items-center gap-3 justify-between">
+                <div className="flex items-start gap-3 min-w-0">
+                  <t.icon className="w-4 h-4 mt-0.5 shrink-0 text-[#8c6d3f]" />
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold font-mono text-neutral-900">{t.title}</p>
+                    <p className="text-xs text-neutral-500">{t.detail}</p>
                   </div>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {sub.billingCycle} · {sub.daysRemaining != null ? `${sub.daysRemaining} days remaining` : ''}
-                    {sub.endDate ? ` · Expires ${new Date(sub.endDate).toLocaleDateString()}` : ''}
+                </div>
+                <Link href={queueHref} className={ACTION_LINK}>{t.action}</Link>
+              </li>
+            ))}
+            {unread > 0 && (
+              <li className="py-3 flex flex-col sm:flex-row sm:items-center gap-3 justify-between">
+                <div className="flex items-start gap-3 min-w-0">
+                  <MessageCircle className="w-4 h-4 mt-0.5 shrink-0 text-[#8c6d3f]" />
+                  <p className="text-sm font-semibold text-neutral-900">
+                    {unread === 1 ? '1 conversation has' : `${unread} conversations have`} new messages
                   </p>
                 </div>
-              </div>
-              <div className="flex gap-2">
-                {sub.status === 'EXPIRED' && (
-                  <Link href="/en/pricing">
-                    <button className="text-xs font-bold uppercase tracking-wider bg-[#0a0a0a] text-white px-4 py-2 hover:bg-neutral-800 transition-colors">
-                      Subscribe
-                    </button>
-                  </Link>
-                )}
-                {!sub || sub.status === 'PAST_DUE' ? (
-                  <Link href="/en/pricing">
-                    <button className="text-xs font-bold uppercase tracking-wider border border-neutral-200 px-4 py-2 hover:bg-neutral-50 transition-colors">
-                      View Plans
-                    </button>
-                  </Link>
-                ) : null}
-              </div>
-            </div>
-          ) : (
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="flex h-11 w-11 items-center justify-center rounded-none bg-neutral-100">
-                  <CreditCard className="h-5 w-5 text-neutral-400" />
-                </div>
-                <div>
-                  <p className="font-bold text-sm">No Active Subscription</p>
-                  <p className="text-xs text-muted-foreground">Subscribe to unlock premium features</p>
-                </div>
-              </div>
-              <Link href="/en/pricing">
-                <button className="text-xs font-bold uppercase tracking-wider bg-[#0a0a0a] text-white px-4 py-2 hover:bg-neutral-800 transition-colors">
-                  View Plans
-                </button>
-              </Link>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                <Link href={`/${locale}/dashboard/lawyer/chat`} className={ACTION_LINK}>Read</Link>
+              </li>
+            )}
+          </ul>
+        )}
+      </section>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 mb-8">
-        <Card className="rounded-none shadow-sm">
-          <CardContent className="flex items-center gap-4 p-5">
-            <div className="flex h-11 w-11 items-center justify-center rounded-none bg-[#0a0a0a] text-white">
-              <Inbox className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{openMatters}</p>
-              <p className="text-xs text-muted-foreground font-medium">Open Matters</p>
-              <Link href={`/${locale}/dashboard/lawyer/consultations`} className="text-[10px] text-primary hover:underline mt-2 block font-semibold">
-                Go to matters &rarr;
-              </Link>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="rounded-none shadow-sm">
-          <CardContent className="flex items-center gap-4 p-5">
-            <div className="flex h-11 w-11 items-center justify-center rounded-none bg-[#0a0a0a] text-white">
-              <FileText className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{publishedArticles}</p>
-              <p className="text-xs text-muted-foreground font-medium">Published Articles</p>
-              <Link href={`/${locale}/dashboard/blog/my-posts`} className="text-[10px] text-primary hover:underline mt-2 block font-semibold">
-                Manage articles →
-              </Link>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-
-      {/* Profile Preview */}
-      <Card className="rounded-none shadow-sm">
-        <CardContent className="p-6">
-          <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-            <Eye className="h-4 w-4" />
-            Profile Summary
+      {/* Recent requests */}
+      <section className="bg-white border border-neutral-200 p-5 sm:p-6" aria-labelledby="requests-heading">
+        <div className="flex items-center justify-between mb-4 gap-3">
+          <h2 id="requests-heading" className="text-sm font-bold text-neutral-900 uppercase tracking-wide flex items-center gap-2">
+            <CalendarDays className="w-4 h-4" /> {firmWide ? 'Latest requests' : 'Your latest requests'}
           </h2>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 text-sm">
-            <div>
-              <p className="text-muted-foreground mb-1">District</p>
-              <p className="font-medium">{profile.district || 'Not set'}</p>
-            </div>
-            <div>
-              <p className="text-muted-foreground mb-1">Languages</p>
-              <div className="flex flex-wrap gap-1">
-                {profile.languages.length > 0 ? profile.languages.map((l) => (
-                  <Badge key={l} variant="secondary" className="text-[11px] rounded-none hover:bg-neutral-200">{l}</Badge>
-                )) : <span className="text-muted-foreground">Not set</span>}
-              </div>
-            </div>
-            <div>
-              <p className="text-muted-foreground mb-1">Practice Areas</p>
-              <div className="flex flex-wrap gap-1">
-                {profile.practiceAreas.length > 0 ? profile.practiceAreas.map((p) => (
-                  <Badge key={p} variant="secondary" className="text-[11px] rounded-none hover:bg-neutral-200">{p}</Badge>
-                )) : <span className="text-muted-foreground">Not set</span>}
-              </div>
-            </div>
+          {recent.length > 0 && (
+            <Link href={queueHref} className="text-xs font-semibold text-neutral-600 hover:text-neutral-900 flex items-center gap-1 shrink-0">
+              View all <ArrowRight className="w-3 h-3" />
+            </Link>
+          )}
+        </div>
+
+        {recent.length === 0 ? (
+          <div className="text-center py-10 border border-dashed border-neutral-200 bg-neutral-50/50">
+            <Inbox className="h-8 w-8 text-neutral-300 mx-auto mb-3" />
+            <p className="text-sm font-medium text-neutral-900">No requests yet</p>
+            <p className="text-xs text-neutral-500 mt-1">Requests clients send to your practice will appear here.</p>
           </div>
-        </CardContent>
-      </Card>
+        ) : (
+          <ul className="space-y-3">
+            {recent.map((b) => {
+              const access = accessTo(b);
+              const subject = access.canReadMatterDetail ? discloseMatter(b, access).subject : null;
+              return (
+                <li key={b.id}>
+                  <Link href={queueHref} className="block border border-neutral-100 p-4 hover:shadow-sm transition-shadow">
+                    <div className="flex flex-wrap items-center gap-2 mb-1">
+                      <span className="text-xs font-mono text-neutral-400">{b.bookingNumber}</span>
+                      <Badge className={`text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-sm ${BOOKING_STATUS_COLORS[b.status] || 'bg-neutral-100 text-neutral-700'}`}>
+                        {BOOKING_STATUS_LABELS[b.status] || b.status}
+                      </Badge>
+                    </div>
+                    {subject && <p className="text-sm font-semibold text-neutral-900 truncate">{subject}</p>}
+                    <p className="text-xs text-neutral-500 truncate">
+                      {b.lawyer?.fullName ? `Attorney: ${b.lawyer.fullName}` : 'No attorney assigned yet'}
+                    </p>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </section>
     </div>
   );
 }
