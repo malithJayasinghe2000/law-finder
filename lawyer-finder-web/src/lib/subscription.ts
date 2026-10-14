@@ -229,7 +229,7 @@ export async function canUseFeature(
   }
 
   // Check if role has permission for this category
-  const permissionCategory = featureName.split('_')[0] // e.g., "articles" from "articles_per_month"
+  const permissionCategory = featureName.split('_')[0] // e.g., "document" from "document_templates"
   const hasPermission = await prisma.subscriptionRolePermission.findFirst({
     where: {
       roleId: subscription.roleId,

@@ -217,12 +217,12 @@ async function main() {
   console.log('Creating permissions...')
   
   const permissionsData = [
-    // Article Permissions
-    { name: 'create_article', slug: 'create-article', category: 'articles', description: 'Create new articles' },
-    { name: 'edit_article', slug: 'edit-article', category: 'articles', description: 'Edit own articles' },
-    { name: 'delete_article', slug: 'delete-article', category: 'articles', description: 'Delete articles' },
-    { name: 'publish_article', slug: 'publish-article', category: 'articles', description: 'Publish articles' },
-    
+    // The four "article" permissions and the `articles_per_month` limit were
+    // removed on 2026-10-14. Nothing could write an article — lawyers write
+    // community posts, which no tier limits — and a tier that let a firm
+    // publish more about itself for more money was selling visibility
+    // (LEGAL-GUARDRAILS.md rule 3).
+
     // The three "inquiries" permissions were removed in Phase 7 along with the
     // `Inquiry` model. They gated an unauthenticated intake that no longer
     // exists — and "receive client inquiries" as a paid tier feature was the
@@ -261,7 +261,6 @@ async function main() {
   
   // BASIC: Limited permissions
   const basicPermissions = [
-    'create_article',
     'access_chat',
     'send_message',
     'edit_profile',
@@ -270,8 +269,6 @@ async function main() {
   // PROFESSIONAL: More permissions
   const professionalPermissions = [
     ...basicPermissions,
-    'edit_article',
-    'publish_article',
     'view_analytics',
     'upload_documents',
   ]
@@ -279,7 +276,6 @@ async function main() {
   // PREMIUM: Advanced permissions
   const premiumPermissions = [
     ...professionalPermissions,
-    'delete_article',
     'access_paid_promo',
     'create_promo',
     'export_data',
@@ -445,7 +441,6 @@ async function main() {
   const featuresData = [
     { name: 'firm_seats', slug: 'firm-seats', unit: 'count', description: 'People at the firm who can sign in' },
     { name: 'storage_gb', slug: 'storage-gb', unit: 'GB', description: 'Document storage' },
-    { name: 'articles_per_month', slug: 'articles-per-month', unit: 'count', description: 'Articles the firm may publish per month' },
     { name: 'document_templates', slug: 'document-templates', unit: 'count', description: 'Document automation templates' },
     { name: 'ai_research_queries_per_month', slug: 'ai-research-queries-per-month', unit: 'count', description: 'AI legal research queries (software capability, not client volume)' },
   ]
@@ -467,16 +462,16 @@ async function main() {
   // never on how many clients reach the firm through it.
   const featureLimits = [
     // BASIC — a sole practitioner
-    { role: basicRole, limits: { firm_seats: 1, storage_gb: 5, articles_per_month: 2, document_templates: 5, ai_research_queries_per_month: 50 } },
+    { role: basicRole, limits: { firm_seats: 1, storage_gb: 5, document_templates: 5, ai_research_queries_per_month: 50 } },
 
     // PROFESSIONAL — a small practice
-    { role: professionalRole, limits: { firm_seats: 5, storage_gb: 50, articles_per_month: 10, document_templates: 25, ai_research_queries_per_month: 300 } },
+    { role: professionalRole, limits: { firm_seats: 5, storage_gb: 50, document_templates: 25, ai_research_queries_per_month: 300 } },
 
     // PREMIUM — an established firm
-    { role: premiumRole, limits: { firm_seats: 20, storage_gb: 250, articles_per_month: 50, document_templates: 100, ai_research_queries_per_month: 1500 } },
+    { role: premiumRole, limits: { firm_seats: 20, storage_gb: 250, document_templates: 100, ai_research_queries_per_month: 1500 } },
 
     // ENTERPRISE (-1 = unlimited)
-    { role: enterpriseRole, limits: { firm_seats: -1, storage_gb: -1, articles_per_month: -1, document_templates: -1, ai_research_queries_per_month: -1 } },
+    { role: enterpriseRole, limits: { firm_seats: -1, storage_gb: -1, document_templates: -1, ai_research_queries_per_month: -1 } },
   ]
 
   for (const { role, limits } of featureLimits) {

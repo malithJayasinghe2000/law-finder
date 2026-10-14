@@ -1198,10 +1198,10 @@ model SubscriptionRole {
 
 model Permission {
   id          String  @id @default(uuid())
-  name        String  @unique // e.g., "create_article", "post_inquiry", "access_chat"
+  name        String  @unique // e.g., "access_chat", "upload_documents"
   slug        String  @unique // URL-friendly version
   description String?
-  category    String // e.g., "articles", "inquiries", "chat"
+  category    String // e.g., "chat", "profile"
 
   roles SubscriptionRolePermission[]
 
@@ -1224,7 +1224,7 @@ model SubscriptionRolePermission {
 
 model Feature {
   id          String  @id @default(uuid())
-  name        String  @unique // e.g., "articles_per_month", "inquiries_per_month"
+  name        String  @unique // e.g., "firm_seats", "document_templates"
   slug        String  @unique
   description String?
   unit        String // e.g., "count", "GB", "hours"
@@ -1240,7 +1240,7 @@ model FeatureLimitConfig {
   roleId String
   role   SubscriptionRole @relation(name: "RoleFeatureLimits", fields: [roleId], references: [id], onDelete: Cascade)
 
-  featureName String // e.g., "articles_per_month", "inquiries_per_month"
+  featureName String // e.g., "firm_seats", "document_templates"
   limit       Int // e.g., 10, 50, unlimited if -1
   description String?
 
