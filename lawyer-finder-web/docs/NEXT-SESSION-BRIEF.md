@@ -174,7 +174,8 @@ no date (`06dc7d8`).
    done 2026-10-14** (needs-attention list, latest requests, directory/licence/community
    lines; works for a practice manager; `Article` removed entirely). **My Firm → Practice
    done** (invite instead of add, change role / remove, offices edit / retire — PROGRESS.md).
-   **Next: My Firm → Data Requests.** Lawyer menu: Dashboard · My Firm (Practice, Data Requests) · Consultations (Bookings, Set
+   **Data Requests done** (answers fit the request, no "Erased", practice told by dashboard
+   and email). **Next: Consultations → Bookings.** Lawyer menu: Dashboard · My Firm (Practice, Data Requests) · Consultations (Bookings, Set
    Availability, Pricing, Consultation Income, Refunds) · Messages · Payments (Invoices,
    Payment History) · Community Posts · Profile Settings. Things already suspected:
    - **Set Availability / Pricing** are per-attorney slot and price tools from the old
@@ -194,6 +195,10 @@ no date (`06dc7d8`).
    representation", "vetted advocates"; footer *Services* list ("Civil Litigation,
    Criminal Defense…") and "connecting citizens with verified legal professionals".
 4. **Admin warning: verified attorneys who are not listed.**
+4b. **No tool to delete a matter file** when a practice answering an erasure request has no
+    duty to keep it — we are its processor and must be able to act on that. Erasure answers
+    currently say "contact us before you answer". Needs a design (soft-delete vs. crypto
+    erasure of the encrypted columns) and probably counsel.
 5. **Junior-in-a-senior's-chambers** — no model yet; discuss.
 6. Update `LEGAL-GUARDRAILS.md` / `QUESTIONS-FOR-COUNSEL.md` Q16–18 to reflect §C.
 7. Seed one registered practice for demos (a fresh seed has an empty directory).

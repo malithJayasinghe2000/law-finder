@@ -2981,3 +2981,31 @@ Owner: licences and pricing are hidden at launch. `LICENSING_ENABLED = false` in
 invitations — which refused any practice without a licence. Owner chose no limit while
 licensing is off (`d6e014d`). Checked with a temporary unlicensed practice (allowed,
 deleted); `check:billing` 21/21. Still to wire: pricing page, Payments menu.
+
+### 2026-10-14 — My Firm → Data Requests: answers fit the request; the practice is told
+
+Third section of the lawyer-side review. Kept: the page is a PDPA duty — the practice
+answers the matter-file half of a client's access / portability / erasure request, and the
+client reads the answer on **Your data → Requests you have made**. Changed:
+
+- **Answers fit the request; no "Erased"** (`425e179`). "Erased" claimed something no firm
+  can do here (no deletion tool; the purge cannot touch matter data) — a false answer to a
+  statutory request. And a copy request could be answered "kept" — a retention duty is a
+  reason not to delete, not a reason to refuse a copy (Perera's seeded answer did this; now
+  labelled "Refused"). Copy: gave a copy / part / refused (legal ground) / hold nothing.
+  Deletion: kept (duty) / hold nothing. Enforced on the server (`firmOutcomes.ts`);
+  `check:pdpa` 72/72 with five new cases, and a correction case that silently relied on
+  ERASED now uses a valid outcome.
+- **Amber** for kept / refused / partly (`38327a4`); **phone layout** as the Practice page
+  (`f3fa68a`); client side shows "Copy of your data" / "Waiting for a practice to answer"
+  instead of `ACCESS` / `AWAITING_FIRM` (`061693c`).
+- **The practice is told.** Dashboard "Needs your attention" lists unanswered requests with
+  the due date, principal and manager only (`c3a73c8`) — Anura's practice had one **overdue
+  since 27 Sept** that nothing mentioned. And an email to the principal and manager on
+  referral, nothing about the person (`a439cce`), sent in the background (awaiting it held
+  the client's request 18s; now 77ms). Verified with a temporary example.com practice,
+  manager and client; all deleted by id, leftover scan clean.
+
+**Open item:** no way to delete a matter file when a practice has no duty to keep it. We
+are its processor and must be able to act on that instruction. Until then an erasure
+request says "contact us before you answer".
