@@ -3009,3 +3009,27 @@ client reads the answer on **Your data → Requests you have made**. Changed:
 **Open item:** no way to delete a matter file when a practice has no duty to keep it. We
 are its processor and must be able to act on that instruction. Until then an erasure
 request says "contact us before you answer".
+
+### 2026-10-14 — Consultations → Bookings: the practice's request queue, in the practice's words
+
+Fourth section of the lawyer-side review. Kept: the queue and its rules from 2026-10-13
+(only the assigned attorney reviews and quotes; messaging only about the client's own
+request). Changed, nothing about who may see or do what:
+
+- **Labels for the practice** (`c3e443c`): the firm side used the client's wording, so an
+  accepted request read "Under review" under the "To quote" tab. `FIRM_STATUS_LABELS` now
+  on the queue, its Details and the lawyer dashboard; the client keeps its own wording.
+- **Details** (`0d566a4`): "Rs. 0" before any proposal → "Not proposed yet"; mode in words
+  (and BOTH no longer shown as "Online"); attorney and received date added.
+- Closed requests no longer show "No appointment yet · Time proposed with the quote"
+  (`3d8b55f`).
+- Title **"Requests"**, not "Consultation Bookings" (`ea2e36b`); **"Not accepted"** tab and
+  "Cancelled by practice" (`eec24f3`); phone: smaller title, labelled New request button,
+  calendar behind Show calendar (`df…` — see git log).
+
+Verified at 412px and 1440px as Kavindu: every tab's API call 200 and lists the right
+request (Not accepted → BK-2026-0004), Details for BK-2026-0003, calendar toggle, no
+overflow; the client still sees "Under review".
+
+**Seen, not changed:** the Cancel dialog speaks of bookings and "the refund policy" — at the
+Refunds review. The menu still says "Bookings" — at the menu review.
