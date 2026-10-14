@@ -24,6 +24,13 @@ import QuoteComposerDialog from '@/components/consultations/QuoteComposerDialog'
 import FeeNoteDialog from '@/components/consultations/FeeNoteDialog';
 import PaymentReviewDialog from '@/components/consultations/PaymentReviewDialog';
 
+// How a consultation would take place. BOTH used to show as "Online".
+const MODE_LABELS: Record<string, string> = {
+  PHYSICAL: 'In person',
+  ONLINE: 'Online',
+  BOTH: 'In person or online',
+};
+
 interface Booking {
   id: string;
   bookingNumber: string;
@@ -439,7 +446,8 @@ export default function LawyerBookingsPage() {
                             {FIRM_STATUS_LABELS[booking.status] || booking.status}
                           </Badge>
                           <Badge variant="outline" className="text-[10px] rounded-sm border-neutral-200">
-                            {booking.mode === 'PHYSICAL' ? <><MapPin className="w-3 h-3 mr-1" /> Physical</> : <><Video className="w-3 h-3 mr-1" /> Online</>}
+                            {booking.mode === 'PHYSICAL' ? <MapPin className="w-3 h-3 mr-1" /> : <Video className="w-3 h-3 mr-1" />}
+                            {MODE_LABELS[booking.mode] ?? booking.mode}
                           </Badge>
                           {!booking.lawyerId && (
                             <span className="border border-amber-300 bg-amber-50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-widest text-amber-800">
@@ -787,10 +795,20 @@ export default function LawyerBookingsPage() {
                 <div><p className="text-neutral-500 text-xs">Status</p><Badge className={`text-[10px] ${BOOKING_STATUS_COLORS[selectedBooking.status]}`}>{FIRM_STATUS_LABELS[selectedBooking.status]}</Badge></div>
                 <div><p className="text-neutral-500 text-xs">Date</p><p className="font-semibold">{selectedBooking.date ? formatDateOnlyString(selectedBooking.date, 'en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }) : 'Not yet arranged'}</p></div>
                 <div><p className="text-neutral-500 text-xs">Time</p><p className="font-semibold">{selectedBooking.startTime && selectedBooking.endTime ? `${selectedBooking.startTime} – ${selectedBooking.endTime}${selectedBooking.duration ? ` (${selectedBooking.duration} min)` : ''}` : 'Not yet arranged'}</p></div>
-                <div><p className="text-neutral-500 text-xs">Mode</p><p className="font-semibold">{selectedBooking.mode}</p></div>
-                {selectedBooking.status !== 'REQUESTED' && selectedBooking.status !== 'DECLINED' && (
-                  <div><p className="text-neutral-500 text-xs">Your Fee</p><p className="font-semibold">Rs. {selectedBooking.lawyerFee.toLocaleString()}</p></div>
+                <div><p className="text-neutral-500 text-xs">Mode</p><p className="font-semibold">{MODE_LABELS[selectedBooking.mode] ?? selectedBooking.mode}</p></div>
+                {/* "Rs. 0" before any proposal read as a fee of nothing. */}
+                {selectedBooking.status !== 'DECLINED' && (
+                  <div>
+                    <p className="text-neutral-500 text-xs">Fee</p>
+                    <p className="font-semibold">
+                      {selectedBooking.status === 'REQUESTED' || selectedBooking.status === 'CONFLICT_CHECK'
+                        ? 'Not proposed yet'
+                        : `Rs. ${selectedBooking.lawyerFee.toLocaleString()}`}
+                    </p>
+                  </div>
                 )}
+                <div><p className="text-neutral-500 text-xs">Attorney</p><p className="font-semibold">{selectedBooking.lawyer?.fullName ?? 'Not assigned yet'}</p></div>
+                <div><p className="text-neutral-500 text-xs">Received</p><p className="font-semibold">{new Date(selectedBooking.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Colombo' })}</p></div>
               </div>
               {selectedBooking.meetingLink && (
                 <div className="p-3 bg-blue-50 border border-blue-200">
