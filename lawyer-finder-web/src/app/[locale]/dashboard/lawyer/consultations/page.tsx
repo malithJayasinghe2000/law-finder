@@ -368,8 +368,11 @@ export default function LawyerBookingsPage() {
     { value: 'SCHEDULED', label: 'Upcoming' },
     { value: 'ACCEPTED', label: 'Awaiting payment' },
     { value: 'COMPLETED', label: 'Completed' },
-    { value: 'CANCELLED_BY_CLIENT', label: 'Cancelled by Client' },
-    { value: 'CANCELLED_BY_FIRM', label: 'Cancelled by me' },
+    // Requests the practice declined had no tab of their own.
+    { value: 'DECLINED', label: 'Not accepted' },
+    { value: 'CANCELLED_BY_CLIENT', label: 'Cancelled by client' },
+    // The list is the whole practice's, so not "by me".
+    { value: 'CANCELLED_BY_FIRM', label: 'Cancelled by practice' },
   ];
 
   return (
