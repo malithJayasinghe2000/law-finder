@@ -4,11 +4,11 @@ import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import {
-  LayoutDashboard, ArrowRight, Bell, CalendarDays, MessageCircle, UserPlus, ShieldCheck, FileText, Banknote, Inbox, Building2, PenLine, Globe, KeyRound,
+  LayoutDashboard, ArrowRight, Bell, CalendarDays, MessageCircle, UserPlus, ShieldCheck, FileText, Banknote, Inbox, Building2, PenLine, Globe, KeyRound, Shield,
 } from 'lucide-react';
 import type { BookingStatus } from '@prisma/client';
 import { BOOKING_STATUS_COLORS, BOOKING_STATUS_LABELS } from '@/schemas/consultation.schema';
-import { getFirmMembership, resolveMatterAccess, discloseMatter } from '@/lib/firms/access';
+import { getFirmMembership, resolveMatterAccess, discloseMatter, canManageFirm } from '@/lib/firms/access';
 import { countUnreadConversations } from '@/lib/chat/unread';
 import { isListedFirm, isPublicDirectoryEnabled } from '@/lib/directory';
 import { LICENSING_ENABLED } from '@/lib/licensing';
@@ -117,7 +117,7 @@ export default async function LawyerDashboardPage({ params }: { params: Promise<
   const firmWide = membership.role === 'FIRM_OWNER' || membership.role === 'FIRM_ADMIN' || !profileId;
   const recentWhere = firmWide ? { firmId: membership.firmId } : { firmId: membership.firmId, lawyerId: profileId };
 
-  const [open, recent, unread, publishedPosts, firm, directoryOn, subscription] = await Promise.all([
+  const [open, recent, unread, publishedPosts, firm, directoryOn, subscription, dataRequests] = await Promise.all([
     prisma.booking.findMany({
       where: { firmId: membership.firmId, status: { in: FIRM_TODO_STATUSES } },
       orderBy: { createdAt: 'asc' },
@@ -151,6 +151,20 @@ export default async function LawyerDashboardPage({ params }: { params: Promise<
           select: { status: true, endDate: true, plan: { select: { name: true } } },
         })
       : null,
+    // Data-protection requests sent to this practice that it has not answered.
+    // They carry a legal deadline, and nothing else told the practice they had
+    // arrived. Only the principal and practice manager may answer them.
+    canManageFirm(membership)
+      ? prisma.dataSubjectRequest.findMany({
+          where: {
+            referredFirmIds: { has: membership.firmId },
+            status: 'AWAITING_FIRM',
+            firmResponses: { none: { firmId: membership.firmId } },
+          },
+          orderBy: { dueBy: 'asc' },
+          select: { dueBy: true },
+        })
+      : [],
   ]);
 
   const listing = firm ? listingLine(firm, directoryOn, locale) : null;
@@ -187,7 +201,7 @@ export default async function LawyerDashboardPage({ params }: { params: Promise<
     }
   }
 
-  const attentionCount = todos.length + (unread > 0 ? 1 : 0);
+  const attentionCount = todos.length + (unread > 0 ? 1 : 0) + (dataRequests.length > 0 ? 1 : 0);
 
   return (
     <div className="w-full space-y-6 sm:space-y-8">
@@ -230,6 +244,23 @@ export default async function LawyerDashboardPage({ params }: { params: Promise<
                 <Link href={queueHref} className={ACTION_LINK}>{t.action}</Link>
               </li>
             ))}
+            {dataRequests.length > 0 && (
+              <li className="py-3 flex flex-col sm:flex-row sm:items-center gap-3 justify-between">
+                <div className="flex items-start gap-3 min-w-0">
+                  <Shield className="w-4 h-4 mt-0.5 shrink-0 text-[#8c6d3f]" />
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-neutral-900">
+                      {dataRequests.length === 1 ? '1 data request is' : `${dataRequests.length} data requests are`} waiting for your answer
+                    </p>
+                    <p className="text-xs text-neutral-500">
+                      {dataRequests[0].dueBy < new Date() ? 'Overdue since ' : 'Due '}
+                      {formatDay(dataRequests[0].dueBy)}
+                    </p>
+                  </div>
+                </div>
+                <Link href={`/${locale}/dashboard/lawyer/firm/requests`} className={ACTION_LINK}>Answer</Link>
+              </li>
+            )}
             {unread > 0 && (
               <li className="py-3 flex flex-col sm:flex-row sm:items-center gap-3 justify-between">
                 <div className="flex items-start gap-3 min-w-0">
