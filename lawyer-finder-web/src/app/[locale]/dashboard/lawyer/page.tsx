@@ -11,6 +11,7 @@ import { BOOKING_STATUS_COLORS, BOOKING_STATUS_LABELS } from '@/schemas/consulta
 import { getFirmMembership, resolveMatterAccess, discloseMatter } from '@/lib/firms/access';
 import { countUnreadConversations } from '@/lib/chat/unread';
 import { isListedFirm, isPublicDirectoryEnabled } from '@/lib/directory';
+import { LICENSING_ENABLED } from '@/lib/licensing';
 
 /**
  * The firm-side home: what needs this person, and the practice's latest requests.
@@ -143,11 +144,13 @@ export default async function LawyerDashboardPage({ params }: { params: Promise<
       select: { slug: true, isActive: true, isRegisteredPractice: true, verificationStatus: true },
     }),
     isPublicDirectoryEnabled(),
-    prisma.subscription.findFirst({
-      where: { firmId: membership.firmId },
-      orderBy: { createdAt: 'desc' },
-      select: { status: true, endDate: true, plan: { select: { name: true } } },
-    }),
+    LICENSING_ENABLED
+      ? prisma.subscription.findFirst({
+          where: { firmId: membership.firmId },
+          orderBy: { createdAt: 'desc' },
+          select: { status: true, endDate: true, plan: { select: { name: true } } },
+        })
+      : null,
   ]);
 
   const listing = firm ? listingLine(firm, directoryOn, locale) : null;
@@ -306,20 +309,23 @@ export default async function LawyerDashboardPage({ params }: { params: Promise<
               </Link>
             </li>
           )}
-          <li className="py-3 flex flex-col sm:flex-row sm:items-center gap-2 justify-between">
-            <div className="flex items-start gap-3 min-w-0">
-              <KeyRound className="w-4 h-4 mt-0.5 shrink-0 text-neutral-500" />
-              <p className="text-sm text-neutral-700">
-                <span className="font-semibold text-neutral-900">Licence:</span> {licenceLine(subscription)}
-              </p>
-            </div>
-            {/* Only the principal may buy or change the firm's licence. */}
-            {membership.role === 'FIRM_OWNER' && (
-              <Link href={`/${locale}/pricing`} className="text-xs font-semibold text-neutral-600 hover:text-neutral-900 flex items-center gap-1 shrink-0 pl-7 sm:pl-0">
-                Plans <ArrowRight className="w-3 h-3" />
-              </Link>
-            )}
-          </li>
+          {/* Hidden for launch — src/lib/licensing.ts. */}
+          {LICENSING_ENABLED && (
+            <li className="py-3 flex flex-col sm:flex-row sm:items-center gap-2 justify-between">
+              <div className="flex items-start gap-3 min-w-0">
+                <KeyRound className="w-4 h-4 mt-0.5 shrink-0 text-neutral-500" />
+                <p className="text-sm text-neutral-700">
+                  <span className="font-semibold text-neutral-900">Licence:</span> {licenceLine(subscription)}
+                </p>
+              </div>
+              {/* Only the principal may buy or change the firm's licence. */}
+              {membership.role === 'FIRM_OWNER' && (
+                <Link href={`/${locale}/pricing`} className="text-xs font-semibold text-neutral-600 hover:text-neutral-900 flex items-center gap-1 shrink-0 pl-7 sm:pl-0">
+                  Plans <ArrowRight className="w-3 h-3" />
+                </Link>
+              )}
+            </li>
+          )}
           <li className="py-3 flex flex-col sm:flex-row sm:items-center gap-2 justify-between">
             <div className="flex items-start gap-3 min-w-0">
               <PenLine className="w-4 h-4 mt-0.5 shrink-0 text-neutral-500" />
