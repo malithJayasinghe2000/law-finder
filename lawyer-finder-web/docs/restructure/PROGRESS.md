@@ -2841,3 +2841,21 @@ and not for the client; no overflow at 412px. Test posts, comments and votes del
 
 **Seen, not changed:** the site footer still lists "Civil Litigation, Criminal Defense…"
 as *Services* and says "connecting citizens with verified legal professionals" — §E item 2.
+
+### 2026-10-14 — Client profile settings: three small fixes
+
+Kept as is (picture, name, read-only email, password) — no new fields; a practice asks
+for what else it needs. Fixed:
+
+- **Password boxes looked filled** — the "••••••••" placeholders are gone.
+- **Accounts without a password** (Google sign-up) saw "Change Password", which always
+  failed with "Password not set". `GET /api/profile` now returns `hasPassword` (a boolean;
+  the hash never leaves the server) and the page says "You sign in with Google" instead.
+- **Names:** a hint under Full Name for clients — "Practices see this name on your
+  requests". On the public forum a person with no name now shows as "Community member",
+  not "Anonymous" (which is a choice they did not make) and never their email.
+
+Verified in Chrome at 412px as citizen@ (hint, three empty password boxes, `hasPassword`
+true) and as a temporary account whose password was removed (no password boxes, the
+Google note, `hasPassword` false; no `passwordHash` in either response). Temporary account
+deleted. The forum fallback is a text change and was not separately driven.

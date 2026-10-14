@@ -84,7 +84,7 @@ export default function PostCard({ post, locale, onVote, showCommunity = true }:
             <span className="flex items-center gap-1">
               Posted by{' '}
               <span className="font-semibold text-neutral-700">
-                {post.author.profile?.fullName || post.author.fullName || 'Unknown User'}
+                {post.author.profile?.fullName || post.author.fullName || 'Community member'}
               </span>
               {post.author.profile?.isVerified && (
                 <ShieldCheck className="h-3.5 w-3.5 text-[#bfa37a]" />

@@ -76,7 +76,17 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    return NextResponse.json({ user, lawyerProfile, subscription }, { status: 200 });
+    // Whether the account has a password at all — someone who signed up with
+    // Google has none, and cannot "change" it. Only the yes/no leaves the server.
+    const credentials = await prisma.user.findUnique({
+      where: { id: session.userId },
+      select: { passwordHash: true },
+    });
+
+    return NextResponse.json(
+      { user: { ...user, hasPassword: Boolean(credentials?.passwordHash) }, lawyerProfile, subscription },
+      { status: 200 }
+    );
   } catch (error) {
     console.error('[PROFILE_GET_ERROR]', error);
     return NextResponse.json({ error: 'Internal server error.' }, { status: 500 });

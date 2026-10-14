@@ -190,7 +190,7 @@ function SingleComment({
           )}
         </div>
         <span className="font-semibold text-foreground">
-          {comment.author.profile?.fullName || comment.author.fullName || 'Anonymous'}
+          {comment.author.profile?.fullName || comment.author.fullName || 'Community member'}
         </span>
         {comment.author.profile?.isVerified && (
           <ShieldCheck className="h-3.5 w-3.5 text-primary" />

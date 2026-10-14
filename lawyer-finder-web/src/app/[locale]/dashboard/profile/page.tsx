@@ -35,6 +35,8 @@ export default function ProfileSettingsPage() {
 
   // Lawyer fields
   const [isLawyer, setIsLawyer] = useState(false);
+  // False for an account created with Google sign-in: it has no password to change.
+  const [hasPassword, setHasPassword] = useState(true);
   const [lawyerData, setLawyerData] = useState<any>(null);
   const [lFullName, setLFullName] = useState('');
   const [bio, setBio] = useState('');
@@ -74,6 +76,7 @@ export default function ProfileSettingsPage() {
       setEmail(u.email);
       setProfileImageUrl(u.profileImageUrl || '');
       setRole(u.role);
+      setHasPassword(u.hasPassword !== false);
 
       if (u.role === 'LAWYER' && data.lawyerProfile) {
         setIsLawyer(true);
@@ -283,6 +286,9 @@ export default function ProfileSettingsPage() {
                 onChange={(e) => setFullName(e.target.value)}
                 className="w-full bg-white border border-neutral-200 text-[#0a0a0a] px-4 py-3 outline-none focus:border-[#bfa37a] focus:bg-[#faf8f6]/30 transition-all text-sm rounded-none"
               />
+              {!isLawyer && (
+                <p className="text-xs text-neutral-500">Practices see this name on your requests.</p>
+              )}
             </div>
             <div className="space-y-2">
               <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-widest">Email</label>
@@ -299,6 +305,9 @@ export default function ProfileSettingsPage() {
         {/* Password Change */}
         <div className="mb-10 pb-10 border-b border-neutral-200">
           <h3 className="text-xs font-bold text-neutral-400 uppercase tracking-widest mb-6">Change Password</h3>
+          {!hasPassword ? (
+            <p className="text-sm text-neutral-600">You sign in with Google, so there is no password to change here.</p>
+          ) : (
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
             <div className="space-y-2">
               <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-widest">Current Password</label>
@@ -306,7 +315,6 @@ export default function ProfileSettingsPage() {
                 type="password"
                 value={currentPassword}
                 onChange={(e) => setCurrentPassword(e.target.value)}
-                placeholder="••••••••"
                 className="w-full bg-white border border-neutral-200 text-[#0a0a0a] px-4 py-3 outline-none focus:border-[#bfa37a] focus:bg-[#faf8f6]/30 transition-all text-sm rounded-none"
               />
             </div>
@@ -316,7 +324,6 @@ export default function ProfileSettingsPage() {
                 type="password"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="••••••••"
                 className="w-full bg-white border border-neutral-200 text-[#0a0a0a] px-4 py-3 outline-none focus:border-[#bfa37a] focus:bg-[#faf8f6]/30 transition-all text-sm rounded-none"
               />
             </div>
@@ -326,11 +333,11 @@ export default function ProfileSettingsPage() {
                 type="password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="••••••••"
                 className="w-full bg-white border border-neutral-200 text-[#0a0a0a] px-4 py-3 outline-none focus:border-[#bfa37a] focus:bg-[#faf8f6]/30 transition-all text-sm rounded-none"
               />
             </div>
           </div>
+          )}
         </div>
 
         {/* Lawyer-Specific Fields */}

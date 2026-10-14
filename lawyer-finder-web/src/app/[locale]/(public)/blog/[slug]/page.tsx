@@ -176,7 +176,7 @@ export default async function PostDetailPage({
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="font-serif font-bold text-neutral-900">{post.author.profile?.fullName || post.author.fullName || 'Unknown User'}</span>
+                  <span className="font-serif font-bold text-neutral-900">{post.author.profile?.fullName || post.author.fullName || 'Community member'}</span>
                   {post.author.profile?.isVerified && (
                     <ShieldCheck className="h-4 w-4 text-[#bfa37a]" />
                   )}
