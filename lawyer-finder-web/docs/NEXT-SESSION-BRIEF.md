@@ -73,6 +73,42 @@ Kavindu), BK-2026-0004 (declined), BK-2026-0005 — leave them alone.
 5. The assigned attorney can **Message client** on a live request; nobody on the firm side
    can open a thread with a client who has not sent their practice a request.
 
+## B2. What the 2026-10-13/14 session changed — read before touching the lawyer side
+
+The lawyer dashboard review builds on these. Each is its own commit (oldest first); the
+reasoning and how it was verified is in PROGRESS.md under the same date.
+
+**Booking and the firm queue (`dashboard/lawyer/consultations`)**
+| Commit | Change | Where |
+|---|---|---|
+| `e27f279` | Requests go to the practice only; attorney-first booking off in UI **and** API | `ATTORNEY_BOOKING_ENABLED`, `src/lib/directoryLinks.ts`; `api/consultations/bookings` |
+| `2c64973` | **New request** button: practice opens a request for its own client; client accepts via emailed link | `src/lib/firms/clientIntake.ts`, `api/firms/me/client-requests`, `api/client-requests/respond`, pages `consultations/new` and `/client-request`; table `ClientIntakeInvitation` |
+| `d57240c` | Admin "create booking" off | `src/lib/consultations/adminBooking.ts` |
+| `6f75830` | Practice manager (account CLIENT, role FIRM_ADMIN) now sees the queue (`scope=firm`) and can assign | `api/consultations/bookings`, `.../[id]/assign` |
+| `fc669fe` | Review and Quote buttons only for the **assigned** attorney; unassigned shows "Assign an attorney first" | queue page, `access.basis === 'ASSIGNED_ATTORNEY'` |
+| `ad8ff03` | Queue cards: details on top, actions in their own row (phone layout) | queue page |
+| `e26c26e` | Hold keeps the request open ("On hold"); client emailed when declined (never why) | `api/.../conflict-check`, `EmailService.sendRequestDeclined`, list returns `conflictOutcome` (firm side only) |
+| `9429df3` | Conflict check → **Review request**: Accept (tick required) / Decline (note required) / Hold | `ConflictCheckDialog.tsx`, `RecordConflictCheckSchema` |
+| `03e82e0` | **Message client** button; firm side can only open a thread about a live request sent to them | `api/chat/conversations`, `CHAT_CLOSED_STATUSES` |
+| `b3b58b2` | "Upcoming" tab fixed on **both** client and firm pages (`CONFIRMED` → `SCHEDULED`) | both consultations pages |
+
+**Shared pieces you will meet**
+- `src/lib/consultations/bookingNumber.ts` — matter numbering (used by both create paths).
+- `src/lib/chat/unread.ts` — unread count (badge API + client home).
+- `src/lib/safeRedirect.ts` — login/sign-up follow `?redirect=` (`6c8701e`); fixed the firm
+  invitation flow too.
+- Chat (`ChatInterface.tsx`, `b4830f0`): attorneys shown by profile name; phones show list
+  *or* conversation with a back arrow — applies to the lawyer Messages page as well.
+- `npm run invitations:expire` is part of `jobs:daily` (expires firm and client invitations,
+  wipes pending request text).
+
+**Client side (finished, for reference):** home page rebuilt (`17a7d4a`), consultations
+(`b3b58b2`), Messages in the menu (`57afa93`), community (`7a586ca`), profile
+(`c640a5e`), Your data (`1de1c20`).
+
+**Bug fixed on the admin side in passing:** All Consultations crashed on any request with
+no date (`06dc7d8`).
+
 ## C. Law research (primary texts) — and how it was applied
 
 - **Rule 45**, Supreme Court (Conduct of and Etiquette for Attorneys-at-Law) Rules 1988:
