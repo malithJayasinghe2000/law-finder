@@ -175,6 +175,8 @@ no date (`06dc7d8`).
    Payment History) · Community Posts · Profile Settings. Things already suspected:
    - **Set Availability / Pricing** are per-attorney slot and price tools from the old
      attorney-booking flow; with practice-only requests they may be unused — check.
+     Pricing's **bank fields** are no longer used by quotes (they pre-fill from the firm's
+     Bank and tax details since `1744d4d`) — remove them there.
    - Several firm-side routes still gate on `role === 'LAWYER'` instead of membership:
      `/api/chat/conversations` + `unread-count`, `/api/dashboard/sidebar-counts`,
      `/api/consultations/refunds`, all `/api/subscriptions/*` (a practice manager cannot

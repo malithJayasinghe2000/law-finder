@@ -2961,3 +2961,13 @@ the only principal refused; manager removed, then routed to the client dashboard
 temporary office added, edited (pre-filled), retired (row deleted). `check:firm` 15/15,
 `check:privilege` 42/42. **Not driven:** demoting an attorney who holds open matters (needs
 a second verified attorney in one firm). Temporary account deleted by id.
+
+**Follow-up — bank details (owner asked what "Client account" is for):** quotes took their
+payment details from each attorney's own Pricing page while fee notes used the firm's, so
+one matter could show two accounts and a client could pay an attorney personally. Quotes now
+pre-fill from the firm's details, which attorneys can now read (paralegals still cannot)
+(`1744d4d`); the section is renamed "Bank and tax details" — "client account" means a trust
+account to a lawyer (`8654623`). Verified: a new quote for BK-2026-0003 opens with the firm's
+Commercial Bank account (it was empty before — Kavindu never filled in Pricing); a
+temporary paralegal gets no bank details or TIN from `/api/firms/me`. **Left for the Pricing
+review:** remove the bank fields from Consultations → Pricing.
