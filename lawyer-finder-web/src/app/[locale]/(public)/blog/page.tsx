@@ -6,6 +6,7 @@ import { Users, FileText, TrendingUp, PenSquare, Search, ArrowRight, Scale, Book
 import Link from 'next/link';
 import PostFeed from '@/components/community/PostFeed';
 import { SidebarAd, AdBanner, StickyBottomAd } from '@/components/ads/AdComponents';
+import { CommunityDisclaimer } from '@/components/community/CommunityNotice';
 
 export const metadata = {
   title: 'Legal Community Hub — Sri Lanka',
@@ -97,6 +98,7 @@ export default async function CommunityHubPage({
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-10">
           {/* Main Feed */}
           <div>
+            <CommunityDisclaimer className="mb-4" />
             <PostFeed locale={locale} search={search} />
           </div>
 

@@ -2806,3 +2806,38 @@ Verified with a temporary example.com client holding a submitted, a quoted and a
 accepted request: every tab's API call 200, Payment due shows the accepted one, the
 proposal dialog names Perera & Associates, no overflow at 412px. Test client, requests,
 quotes, reviews and engagement letter deleted.
+
+### 2026-10-14 — Community: open to all, but the platform no longer promotes attorneys through it
+
+Owner's decision after discussion: the community stays open to everyone, attorneys
+included — an attorney answers for their own conduct. The research (BASL cautionary note
+June 2021; Rules 39 and 49) puts the risk of *advising through a publicised platform* on
+the attorney, and the Intermeddlers Ordinance needs payment for procuring, which we never
+take. What the **platform** answers for was fixed:
+
+- **No ordering by votes.** Posts ("Hot"/"Top", the default) and comments ("Best", the
+  default) were sorted by score, so the most up-voted attorney led the page. Posts are now
+  newest first and comments in conversation order; the sort tabs are gone; votes are still
+  counted and shown. (The comments API sorted the tree in a second place — the `orderBy`
+  it built was never used; both are fixed.)
+- **A post is not a lead.** An attorney's post showed their practice areas and district,
+  linked their photo to their profile, offered "Contact Author", and said "connect with
+  verified Sri Lankan legal professionals for expert advice". All removed; the name and the
+  "Lawyer" label stay. The footer now says a discussion is general and points to the
+  neutral directory (while it is on).
+- **Notice on every community page:** general discussion, not legal advice, no
+  lawyer-client relationship, don't post identifying details.
+- **Reminder to attorneys** above the post editor (create/edit), the comment box and the
+  reply box: general information only, no advice on someone's own case, no promotion —
+  BASL note, Rules 39 and 49. It informs; it does not block.
+
+Verified with test posts and comments (an older attorney post with 3 votes, a newer client
+post with none; a client comment, then an attorney comment with 2 votes): the API returns
+newest-first for `sort=hot|top|none` and comments in order; `/blog` shows the notice and
+no sort tabs; the post page has no Contact Author, no links to attorney pages and no
+"expert advice"; the reminder appears for the attorney on the post page and create page
+and not for the client; no overflow at 412px. Test posts, comments and votes deleted and
+`Community.postCount` restored.
+
+**Seen, not changed:** the site footer still lists "Civil Litigation, Criminal Defense…"
+as *Services* and says "connecting citizens with verified legal professionals" — §E item 2.

@@ -23,20 +23,6 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: 'A valid postId is required.' }, { status: 400 });
     }
 
-    let orderBy: Record<string, string>;
-    switch (sort) {
-      case 'new':
-        orderBy = { createdAt: 'desc' };
-        break;
-      case 'old':
-        orderBy = { createdAt: 'asc' };
-        break;
-      case 'best':
-      default:
-        orderBy = { score: 'desc' };
-        break;
-    }
-
     // Fetch all comments for the post to build a complete N-depth tree
     const allComments = await prisma.comment.findMany({
       where: { postId }, // Fetch all, including deleted, to maintain thread hierarchy
@@ -114,8 +100,10 @@ export async function GET(req: Request) {
     const sortNodes = (nodes: any[]) => {
       nodes.sort((a, b) => {
         if (sort === 'new') return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-        if (sort === 'old') return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
-        return b.score - a.score; // best (default)
+        // 'best' (the default) used to order by votes, putting the most
+        // up-voted answer — often an attorney's — first. That is the platform
+        // ranking attorneys (rules 3 and 4), so it now means conversation order.
+        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
       });
       nodes.forEach(n => sortNodes(n.replies));
     };

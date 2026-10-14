@@ -12,6 +12,7 @@ import ReportDialog from '@/components/community/ReportDialog';
 import { toast } from 'sonner';
 import Link from 'next/link';
 import { SidebarAd } from '@/components/ads/AdComponents';
+import { LawyerWritingReminder } from '@/components/community/CommunityNotice';
 
 interface PostData {
   id: string;
@@ -344,6 +345,7 @@ export default function PostInteractions({
         {currentUserId ? (
           !post.isLocked ? (
             <div className="mb-6">
+              <LawyerWritingReminder role={currentUserRole} className="mb-2" />
               <textarea
                 value={commentText}
                 onChange={(e) => setCommentText(e.target.value)}

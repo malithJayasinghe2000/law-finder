@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ShieldCheck, Clock, Reply, MoreHorizontal, Flag, Trash2, Edit } from 'lucide-react';
 import VoteButtons from './VoteButtons';
+import { LawyerWritingReminder } from '@/components/community/CommunityNotice';
 
 interface Author {
   id: string;
@@ -292,6 +293,7 @@ function SingleComment({
       {/* Reply composer */}
       {showReply && (
         <div className="mt-3 ml-2">
+          <LawyerWritingReminder role={currentUserRole ?? null} className="mb-2" />
           <textarea
             value={replyContent}
             onChange={(e) => setReplyContent(e.target.value)}
