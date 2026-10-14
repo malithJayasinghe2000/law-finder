@@ -44,7 +44,7 @@ interface FirmMember {
     fullName: string | null;
     email: string;
     profileImageUrl: string | null;
-    profile: { id: string; baslNumber: string; isVerified: boolean } | null;
+    profile: { id: string; fullName: string; baslNumber: string; isVerified: boolean } | null;
   };
 }
 
@@ -114,8 +114,13 @@ const ROLE_ACCESS_NOTE: Record<string, string> = {
   PARALEGAL: 'Sees that matters exist, never what they are about.',
 };
 
+/**
+ * An attorney by their profile name first. The account name can be wrong — the
+ * seeded principal's account name is the literal string "None" — and the
+ * profile name is the one their BASL registration was checked against.
+ */
 function memberName(m: FirmMember): string {
-  return m.user.fullName || m.user.email;
+  return m.user.profile?.fullName || m.user.fullName || m.user.email;
 }
 
 const VERIFICATION_STYLE: Record<string, string> = {
@@ -591,7 +596,7 @@ export default function FirmPage() {
               >
                 <div className="min-w-0">
                   <p className="truncate text-sm font-semibold text-neutral-900">
-                    {m.user.fullName || m.user.email}
+                    {memberName(m)}
                     {m.user.profile?.isVerified && (
                       <ShieldCheck className="ml-1.5 inline h-3.5 w-3.5 text-neutral-400" />
                     )}

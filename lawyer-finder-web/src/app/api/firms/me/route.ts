@@ -62,7 +62,7 @@ export async function GET() {
                 email: true,
                 profileImageUrl: true,
                 profile: {
-                  select: { id: true, baslNumber: true, isVerified: true },
+                  select: { id: true, fullName: true, baslNumber: true, isVerified: true },
                 },
               },
             },
