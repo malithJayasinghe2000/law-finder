@@ -3025,7 +3025,7 @@ request). Changed, nothing about who may see or do what:
   (`3d8b55f`).
 - Title **"Requests"**, not "Consultation Bookings" (`ea2e36b`); **"Not accepted"** tab and
   "Cancelled by practice" (`eec24f3`); phone: smaller title, labelled New request button,
-  calendar behind Show calendar (`df…` — see git log).
+  calendar behind Show calendar (`c19fbe7`).
 
 Verified at 412px and 1440px as Kavindu: every tab's API call 200 and lists the right
 request (Not accepted → BK-2026-0004), Details for BK-2026-0003, calendar toggle, no

@@ -175,7 +175,8 @@ no date (`06dc7d8`).
    lines; works for a practice manager; `Article` removed entirely). **My Firm → Practice
    done** (invite instead of add, change role / remove, offices edit / retire — PROGRESS.md).
    **Data Requests done** (answers fit the request, no "Erased", practice told by dashboard
-   and email). **Next: Consultations → Bookings.** Lawyer menu: Dashboard · My Firm (Practice, Data Requests) · Consultations (Bookings, Set
+   and email). **Bookings done** (practice's own status labels, Details, Not accepted tab,
+   phone). **Next: Consultations → Set Availability.** Lawyer menu: Dashboard · My Firm (Practice, Data Requests) · Consultations (Bookings, Set
    Availability, Pricing, Consultation Income, Refunds) · Messages · Payments (Invoices,
    Payment History) · Community Posts · Profile Settings. Things already suspected:
    - **Set Availability / Pricing** are per-attorney slot and price tools from the old
