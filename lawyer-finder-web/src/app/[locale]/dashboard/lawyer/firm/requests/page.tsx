@@ -330,7 +330,15 @@ export default function FirmSubjectRequestsPage() {
                     </h3>
                     <p className="mt-1 text-sm text-neutral-600">{TYPE_LABEL[r.type] ?? r.type}</p>
                   </div>
-                  <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-emerald-800">
+                  {/* Amber when the firm kept or held back anything: green read as
+                      "done" on a refusal. */}
+                  <span
+                    className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider ${
+                      r.ourResponse && ['REFUSED_RETAINED', 'PARTIAL'].includes(r.ourResponse.outcome)
+                        ? 'bg-amber-100 text-amber-900'
+                        : 'bg-emerald-100 text-emerald-800'
+                    }`}
+                  >
                     {r.ourResponse && outcomeLabel(r.type, r.ourResponse.outcome)}
                   </span>
                 </div>
