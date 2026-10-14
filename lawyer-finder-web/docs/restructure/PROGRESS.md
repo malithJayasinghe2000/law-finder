@@ -2859,3 +2859,21 @@ Verified in Chrome at 412px as citizen@ (hint, three empty password boxes, `hasP
 true) and as a temporary account whose password was removed (no password boxes, the
 Google note, `hasPassword` false; no `passwordHash` in either response). Temporary account
 deleted. The forum fallback is a text change and was not separately driven.
+
+### 2026-10-14 — "Your data": jump links and unambiguous consent state
+
+Kept entirely — every section is a PDPA right (access, consent and withdrawal,
+correction, portability, erasure). Two fixes:
+
+- **Jump links** at the top (What we hold · Your choices · Correct · Download · Delete
+  account); the page is roughly eight phone screens and deletion was at the bottom.
+- **Consent state stated:** each optional use shows "Agreed" or "Not agreed"; the button
+  is only the action. Before, "✓ Agree" on a consent that was *not* given read as already
+  agreed.
+
+Verified in Chrome at 412px as citizen@: three "Not agreed" labels, plain "Agree"
+buttons, the "Delete account" link lands on that section, no overflow. Consent buttons
+were not clicked — each click writes a consent record, which is evidence and is kept.
+
+**Client dashboard review complete:** Dashboard, My Consultations, Messages, Community,
+Profile Settings, Your Data.

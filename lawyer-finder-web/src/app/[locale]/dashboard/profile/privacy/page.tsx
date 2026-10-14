@@ -35,7 +35,7 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import {
-  Shield, Download, Trash2, Loader2, AlertTriangle, Check, X,
+  Shield, Download, Trash2, Loader2, AlertTriangle, X,
   FileText, Lock, Building2, Save, ExternalLink,
 } from 'lucide-react';
 
@@ -310,10 +310,30 @@ export default function YourDataPage() {
           </Link>
           {currentNoticeVersion && <> (version {currentNoticeVersion})</>}.
         </p>
+
+        {/* The page runs to many screens on a phone; this gets a person to the
+            right part — deletion especially — without scrolling past everything. */}
+        <nav aria-label="On this page" className="mt-5 flex flex-wrap gap-2 text-xs">
+          {[
+            ['#hold', 'What we hold'],
+            ['#choices', 'Your choices'],
+            ['#correct', 'Correct'],
+            ['#download', 'Download'],
+            ['#delete', 'Delete account'],
+          ].map(([href, label]) => (
+            <a
+              key={href}
+              href={href}
+              className="rounded-full border border-neutral-300 bg-white px-3 py-1.5 font-semibold text-neutral-700 hover:bg-neutral-50"
+            >
+              {label}
+            </a>
+          ))}
+        </nav>
       </header>
 
       {/* ─── What we hold ─────────────────────────────────────────────── */}
-      <section className="mt-10">
+      <section id="hold" className="scroll-mt-20 mt-10">
         <h2 className="font-serif text-xl tracking-tight text-neutral-900">What we hold</h2>
         <p className="mt-2 text-sm leading-relaxed text-neutral-600">
           Categories and how many, not the contents. To read the contents, download your data
@@ -389,7 +409,7 @@ export default function YourDataPage() {
       </section>
 
       {/* ─── Consents ─────────────────────────────────────────────────── */}
-      <section className="mt-12">
+      <section id="choices" className="scroll-mt-20 mt-12">
         <h2 className="font-serif text-xl tracking-tight text-neutral-900">
           The three things we ask consent for
         </h2>
@@ -417,7 +437,18 @@ export default function YourDataPage() {
             <div key={p.purpose} className="rounded-2xl border border-neutral-200 bg-white p-5">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="min-w-0 flex-1">
-                  <h3 className="text-sm font-bold text-neutral-900">{p.label}</h3>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="text-sm font-bold text-neutral-900">{p.label}</h3>
+                    {/* The state, stated. The button is the action, so on its own a
+                        tick next to "Agree" read as "already agreed". */}
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
+                        p.granted ? 'bg-emerald-50 text-emerald-700' : 'bg-neutral-100 text-neutral-500'
+                      }`}
+                    >
+                      {p.granted ? 'Agreed' : 'Not agreed'}
+                    </span>
+                  </div>
                   <p className="mt-1.5 text-sm leading-relaxed text-neutral-600">
                     {p.description}
                   </p>
@@ -471,9 +502,7 @@ export default function YourDataPage() {
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : p.granted ? (
                     <X className="h-4 w-4" />
-                  ) : (
-                    <Check className="h-4 w-4" />
-                  )}
+                  ) : null}
                   {p.granted ? 'Withdraw' : 'Agree'}
                 </button>
               </div>
@@ -483,7 +512,7 @@ export default function YourDataPage() {
       </section>
 
       {/* ─── Correct your details ─────────────────────────────────────── */}
-      <section className="mt-12">
+      <section id="correct" className="scroll-mt-20 mt-12">
         <h2 className="font-serif text-xl tracking-tight text-neutral-900">Correct your details</h2>
         <p className="mt-2 max-w-2xl text-sm leading-relaxed text-neutral-600">
           You can correct what you told us about yourself. You cannot edit a matter file — it is
@@ -522,7 +551,7 @@ export default function YourDataPage() {
       </section>
 
       {/* ─── Download ─────────────────────────────────────────────────── */}
-      <section className="mt-12">
+      <section id="download" className="scroll-mt-20 mt-12">
         <h2 className="font-serif text-xl tracking-tight text-neutral-900">Download your data</h2>
         <p className="mt-2 max-w-2xl text-sm leading-relaxed text-neutral-600">
           A file containing your account, your consents, your conversations with the legal
@@ -564,7 +593,7 @@ export default function YourDataPage() {
 
       {/* ─── Requests already made ────────────────────────────────────── */}
       {requests.length > 0 && (
-        <section className="mt-12">
+        <section id="requests" className="scroll-mt-20 mt-12">
           <h2 className="font-serif text-xl tracking-tight text-neutral-900">
             Requests you have made
           </h2>
@@ -621,7 +650,7 @@ export default function YourDataPage() {
       )}
 
       {/* ─── Erasure ──────────────────────────────────────────────────── */}
-      <section className="mt-12 mb-16">
+      <section id="delete" className="scroll-mt-20 mt-12 mb-16">
         <h2 className="font-serif text-xl tracking-tight text-neutral-900">Delete your account</h2>
 
         <div className="mt-5 rounded-2xl border border-red-200 bg-red-50/40 p-5">
