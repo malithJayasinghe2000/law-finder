@@ -118,6 +118,7 @@ DPO designation, which are documents rather than code.
 | 2026-10-13 | The admin **"create booking" tool is off** (`ADMIN_CREATE_BOOKING_ENABLED = false`) | Platform staff chose the attorney (rule 4), typed in the client's legal problem (rule 5), and sent the matter straight to SCHEDULED past the conflict check. Replaced first by the practice-side New request, then switched off — a switch, not a deletion |
 | 2026-10-13 | The conflict check is a simple **Review request: Accept / Decline / Hold + a private note**; the "parties screened" list is gone from the screen | Owner's decision. Requests are often not disputes (wills, deeds, advice), and the screening duty is the attorney's own. Two safeguards kept and enforced on the server: Accept requires the attorney to tick "I have checked that my practice does not act, and has not acted, for the other side" (that tick is now the record, in place of the names); Decline requires a private reason and never reaches the client. The names column stays in the schema, optional, so old records still read |
 | 2026-10-13 | A firm-side attorney may open a chat with a client **only about a live request that client sent to their practice, as the attorney assigned to it** | The client made contact first, so it is not soliciting. Before this, `POST /api/chat/conversations` let any LAWYER open a thread with any CLIENT on the platform — a stranger who never contacted them, which is touting. Closed requests (declined, cancelled, quote declined or expired) cannot get a new thread from the firm; an existing one stays readable |
+| 2026-10-14 | **Licensing and pricing hidden for launch** (`LICENSING_ENABLED = false`); while off there is **no seat limit** | Owner's decision. With no plans on sale, the seat limit left every new practice unable to invite a colleague. Free use takes no share of any fee and seats count people, never clients, so neither rule 1 nor 3 is touched. A switch: limits and the licence line return with it |
 
 ## Session log
 
@@ -2971,3 +2972,12 @@ account to a lawyer (`8654623`). Verified: a new quote for BK-2026-0003 opens wi
 Commercial Bank account (it was empty before — Kavindu never filled in Pricing); a
 temporary paralegal gets no bank details or TIN from `/api/firms/me`. **Left for the Pricing
 review:** remove the bank fields from Consultations → Pricing.
+
+### 2026-10-14 — Licensing hidden for launch; no seat limit while it is
+
+Owner: licences and pricing are hidden at launch. `LICENSING_ENABLED = false` in
+`src/lib/licensing.ts` hides the dashboard licence line (`a4bde95`). The only thing that
+*enforced* a licence was the seat limit — sending, accepting, or registering with
+invitations — which refused any practice without a licence. Owner chose no limit while
+licensing is off (`d6e014d`). Checked with a temporary unlicensed practice (allowed,
+deleted); `check:billing` 21/21. Still to wire: pricing page, Payments menu.

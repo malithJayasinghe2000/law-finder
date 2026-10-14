@@ -163,6 +163,10 @@ no date (`06dc7d8`).
     pre-engagement Chat button on attorney pages.
 13. **Community stays open to everyone**, with the platform-side fixes in §C.
 14. **Client profile: no new fields** (no phone/address) — collect only what is needed.
+15. **Licensing and pricing hidden for launch** — `LICENSING_ENABLED = false`
+    (`src/lib/licensing.ts`). While off: no licence line on the lawyer dashboard and **no
+    seat limit** (owner chose free, unlimited colleagues over new practices being stuck at
+    one person). Still to wire: the pricing page and the Payments menu, at their review.
 
 ## E. Next up
 
