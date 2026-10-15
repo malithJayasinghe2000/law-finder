@@ -3170,3 +3170,27 @@ Client accounts at 2. Temporary rows deleted by id; all text columns scanned, no
 request is created `IN_PROGRESS` and nothing on staff's side ever shows it; the dashboard
 now counts them but has nowhere to link. Local DB has one ACCESS request overdue since
 27 Sep (awaiting Perera & Associates).
+
+### 2026-10-16 — Verification: reject guarded, approve truthful, who verified is recorded
+
+Tested with temporary applicants (complete, incomplete, already approved); all found by
+running before any change.
+
+- **Reject** (`106d70a`) updated any application by id: an approved one became REJECTED and
+  the attorney was emailed a rejection while staying verified. It also accepted no reason
+  (emailed a blank one). Now 409 unless SUBMITTED; `RejectApplicationSchema` (server and
+  page) requires a reason of 10+ characters. A rejected applicant sees the reason on
+  `/apply` and can apply again.
+- **Approve** (`0e76674`) said "with a practice of one created" (none is, decision 1); the
+  page showed "Failed to approve." for every refusal. Now it shows the reason — incomplete
+  (named by form step) or BASL number already registered.
+- **Email off the request** (`1863159`): approve took 15.1 s on the mail server; now 0.6 s.
+- **Phone** (`dca021d`): Phone/Email and District/Languages overlapped at 412px (a
+  `col-span-2` cell on a one-column grid). Documents shown whole, not cropped.
+- **Who verified** (`25fd279`, additive migration): `LawyerProfile.verifiedById` and
+  `verifiedAt`, set on approval. Null for profiles verified earlier. Not shown anywhere yet.
+
+**For the User Management review:** `api/admin/users` toggles `isVerified` directly — a
+second way to mark someone verified with no application, no BASL check and no record.
+Known, not fixed here: identity documents sit at public Cloudinary URLs (the open
+authenticated file route).
