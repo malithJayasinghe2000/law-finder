@@ -3104,3 +3104,18 @@ Verified at 412 / 1440 as Kavindu (BK-2026-0005 on the thread), citizen (two thr
 apart by number), and a temporary manager (no link; deleted). `check:privilege` 42/42.
 
 **Rule for copy:** never describe the chat as end-to-end encrypted unless it becomes so.
+
+### 2026-10-15 — Payments: licence billing hidden; promotion and inquiry features removed from plans
+
+- **Plans** (`fec19b3`): "Priority Ad Placement support" and two paid-promotion permissions
+  (attorneys cannot place adverts — they gated nothing, but offering paid visibility is rule
+  3). Found while doing it: the Enterprise plan still carried **"Receive client inquiries"**
+  and two other inquiry permissions — the seed dropped them in Phase 7 but no migration ever
+  removed the rows (pay-per-lead, rules 1 and 3). Both removed by data-only migrations.
+- **Hidden behind `LICENSING_ENABLED`** (`648ec3a`): Payments menu, all licence pages and
+  `/pricing` ("Licences are not sold yet"), top-bar Pricing link, subscription line; invoice
+  create / payment submit / renew → 410. Verified: menu and top bar without them, four pages
+  show the notice, three APIs 410. `check:billing` 21/21.
+
+**Lesson, again:** removing something from the seed does not remove it from a database that
+was already seeded. Every removal ships as a migration.

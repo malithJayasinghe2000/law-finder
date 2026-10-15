@@ -166,7 +166,7 @@ no date (`06dc7d8`).
 15. **Licensing and pricing hidden for launch** — `LICENSING_ENABLED = false`
     (`src/lib/licensing.ts`). While off: no licence line on the lawyer dashboard and **no
     seat limit** (owner chose free, unlimited colleagues over new practices being stuck at
-    one person). Still to wire: the pricing page and the Payments menu, at their review.
+    one person). Payments menu, licence pages and `/pricing` are hidden too (2026-10-15).
 16. **The platform sets no refund terms** — a cancelled paid request is owed in full; the
     practice records what it returns, with a reason if less (2026-10-15).
 
@@ -182,8 +182,9 @@ no date (`06dc7d8`).
    **Pricing hidden; its API no longer hands out bank details.** **Consultation Income → Fees**
    (practice-wide, stages counted right). **Refunds done** (no
    platform refund rule; practice records). **Messages done** (no false
-   privacy claims, request number). **Next: Payments → Invoices** (licence invoices — hidden
-   with licensing?). Lawyer menu: Dashboard · My Firm (Practice, Data Requests) · Consultations (Bookings, Set
+   privacy claims, request number). **Payments hidden** with licensing; plans
+   cleaned of promotion and inquiries. **Next: Community Posts, then Profile Settings**, then
+   the lawyer menu itself (labels, "Lawyer Portal" title). Lawyer menu: Dashboard · My Firm (Practice, Data Requests) · Consultations (Bookings, Set
    Availability, Pricing, Consultation Income, Refunds) · Messages · Payments (Invoices,
    Payment History) · Community Posts · Profile Settings. Things already suspected:
    - **Set Availability / Pricing** are per-attorney slot and price tools from the old
