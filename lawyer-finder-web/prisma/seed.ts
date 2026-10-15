@@ -237,10 +237,11 @@ async function main() {
     { name: 'edit_profile', slug: 'edit-profile', category: 'profile', description: 'Edit profile information' },
     { name: 'upload_documents', slug: 'upload-documents', category: 'profile', description: 'Upload identity documents' },
     
-    // Promotion Permissions
-    { name: 'access_paid_promo', slug: 'access-paid-promo', category: 'promotion', description: 'Access paid promotion features' },
-    { name: 'create_promo', slug: 'create-promo', category: 'promotion', description: 'Create promotional campaigns' },
-    
+    // The two "promotion" permissions (paid promotion, promotional campaigns) were
+    // removed on 2026-10-15. They gated nothing — attorneys cannot place adverts —
+    // but listing paid promotion as a feature of a dearer tier offered attorneys
+    // visibility for money on the pricing page (LEGAL-GUARDRAILS.md rule 3).
+
     // Analytics Permissions
     { name: 'view_analytics', slug: 'view-analytics', category: 'analytics', description: 'View analytics and statistics' },
     { name: 'export_data', slug: 'export-data', category: 'analytics', description: 'Export data reports' },
@@ -276,8 +277,6 @@ async function main() {
   // PREMIUM: Advanced permissions
   const premiumPermissions = [
     ...professionalPermissions,
-    'access_paid_promo',
-    'create_promo',
     'export_data',
   ]
 

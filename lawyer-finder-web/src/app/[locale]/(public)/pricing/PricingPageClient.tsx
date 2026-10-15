@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Check, ShieldCheck, Zap, Crown, Loader2, Scale, LayoutDashboard,
-  MessageSquare, Users, Eye, Upload, Megaphone, BarChart3,
+  MessageSquare, Users, Eye, Upload, BarChart3,
   Settings, Send, Download, Lock,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -43,7 +43,6 @@ interface SubscriptionPlan {
 const categoryIcons: Record<string, React.ElementType> = {
   chat: MessageSquare,
   profile: Settings,
-  promotion: Megaphone,
   analytics: BarChart3,
 };
 
@@ -53,8 +52,6 @@ const permissionIcons: Record<string, React.ElementType> = {
   send_message: Send,
   edit_profile: Settings,
   upload_documents: Upload,
-  access_paid_promo: Megaphone,
-  create_promo: Crown,
   view_analytics: BarChart3,
   export_data: Download,
 };
@@ -230,15 +227,6 @@ export default function PricingPageClient({ locale }: { locale: string }) {
                           </div>
                         </li>
                       ))}
-                      {/* Negative features for visual symmetry if fewer permissions */}
-                      {plan.permissions.length < 5 && (
-                        <li className="flex items-start gap-2.5 text-sm opacity-50">
-                          <span className="text-neutral-400 font-bold text-base mt-[-2px]">✗</span>
-                          <span className={`text-xs ${isFeatured ? 'text-neutral-400' : 'text-neutral-500'}`}>
-                            Priority Ad Placement support
-                          </span>
-                        </li>
-                      )}
                     </ul>
                   </div>
                 </div>
