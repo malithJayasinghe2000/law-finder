@@ -65,6 +65,9 @@ export async function GET() {
         },
         messages: { orderBy: { createdAt: 'desc' }, take: 1 },
         _count: { select: { messages: true } },
+        // The request number only — never the subject, which is privileged and
+        // would need its own disclosure decision. Enough to tell threads apart.
+        booking: { select: { bookingNumber: true } },
       },
       orderBy: { updatedAt: 'desc' },
     });
@@ -104,6 +107,7 @@ export async function GET() {
             : undefined,
           firmId: c.firmId,
           bookingId: c.bookingId,
+          requestNumber: c.booking?.bookingNumber ?? null,
           lastMessage: lastMessage ? discloseMessage(lastMessage, access) : null,
           unreadCount:
             lastMessage &&

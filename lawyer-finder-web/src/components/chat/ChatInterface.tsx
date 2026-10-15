@@ -20,6 +20,8 @@ interface Conversation {
   id: string;
   otherUser: UserData;
   lastMessage: { content: string, createdAt: string } | null;
+  /** The request the thread is about, e.g. BK-2026-0003. */
+  requestNumber: string | null;
   unreadCount: number;
   updatedAt: string;
 }
@@ -246,6 +248,9 @@ export default function ChatInterface({ userId, locale }: { userId: string; loca
                       </span>
                     )}
                   </div>
+                  {conv.requestNumber && (
+                    <p className="text-[9px] font-mono text-[#8c6d3f]">{conv.requestNumber}</p>
+                  )}
                   <p className="text-[11px] text-neutral-450 truncate mt-0.5 font-light">
                     {conv.lastMessage?.content || 'No messages yet'}
                   </p>
@@ -280,14 +285,12 @@ export default function ChatInterface({ userId, locale }: { userId: string; loca
                 </Avatar>
                 <div>
                   <h3 className="font-serif font-bold text-sm text-neutral-950 leading-tight">{activeConv?.otherUser?.fullName || 'User'}</h3>
-                  <p className="text-[9px] text-[#bfa37a] font-bold uppercase tracking-wider mt-0.5">Secure Consultation</p>
+                  {activeConv?.requestNumber && (
+                    <p className="text-[10px] text-[#8c6d3f] font-bold font-mono tracking-wide mt-0.5">
+                      Request {activeConv.requestNumber}
+                    </p>
+                  )}
                 </div>
-              </div>
-              
-              <div className="flex items-center gap-2">
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 border border-emerald-100 bg-emerald-50 text-emerald-700 rounded-full text-[8px] font-bold uppercase tracking-wider">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> Active
-                </span>
               </div>
             </div>
             
@@ -331,7 +334,7 @@ export default function ChatInterface({ userId, locale }: { userId: string; loca
                         handleSendMessage();
                       }
                     }}
-                    placeholder="Type your message securely..."
+                    placeholder="Type your message..."
                     className="w-full resize-none bg-transparent py-1 text-sm outline-none placeholder:text-neutral-400 text-neutral-850 font-light min-h-[50px] max-h-32 leading-relaxed"
                     rows={2}
                   />
@@ -339,7 +342,9 @@ export default function ChatInterface({ userId, locale }: { userId: string; loca
                   <div className="flex items-center justify-between border-t border-[#efeae0]/60 pt-3">
                     <div className="flex items-center gap-1.5 text-[9px] font-bold text-neutral-400 uppercase tracking-[0.18em]">
                       <Lock className="h-3.5 w-3.5 text-[#bfa37a]" />
-                      <span>Encrypted Session</span>
+                      {/* Not "encrypted session" or "end-to-end": messages are encrypted
+                          where they are stored, but our server can read them. */}
+                      <span>Only this conversation</span>
                     </div>
 
                     <button
@@ -359,16 +364,19 @@ export default function ChatInterface({ userId, locale }: { userId: string; loca
           /* Empty state matching RAG chat client look */
           <div className="flex-1 flex flex-col items-center justify-center text-center p-8 bg-[#faf8f6] rounded-r-2xl">
             <div className="space-y-4 max-w-md">
-              <span className="text-[10px] text-[#bfa37a] uppercase tracking-[0.25em] font-bold">Secure Portal</span>
-              <h2 className="text-3xl font-serif text-neutral-900 leading-tight">Your Secure Consultations</h2>
-              <p className="text-neutral-500 text-sm font-light leading-relaxed">
-                Connect with verified legal professionals. All messages and documents exchanged here are fully encrypted and confidential.
-              </p>
-              <div className="pt-2">
-                <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 border border-[#efeae0] bg-white text-neutral-500 rounded-full text-[9px] font-bold uppercase tracking-wider shadow-sm">
-                  <Lock className="w-3.5 h-3.5 text-[#bfa37a]" /> End-To-End Secure
+              <h2 className="text-2xl font-serif text-neutral-900 leading-tight">Choose a conversation</h2>
+              {/* What is true, and no more. This said "fully encrypted", "End-To-End
+                  Secure" and "documents exchanged": messages are encrypted where they
+                  are stored, but the server can read them, so it is not end-to-end —
+                  and no documents can be sent here. */}
+              <p className="flex items-start gap-2 text-left text-neutral-500 text-sm font-light leading-relaxed">
+                <Lock className="mt-1 w-3.5 h-3.5 shrink-0 text-[#bfa37a]" />
+                <span>
+                  Only the people in a conversation can read it — the client and the attorney
+                  handling their request. Messages are stored encrypted, and platform staff
+                  cannot read them.
                 </span>
-              </div>
+              </p>
             </div>
           </div>
         )}
