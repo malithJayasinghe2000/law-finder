@@ -291,6 +291,12 @@ model LawyerProfile {
   licenseImageUrl   String?
   identityImageUrl  String?
   isVerified        Boolean        @default(false)
+  /// Which admin verified this attorney, and when. "Verified" is a public claim
+  /// that we checked their BASL registration; we must be able to say who did.
+  /// Null on profiles verified before this was recorded (2026-10-16).
+  /// A plain id, like `DataSubjectRequest.handledById`: a log, not a relation.
+  verifiedById      String?
+  verifiedAt        DateTime?
   /// `Subscription` moved to `LawFirm` in Phase 3. An attorney does not buy a
   /// licence; the practice they work in does, and their access follows from
   /// their membership of it. Resolve through `src/lib/firms/billing.ts`.

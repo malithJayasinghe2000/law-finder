@@ -113,6 +113,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
           longitude: step1.longitude ? parseFloat(step1.longitude) : null,
           contactPhone: step1.phone,
           isVerified: true,
+          verifiedById: session.userId,
+          verifiedAt: new Date(),
           practiceAreas: step3.practiceAreas,
           languages: step1.languages,
           district: step1.district,
