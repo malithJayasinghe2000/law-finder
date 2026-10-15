@@ -1,6 +1,6 @@
 # Next Session Brief
 
-> Updated 2026-10-15, after the **section-by-section review of the lawyer (firm) dashboard**,
+> Updated 2026-10-15 (end of session), after the **section-by-section review of the lawyer (firm) dashboard**,
 > which followed the client dashboard review of 2026-10-14. PROGRESS.md has an entry per section.
 > **Copy §A into a new chat as your first message.** The older brief (2026-09-21, the RAG
 > service) follows from §0 and is still accurate for the AI service.
@@ -10,40 +10,43 @@
 
 ---
 
-## A. Prompt to start the new chat (2026-10-14)
+## A. Prompt to start the new chat (2026-10-15)
 
 ```
 I'm working on law-finder, a Sri Lankan legal platform under a legal restructure
 (Next.js 16 + Prisma 7 + Postgres in lawyer-finder-web/, a Python RAG service in
-lawyer-rag/). Pick up where the 2026-10-14 session left off.
+lawyer-rag/). It is being turned from a lawyer marketplace into software that law
+firms ("practices") run on. Pick up where the 2026-10-15 session left off.
 
 READ FIRST, IN THIS ORDER:
-  1. lawyer-finder-web/docs/NEXT-SESSION-BRIEF.md §A-§F   today's state and decisions
-     — §B2 lists every firm-side change from the last session; read it before
-       reviewing the lawyer dashboard
+  1. lawyer-finder-web/docs/NEXT-SESSION-BRIEF.md §A-§F   state, decisions, next steps
+     — §B3 lists everything the lawyer-side review changed; §D the owner's decisions
+       (do not reverse them without asking); §F the traps
   2. lawyer-finder-web/CLAUDE.md / AGENTS.md               rules, checks, conventions
-  3. lawyer-finder-web/docs/restructure/PROGRESS.md        the 2026-10-13 and 2026-10-14
-                                                           entries at the end, and the
-                                                           Decisions table
-  4. lawyer-finder-web/docs/restructure/LEGAL-GUARDRAILS.md
+  3. lawyer-finder-web/docs/restructure/PROGRESS.md        the 2026-10-13/14/15 entries at
+                                                           the end, and the Decisions table
+  4. lawyer-finder-web/docs/restructure/LEGAL-GUARDRAILS.md  the seven hard rules
 
 HOW I WORK (important):
   - I'm an engineer, not a lawyer. Make the conservative legal call yourself and
     explain it in plain language. If I push back, weigh my point honestly — say
     what the research actually supports, and what is your own judgement.
   - Keep explanations SHORT and simple: direct answer first, a few bullets or a
-    small table. I often reply "ok" — that means go ahead.
-  - Verify by running the app (build, start, curl / headless browser), not by
-    reading code. Check phone width (412px) too. Clean up any test data you create.
-  - Commit each change separately once verified. Ask before pushing or before
-    any destructive git command.
+    small table. I often reply "ok" — that means go ahead. If I ask "explain
+    simply", give a tiny example, not more words.
+  - Verify by running the app (build, dev server on :3001, headless browser at
+    412px and 1440px), not by reading code. Prove a suspected bug by running it
+    before reporting it. Clean up test data BY EXACT ID (never by email pattern).
+  - Commit each change separately once verified. Ask before pushing, before any
+    destructive git command, and before dropping a table.
+  - Hide features with a switch, never delete them (we may want them back).
 
 WHAT WE ARE DOING: a section-by-section review of every dashboard, one section at a
 time — what it is for, keep / change / hide, and mobile layout. For each section:
 look at it on a phone, say what it does, list problems in a small table with a
 recommendation, and wait for my "ok" before changing anything.
-The CLIENT and LAWYER sides are finished. START WITH: the ADMIN side, §E item 2 —
-the admin Dashboard first (it shows invented figures: "+12%", "99% Platform health").
+The CLIENT and LAWYER sides are finished. START WITH: the ADMIN side (§E item 1),
+the admin Dashboard first.
 ```
 
 ---
@@ -111,6 +114,54 @@ reasoning and how it was verified is in PROGRESS.md under the same date.
 **Bug fixed on the admin side in passing:** All Consultations crashed on any request with
 no date (`06dc7d8`).
 
+## B3. What the 2026-10-15 lawyer-side review changed — read before the admin side
+
+Each is its own commit; reasoning and how it was verified are in PROGRESS.md (2026-10-14/15).
+
+**Switches (one line each; set `true` to bring a feature back — nothing was deleted)**
+| Switch | File | Off hides / refuses |
+|---|---|---|
+| `LICENSING_ENABLED = false` | `src/lib/licensing.ts` | Dashboard licence line, seat limit, Payments menu, all licence pages and `/pricing`, top-bar Pricing link; invoice create / pay / renew → 410. **Read the file's checklist before switching on** |
+| `ATTORNEY_BOOKING_ENABLED = false` | `src/lib/directoryLinks.ts` | Booking a named attorney; Set Availability, Pricing (attorney settings); slot holds → 410 |
+| `PEOPLE_TAB_ENABLED = false` | `src/lib/directoryLinks.ts` | Directory People tab |
+| `ADMIN_CREATE_BOOKING_ENABLED = false` | `src/lib/consultations/adminBooking.ts` | Admin creating requests |
+| `DIRECT_ADD_ENABLED = false` | `src/app/api/firms/me/members/route.ts` | Adding a member without an invitation |
+
+**Security / legal fixes (worth knowing on the admin side too)**
+- Pricing API handed any attorney's bank account number to anyone, signed out (`91c7e9a`).
+- A verified attorney could rename themselves under the "Verified" badge (`1510d2c`).
+- Password hashes and NICs were written to the server log (`1510d2c`).
+- The platform imposed a 50% late-cancellation forfeit no practice had set (`fadea33`);
+  refunds are now recorded by the practice only, admin view-only (`300642e`).
+- Role change could make a paralegal a principal (`1fed579`); members joined without
+  consent (`3755d77`).
+- Chat claimed "End-To-End Secure" — false; now says what is true (`8e43dc3`).
+- Data-request answers could say "Erased" (impossible) or refuse a copy as "kept" (`425e179`).
+- Plans offered paid promotion and "Receive client inquiries" (`fec19b3`, data migrations).
+- `Article` (the old blog) removed entirely, table dropped (`ffbd153`).
+
+**Firm side as it now is**
+- Menu: Dashboard · Requests (All requests, Fees, Refunds) · Messages (attorneys only) ·
+  My Practice (Practice, Data Requests — principal/manager) · Community Posts · Profile
+  Settings · Your Data. Title "Practice Portal".
+- Firm status labels (`FIRM_STATUS_LABELS`) differ from the client's (`BOOKING_STATUS_LABELS`).
+- Fees, Refunds and the dashboard are **practice-wide** for principal/manager, own matters for
+  an attorney, nothing for a paralegal — decided by `FirmMember`, never the platform role.
+- Quotes pre-fill the practice's bank details (My Practice → Bank and tax details).
+- `/dashboard` now routes each person to their home (`714a4ba`).
+- Practices are told about data requests (dashboard + email, `c3a73c8`, `a439cce`).
+
+**Admin side — already seen while doing the above (start here)**
+- Admin Dashboard shows invented figures ("+12%", "99% Platform health").
+- Admin Refunds page is now view-only (buttons removed); check the rest of that page.
+- Admin "All Consultations", Finances, Subscription Config, Invoices: likely touch fees,
+  licences and client money — check against rules 1-3 and the licensing switch.
+- Admin can still **cancel** a client's request (`api/consultations/bookings/[id]` 'cancel'
+  allows isAdmin) — platform staff acting on a retainer; review.
+- `src/components/layout/DashboardSidebar.tsx` is unused dead code.
+
+---
+
 ## C. Law research (primary texts) — and how it was applied
 
 - **Rule 45**, Supreme Court (Conduct of and Etiquette for Attorneys-at-Law) Rules 1988:
@@ -172,51 +223,26 @@ no date (`06dc7d8`).
 
 ## E. Next up
 
-1. **Lawyer-side review — DONE 2026-10-15.** Menu now: Dashboard · Requests (All requests,
-   Fees, Refunds) · Messages · My Practice (Practice, Data Requests) · Community Posts ·
-   Profile Settings · Your Data; title "Practice Portal" (`22b666c`). Section notes: **Dashboard
-   done 2026-10-14** (needs-attention list, latest requests, directory/licence/community
-   lines; works for a practice manager; `Article` removed entirely). **My Firm → Practice
-   done** (invite instead of add, change role / remove, offices edit / retire — PROGRESS.md).
-   **Data Requests done** (answers fit the request, no "Erased", practice told by dashboard
-   and email). **Bookings done** (practice's own status labels, Details, Not accepted tab,
-   phone). **Set Availability hidden** (and slot holds refused) while attorney booking is off.
-   **Pricing hidden; its API no longer hands out bank details.** **Consultation Income → Fees**
-   (practice-wide, stages counted right). **Refunds done** (no
-   platform refund rule; practice records). **Messages done** (no false
-   privacy claims, request number). **Payments hidden** with licensing; plans
-   cleaned of promotion and inquiries. **Community Posts** (no change) and **Profile
-   Settings** done. **Next: the lawyer menu itself** (labels: "Bookings", "Consultation In…",
-   "My Firm"; "Lawyer Portal" title), then the admin side.
-   - **Production:** check and purge logs for `[PROFILE_PUT]` lines holding password hashes /
-     NICs, and check whether any attorney saved bank details on the old Pricing page. Lawyer menu: Dashboard · My Firm (Practice, Data Requests) · Consultations (Bookings, Set
-   Availability, Pricing, Consultation Income, Refunds) · Messages · Payments (Invoices,
-   Payment History) · Community Posts · Profile Settings. Things already suspected:
-   - **Set Availability / Pricing** are per-attorney slot and price tools from the old
-     attorney-booking flow; with practice-only requests they may be unused — check.
-     (Done 2026-10-15: both hidden behind `ATTORNEY_BOOKING_ENABLED`.)
-   - Several firm-side routes still gate on `role === 'LAWYER'` instead of membership:
-     `/api/chat/conversations` + `unread-count`, `/api/dashboard/sidebar-counts`,
-     `/api/consultations/refunds`, all `/api/subscriptions/*` (a practice manager cannot
-     see the practice's licence).
-   - Sidebar title says "Lawyer Portal" / "My Firm" even for a sole practitioner (old §E4).
-   - **Plans still sell promotion:** `access_paid_promo` / `create_promo` permissions and
-     "Priority Ad Placement" on the pricing page (rule 3) — at Payments / licence.
-   - Admin dashboard shows invented figures ("+12%", "99% Platform health") — admin review.
-2. **Admin-side review** after the lawyer side.
+1. **Admin-side section-by-section review** (same method). Start with the admin Dashboard;
+   §B3 lists what is already known.
+2. **For the owner, on the live site (not code):** purge server logs of `[PROFILE_PUT]` lines
+   holding password hashes / NICs (logged before `1510d2c`); check whether any attorney saved
+   bank details on the old Pricing page (readable by anyone before `91c7e9a`); push soon.
 3. **Landing-page and footer wording** — "Trusted Lawyer", "Legal Champion", "perfect
-   representation", "vetted advocates"; footer *Services* list ("Civil Litigation,
-   Criminal Defense…") and "connecting citizens with verified legal professionals".
-4. **Admin warning: verified attorneys who are not listed.**
-4b. **No tool to delete a matter file** when a practice answering an erasure request has no
-    duty to keep it — we are its processor and must be able to act on that. Erasure answers
-    currently say "contact us before you answer". Needs a design (soft-delete vs. crypto
-    erasure of the encrypted columns) and probably counsel.
-5. **Junior-in-a-senior's-chambers** — no model yet; discuss.
-6. Update `LEGAL-GUARDRAILS.md` / `QUESTIONS-FOR-COUNSEL.md` Q16–18 to reflect §C.
-7. Seed one registered practice for demos (a fresh seed has an empty directory).
-8. Pre-engagement Chat button on attorney pages, and read-only threads after a decline —
-   owner said later.
+   representation", "vetted advocates"; footer *Services* list ("Civil Litigation, Criminal
+   Defense…"), "connecting citizens with verified legal professionals", placeholder addresses.
+4. **No tool to delete a matter file** when a practice answering an erasure request has no
+   duty to keep it — we are its processor and must act on that. Erasure answers say "contact
+   us before you answer". Needs a design (soft-delete vs. crypto erasure) and probably counsel.
+5. **Cancellation terms on the fee proposal** (idea) — so a client sees the practice's refund
+   terms before paying (decision 16).
+6. **Admin warning: verified attorneys who are not listed.**
+7. **Junior-in-a-senior's-chambers** — no model yet; discuss.
+8. Update `LEGAL-GUARDRAILS.md` / `QUESTIONS-FOR-COUNSEL.md` Q16–18 to reflect §C.
+9. Seed one registered practice for demos (a fresh seed has an empty directory).
+10. Pre-engagement Chat button on attorney pages, and read-only threads after a decline —
+    owner said later.
+11. Before switching licensing on: the plan cards' Permissions list renders empty.
 
 ## F. Things that will bite you
 
@@ -235,11 +261,29 @@ no date (`06dc7d8`).
 - Next.js here streams: `notFound()` / `redirect()` answer **HTTP 200**. Check content.
 - Phone checks: puppeteer-core with `isMobile` at 412px (installed in the scratchpad).
 - Checks: `check:privilege` (42) · `check:firm` (15) · `check:ai` (124) · `check:billing`
-  (21) · `check:pdpa` (67), plus `npx tsc --noEmit` and `npm run build`. Lint has
+  (21) · `check:pdpa` (72), plus `npx tsc --noEmit` and `npm run build`. Lint has
   pre-existing `any` errors — compare before/after rather than fixing them in passing.
 - Postgres `timestamp` columns read back shifted by +5:30 through the `pg` driver; compare
   with `::text` when restoring a value.
 - The local library (`/legal-library`) is empty in the local DB.
+- **Clean up by exact id.** A cleanup by `email like '%@example.com'` once deleted an older
+  test account. Record ids you create (scratchpad JSON) and delete by those; scan text
+  columns for leftovers.
+- **Removing something from the seed does not remove it from a seeded database.** Ship
+  every removal as a (data-only if needed) migration. `prisma migrate dev` dropping a table
+  needs the owner's go-ahead (the permission system blocks it).
+- **zsh:** never name a shell variable `path` — it overwrites `$PATH`.
+- Dev server: `PORT=3001 npm run dev` (it is `node server.js`); restart after a schema
+  migration. A layout added under `src/app` makes `tsc` fail on stale `.next` route types
+  until `npm run build` runs once.
+- The mail server here takes ~5–18 s per message: never `await` an email inside a request
+  a person is waiting on (`a439cce`).
+- Headless: Base UI dropdown menus (user menu) do not open on a synthetic click; read the
+  props from the page's RSC data instead. Sidebar active item = icon with `text-[#bfa37a]`.
+- Seeded accounts: Kavindu's *account* name is the literal string "None" — always show an
+  attorney by `LawyerProfile.fullName`. Seed practices other than Perera & Associates are
+  unregistered (not listed).
+- Checks now: `check:pdpa` is **72** (five data-request cases added).
 
 ---
 
