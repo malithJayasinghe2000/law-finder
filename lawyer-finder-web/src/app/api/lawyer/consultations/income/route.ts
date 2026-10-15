@@ -1,40 +1,60 @@
 import { NextResponse } from 'next/server';
+import type { BookingStatus } from '@prisma/client';
 import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
-import { CONFIRMED_STATUSES } from '@/lib/consultations/bookingStatus';
+import { getFirmMembership, canManageFirm } from '@/lib/firms/access';
 
 /**
- * GET: The lawyer's own consultation income record.
+ * GET: the practice's fee record.
  *
- * This replaces the previous "earnings + withdrawable balance" endpoint.
- *
- * The platform does not hold consultation fees and therefore has no balance to
- * pay out. Clients pay the lawyer directly using the bank details the lawyer
- * supplies when quoting. What follows is a *record* of fees quoted and marked
- * received by the lawyer — a bookkeeping view, not an account.
- *
+ * The platform does not hold fees and has no balance to pay out. Clients pay the
+ * PRACTICE directly, into the account on its quotes. What follows is a *record* of
+ * fees proposed, accepted and received — a bookkeeping view, not an account.
  * See docs/restructure/LEGAL-GUARDRAILS.md (rule 2).
+ *
+ * WHO SEES WHAT. The fee is paid to the practice, so the principal and practice
+ * manager see every matter's fee; an attorney sees the matters assigned to them; a
+ * paralegal sees none. This used to be per attorney and LAWYER-only, so a principal
+ * could not see the practice's fees and a practice manager was refused outright.
+ *
+ * WHAT COUNTS WHERE. "Awaiting payment" used to be drawn only from SCHEDULED and
+ * COMPLETED — but a request is scheduled only once the practice has confirmed the
+ * payment, so it could never hold anything. Accepted-but-unpaid requests are the
+ * ones awaiting payment.
  */
+
+/** The client has the fee proposal and has not answered yet. */
+const PROPOSED: BookingStatus[] = ['QUOTED'];
+/** The client accepted the terms; the practice has not confirmed the payment. */
+const AWAITING: BookingStatus[] = ['ACCEPTED'];
+/** Paid and still standing. Cancelled after payment is left out: it may be refunded. */
+const RECEIVED: BookingStatus[] = ['SCHEDULED', 'RESCHEDULE_REQUESTED', 'COMPLETED', 'NO_SHOW', 'DISPUTED'];
+
 export async function GET() {
   try {
     const session = await getSession();
-    if (!session || session.role !== 'LAWYER') {
-      return NextResponse.json({ error: 'Unauthorized. Lawyer access required.' }, { status: 401 });
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const lawyer = await prisma.lawyerProfile.findUnique({
-      where: { userId: session.userId },
-      select: { id: true },
-    });
-
-    if (!lawyer) {
-      return NextResponse.json({ error: 'Lawyer profile not found' }, { status: 404 });
+    const membership = await getFirmMembership(session.userId);
+    if (!membership) {
+      return NextResponse.json({ error: 'You are not part of a practice.' }, { status: 403 });
     }
 
-    const consultations = await prisma.booking.findMany({
+    const firmWide = canManageFirm(membership);
+    if (!firmWide && !membership.profileId) {
+      return NextResponse.json(
+        { error: "Only the practice's principal, practice manager and attorneys can see fees." },
+        { status: 403 }
+      );
+    }
+
+    const records = await prisma.booking.findMany({
       where: {
-        lawyerId: lawyer.id,
-        status: { in: CONFIRMED_STATUSES },
+        firmId: membership.firmId,
+        ...(firmWide ? {} : { lawyerId: membership.profileId }),
+        status: { in: [...PROPOSED, ...AWAITING, ...RECEIVED] },
       },
       select: {
         id: true,
@@ -46,36 +66,41 @@ export async function GET() {
         lawyerFee: true,
         paidAt: true,
         status: true,
-        paymentMethod: true,
+        updatedAt: true,
         client: { select: { fullName: true } },
+        lawyer: { select: { fullName: true } },
       },
-      orderBy: { date: 'desc' },
+      orderBy: { updatedAt: 'desc' },
     });
 
-    // "Received" = the lawyer confirmed the client's payment reached them.
-    // "Awaiting" = quoted and confirmed, but not yet marked as received.
-    const received = consultations.filter((c) => c.paidAt !== null);
-    const awaiting = consultations.filter((c) => c.paidAt === null);
+    const stage = (status: BookingStatus, paidAt: Date | null) =>
+      PROPOSED.includes(status) ? 'PROPOSED'
+        : AWAITING.includes(status) || !paidAt ? 'AWAITING'
+        : 'RECEIVED';
 
-    const totalReceived = received.reduce((sum, c) => sum + c.lawyerFee, 0);
-    const totalAwaiting = awaiting.reduce((sum, c) => sum + c.lawyerFee, 0);
+    const sum = (s: string) =>
+      records.filter((r) => stage(r.status, r.paidAt) === s).reduce((t, r) => t + r.lawyerFee, 0);
 
     return NextResponse.json({
       success: true,
+      scope: firmWide ? 'PRACTICE' : 'ATTORNEY',
+      firmName: membership.firmName,
       stats: {
-        totalReceived,
-        totalAwaiting,
-        totalConsultations: consultations.length,
-        completedConsultations: consultations.filter((c) => c.status === 'COMPLETED').length,
+        totalReceived: sum('RECEIVED'),
+        totalAwaiting: sum('AWAITING'),
+        totalProposed: sum('PROPOSED'),
+        completedConsultations: records.filter((r) => r.status === 'COMPLETED').length,
       },
-      consultations: consultations.map((c) => ({
-        ...c,
-        date: c.date ? c.date.toISOString().split('T')[0] : null,
-        paidAt: c.paidAt?.toISOString() || null,
+      consultations: records.map((r) => ({
+        ...r,
+        stage: stage(r.status, r.paidAt),
+        date: r.date ? r.date.toISOString().split('T')[0] : null,
+        paidAt: r.paidAt?.toISOString() || null,
+        updatedAt: r.updatedAt.toISOString(),
       })),
     });
   } catch (error: unknown) {
-    console.error('Failed to load consultation income:', error);
+    console.error('Failed to load the fee record:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
