@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Sidebar, SidebarContent, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarGroup, SidebarGroupLabel, SidebarFooter, SidebarMenuSub, SidebarMenuSubItem, SidebarMenuSubButton } from '@/components/ui/sidebar';
 import { LayoutDashboard, Users, FileText, Settings, Star, ShieldCheck, LogOut, Megaphone, Image, ShieldPlus, ChevronDown, History, CreditCard, MessageCircle, Globe, PenSquare, Flag, CalendarDays, DollarSign, Banknote, BookOpen, Building2, Shield, Lock, Power } from 'lucide-react';
 import ChatBadge from '@/components/chat/ChatBadge';
+import { ATTORNEY_BOOKING_ENABLED } from '@/lib/directoryLinks';
 import { toast } from 'sonner';
 import React, { useState } from 'react';
 
@@ -121,7 +122,10 @@ export function AppSidebar({
       label: 'Consultations',
       subLinks: [
         { href: `/${locale}/dashboard/lawyer/consultations`, icon: CalendarDays, label: 'Bookings' },
-        { href: `/${locale}/dashboard/lawyer/consultations/availability`, icon: History, label: 'Set Availability' },
+        // Slots only served attorney-first booking, which is off for launch.
+        ...(ATTORNEY_BOOKING_ENABLED
+          ? [{ href: `/${locale}/dashboard/lawyer/consultations/availability`, icon: History, label: 'Set Availability' }]
+          : []),
         { href: `/${locale}/dashboard/lawyer/consultations/pricing`, icon: DollarSign, label: 'Pricing' },
         { href: `/${locale}/dashboard/lawyer/consultations/earnings`, icon: Banknote, label: 'Consultation Income' },
         { href: `/${locale}/dashboard/lawyer/consultations/refunds`, icon: Banknote, label: 'Refunds' },

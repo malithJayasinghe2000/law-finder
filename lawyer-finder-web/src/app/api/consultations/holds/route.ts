@@ -4,6 +4,7 @@ import { getSession } from '@/lib/auth';
 import { z } from 'zod';
 import { parseDateOnlyToUtc } from '@/lib/utils';
 import { SLOT_BLOCKING_STATUSES } from '@/lib/consultations/bookingStatus';
+import { ATTORNEY_BOOKING_ENABLED } from '@/lib/directoryLinks';
 
 const CreateHoldSchema = z.object({
   lawyerId: z.string().uuid(),
@@ -18,6 +19,17 @@ export async function POST(req: Request) {
     const session = await getSession();
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // A hold reserves a named attorney's slot for attorney-first booking, which is
+    // off for launch. The booking API refuses those requests; this was missed on
+    // 2026-10-13 and still let anyone hold any attorney's diary — and a hold records
+    // which attorney's diary someone was looking at (DATA-INVENTORY: an interest signal).
+    if (!ATTORNEY_BOOKING_ENABLED) {
+      return NextResponse.json(
+        { error: 'Requests go to a practice, which arranges the time. There are no slots to hold.' },
+        { status: 410 }
+      );
     }
 
     const body = await req.json();
