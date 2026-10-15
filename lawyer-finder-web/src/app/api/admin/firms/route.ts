@@ -119,11 +119,26 @@ export async function PATCH(req: Request) {
 
     const firm = await prisma.lawFirm.findUnique({
       where: { id: firmId },
-      select: { id: true, members: { where: { status: 'ACTIVE', role: 'FIRM_OWNER' }, select: { id: true } } },
+      select: {
+        id: true,
+        isRegisteredPractice: true,
+        members: { where: { status: 'ACTIVE', role: 'FIRM_OWNER' }, select: { id: true } },
+      },
     });
 
     if (!firm) {
       return NextResponse.json({ error: 'Firm not found.' }, { status: 404 });
+    }
+
+    // Only a registered practice is listed (LISTED_FIRM_WHERE), so a decision
+    // on one that never registered changes nothing a client sees and only
+    // makes the record say "verified" about a check nobody could make.
+    // Registering puts the practice back to PENDING for a real decision.
+    if (!firm.isRegisteredPractice) {
+      return NextResponse.json(
+        { error: 'This practice has not registered, so there is nothing to verify yet.' },
+        { status: 409 }
+      );
     }
 
     // A practice with nobody answerable for it cannot be verified.
