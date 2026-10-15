@@ -183,8 +183,11 @@ no date (`06dc7d8`).
    (practice-wide, stages counted right). **Refunds done** (no
    platform refund rule; practice records). **Messages done** (no false
    privacy claims, request number). **Payments hidden** with licensing; plans
-   cleaned of promotion and inquiries. **Next: Community Posts, then Profile Settings**, then
-   the lawyer menu itself (labels, "Lawyer Portal" title). Lawyer menu: Dashboard · My Firm (Practice, Data Requests) · Consultations (Bookings, Set
+   cleaned of promotion and inquiries. **Community Posts** (no change) and **Profile
+   Settings** done. **Next: the lawyer menu itself** (labels: "Bookings", "Consultation In…",
+   "My Firm"; "Lawyer Portal" title), then the admin side.
+   - **Production:** check and purge logs for `[PROFILE_PUT]` lines holding password hashes /
+     NICs, and check whether any attorney saved bank details on the old Pricing page. Lawyer menu: Dashboard · My Firm (Practice, Data Requests) · Consultations (Bookings, Set
    Availability, Pricing, Consultation Income, Refunds) · Messages · Payments (Invoices,
    Payment History) · Community Posts · Profile Settings. Things already suspected:
    - **Set Availability / Pricing** are per-attorney slot and price tools from the old

@@ -3119,3 +3119,18 @@ apart by number), and a temporary manager (no link; deleted). `check:privilege` 
 
 **Lesson, again:** removing something from the seed does not remove it from a database that
 was already seeded. Every removal ships as a migration.
+
+### 2026-10-15 — Community Posts (no change) and Profile Settings: verified name locked, no secrets in logs
+
+**Community Posts:** checked as an attorney — the write screen's BASL / Rules 39 and 49
+reminder is there, delete asks and soft-deletes, author-only. No change.
+
+**Profile Settings** — both serious items proved by running before fixing:
+- **A verified attorney could rename themselves** (`1510d2c`): Kavindu renamed via the API →
+  public page "VERIFIED Probe Renamed Attorney". Name and NIC now locked once verified, never
+  rewritten; correction via us. Restored his exact values afterwards.
+- **Values in the server log** (`1510d2c`): a password change logged the bcrypt hash (proved
+  with a temporary account, deleted); profile saves logged NIC and address. Field names only
+  now. **Production logs may hold hashes and NICs — check and purge.**
+- Form (`cf6cad7`): gender and coordinates no longer asked (unused / unshown); "Photo on your
+  public page" instead of "Lawyer Card Image".
