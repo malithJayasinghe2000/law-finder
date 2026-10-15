@@ -36,6 +36,10 @@ interface Booking {
   lawyerFee: number;
   totalAmount: number;
   refundAmount: number | null;
+  /** What the practice kept, when it refunded less than was paid. */
+  retainedLawyerFee: number | null;
+  /** The practice's own words about the refund, shown to the client verbatim. */
+  refundNotes: string | null;
   subject: string;
   description: string;
   status: string;
@@ -402,6 +406,15 @@ export default function ClientConsultationsPage() {
                         <p className="mt-0.5 text-sm font-bold text-green-900">
                           Rs. {b.refundAmount?.toLocaleString()}
                         </p>
+                        {/* Less than was paid: the practice's reason, in its words. The
+                            practice decides under its terms; the client can dispute. */}
+                        {!!b.retainedLawyerFee && b.retainedLawyerFee > 0 && (
+                          <p className="mt-1 text-[10px] text-amber-800">
+                            You paid Rs. {b.totalAmount.toLocaleString()}. The practice kept Rs.{' '}
+                            {b.retainedLawyerFee.toLocaleString()}
+                            {b.refundNotes ? `: ${b.refundNotes}` : '.'}
+                          </p>
+                        )}
                         <dl className="mt-1.5 space-y-0.5 text-[10px] text-green-800">
                           {b.refundMethod && <div>Method: {b.refundMethod}</div>}
                           {b.refundReference && <div>Reference: {b.refundReference}</div>}
@@ -435,13 +448,16 @@ export default function ClientConsultationsPage() {
                         You reported this refund as not received. The firm has been notified.
                       </p>
                     )}
-                    {b.status === 'CANCELLED_BY_CLIENT' && b.refundStatus === 'PENDING' && b.refundAmount !== null && b.refundAmount > 0 && (
-                      <div className="mt-2 bg-red-50 p-1.5 border border-red-100">
-                        {b.refundAmount < b.totalAmount && (
-                          <p className="text-[10px] text-red-600 font-bold">- Rs. {(b.totalAmount - b.refundAmount).toLocaleString()} (Late Cancel Penalty)</p>
-                        )}
-                        <p className="text-xs text-green-600 font-bold">Refund: Rs. {b.refundAmount.toLocaleString()}</p>
-                      </div>
+                    {b.refundStatus === 'PENDING' && b.refundAmount !== null && b.refundAmount > 0 && (
+                      <p className="mt-2 border border-amber-200 bg-amber-50 p-1.5 text-[10px] text-amber-800">
+                        You paid Rs. {b.totalAmount.toLocaleString()}. The practice decides any refund
+                        under its terms with you and will record what it returns here.
+                      </p>
+                    )}
+                    {b.refundStatus === 'DECLINED' && (
+                      <p className="mt-2 border border-red-200 bg-red-50 p-1.5 text-[10px] text-red-700">
+                        The practice is not refunding this{b.refundNotes ? `: ${b.refundNotes}` : '.'}
+                      </p>
                     )}
                     <div className="flex gap-1.5 mt-3 pt-3 border-t border-neutral-100 justify-end flex-wrap empty:hidden">
                       {['REQUESTED', 'CONFLICT_CHECK', 'QUOTED', 'ACCEPTED', 'SCHEDULED'].includes(b.status) && (
@@ -553,9 +569,8 @@ export default function ClientConsultationsPage() {
             <div className="p-6 border-b"><h2 className="text-lg font-bold flex items-center gap-2"><AlertTriangle className="w-5 h-5 text-amber-500" /> Cancel Booking</h2></div>
             <div className="p-6 space-y-4">
               <div className="p-3 bg-amber-50 border border-amber-200 text-xs text-amber-800">
-                <p className="font-semibold mb-1">Cancellation Policy</p>
-                <p>• 24+ hours before: Full refund</p>
-                <p>• Less than 24 hours: 50% refund</p>
+                <p className="font-semibold mb-1">If you have paid</p>
+                <p>The practice decides any refund under its terms with you, and returns it from its own account. You will see what it refunded, and why if it is less, and can dispute it.</p>
               </div>
               <div>
                 <label className="block text-xs font-semibold text-neutral-600 mb-1">Reason for cancellation *</label>

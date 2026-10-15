@@ -371,27 +371,15 @@ export async function PATCH(
           return NextResponse.json({ error: validated.error.format() }, { status: 400 });
         }
 
-        // Refund the client is owed under the cancellation policy. The firm holds
-        // the money, so the firm returns it — the platform only records the
-        // amount. See docs/restructure/LEGAL-GUARDRAILS.md (rule 2).
-        let refundAmount = 0;
-        let retainedLawyerFee = 0;
-
-        if (booking.paidAt) {
-          const bookingDateTime = new Date(
-            `${scheduleDate}T${booking.startTime}:00+05:30`
-          );
-          const hoursUntil = (bookingDateTime.getTime() - Date.now()) / (1000 * 60 * 60);
-
-          if (isLawyer || isAdmin || hoursUntil >= 24) {
-            // Firm cancels, or client cancels with 24h+ notice: full refund
-            refundAmount = booking.totalAmount;
-          } else {
-            // Client cancels inside 24h: firm retains half
-            refundAmount = Math.round(booking.totalAmount * 0.5);
-            retainedLawyerFee = booking.totalAmount - refundAmount;
-          }
-        }
+        // What the client paid is recorded as owed back, in full. The platform
+        // used to apply its own policy here — a client cancelling inside 24 hours
+        // forfeited half — a term no practice had set and no fee proposal or
+        // engagement letter mentioned. We are not a party to the retainer (rule 7):
+        // the practice decides any refund under its own terms with the client, and
+        // records what it returned, with a reason if it is less, which the client
+        // can dispute. The firm holds the money, so the firm returns it (rule 2).
+        const refundAmount = booking.paidAt ? booking.totalAmount : 0;
+        const retainedLawyerFee = 0;
 
         const updated = await prisma.booking.update({
           where: { id },
