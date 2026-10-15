@@ -59,7 +59,7 @@ export default async function DashboardLayout({ children, params }: { children: 
               <div className="md:hidden">
                 <SidebarTrigger />
               </div>
-              <span className="text-[13px] font-semibold text-neutral-900 tracking-tight">{liveRole === 'ADMIN' ? 'Admin Dashboard' : (liveRole === 'LAWYER' ? 'Lawyer Portal' : (membership ? 'Firm Portal' : 'Client Portal'))}</span>
+              <span className="text-[13px] font-semibold text-neutral-900 tracking-tight">{liveRole === 'ADMIN' ? 'Admin Dashboard' : (liveRole === 'LAWYER' || membership ? 'Practice Portal' : 'Client Portal')}</span>
             </div>
             <div className="flex items-center gap-3">
               <DashboardUserMenu

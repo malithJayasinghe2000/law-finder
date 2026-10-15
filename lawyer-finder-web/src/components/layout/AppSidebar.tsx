@@ -29,10 +29,10 @@ export function AppSidebar({
 }) {
   const pathname = usePathname();
   // Open by default, so the screens underneath are visible rather than one
-  // click behind a chevron. 'My Firm' is here because a collapsed submenu hid
+  // click behind a chevron. 'My Practice' is here because a collapsed submenu hid
   // 'Data Requests' entirely — a link nobody can see is the sidebar problem
   // Phase 7 fixed, in a different costume.
-  const [openSubmenus, setOpenSubmenus] = useState<string[]>(['Payments','Consultations','My Firm']);
+  const [openSubmenus, setOpenSubmenus] = useState<string[]>(['Payments', 'Requests', 'My Practice']);
   const [counts, setCounts] = useState({ pendingInvoicesCount: 0, pendingAdCampaignsCount: 0, pendingBankPaymentsCount: 0 });
 
   React.useEffect(() => {
@@ -104,25 +104,15 @@ export function AppSidebar({
     { href: `/${locale}/dashboard/admin/subscriptions`, icon: ShieldPlus, label: 'Subscription Config' },
   ];
 
+  // Daily work first (requests, messages), set-up after (the practice itself).
   const lawyerLinks: NavLink[] = [
     { href: `/${locale}/dashboard/lawyer`, icon: LayoutDashboard, label: 'Dashboard' },
     {
-      href: `/${locale}/dashboard/lawyer/firm`,
-      icon: Building2,
-      label: 'My Firm',
-      subLinks: [
-        { href: `/${locale}/dashboard/lawyer/firm`, icon: Building2, label: 'Practice' },
-        ...(canManageFirm
-          ? [{ href: `/${locale}/dashboard/lawyer/firm/requests`, icon: Shield, label: 'Data Requests' }]
-          : []),
-      ]
-    },
-    {
       href: `/${locale}/dashboard/lawyer/consultations`,
       icon: CalendarDays,
-      label: 'Consultations',
+      label: 'Requests',
       subLinks: [
-        { href: `/${locale}/dashboard/lawyer/consultations`, icon: CalendarDays, label: 'Bookings' },
+        { href: `/${locale}/dashboard/lawyer/consultations`, icon: CalendarDays, label: 'All requests' },
         // Slots and booking settings only served attorney-first booking, off for launch.
         ...(ATTORNEY_BOOKING_ENABLED
           ? [
@@ -130,7 +120,7 @@ export function AppSidebar({
               { href: `/${locale}/dashboard/lawyer/consultations/pricing`, icon: DollarSign, label: 'Pricing' },
             ]
           : []),
-        { href: `/${locale}/dashboard/lawyer/consultations/earnings`, icon: Banknote, label: 'Consultation Income' },
+        { href: `/${locale}/dashboard/lawyer/consultations/earnings`, icon: Banknote, label: 'Fees' },
         { href: `/${locale}/dashboard/lawyer/consultations/refunds`, icon: Banknote, label: 'Refunds' },
       ]
     },
@@ -141,6 +131,17 @@ export function AppSidebar({
     ...(role === 'LAWYER'
       ? [{ href: `/${locale}/dashboard/lawyer/chat`, icon: MessageCircle, label: 'Messages', hasBadge: true }]
       : []),
+    {
+      href: `/${locale}/dashboard/lawyer/firm`,
+      icon: Building2,
+      label: 'My Practice',
+      subLinks: [
+        { href: `/${locale}/dashboard/lawyer/firm`, icon: Building2, label: 'Practice' },
+        ...(canManageFirm
+          ? [{ href: `/${locale}/dashboard/lawyer/firm/requests`, icon: Shield, label: 'Data Requests' }]
+          : []),
+      ]
+    },
     // Licence invoices: hidden while licensing is off (src/lib/licensing.ts).
     ...(LICENSING_ENABLED ? [
     { 
@@ -191,7 +192,7 @@ export function AppSidebar({
     <Sidebar className="border-r border-[#efeae0] bg-[#fbf9f6]">
       <SidebarHeader className="h-20 flex flex-col justify-center px-6 border-b border-[#efeae0] bg-[#fbf9f6]">
         <div className="flex flex-col gap-0.5">
-          <h2 className="text-[13px] font-bold tracking-widest text-neutral-900 uppercase font-serif">{role === 'ADMIN' ? 'Control Panel' : (role === 'LAWYER' ? 'Lawyer Portal' : (isFirmMember ? 'Firm Portal' : 'Client Portal'))}</h2>
+          <h2 className="text-[13px] font-bold tracking-widest text-neutral-900 uppercase font-serif">{role === 'ADMIN' ? 'Control Panel' : (role === 'LAWYER' || isFirmMember ? 'Practice Portal' : 'Client Portal')}</h2>
           <p className="text-[9px] text-[#bfa37a] font-bold tracking-wider uppercase">{role === 'ADMIN' ? 'Platform Administration' : (role === 'LAWYER' || isFirmMember ? 'Manage your practice' : 'Manage your account')}</p>
         </div>
       </SidebarHeader>
