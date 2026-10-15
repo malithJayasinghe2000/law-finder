@@ -119,6 +119,7 @@ DPO designation, which are documents rather than code.
 | 2026-10-13 | The conflict check is a simple **Review request: Accept / Decline / Hold + a private note**; the "parties screened" list is gone from the screen | Owner's decision. Requests are often not disputes (wills, deeds, advice), and the screening duty is the attorney's own. Two safeguards kept and enforced on the server: Accept requires the attorney to tick "I have checked that my practice does not act, and has not acted, for the other side" (that tick is now the record, in place of the names); Decline requires a private reason and never reaches the client. The names column stays in the schema, optional, so old records still read |
 | 2026-10-13 | A firm-side attorney may open a chat with a client **only about a live request that client sent to their practice, as the attorney assigned to it** | The client made contact first, so it is not soliciting. Before this, `POST /api/chat/conversations` let any LAWYER open a thread with any CLIENT on the platform — a stranger who never contacted them, which is touting. Closed requests (declined, cancelled, quote declined or expired) cannot get a new thread from the firm; an existing one stays readable |
 | 2026-10-14 | **Licensing and pricing hidden for launch** (`LICENSING_ENABLED = false`); while off there is **no seat limit** | Owner's decision. With no plans on sale, the seat limit left every new practice unable to invite a colleague. Free use takes no share of any fee and seats count people, never clients, so neither rule 1 nor 3 is touched. A switch: limits and the licence line return with it |
+| 2026-10-15 | **The platform sets no refund terms.** A cancelled paid request is owed in full; the practice records what it returned, with a reason if less | The code forfeited half the fee when a client cancelled inside 24 hours — a term no practice set and no fee proposal or engagement letter mentioned. That is the platform writing the retainer (rule 7). The client sees what was kept and why, and can dispute |
 
 ## Session log
 
@@ -3068,3 +3069,22 @@ says the practice is paid into its account. Verified with temporary example.com 
 (8,000 proposed / 15,000 awaiting / 20,000 received): principal and manager see those,
 paralegal and client refused, another practice nothing; deleted by id, no leftovers.
 `check:billing` 21/21.
+
+### 2026-10-15 — Consultations → Refunds: the practice sets refund terms, not the platform
+
+- **Platform 50% rule removed** (`fadea33`): inside 24 hours a client cancelling forfeited half,
+  applied by our code, shown only in the cancel box. Now owed in full; the practice decides
+  under its own terms. Client sees paid / kept / the practice's reason and can dispute.
+- **Practice-only recording, practice-wide, with the amount** (`300642e`): admins could mark a
+  practice's refund sent or declined — now view-only. Principal and manager see all of the
+  practice's refunds, attorney their own, paralegal none. Amount refunded is recorded; less
+  needs a reason; more than paid refused.
+- Firm Cancel box wording (`a45cf9b`).
+
+Driven with a temporary paid request (client cancelled ~3h before): owed 20,000; admin 403;
+paralegal 403; 15,000 without reason refused, 25,000 refused, 15,000 with reason recorded
+(5,000 kept) and shown to the client. Deleted by id, no leftovers. `check:billing` 21/21,
+`check:privilege` 42/42.
+
+**Idea, not built:** a "cancellation terms" field on the fee proposal, so the client sees
+the practice's terms before accepting and paying.

@@ -167,6 +167,8 @@ no date (`06dc7d8`).
     (`src/lib/licensing.ts`). While off: no licence line on the lawyer dashboard and **no
     seat limit** (owner chose free, unlimited colleagues over new practices being stuck at
     one person). Still to wire: the pricing page and the Payments menu, at their review.
+16. **The platform sets no refund terms** — a cancelled paid request is owed in full; the
+    practice records what it returns, with a reason if less (2026-10-15).
 
 ## E. Next up
 
@@ -178,7 +180,8 @@ no date (`06dc7d8`).
    and email). **Bookings done** (practice's own status labels, Details, Not accepted tab,
    phone). **Set Availability hidden** (and slot holds refused) while attorney booking is off.
    **Pricing hidden; its API no longer hands out bank details.** **Consultation Income → Fees**
-   (practice-wide, stages counted right). **Next: Consultations → Refunds.** Lawyer menu: Dashboard · My Firm (Practice, Data Requests) · Consultations (Bookings, Set
+   (practice-wide, stages counted right). **Refunds done** (no
+   platform refund rule; practice records). **Next: Messages.** Lawyer menu: Dashboard · My Firm (Practice, Data Requests) · Consultations (Bookings, Set
    Availability, Pricing, Consultation Income, Refunds) · Messages · Payments (Invoices,
    Payment History) · Community Posts · Profile Settings. Things already suspected:
    - **Set Availability / Pricing** are per-attorney slot and price tools from the old
