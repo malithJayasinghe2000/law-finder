@@ -858,15 +858,15 @@ export default function LawyerBookingsPage() {
 
       <Dialog open={Boolean(cancelBookingTarget)} onOpenChange={(open) => { if (!open) { setCancelBookingTarget(null); setCancelReason(''); } }}>
         <DialogContent>
-          <DialogTitle>Cancel Booking</DialogTitle>
+          <DialogTitle>Cancel request</DialogTitle>
           <DialogDescription>
-            Provide a clear cancellation reason for this booking. The client will be notified and the refund policy will be applied if the booking has already been paid.
+            Give the client a clear reason; they are emailed it. If they have paid, what they paid is recorded as owed back in full under Refunds, where you record what your practice returns.
           </DialogDescription>
 
           {cancelBookingTarget && (
             <div className="space-y-4 mt-4">
               <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-700">
-                <p className="font-semibold">Booking</p>
+                <p className="font-semibold">Request</p>
                 <p>{cancelBookingTarget.bookingNumber} • {cancelBookingTarget.subject}</p>
                 <p>{cancelBookingTarget.date ? `${formatDateOnlyString(cancelBookingTarget.date, 'en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })} • ${cancelBookingTarget.startTime} – ${cancelBookingTarget.endTime}` : 'No appointment arranged yet'}</p>
                 <p className="text-xs text-neutral-500 mt-1">Client: {cancelBookingTarget.client?.fullName || cancelBookingTarget.client?.email}</p>
