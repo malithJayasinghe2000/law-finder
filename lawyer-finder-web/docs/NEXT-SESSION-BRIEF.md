@@ -181,7 +181,9 @@ no date (`06dc7d8`).
    phone). **Set Availability hidden** (and slot holds refused) while attorney booking is off.
    **Pricing hidden; its API no longer hands out bank details.** **Consultation Income → Fees**
    (practice-wide, stages counted right). **Refunds done** (no
-   platform refund rule; practice records). **Next: Messages.** Lawyer menu: Dashboard · My Firm (Practice, Data Requests) · Consultations (Bookings, Set
+   platform refund rule; practice records). **Messages done** (no false
+   privacy claims, request number). **Next: Payments → Invoices** (licence invoices — hidden
+   with licensing?). Lawyer menu: Dashboard · My Firm (Practice, Data Requests) · Consultations (Bookings, Set
    Availability, Pricing, Consultation Income, Refunds) · Messages · Payments (Invoices,
    Payment History) · Community Posts · Profile Settings. Things already suspected:
    - **Set Availability / Pricing** are per-attorney slot and price tools from the old

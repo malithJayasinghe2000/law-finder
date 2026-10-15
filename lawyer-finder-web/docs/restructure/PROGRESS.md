@@ -3088,3 +3088,19 @@ paralegal 403; 15,000 without reason refused, 25,000 refused, 15,000 with reason
 
 **Idea, not built:** a "cancellation terms" field on the fee proposal, so the client sees
 the practice's terms before accepting and paying.
+
+### 2026-10-15 — Messages: no false privacy claims; request number on each thread
+
+- **False claims removed** (`8e43dc3`): "fully encrypted", "End-To-End Secure", "Encrypted
+  session", "documents exchanged". Checked before rewording: `Message.content` is stored as
+  `enc.v1…`, `resolveConversationAccess` refuses ADMIN and non-participants — but the server
+  decrypts, so not end-to-end, and nothing can be attached. Now says only that. Shared with
+  the client's Messages page.
+- **Request number** in the thread list and header (number only; the subject is privileged).
+- **Menu** (`7ea123f`): firm Messages shown to attorneys only — a manager's link landed on the
+  home page; staff have no firm threads.
+
+Verified at 412 / 1440 as Kavindu (BK-2026-0005 on the thread), citizen (two threads told
+apart by number), and a temporary manager (no link; deleted). `check:privilege` 42/42.
+
+**Rule for copy:** never describe the chat as end-to-end encrypted unless it becomes so.
