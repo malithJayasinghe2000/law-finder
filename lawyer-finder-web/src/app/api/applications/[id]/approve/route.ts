@@ -137,7 +137,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       });
     });
 
-    await EmailService.sendApplicationApproved(application.user.email, step1.fullName);
+    // Not awaited: the mail server takes 5-18 s and the admin should not wait
+    // on it. server.js is long-lived, so the send completes after the response;
+    // sendMailSafe logs a failure and never throws.
+    void EmailService.sendApplicationApproved(application.user.email, step1.fullName);
 
     return NextResponse.json(
       {

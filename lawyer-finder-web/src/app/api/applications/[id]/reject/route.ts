@@ -41,9 +41,12 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     const data = application.draftData as any;
     const name = data.step1?.fullName || 'Applicant';
 
-    await EmailService.sendApplicationRejected(application.user.email, name, reason);
+    // Not awaited: the mail server takes 5-18 s and the admin should not wait
+    // on it. server.js is long-lived, so the send completes after the response;
+    // sendMailSafe logs a failure and never throws.
+    void EmailService.sendApplicationRejected(application.user.email, name, reason);
 
-    return NextResponse.json({ success: true, message: 'Application rejected. The applicant has been emailed the reason.' }, { status: 200 });
+    return NextResponse.json({ success: true, message: 'Application rejected. The applicant will be emailed the reason.' }, { status: 200 });
   } catch (error) {
     console.error(error);
     return NextResponse.json({ error: 'Failed to execute rejection.' }, { status: 500 });
