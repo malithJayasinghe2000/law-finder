@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
@@ -61,9 +60,7 @@ export default function AdminRefundsPage() {
   const [refunds, setRefunds] = useState<RefundItem[]>([]);
   const [stats, setStats] = useState<Stats>({ pendingCount: 0, processedCount: 0, totalPendingAmount: 0 });
   const [loading, setLoading] = useState(true);
-  const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState('PENDING');
-  const [selectedRefund, setSelectedRefund] = useState<RefundItem | null>(null);
 
   useEffect(() => { loadRefunds(); }, [statusFilter]);
 
@@ -81,34 +78,7 @@ export default function AdminRefundsPage() {
     }
   }
 
-  async function handleRefundAction(bookingId: string, action: 'process' | 'decline') {
-    const notes = action === 'decline'
-      ? window.prompt('Reason for declining refund:')
-      : window.prompt('Add a note (optional):', 'Refund sent via bank transfer');
-    
-    if (action === 'decline' && !notes) return; // Require reason for decline
 
-    setActionLoading(bookingId);
-    try {
-      const res = await fetch('/api/consultations/refunds', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ bookingId, action, notes }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        toast.success(action === 'process' ? 'Refund marked as processed' : 'Refund declined');
-        setSelectedRefund(null);
-        loadRefunds();
-      } else {
-        toast.error(data.error || 'Action failed');
-      }
-    } catch {
-      toast.error('Action failed');
-    } finally {
-      setActionLoading(null);
-    }
-  }
 
   const statusTabs = [
     { value: 'PENDING', label: 'Pending Refunds', icon: Clock },
@@ -135,9 +105,9 @@ export default function AdminRefundsPage() {
         <div className="space-y-1 text-sm">
           <p className="font-semibold text-blue-900">The platform does not issue these refunds</p>
           <p className="text-blue-800">
-            Clients pay lawyers directly, so the lawyer holds the fee and the lawyer
-            returns it. Marking a refund here <strong>records</strong> that it was
-            returned — it does not move any money.
+            Clients pay the practice directly, so the practice holds the fee, returns it
+            and records it. This page is <strong>view only</strong> — platform staff cannot
+            mark a practice&apos;s refund as sent or declined.
           </p>
         </div>
       </div>
@@ -305,32 +275,19 @@ export default function AdminRefundsPage() {
                           <p>Original Fee: Rs. {refund.totalAmount.toLocaleString()}</p>
                           {refund.retainedLawyerFee > 0 && (
                             <div className="mt-2 pt-2 border-t border-neutral-100 space-y-0.5 text-amber-600 font-medium">
-                              <p>Retained by Lawyer: Rs. {refund.retainedLawyerFee.toLocaleString()}</p>
+                              <p>Kept by the practice: Rs. {refund.retainedLawyerFee.toLocaleString()}</p>
                             </div>
                           )}
                         </div>
                       </div>
 
+                      {/* View only: the practice holds the fee and records its own
+                          refund. Platform staff marking it sent or declined would be us
+                          speaking for the practice's account (rule 2). */}
                       {refund.refundStatus === 'PENDING' && (
-                        <div className="flex flex-col gap-1.5">
-                          <Button
-                            size="sm"
-                            onClick={() => handleRefundAction(refund.id, 'process')}
-                            disabled={actionLoading === refund.id}
-                            className="bg-green-600 text-white hover:bg-green-700 rounded-none h-8 text-[10px] px-3 font-bold w-full"
-                          >
-                            <CheckCircle className="w-3 h-3 mr-1" /> Mark as Processed
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleRefundAction(refund.id, 'decline')}
-                            disabled={actionLoading === refund.id}
-                            className="rounded-none h-8 text-[10px] px-3 font-bold text-red-600 border-red-200 hover:bg-red-50 w-full"
-                          >
-                            <XCircle className="w-3 h-3 mr-1" /> Decline Refund
-                          </Button>
-                        </div>
+                        <Badge className="bg-amber-100 text-amber-800 text-[10px] rounded-sm">
+                          Waiting for the practice
+                        </Badge>
                       )}
 
                       {refund.refundStatus === 'PROCESSED' && (

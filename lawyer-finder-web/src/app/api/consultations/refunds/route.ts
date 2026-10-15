@@ -3,12 +3,13 @@ import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { formatSriLankaDateIso, formatSriLankaDateIsoOrNull } from '@/lib/utils';
 import { EmailService } from '@/lib/email/EmailService';
+import { getFirmMembership, canManageFirm } from '@/lib/firms/access';
 
 // GET: List bookings with pending refunds (Admin only)
 export async function GET(req: Request) {
   try {
     const session = await getSession();
-    if (!session || (session.role !== 'ADMIN' && session.role !== 'LAWYER')) {
+    if (!session) {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 });
     }
 
@@ -22,19 +23,21 @@ export async function GET(req: Request) {
       where.refundStatus = status;
     }
 
-    // A lawyer sees only refunds they themselves owe — they hold the money, so
-    // they are the one who returns it.
-    if (session.role === 'LAWYER') {
-      const lawyer = await prisma.lawyerProfile.findUnique({
-        where: { userId: session.userId },
-        select: { id: true },
-      });
-
-      if (!lawyer) {
-        return NextResponse.json({ error: 'Lawyer profile not found' }, { status: 404 });
+    // The refund is owed by the PRACTICE, which holds the fee. Its principal and
+    // practice manager see all of its refunds; an attorney the ones on their own
+    // matters; a paralegal none. Platform staff may look, never act (PATCH). This
+    // used to be per attorney and LAWYER-only, so the people who run the
+    // practice's account could not see what it owed.
+    if (session.role !== 'ADMIN') {
+      const membership = await getFirmMembership(session.userId);
+      if (!membership || (!canManageFirm(membership) && !membership.profileId)) {
+        return NextResponse.json(
+          { error: "Only the practice's principal, practice manager and attorneys can see refunds." },
+          { status: 403 }
+        );
       }
-
-      where.lawyerId = lawyer.id;
+      where.firmId = membership.firmId;
+      if (!canManageFirm(membership)) where.lawyerId = membership.profileId;
     }
 
     const bookings = await prisma.booking.findMany({
@@ -107,8 +110,8 @@ export async function GET(req: Request) {
  * lawyer received the money and the lawyer returns it directly to the client.
  * This endpoint only *records* that outcome.
  *
- * The lawyer who owes the refund can record it themselves; admins may also record
- * one on their behalf for support cases.
+ * The practice records it — the attorney on the matter, or its principal or
+ * practice manager. Platform staff cannot: it is the practice's account.
  * See docs/restructure/LEGAL-GUARDRAILS.md (rule 2).
  */
 export async function PATCH(req: Request) {
@@ -144,9 +147,13 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: 'Booking not found' }, { status: 404 });
     }
 
-    const isAdmin = session.role === 'ADMIN';
-    const isOwningLawyer = !!booking.lawyer && booking.lawyer.userId === session.userId;
     const isClient = booking.clientId === session.userId;
+    // The practice acts: the attorney on the matter, or its principal or manager.
+    const membership = isClient ? null : await getFirmMembership(session.userId);
+    const isPractice =
+      !!membership &&
+      membership.firmId === booking.firmId &&
+      (canManageFirm(membership) || (!!booking.lawyer && booking.lawyer.userId === session.userId));
 
     // --- Client side: acknowledge or dispute a refund the firm says it sent ---
     if (action === 'confirm' || action === 'dispute') {
@@ -190,9 +197,11 @@ export async function PATCH(req: Request) {
     }
 
     // --- Firm side: record that the refund was made, or decline it ---
-    if (!isAdmin && !isOwningLawyer) {
+    // Not platform staff: recording that a practice returned, or kept, a client's
+    // money is the practice's statement about its own account (rule 2).
+    if (!isPractice) {
       return NextResponse.json(
-        { error: 'Only the lawyer who received the fee, or an admin, can record this refund.' },
+        { error: 'Only the practice that received the fee can record this refund.' },
         { status: 403 }
       );
     }
@@ -201,7 +210,7 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: 'This booking has no refund outstanding' }, { status: 400 });
     }
 
-    const actor = isOwningLawyer ? 'lawyer' : 'admin';
+    const actor = membership?.role === 'FIRM_ADMIN' ? 'practice manager' : 'practice';
 
     if (action === 'decline') {
       if (!notes || notes.trim().length < 5) {
@@ -255,11 +264,31 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: 'Record the date you sent the refund.' }, { status: 400 });
     }
 
+    // How much the practice returned. What the client paid is recorded as owed
+    // in full; the practice may return less under its own terms with the client,
+    // and must say why — the client is shown the reason and can dispute it.
+    const owed = booking.totalAmount;
+    const refunded = body.amount === undefined ? owed : Number(body.amount);
+    if (!Number.isInteger(refunded) || refunded < 1 || refunded > owed) {
+      return NextResponse.json(
+        { error: `Enter the amount you refunded, between 1 and ${owed}.` },
+        { status: 400 }
+      );
+    }
+    if (refunded < owed && (!notes || notes.trim().length < 10)) {
+      return NextResponse.json(
+        { error: 'You refunded less than the client paid. Say why — the client is shown your reason.' },
+        { status: 400 }
+      );
+    }
+
     const updated = await prisma.booking.update({
       where: { id: bookingId },
       data: {
         refundStatus: 'PROCESSED',
         refundProcessedAt: new Date(),
+        refundAmount: refunded,
+        retainedLawyerFee: owed - refunded,
         refundMethod: method.trim(),
         refundReference: reference.trim(),
         refundProofUrl: typeof proofUrl === 'string' && proofUrl ? proofUrl : null,
@@ -277,7 +306,7 @@ export async function PATCH(req: Request) {
       booking.client.email,
       booking.client.fullName || 'Client',
       booking.bookingNumber,
-      booking.refundAmount || 0
+      refunded
     );
 
     return NextResponse.json({
