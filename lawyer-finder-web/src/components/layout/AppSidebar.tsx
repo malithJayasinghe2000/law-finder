@@ -6,6 +6,7 @@ import { Sidebar, SidebarContent, SidebarHeader, SidebarMenu, SidebarMenuItem, S
 import { LayoutDashboard, Users, FileText, Settings, Star, ShieldCheck, LogOut, Megaphone, Image, ShieldPlus, ChevronDown, History, CreditCard, MessageCircle, Globe, PenSquare, Flag, CalendarDays, DollarSign, Banknote, BookOpen, Building2, Shield, Lock, Power } from 'lucide-react';
 import ChatBadge from '@/components/chat/ChatBadge';
 import { ATTORNEY_BOOKING_ENABLED } from '@/lib/directoryLinks';
+import { LICENSING_ENABLED } from '@/lib/licensing';
 import { toast } from 'sonner';
 import React, { useState } from 'react';
 
@@ -140,6 +141,8 @@ export function AppSidebar({
     ...(role === 'LAWYER'
       ? [{ href: `/${locale}/dashboard/lawyer/chat`, icon: MessageCircle, label: 'Messages', hasBadge: true }]
       : []),
+    // Licence invoices: hidden while licensing is off (src/lib/licensing.ts).
+    ...(LICENSING_ENABLED ? [
     { 
       href: `/${locale}/dashboard/lawyer/payments`, 
       icon: CreditCard, 
@@ -148,7 +151,8 @@ export function AppSidebar({
         { href: `/${locale}/dashboard/lawyer/payments/invoices`, icon: FileText, label: 'Invoices' },
         { href: `/${locale}/dashboard/lawyer/payments/history`, icon: History, label: 'Payment History' },
       ]
-    },
+    }]
+    : []),
     { href: `/${locale}/dashboard/blog/my-posts`, icon: PenSquare, label: 'Community Posts' },
     { href: `/${locale}/dashboard/profile`, icon: Settings, label: 'Profile Settings', exact: true },
     { href: `/${locale}/dashboard/profile/privacy`, icon: Lock, label: 'Your Data' },

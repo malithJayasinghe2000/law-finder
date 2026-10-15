@@ -9,8 +9,16 @@
  *   - there is no seat limit (`canAddFirmMember`): any practice may invite as
  *     many colleagues as it needs, free (owner's choice, 2026-10-14)
  *
- * Still to be wired to it, as each section is reviewed: the pricing page and
- * the Payments menu (Invoices, Payment History).
+ *   - the Payments menu (Invoices, Payment History), every page under
+ *     /dashboard/lawyer/payments and /dashboard/lawyer/invoices, and /pricing show
+ *     "Licences are not sold yet"; the top bar has no Pricing link and the user menu
+ *     no subscription line
+ *   - creating an invoice, submitting a payment and renewing are refused (410)
+ *
+ * BEFORE SWITCHING THIS ON: check what each plan offers. Paid promotion and
+ * "receive client inquiries" were removed on 2026-10-15 (rules 1 and 3); plans
+ * must differ only on software and seats. The pricing page's Permissions list
+ * was empty for every plan at that date — check it renders.
  *
  * Plain module, no database: client components import it.
  * ─────────────────────────────────────────────────────────────────────────────
