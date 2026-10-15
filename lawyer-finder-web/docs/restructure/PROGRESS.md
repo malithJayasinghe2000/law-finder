@@ -3033,3 +3033,13 @@ overflow; the client still sees "Under review".
 
 **Seen, not changed:** the Cancel dialog speaks of bookings and "the refund policy" — at the
 Refunds review. The menu still says "Bookings" — at the menu review.
+
+### 2026-10-15 — Consultations → Set Availability: hidden while attorney booking is off
+
+Weekly slots and days off only fed attorney-first booking (off since 2026-10-13); the practice
+request form and the quote form use no slots, and the local DB held 0 availability rows,
+0 overrides, 0 holds. Hidden from the menu, old URL explains, behind `ATTORNEY_BOOKING_ENABLED`
+— nothing deleted (`e4ec055`). **Missed on 2026-10-13:** `POST /api/consultations/holds` still
+let any signed-in user hold any attorney's diary, recording whose diary they looked at (an
+interest signal). Now 410 while the switch is off. Verified: citizen hold → 410, menu without
+Set Availability, old link shows the notice; build passes.

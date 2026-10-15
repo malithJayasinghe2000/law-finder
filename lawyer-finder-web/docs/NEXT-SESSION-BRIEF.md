@@ -176,7 +176,8 @@ no date (`06dc7d8`).
    done** (invite instead of add, change role / remove, offices edit / retire — PROGRESS.md).
    **Data Requests done** (answers fit the request, no "Erased", practice told by dashboard
    and email). **Bookings done** (practice's own status labels, Details, Not accepted tab,
-   phone). **Next: Consultations → Set Availability.** Lawyer menu: Dashboard · My Firm (Practice, Data Requests) · Consultations (Bookings, Set
+   phone). **Set Availability hidden** (and slot holds refused) while attorney booking is off.
+   **Next: Consultations → Pricing.** Lawyer menu: Dashboard · My Firm (Practice, Data Requests) · Consultations (Bookings, Set
    Availability, Pricing, Consultation Income, Refunds) · Messages · Payments (Invoices,
    Payment History) · Community Posts · Profile Settings. Things already suspected:
    - **Set Availability / Pricing** are per-attorney slot and price tools from the old
