@@ -3145,3 +3145,28 @@ menus correct. User menu shows the attorney's registered name, not "None" (`3a5e
 `src/components/layout/DashboardSidebar.tsx` is unused (dead code), left in place.
 
 **Lawyer side done.** Next: the admin side.
+
+### 2026-10-16 — Admin Dashboard: what is waiting for an admin, and true numbers
+
+First section of the admin-side review. The page showed typed-in trends ("+12%", "+5%",
+"+8%", "99% Platform health · Stable"), counted all 5 firms as "Law Firms" when 1 is listed,
+called every CLIENT account an "active client" (practice managers included), and repeated
+its cards in a "System Overview" box.
+
+- **API leak closed** (`4c0e6b4`): `/api/admin` sent each pending applicant's whole
+  application — phone, home address, map location, identity/licence image links, account
+  email — to a page showing name and BASL number. Proven with a temporary application on
+  the old code; now returns those two fields. The page no longer calls it.
+- **Rebuilt as a server page** (`22c2aaf`): *Needs your attention* lists practices to verify,
+  attorney applications, open/overdue data requests, reported posts, posts to review,
+  community requests, advertisers and ad campaigns — each only when non-empty, linked to
+  its page. Figures: accounts, client accounts (no practice managers), verified attorneys,
+  listed practices; 2 columns on phones. Sign-up charts last, months in Sri Lanka time.
+
+Verified at 412px and 1440px; a temporary practice manager raised Accounts to 10 and left
+Client accounts at 2. Temporary rows deleted by id; all text columns scanned, none left.
+
+**Found:** there is **no admin page for data requests**. An OBJECTION or RECTIFICATION
+request is created `IN_PROGRESS` and nothing on staff's side ever shows it; the dashboard
+now counts them but has nowhere to link. Local DB has one ACCESS request overdue since
+27 Sep (awaiting Perera & Associates).
