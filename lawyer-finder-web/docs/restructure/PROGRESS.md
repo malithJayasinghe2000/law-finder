@@ -3194,3 +3194,24 @@ running before any change.
 second way to mark someone verified with no application, no BASL check and no record.
 Known, not fixed here: identity documents sit at public Cloudinary URLs (the open
 authenticated file route).
+
+### 2026-10-16 — Law Firms: tabs say what is listed; the practice is told the decision
+
+- **No decision on an unregistered practice** (`448072c`): 409. It changed nothing a client
+  sees and recorded a check nobody could make.
+- **Tabs and badges** (`2b5dbcf`): "Verified" showed five firms, one listed — the other four
+  are firms of one that never registered (verified by the old seed, `verifiedById` null).
+  Tabs are now Waiting for check · Listed · Not verified · Not registered · All, and each
+  card says whether it is listed and why not. Members by registered name (Perera's
+  principal showed as "None"); "View public page" only for a listed firm (it 404'd for the
+  other four) and in the current locale. `AWAITING_CHECK_FIRM_WHERE` is shared with the
+  admin dashboard count (which had not required registration).
+- **Decision email** (`502cc0f`): principal and practice manager get the decision and the
+  note (escaped; tags already stripped on save), sent after the response.
+
+Verified at 412px/1440px with a temporary registered practice (account name "None", shown
+as its registered name): waiting tab and dashboard count, Needs more information through
+the dialog on a phone, verified → Listed. Deleted by id; no leftovers.
+
+**Noticed:** every public page's `<title>` is "Find the Right Lawyer in Sri Lanka" —
+marketplace wording; belongs to the landing-page wording item.
