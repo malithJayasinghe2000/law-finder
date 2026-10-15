@@ -2,6 +2,29 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { VerifyFirmSchema } from '@/schemas/firm.schema';
+import { LISTED_FIRM_WHERE, AWAITING_CHECK_FIRM_WHERE, isListedFirm, isPublicDirectoryEnabled } from '@/lib/directory';
+
+/**
+ * The page's tabs. "Verified" used to be a status filter, and showed four
+ * firms of one that never registered as verified, though only registered,
+ * verified practices are listed. Each view is now what an admin acts on.
+ */
+const VIEWS = {
+  waiting: AWAITING_CHECK_FIRM_WHERE,
+  listed: LISTED_FIRM_WHERE,
+  'not-verified': { isRegisteredPractice: true, verificationStatus: 'REJECTED' },
+  'not-registered': { isRegisteredPractice: false },
+  all: {},
+} as const;
+
+/** Whether the firm is listed and, if not, why — in the admin's words. */
+function listingState(f: { isActive: boolean; isRegisteredPractice: boolean; verificationStatus: string }) {
+  if (isListedFirm(f)) return 'LISTED';
+  if (!f.isRegisteredPractice) return 'NOT_REGISTERED';
+  if (!f.isActive) return 'INACTIVE';
+  if (f.verificationStatus === 'REJECTED') return 'NOT_VERIFIED';
+  return 'WAITING';
+}
 
 /**
  * Platform-side firm verification.
@@ -27,13 +50,12 @@ export async function GET(req: Request) {
     }
 
     const { searchParams } = new URL(req.url);
-    const status = searchParams.get('status') || undefined;
+    const view = (searchParams.get('view') || 'waiting') as keyof typeof VIEWS;
     const search = searchParams.get('search') || undefined;
     const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1);
     const limit = Math.min(50, Math.max(1, parseInt(searchParams.get('limit') || '10', 10) || 10));
 
-    const where: Record<string, unknown> = {};
-    if (status) where.verificationStatus = status;
+    const where: Record<string, unknown> = { ...(VIEWS[view] ?? VIEWS.waiting) };
     if (search) where.name = { contains: search, mode: 'insensitive' };
 
     const [firms, total] = await Promise.all([
@@ -46,6 +68,7 @@ export async function GET(req: Request) {
           firmType: true,
           isSoloPractice: true,
           isActive: true,
+          isRegisteredPractice: true,
           registrationNumber: true,
           principalBaslNumber: true,
           district: true,
@@ -69,23 +92,25 @@ export async function GET(req: Request) {
                 select: {
                   fullName: true,
                   email: true,
-                  profile: { select: { baslNumber: true, isVerified: true } },
+                  profile: { select: { fullName: true, baslNumber: true, isVerified: true } },
                 },
               },
             },
           },
           _count: { select: { lawyers: true, bookings: true } },
         },
-        orderBy: [{ verificationStatus: 'asc' }, { createdAt: 'desc' }],
+        orderBy: { createdAt: 'desc' },
         skip: (page - 1) * limit,
         take: limit,
       }),
       prisma.lawFirm.count({ where }),
     ]);
+    const directoryOn = await isPublicDirectoryEnabled();
 
     return NextResponse.json({
       firms: firms.map((f) => ({
         ...f,
+        listing: listingState(f),
         attorneyCount: f._count.lawyers,
         // A count, deliberately — not a list, and never a subject line.
         matterCount: f._count.bookings,
@@ -93,6 +118,7 @@ export async function GET(req: Request) {
         createdAt: f.createdAt.toISOString(),
         verifiedAt: f.verifiedAt?.toISOString() ?? null,
       })),
+      directoryOn,
       pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
     });
   } catch (error) {

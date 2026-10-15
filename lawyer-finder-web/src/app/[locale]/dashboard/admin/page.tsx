@@ -3,7 +3,7 @@ import Link from 'next/link';
 import {
   LayoutDashboard, Bell, ShieldCheck, Building2, Flag, FileText, Globe, Megaphone, Image, Shield,
 } from 'lucide-react';
-import { LISTED_FIRM_WHERE } from '@/lib/directory';
+import { LISTED_FIRM_WHERE, AWAITING_CHECK_FIRM_WHERE } from '@/lib/directory';
 import { SignupCharts } from '@/components/admin/SignupCharts';
 
 /**
@@ -63,7 +63,7 @@ export default async function AdminDashboard({ params }: { params: Promise<{ loc
     newAttorneys, newClients,
   ] = await Promise.all([
     prisma.lawyerApplication.count({ where: { status: 'SUBMITTED' } }),
-    prisma.lawFirm.count({ where: { isActive: true, verificationStatus: 'PENDING' } }),
+    prisma.lawFirm.count({ where: AWAITING_CHECK_FIRM_WHERE }),
     prisma.report.count({ where: { status: 'PENDING' } }),
     prisma.post.count({ where: { status: 'PENDING_REVIEW' } }),
     prisma.communityRequest.count({ where: { status: 'PENDING' } }),

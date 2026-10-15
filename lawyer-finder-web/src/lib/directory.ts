@@ -57,6 +57,13 @@ export const LISTED_FIRM_WHERE = {
   verificationStatus: 'VERIFIED',
 } as const;
 
+/** A registered practice waiting for an administrator to verify it. */
+export const AWAITING_CHECK_FIRM_WHERE = {
+  isActive: true,
+  isRegisteredPractice: true,
+  verificationStatus: 'PENDING',
+} as const;
+
 /** The same test as LISTED_FIRM_WHERE, for a firm already loaded. */
 export function isListedFirm(
   firm: { isActive: boolean; isRegisteredPractice: boolean; verificationStatus: string } | null | undefined
