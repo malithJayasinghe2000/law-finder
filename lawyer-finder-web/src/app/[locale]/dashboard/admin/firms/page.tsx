@@ -342,7 +342,7 @@ function VerificationDialog({
       if (!res.ok) {
         throw new Error(typeof data.error === 'string' ? data.error : 'Could not record that.');
       }
-      toast.success('Decision recorded.');
+      toast.success('Decision recorded. The principal and practice manager will be emailed.');
       onDecided();
     } catch (e: any) {
       toast.error(e.message);
@@ -392,7 +392,7 @@ function VerificationDialog({
               id="verify-notes" value={notes} rows={3}
               onChange={(e) => setNotes(e.target.value)}
               className="rounded-none text-sm"
-              placeholder="What you checked, or what is missing. The firm sees this."
+              placeholder="What you checked, or what is missing. The practice is emailed this note."
             />
           </div>
         </div>

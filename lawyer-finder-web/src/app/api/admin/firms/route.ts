@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { EmailService } from '@/lib/email/EmailService';
 import { VerifyFirmSchema } from '@/schemas/firm.schema';
 import { LISTED_FIRM_WHERE, AWAITING_CHECK_FIRM_WHERE, isListedFirm, isPublicDirectoryEnabled } from '@/lib/directory';
 
@@ -147,8 +148,12 @@ export async function PATCH(req: Request) {
       where: { id: firmId },
       select: {
         id: true,
+        name: true,
         isRegisteredPractice: true,
-        members: { where: { status: 'ACTIVE', role: 'FIRM_OWNER' }, select: { id: true } },
+        members: {
+          where: { status: 'ACTIVE', role: { in: ['FIRM_OWNER', 'FIRM_ADMIN'] } },
+          select: { role: true, user: { select: { email: true } } },
+        },
       },
     });
 
@@ -168,7 +173,7 @@ export async function PATCH(req: Request) {
     }
 
     // A practice with nobody answerable for it cannot be verified.
-    if (decision === 'VERIFIED' && firm.members.length === 0) {
+    if (decision === 'VERIFIED' && !firm.members.some((m) => m.role === 'FIRM_OWNER')) {
       return NextResponse.json(
         { error: 'This firm has no active principal. It cannot be verified.' },
         { status: 400 }
@@ -190,6 +195,15 @@ export async function PATCH(req: Request) {
         verifiedById: session.userId,
         verificationNotes: notes || null,
       },
+    });
+
+    // The principal and practice manager are told, with the note. Not awaited:
+    // the mail server takes 5-18 s; sendMailSafe logs a failure and never throws.
+    void EmailService.sendFirmVerificationDecision({
+      to: firm.members.map((m) => m.user.email),
+      firmName: firm.name,
+      decision,
+      notes: notes || null,
     });
 
     return NextResponse.json({ success: true });

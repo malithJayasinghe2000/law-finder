@@ -194,6 +194,45 @@ export const EmailService = {
     );
   },
 
+  /**
+   * Our decision on a registered practice. Without it a practice asked for more
+   * information never learned it was being waited on.
+   */
+  async sendFirmVerificationDecision(params: {
+    to: string[];
+    firmName: string;
+    decision: 'VERIFIED' | 'REJECTED' | 'PENDING';
+    notes: string | null;
+  }) {
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://thelawyr.lk';
+    const firm = escapeHtml(params.firmName);
+    const [subject, lead] = {
+      VERIFIED: [
+        `${params.firmName} is verified`,
+        `<p>We have verified <strong>${firm}</strong>. It can now appear in the public directory.</p>`,
+      ],
+      REJECTED: [
+        `${params.firmName} could not be verified`,
+        `<p>We could not verify <strong>${firm}</strong>, so it is not shown in the public directory.</p>`,
+      ],
+      PENDING: [
+        `We need more information about ${params.firmName}`,
+        `<p>Before we can verify <strong>${firm}</strong>, we need more information from you.</p>`,
+      ],
+    }[params.decision];
+    await sendMailSafe(
+      params.to,
+      subject,
+      template('Practice verification', `
+        ${lead}
+        ${params.notes ? `<p><strong>Our note:</strong> ${escapeHtml(params.notes)}</p>` : ''}
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${appUrl}/en/dashboard/lawyer/firm" style="background-color: #bfa37a; color: #ffffff; padding: 14px 28px; text-decoration: none; display: inline-block; font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.15em; border-radius: 0;">Open your practice</a>
+        </div>
+      `)
+    );
+  },
+
   async sendApplicationSubmitted(email: string, fullName: string) {
     await sendMailSafe(email, 'Lawyer Application Received', template('Application Received', `
       <p>Dear ${fullName},</p>
