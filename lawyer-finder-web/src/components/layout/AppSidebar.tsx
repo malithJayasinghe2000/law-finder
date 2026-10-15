@@ -133,7 +133,13 @@ export function AppSidebar({
         { href: `/${locale}/dashboard/lawyer/consultations/refunds`, icon: Banknote, label: 'Refunds' },
       ]
     },
-    { href: `/${locale}/dashboard/lawyer/chat`, icon: MessageCircle, label: 'Messages', hasBadge: true },
+    // Firm-side threads are between a client and the attorney on their request,
+    // and only participants may read them, so a practice manager or paralegal has
+    // none here (their own messages as a client stay in the client menu). The page
+    // admits attorneys only; the link used to send staff to the home page.
+    ...(role === 'LAWYER'
+      ? [{ href: `/${locale}/dashboard/lawyer/chat`, icon: MessageCircle, label: 'Messages', hasBadge: true }]
+      : []),
     { 
       href: `/${locale}/dashboard/lawyer/payments`, 
       icon: CreditCard, 
