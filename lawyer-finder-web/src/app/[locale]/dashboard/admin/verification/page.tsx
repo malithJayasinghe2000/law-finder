@@ -7,6 +7,7 @@ import {
   User, Scale, Phone, MapPin, Globe, FileText, Camera, Briefcase,
   ChevronDown, ChevronUp, Eye
 } from 'lucide-react';
+import { RejectApplicationSchema } from '@/schemas/application.schema';
 
 interface Application {
   id: string;
@@ -73,13 +74,14 @@ export default function VerificationPage() {
   };
 
   const handleReject = async (id: string) => {
-    if (!rejectReason.trim()) return toast.error('Rejection reason is mandatory.');
+    const parsed = RejectApplicationSchema.safeParse({ reason: rejectReason });
+    if (!parsed.success) return toast.error(parsed.error.issues[0]?.message ?? 'A reason is required.');
     setActionLoading(`reject-${id}`);
     try {
       const res = await fetch(`/api/applications/${id}/reject`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reason: rejectReason }),
+        body: JSON.stringify(parsed.data),
       });
       const result = await res.json();
       if (!res.ok) throw new Error(result.error);
@@ -87,8 +89,8 @@ export default function VerificationPage() {
       setRejectId(null);
       setRejectReason('');
       fetchData();
-    } catch {
-      toast.error('Failed to reject.');
+    } catch (err) {
+      toast.error(err instanceof Error && err.message ? err.message : 'Failed to reject.');
     } finally {
       setActionLoading(null);
     }

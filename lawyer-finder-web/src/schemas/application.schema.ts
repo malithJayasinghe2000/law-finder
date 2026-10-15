@@ -161,6 +161,18 @@ export const APPROVED_DRAFT_STUB = {
     'removed from here, so the identity documents are held once rather than twice.',
 } as const;
 
+/**
+ * An admin's rejection. The reason is emailed to the applicant and kept on the
+ * application, so a rejection without one cannot be explained to anybody.
+ */
+export const RejectApplicationSchema = z.object({
+  reason: z.string({ message: 'Give the applicant a reason.' })
+    .transform((val) => sanitizeString(val))
+    .pipe(z.string()
+      .min(10, 'Give the applicant a reason (at least 10 characters).')
+      .max(1000, 'Keep the reason under 1,000 characters.')),
+});
+
 // ── Type exports ─────────────────────────────────────────────────────────────
 
 export type ApplicationStep1Values = z.infer<typeof applicationStep1Schema>;
