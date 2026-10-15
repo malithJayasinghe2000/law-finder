@@ -3043,3 +3043,17 @@ request form and the quote form use no slots, and the local DB held 0 availabili
 let any signed-in user hold any attorney's diary, recording whose diary they looked at (an
 interest signal). Now 410 while the switch is off. Verified: citizen hold → 410, menu without
 Set Availability, old link shows the notice; build passes.
+
+### 2026-10-15 — Consultations → Pricing: an open bank-details API closed; page hidden
+
+**Security:** `GET /api/consultations/pricing` took any `lawyerId` and answered signed out,
+returning the whole row — the attorney's own bank account number included (`91c7e9a`).
+Now only the signed-in attorney's own row. Checked with a temporary row and a fake account
+number: signed out 401, client 401, another attorney sees only their own, owner sees it;
+row deleted. 0 rows locally; **on a live database any attorney who saved bank details
+there had them exposed** — worth checking production.
+
+The page held no prices — advance notice (attorney-first only) and the attorney's own bank
+details (superseded by the practice's). Hidden with Set Availability behind
+`ATTORNEY_BOOKING_ENABLED`; the old link points to Bank and tax details (`48cb6fa`).
+The Practice page now scrolls to a `#section` after loading.

@@ -177,13 +177,13 @@ no date (`06dc7d8`).
    **Data Requests done** (answers fit the request, no "Erased", practice told by dashboard
    and email). **Bookings done** (practice's own status labels, Details, Not accepted tab,
    phone). **Set Availability hidden** (and slot holds refused) while attorney booking is off.
-   **Next: Consultations → Pricing.** Lawyer menu: Dashboard · My Firm (Practice, Data Requests) · Consultations (Bookings, Set
+   **Pricing hidden; its API no longer hands out bank details.** **Next: Consultations →
+   Consultation Income.** Lawyer menu: Dashboard · My Firm (Practice, Data Requests) · Consultations (Bookings, Set
    Availability, Pricing, Consultation Income, Refunds) · Messages · Payments (Invoices,
    Payment History) · Community Posts · Profile Settings. Things already suspected:
    - **Set Availability / Pricing** are per-attorney slot and price tools from the old
      attorney-booking flow; with practice-only requests they may be unused — check.
-     Pricing's **bank fields** are no longer used by quotes (they pre-fill from the firm's
-     Bank and tax details since `1744d4d`) — remove them there.
+     (Done 2026-10-15: both hidden behind `ATTORNEY_BOOKING_ENABLED`.)
    - Several firm-side routes still gate on `role === 'LAWYER'` instead of membership:
      `/api/chat/conversations` + `unread-count`, `/api/dashboard/sidebar-counts`,
      `/api/consultations/refunds`, all `/api/subscriptions/*` (a practice manager cannot
