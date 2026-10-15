@@ -3057,3 +3057,14 @@ The page held no prices — advance notice (attorney-first only) and the attorne
 details (superseded by the practice's). Hidden with Set Availability behind
 `ATTORNEY_BOOKING_ENABLED`; the old link points to Bank and tax details (`48cb6fa`).
 The Practice page now scrolls to a `#section` after loading.
+
+### 2026-10-15 — Consultations → Consultation Income → "Fees", for the practice
+
+(`10281fa`) Was per attorney and LAWYER-only though fees are paid to the practice: now the
+principal and manager see every matter's fee with its attorney, an attorney their own, a
+paralegal none. "Awaiting payment" was drawn from SCHEDULED/COMPLETED only — always paid —
+so it could never hold anything; it now counts ACCEPTED, and "Proposed" counts QUOTED. Text
+says the practice is paid into its account. Verified with temporary example.com data
+(8,000 proposed / 15,000 awaiting / 20,000 received): principal and manager see those,
+paralegal and client refused, another practice nothing; deleted by id, no leftovers.
+`check:billing` 21/21.
