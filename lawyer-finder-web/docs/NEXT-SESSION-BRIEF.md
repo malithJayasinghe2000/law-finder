@@ -1,7 +1,7 @@
 # Next Session Brief
 
-> Updated 2026-10-14, after a session on **booking, the firm queue, conflict review, chat,
-> and a section-by-section review of the client dashboard**.
+> Updated 2026-10-15, after the **section-by-section review of the lawyer (firm) dashboard**,
+> which followed the client dashboard review of 2026-10-14. PROGRESS.md has an entry per section.
 > **Copy §A into a new chat as your first message.** The older brief (2026-09-21, the RAG
 > service) follows from §0 and is still accurate for the AI service.
 >
@@ -42,8 +42,8 @@ WHAT WE ARE DOING: a section-by-section review of every dashboard, one section a
 time — what it is for, keep / change / hide, and mobile layout. For each section:
 look at it on a phone, say what it does, list problems in a small table with a
 recommendation, and wait for my "ok" before changing anything.
-The CLIENT side is finished. START WITH: the LAWYER side, §E item 1 in the brief —
-the lawyer Dashboard first.
+The CLIENT and LAWYER sides are finished. START WITH: the ADMIN side, §E item 2 —
+the admin Dashboard first (it shows invented figures: "+12%", "99% Platform health").
 ```
 
 ---
@@ -172,7 +172,9 @@ no date (`06dc7d8`).
 
 ## E. Next up
 
-1. **Lawyer-side section-by-section review** (same method as the client side). **Dashboard
+1. **Lawyer-side review — DONE 2026-10-15.** Menu now: Dashboard · Requests (All requests,
+   Fees, Refunds) · Messages · My Practice (Practice, Data Requests) · Community Posts ·
+   Profile Settings · Your Data; title "Practice Portal" (`22b666c`). Section notes: **Dashboard
    done 2026-10-14** (needs-attention list, latest requests, directory/licence/community
    lines; works for a practice manager; `Article` removed entirely). **My Firm → Practice
    done** (invite instead of add, change role / remove, offices edit / retire — PROGRESS.md).

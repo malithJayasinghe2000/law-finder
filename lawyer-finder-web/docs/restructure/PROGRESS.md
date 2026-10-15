@@ -3134,3 +3134,14 @@ reminder is there, delete asks and soft-deletes, author-only. No change.
   now. **Production logs may hold hashes and NICs — check and purge.**
 - Form (`cf6cad7`): gender and coordinates no longer asked (unused / unshown); "Photo on your
   public page" instead of "Lawyer Card Image".
+
+### 2026-10-15 — The firm menu; the lawyer-side review is complete
+
+(`22b666c`) "Practice Portal" for everyone firm-side; Requests (All requests, Fees, Refunds),
+Messages, then My Practice — names match the pages, page addresses unchanged. The default
+open-groups list still named the old labels, so the renamed groups started collapsed and
+hid Data Requests again; fixed. All ten firm links open for Kavindu; manager and client
+menus correct. User menu shows the attorney's registered name, not "None" (`3a5ee25`).
+`src/components/layout/DashboardSidebar.tsx` is unused (dead code), left in place.
+
+**Lawyer side done.** Next: the admin side.
