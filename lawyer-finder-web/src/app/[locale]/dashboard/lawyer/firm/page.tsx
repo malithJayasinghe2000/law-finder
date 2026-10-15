@@ -195,6 +195,13 @@ export default function FirmPage() {
 
   useEffect(load, [load]);
 
+  // The sections render only after the firm has loaded, so a link such as
+  // /firm#account arrives before its target exists and the browser cannot jump.
+  useEffect(() => {
+    if (loading || typeof window === 'undefined' || !window.location.hash) return;
+    document.getElementById(window.location.hash.slice(1))?.scrollIntoView();
+  }, [loading]);
+
   const saveProfile = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!firm) return;

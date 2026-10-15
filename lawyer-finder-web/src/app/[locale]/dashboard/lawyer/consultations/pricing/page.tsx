@@ -6,8 +6,11 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import { DollarSign, Save, Info, Percent, Gift, Clock, Building2 } from 'lucide-react';
+import Link from 'next/link';
+import { useParams } from 'next/navigation';
+import { ATTORNEY_BOOKING_ENABLED } from '@/lib/directoryLinks';
 
-export default function PricingPage() {
+function PricingEditor() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [pricingType, setPricingType] = useState('PER_SESSION');
@@ -236,4 +239,30 @@ export default function PricingPage() {
       </div>
     </div>
   );
+}
+
+/**
+ * This page held no prices: minimum advance notice (only attorney-first slot
+ * booking used it, off for launch) and the attorney's own bank details (quotes
+ * pre-fill from the practice's Bank and tax details since 2026-10-14 — two places
+ * for bank details is how a client could be sent to the wrong account). Hidden
+ * from the menu; this notice is for the old link. Returns with the switch.
+ */
+export default function PricingPage() {
+  const { locale } = useParams<{ locale: string }>();
+  if (!ATTORNEY_BOOKING_ENABLED) {
+    return (
+      <div className="max-w-xl border border-neutral-200 bg-white p-6">
+        <h1 className="text-xl font-bold tracking-tight text-neutral-900">These settings are not used at the moment</h1>
+        <p className="mt-2 text-sm leading-relaxed text-neutral-600">
+          The bank details on your quotes and fee notes are your practice&apos;s, set in{' '}
+          <Link href={`/${locale}/dashboard/lawyer/firm#account`} className="font-semibold underline underline-offset-2">
+            My Firm → Practice → Bank and tax details
+          </Link>
+          . Fees are agreed with each client in your fee proposal.
+        </p>
+      </div>
+    );
+  }
+  return <PricingEditor />;
 }

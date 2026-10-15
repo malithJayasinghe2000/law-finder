@@ -30,7 +30,7 @@ export const PEOPLE_TAB_ENABLED = false;
  *   - POST /api/consultations/bookings refuses a request that names an attorney
  *     (hiding the button alone would leave the API taking them)
  *   - requests made before the switch are untouched
- *   - Set Availability is hidden from the menu, and POST /api/consultations/holds
+ *   - Set Availability and Pricing are hidden from the menu, and POST /api/consultations/holds
  *     refuses (slots only ever served attorney-first booking)
  * ─────────────────────────────────────────────────────────────────────────────
  */
