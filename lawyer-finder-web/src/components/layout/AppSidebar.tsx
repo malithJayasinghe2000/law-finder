@@ -106,7 +106,7 @@ export function AppSidebar({
 
   // Daily work first (requests, messages), set-up after (the practice itself).
   const lawyerLinks: NavLink[] = [
-    { href: `/${locale}/dashboard/lawyer`, icon: LayoutDashboard, label: 'Dashboard' },
+    { href: `/${locale}/dashboard/lawyer`, icon: LayoutDashboard, label: 'Dashboard', exact: true },
     {
       href: `/${locale}/dashboard/lawyer/consultations`,
       icon: CalendarDays,
