@@ -27,6 +27,13 @@ import { fullApplicationSchema, APPROVED_DRAFT_STUB } from '@/schemas/applicatio
  * the correct behaviour — the fix for a missing BASL number is to ask for it.
  * ─────────────────────────────────────────────────────────────────────────────
  */
+const STEP_NAMES: Record<string, string> = {
+  step1: 'personal details',
+  step2: 'professional credentials',
+  step3: 'practice areas',
+  step4: 'verification documents',
+};
+
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
@@ -48,15 +55,13 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     // Parsed, not cast. Nothing below invents a value.
     const parsed = fullApplicationSchema.safeParse(application.draftData);
     if (!parsed.success) {
-      const first = parsed.error.issues[0];
+      // Named the way the application form names its steps, for the admin.
+      const missing = [...new Set(parsed.error.issues.map((i) => STEP_NAMES[String(i.path[0])] ?? 'other details'))];
       return NextResponse.json(
         {
           error:
-            'This application is incomplete and cannot be approved. ' +
-            (first ? `${first.path.join('.')}: ${first.message}` : '') +
-            ' Ask the applicant to complete it rather than approving around the gap — ' +
-            'an attorney marked verified against a registration number we filled in ' +
-            'ourselves is not verified.',
+            `This application is incomplete (${missing.join(', ')}) and cannot be approved. ` +
+            'Reject it with a note asking the applicant to complete it.',
           details: parsed.error.issues,
         },
         { status: 422 }
@@ -135,7 +140,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     await EmailService.sendApplicationApproved(application.user.email, step1.fullName);
 
     return NextResponse.json(
-      { success: true, message: 'Attorney verified and enrolled, with a practice of one created.' },
+      {
+        success: true,
+        // No practice is created on approval (see step 3 above).
+        message: 'Attorney verified. They are not listed until they register a practice or join one.',
+      },
       { status: 200 }
     );
   } catch (error) {

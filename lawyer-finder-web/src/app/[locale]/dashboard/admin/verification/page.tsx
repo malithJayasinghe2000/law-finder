@@ -64,10 +64,12 @@ export default function VerificationPage() {
       });
       const result = await res.json();
       if (!res.ok) throw new Error(result.error);
-      toast.success(result.message || 'Lawyer approved successfully.');
+      toast.success(result.message || 'Attorney verified.');
       fetchData();
-    } catch {
-      toast.error('Failed to approve.');
+    } catch (err) {
+      // The server says why: an incomplete application, or a BASL number
+      // already on another profile. "Failed" alone left the admin guessing.
+      toast.error(err instanceof Error && err.message ? err.message : 'Failed to approve.', { duration: 10000 });
     } finally {
       setActionLoading(null);
     }
