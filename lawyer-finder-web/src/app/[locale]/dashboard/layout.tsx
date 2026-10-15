@@ -17,7 +17,9 @@ export default async function DashboardLayout({ children, params }: { children: 
   // Query live role from DB so role changes (e.g. admin approving lawyer) take effect without re-login
   const user = await prisma.user.findUnique({
     where: { id: session.userId },
-    select: { role: true, profileImageUrl: true, fullName: true },
+    // The attorney's registered name (the profile) comes first: an account name
+    // can be stale — the seeded principal's is the literal string "None".
+    select: { role: true, profileImageUrl: true, fullName: true, profile: { select: { fullName: true } } },
   });
 
   const liveRole = user?.role || session.role;
@@ -62,9 +64,10 @@ export default async function DashboardLayout({ children, params }: { children: 
             <div className="flex items-center gap-3">
               <DashboardUserMenu
                 locale={locale}
-                fullName={user?.fullName || session.fullName || null}
+                fullName={user?.profile?.fullName || user?.fullName || session.fullName || null}
                 profileImageUrl={user?.profileImageUrl || session.profileImageUrl || null}
                 role={liveRole}
+                roleLabel={liveRole === 'ADMIN' ? 'Platform admin' : liveRole === 'LAWYER' ? 'Attorney' : membership ? 'Practice staff' : 'Client'}
               />
             </div>
           </header>

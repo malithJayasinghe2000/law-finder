@@ -159,7 +159,9 @@ export default function Header({ locale, userRole = null, appStatus = null, user
           <div className="px-6 py-5 bg-neutral-50/50 border-b">
             <div className="flex flex-col space-y-2">
               <p className="text-[15px] font-bold text-neutral-900 leading-none">{userProfile?.fullName || 'Account'}</p>
-              <p className="text-[10px] text-neutral-400 font-bold uppercase tracking-[0.15em]">{userRole}</p>
+              <p className="text-[10px] text-neutral-400 font-bold uppercase tracking-[0.15em]">
+                {userRole === 'LAWYER' ? 'Attorney' : userRole === 'ADMIN' ? 'Platform admin' : 'Client'}
+              </p>
               {LICENSING_ENABLED && userRole === 'LAWYER' && subscriptionTier && (
                 <div className="flex items-center gap-2 mt-2 pt-2 border-t border-neutral-200">
                   <Zap className="w-4 h-4 text-amber-500" />
