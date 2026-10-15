@@ -38,6 +38,8 @@ export default function ProfileSettingsPage() {
   // False for an account created with Google sign-in: it has no password to change.
   const [hasPassword, setHasPassword] = useState(true);
   const [lawyerData, setLawyerData] = useState<any>(null);
+  // A verified attorney's registered name and NIC are read-only (see the API).
+  const verified = !!lawyerData?.isVerified;
   const [lFullName, setLFullName] = useState('');
   const [bio, setBio] = useState('');
   const [practiceAreas, setPracticeAreas] = useState<string[]>([]);
@@ -45,9 +47,6 @@ export default function ProfileSettingsPage() {
   const [district, setDistrict] = useState('');
   const [contactPhone, setContactPhone] = useState('');
   const [address, setAddress] = useState('');
-  const [latitude, setLatitude] = useState('');
-  const [longitude, setLongitude] = useState('');
-  const [gender, setGender] = useState('');
   const [yearsOfExperience, setYearsOfExperience] = useState('');
   const [practiceType, setPracticeType] = useState('');
   const [courts, setCourts] = useState<string[]>([]);
@@ -89,9 +88,6 @@ export default function ProfileSettingsPage() {
         setDistrict(DISTRICTS.includes(lp.district as any) ? lp.district : '');
         setContactPhone(lp.contactPhone || '');
         setAddress(lp.address || '');
-        setLatitude(lp.latitude?.toString() || '');
-        setLongitude(lp.longitude?.toString() || '');
-        setGender(['MALE', 'FEMALE', 'OTHER', 'Male', 'Female', 'Other'].includes(lp.gender as any) ? lp.gender : '');
         setYearsOfExperience(lp.yearsOfExperience?.toString() || '');
         setPracticeType(PRACTICE_TYPES.includes(lp.practiceType as any) ? lp.practiceType : '');
         setCourts(lp.courts || []);
@@ -173,9 +169,6 @@ export default function ProfileSettingsPage() {
           district,
           contactPhone,
           address,
-          latitude: latitude || undefined,
-          longitude: longitude || undefined,
-          gender,
           yearsOfExperience: yearsOfExperience ? parseInt(yearsOfExperience) : null,
           practiceType,
           courts,
@@ -345,8 +338,8 @@ export default function ProfileSettingsPage() {
           <>
             {/* Lawyer Card Image */}
             <div className="mb-10 pb-10 border-b border-neutral-200">
-              <h3 className="text-xs font-bold text-neutral-400 uppercase tracking-widest mb-6">Lawyer Card Image</h3>
-              <p className="text-xs text-neutral-400 mb-4">This image is shown on your lawyer directory card. Separate from your profile picture.</p>
+              <h3 className="text-xs font-bold text-neutral-400 uppercase tracking-widest mb-6">Photo on your public page</h3>
+              <p className="text-xs text-neutral-400 mb-4">Shown on your attorney page in the directory. Your profile picture above is your account picture, shown in messages and community posts.</p>
               <div className="flex items-center gap-6">
                 <div className="relative group">
                   <div className="h-32 w-24 bg-neutral-50 overflow-hidden border border-neutral-200 shadow-sm">
@@ -375,8 +368,8 @@ export default function ProfileSettingsPage() {
                   />
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-[#0a0a0a]">Card display image</p>
-                  <p className="text-xs text-neutral-400 mt-1">This image appears on your lawyer directory card and profile page.</p>
+                  <p className="text-sm font-semibold text-[#0a0a0a]">Public photo</p>
+                  <p className="text-xs text-neutral-400 mt-1">A plain head-and-shoulders photo, or none.</p>
                 </div>
               </div>
             </div>
@@ -386,22 +379,30 @@ export default function ProfileSettingsPage() {
               <h3 className="text-xs font-bold text-neutral-400 uppercase tracking-widest mb-6">Lawyer Profile Details</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 <div className="space-y-2">
-                  <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-widest">Display Name</label>
+                  <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-widest">Registered name</label>
+                  {/* Read-only once verified: it is the name we checked against the BASL
+                      roll, and it is shown under "Verified" on your public page. */}
                   <input
                     type="text"
                     value={lFullName}
+                    readOnly={verified}
                     onChange={(e) => setLFullName(e.target.value)}
-                    className="w-full bg-white border border-neutral-200 text-[#0a0a0a] px-4 py-3 outline-none focus:border-[#bfa37a] focus:bg-[#faf8f6]/30 transition-all text-sm rounded-none"
+                    className="w-full bg-white border border-neutral-200 text-[#0a0a0a] px-4 py-3 outline-none focus:border-[#bfa37a] focus:bg-[#faf8f6]/30 transition-all text-sm rounded-none read-only:bg-neutral-50 read-only:text-neutral-500"
                   />
+                  {verified && (
+                    <p className="text-xs text-neutral-400">Verified. Contact us to correct your registered name.</p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-widest">NIC</label>
                   <input
                     type="text"
                     value={nic}
+                    readOnly={verified}
                     onChange={(e) => setNic(e.target.value)}
-                    className="w-full bg-white border border-neutral-200 text-[#0a0a0a] px-4 py-3 outline-none focus:border-[#bfa37a] focus:bg-[#faf8f6]/30 transition-all text-sm rounded-none"
+                    className="w-full bg-white border border-neutral-200 text-[#0a0a0a] px-4 py-3 outline-none focus:border-[#bfa37a] focus:bg-[#faf8f6]/30 transition-all text-sm rounded-none read-only:bg-neutral-50 read-only:text-neutral-500"
                   />
+                  {verified && <p className="text-xs text-neutral-400">Verified. Contact us to correct it.</p>}
                 </div>
                 <div className="space-y-2">
                   <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-widest">Contact Phone</label>
@@ -422,19 +423,6 @@ export default function ProfileSettingsPage() {
                     className="w-full bg-white border border-neutral-200 text-[#0a0a0a] px-4 py-3 outline-none focus:border-[#bfa37a] focus:bg-[#faf8f6]/30 transition-all text-sm rounded-none"
                   />
                   <p className="text-xs text-neutral-400">Your clients will use this link for online consultations. Leave blank for physical-only sessions.</p>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-widest">Gender</label>
-                  <select
-                    value={gender}
-                    onChange={(e) => setGender(e.target.value)}
-                    className="w-full bg-white border border-neutral-200 text-[#0a0a0a] px-4 py-3 outline-none focus:border-[#bfa37a] focus:bg-[#faf8f6]/30 transition-all text-sm rounded-none"
-                  >
-                    <option value="">Select</option>
-                    <option value="Male">Male</option>
-                    <option value="Female">Female</option>
-                    <option value="Other">Other</option>
-                  </select>
                 </div>
                 <div className="space-y-2">
                   <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-widest">Years of Experience</label>
@@ -476,26 +464,9 @@ export default function ProfileSettingsPage() {
                     className="w-full bg-white border border-neutral-200 text-[#0a0a0a] px-4 py-3 outline-none focus:border-[#bfa37a] focus:bg-[#faf8f6]/30 transition-all text-sm rounded-none"
                   />
                 </div>
-                <div className="space-y-2">
-                  <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-widest">Latitude (Optional)</label>
-                  <input
-                    type="text"
-                    value={latitude}
-                    onChange={(e) => setLatitude(e.target.value)}
-                    placeholder="e.g. 6.927079"
-                    className="w-full bg-white border border-neutral-200 text-[#0a0a0a] px-4 py-3 outline-none focus:border-[#bfa37a] focus:bg-[#faf8f6]/30 transition-all text-sm rounded-none"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-widest">Longitude (Optional)</label>
-                  <input
-                    type="text"
-                    value={longitude}
-                    onChange={(e) => setLongitude(e.target.value)}
-                    placeholder="e.g. 79.861244"
-                    className="w-full bg-white border border-neutral-200 text-[#0a0a0a] px-4 py-3 outline-none focus:border-[#bfa37a] focus:bg-[#faf8f6]/30 transition-all text-sm rounded-none"
-                  />
-                </div>
+                {/* Gender and map coordinates are no longer asked for: coordinates were used
+                    nowhere and gender is shown nowhere (PDPA: collect only what is needed).
+                    Values already held are left as they are. */}
                 <div className="sm:col-span-2 space-y-2">
                   <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-widest">Bio</label>
                   <textarea
