@@ -9,7 +9,8 @@ import { toast } from 'sonner';
 import { Scale, Menu, Search, BookOpen, LogOut, FileText, UserCircle, LayoutDashboard, Zap, CheckCircle2, MessageCircle, Building2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from '@/components/ui/sheet';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar } from '@/components/ui/avatar';
+import AttorneyPhoto from '@/components/lawyer/AttorneyPhoto';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
 import ChatBadge from '@/components/chat/ChatBadge';
@@ -135,7 +136,7 @@ export default function Header({ locale, userRole = null, appStatus = null, user
           {userRole === 'LAWYER' && <Link href={`/${locale}/dashboard/lawyer`}><Button variant="outline" className="w-full justify-start gap-2 text-primary border-primary/20 hover:bg-primary/5">Lawyer Dashboard</Button></Link>}
           {userRole === 'CLIENT' && appStatus === 'DRAFT' && <Link href={`/${locale}/apply`}><Button className="w-full justify-start gap-2 bg-amber-500 hover:bg-amber-600">Resume App</Button></Link>}
           {userRole === 'CLIENT' && (appStatus === 'SUBMITTED' || appStatus === 'IN_REVIEW') && <Button variant="secondary" className="w-full justify-start gap-2" disabled>App Pending</Button>}
-          {userRole === 'CLIENT' && (!appStatus || appStatus === 'REJECTED') && <Link href={`/${locale}/apply`}><Button className="w-full justify-start gap-2 text-white">Become a Lawyer</Button></Link>}
+          {userRole === 'CLIENT' && (!appStatus || appStatus === 'REJECTED') && <Link href={`/${locale}/apply`}><Button className="w-full justify-start gap-2 text-white">Apply as an Attorney</Button></Link>}
           <Button variant="destructive" className="w-full justify-start gap-2 mt-2" onClick={handleLogout}>
             <LogOut className="h-4 w-4" /> Logout
           </Button>
@@ -148,11 +149,8 @@ export default function Header({ locale, userRole = null, appStatus = null, user
       <DropdownMenu>
         <DropdownMenuTrigger className={`relative flex items-center justify-center h-10 w-10 rounded-full ml-4 shadow-sm outline-none hover:ring-2 hover:ring-primary/20 transition-all ${isPremiumDesign ? 'border-white/50' : 'border-border/50'}`}>
           <Avatar className="h-10 w-10 rounded-full overflow-hidden border">
-            {userProfile?.profileImageUrl ? (
-              <img src={userProfile.profileImageUrl} alt="Profile" className="h-full w-full object-cover" />
-            ) : (
-              <img src='/avatar.png' alt="Profile" className="h-full w-full object-cover" />
-            )}
+            {/* Their photo or their initials; never a stock figure. */}
+            <AttorneyPhoto src={userProfile?.profileImageUrl} name={userProfile?.fullName || 'Account'} className="h-full w-full" />
           </Avatar>
         </DropdownMenuTrigger>
         <DropdownMenuContent className="w-72 rounded-none shadow-2xl border-border p-0" align="end" sideOffset={8}>
@@ -239,7 +237,7 @@ export default function Header({ locale, userRole = null, appStatus = null, user
                 {(!appStatus || appStatus === 'REJECTED') && (
                   <Link href={`/${locale}/apply`}>
                     <DropdownMenuItem className="cursor-pointer font-bold py-3 px-6 rounded-none focus:bg-neutral-50 group">
-                      <Scale className="mr-3 h-4 w-4 text-neutral-400 group-hover:text-neutral-900 transition-colors" /> Become a Lawyer
+                      <Scale className="mr-3 h-4 w-4 text-neutral-400 group-hover:text-neutral-900 transition-colors" /> Apply as an Attorney
                     </DropdownMenuItem>
                   </Link>
                 )}
@@ -272,12 +270,12 @@ export default function Header({ locale, userRole = null, appStatus = null, user
         </Link>
 
         {/* Desktop Nav - Centered */}
-        <nav className="hidden md:flex absolute left-1/2 -translate-x-1/2 items-center gap-10">
+        <nav className="hidden lg:flex absolute left-1/2 -translate-x-1/2 items-center gap-10">
           {navLinks.map((link) => (
             <Link
               key={link.href}
               href={link.href}
-              className={`flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest transition-colors ${isPremiumDesign
+              className={`flex items-center gap-1.5 whitespace-nowrap text-xs font-bold uppercase tracking-widest transition-colors ${isPremiumDesign
                   ? 'text-neutral-600 hover:text-[#bfa37a]'
                   : isActive(link.href)
                     ? 'text-foreground font-bold'
@@ -290,7 +288,7 @@ export default function Header({ locale, userRole = null, appStatus = null, user
         </nav>
 
         {/* Desktop Right Action */}
-        <div className="hidden md:block">
+        <div className="hidden lg:block">
           {userRole ? (
             renderAuthAction(false)
           ) : (
@@ -315,7 +313,7 @@ export default function Header({ locale, userRole = null, appStatus = null, user
 
         {/* Mobile Nav */}
         <Sheet open={open} onOpenChange={setOpen}>
-          <SheetTrigger className="md:hidden">
+          <SheetTrigger className="lg:hidden" aria-label="Open menu">
             <Menu className="h-5 w-5 text-neutral-800" />
           </SheetTrigger>
           <SheetContent side="right" className="w-72 bg-[#fbf9f6] border-l border-[#efeae0] p-6 flex flex-col justify-between">
@@ -343,7 +341,8 @@ export default function Header({ locale, userRole = null, appStatus = null, user
                         : 'text-neutral-600 hover:text-[#bfa37a]'
                     }`}
                   >
-                    {link.icon && <link.icon className="h-4 w-4 text-[#bfa37a]" />}
+                    {/* Messages: ChatBadge draws its own icon, so the link's is not repeated. */}
+                    {link.icon && !(link.href === `/${locale}/messages` && userId) && <link.icon className="h-4 w-4 text-[#bfa37a]" />}
                     <span>{renderNavLabel(link)}</span>
                   </Link>
                 ))}
@@ -411,7 +410,7 @@ export default function Header({ locale, userRole = null, appStatus = null, user
 
                     {userRole === 'CLIENT' && (appStatus === 'SUBMITTED' || appStatus === 'IN_REVIEW') && (
                       <div className="flex items-center gap-3 text-xs font-bold uppercase tracking-widest text-neutral-400 py-1 select-none">
-                        <FileText className="h-4 w-4 text-neutral-350" />
+                        <FileText className="h-4 w-4 text-neutral-400" />
                         <span>Application Pending</span>
                       </div>
                     )}
@@ -423,13 +422,13 @@ export default function Header({ locale, userRole = null, appStatus = null, user
                         className="flex items-center gap-3 text-xs font-bold uppercase tracking-widest text-neutral-600 hover:text-[#bfa37a] py-1 transition-colors"
                       >
                         <Scale className="h-4 w-4 text-[#bfa37a]" />
-                        <span>Become a Lawyer</span>
+                        <span>Apply as an Attorney</span>
                       </Link>
                     )}
 
                     <button
                       onClick={() => { setOpen(false); handleLogout(); }}
-                      className="w-full flex items-center justify-center gap-2 mt-4 px-4 py-3 bg-[#efeae0]/40 border border-[#efeae0] text-red-650 text-xs font-bold uppercase tracking-widest hover:bg-red-50 hover:border-red-200 transition-all duration-300 rounded-none"
+                      className="w-full flex items-center justify-center gap-2 mt-4 px-4 py-3 bg-[#efeae0]/40 border border-[#efeae0] text-red-600 text-xs font-bold uppercase tracking-widest hover:bg-red-50 hover:border-red-200 transition-all duration-300 rounded-none"
                     >
                       <LogOut className="h-3.5 w-3.5" />
                       <span>Log Out</span>
