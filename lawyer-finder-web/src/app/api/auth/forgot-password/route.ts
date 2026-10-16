@@ -35,11 +35,13 @@ export async function POST(req: Request) {
   try {
     const user = await prisma.user.findUnique({
       where: { email: parsed.data.email },
-      select: { id: true, email: true, status: true, authProvider: true },
+      select: { id: true, email: true, status: true, passwordHash: true },
     });
 
-    // Google accounts have no password here, and a closed account stays closed.
-    if (user && user.status === 'ACTIVE' && user.authProvider === 'LOCAL') {
+    // Anyone with a password here - including an account later joined to Google,
+    // whose authProvider used to flip to GOOGLE and silently stop this. A
+    // Google-only account has no password to reset; a closed account stays closed.
+    if (user && user.status === 'ACTIVE' && user.passwordHash) {
       // One link per address per 15 minutes, so the form cannot flood an inbox.
       const perAddress = process.env.RATE_LIMIT_ENABLED === 'false'
         ? { allowed: true }
