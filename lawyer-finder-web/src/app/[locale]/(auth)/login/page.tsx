@@ -21,6 +21,8 @@ export default function LoginPage() {
   const [unverifiedEmail, setUnverifiedEmail] = useState<string | null>(null);
   const [showVerificationModal, setShowVerificationModal] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
+  // Set by the verification email's link (api/auth/verify-email) when it fails.
+  const [linkProblem, setLinkProblem] = useState<string | null>(null);
   const { locale } = useParams();
   const router = useRouter();
   // Where to go after signing in — an invitation link, or a page that asked for
@@ -41,6 +43,15 @@ export default function LoginPage() {
       const urlParams = new URLSearchParams(window.location.search);
       if (urlParams.get('verified') === 'true') {
         toast.success('Email verified successfully. You can now log in.');
+      }
+      const linkError = urlParams.get('error');
+      if (linkError === 'InvalidToken' || linkError === 'TokenExpired') {
+        setLinkProblem(
+          'This verification link has expired or has already been used. If you have already ' +
+            'verified your email, just sign in. If not, sign in and we will offer to send a new link.'
+        );
+      } else if (linkError === 'ServerError') {
+        setLinkProblem('We could not verify your email just now. Please try the link again in a minute.');
       }
     }
   }, [locale]);
@@ -110,7 +121,8 @@ export default function LoginPage() {
       const res = await fetch('/api/auth/resend-verification', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: unverifiedEmail })
+        // Where they were going and their language ride along in the new link.
+        body: JSON.stringify({ email: unverifiedEmail, redirect: redirectTo, locale })
       });
       if (res.ok) {
         toast.success('Verification email resent. Please check your inbox.');
@@ -135,6 +147,12 @@ export default function LoginPage() {
             <h1 className="text-3xl font-serif font-normal tracking-tight text-neutral-900 mb-2">Welcome Back</h1>
             <p className="text-xs uppercase font-bold tracking-widest text-neutral-400">Sign in to your account</p>
           </div>
+
+          {linkProblem && (
+            <div role="alert" className="mb-6 border border-amber-200 bg-amber-50 p-4 text-sm leading-relaxed text-amber-900">
+              {linkProblem}
+            </div>
+          )}
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
             <div className="space-y-2 text-left">
