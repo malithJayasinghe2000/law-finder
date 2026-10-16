@@ -18,6 +18,7 @@ interface PendingPost {
   language: string;
   createdAt: string;
   status: string;
+  removedBy?: string | null;
   author: { id: string; fullName: string | null; role: string };
   community: { name: string; displayName: string };
 }
@@ -354,17 +355,40 @@ export default function ContentModerationClient({
                       <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5 italic">
                         {stripHtml(post.content).substring(0, 150)}...
                       </p>
-                      <div className="mt-2 text-xs">
+                      <div className="mt-2 flex flex-wrap items-center gap-3 text-xs">
                         <Link 
                           href={`/${locale}/blog/${post.slug}`}
                           className="text-xs text-primary hover:underline flex items-center gap-1 font-semibold"
                           target="_blank"
                         >
-                          <ExternalLink className="h-3 w-3" /> Manage full post
+                          <ExternalLink className="h-3 w-3" /> Open post
                         </Link>
+                        {/* Take a published post down without waiting for reports. */}
+                        {post.status === 'PUBLISHED' && (
+                          <Button
+                            size="sm" variant="outline" className="h-7 gap-1 text-red-600 border-red-200"
+                            onClick={() => { setNoteFor({ postId: post.id, status: 'REMOVED' }); setNote(''); }}
+                          >
+                            <X className="h-3 w-3" /> Remove
+                          </Button>
+                        )}
+                        {/* Undo a moderator's or the reports' removal; an author's own deletion is theirs. */}
+                        {post.status === 'REMOVED' && post.removedBy !== 'AUTHOR' && (
+                          <Button
+                            size="sm" variant="outline" className="h-7 gap-1"
+                            disabled={processing === post.id}
+                            onClick={() => handleModeratePost(post.id, 'PUBLISHED')}
+                          >
+                            <RefreshCcw className="h-3 w-3" /> Restore
+                          </Button>
+                        )}
+                        {post.status === 'REMOVED' && post.removedBy === 'AUTHOR' && (
+                          <span className="text-neutral-400">Deleted by its author</span>
+                        )}
                       </div>
                     </div>
                   </div>
+                  {noteFor?.postId === post.id && renderNoteBox()}
                 </CardContent>
               </Card>
             ))}
