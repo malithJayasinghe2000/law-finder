@@ -57,11 +57,18 @@ export function LegalDisclaimer({
    */
   showDirectoryLink = false,
   locale = 'en',
+  /**
+   * On a phone, show the title and a "More" toggle instead of the whole text.
+   * Used in the AI chat, where the full notice and the input box took half a
+   * phone screen. The notice itself is always visible.
+   */
+  compactOnPhone = false,
 }: {
   variant?: Variant;
   className?: string;
   showDirectoryLink?: boolean;
   locale?: string;
+  compactOnPhone?: boolean;
 }) {
   const { title, body } = COPY[variant];
 
@@ -76,7 +83,7 @@ export function LegalDisclaimer({
         <p className="text-[11px] font-bold uppercase tracking-wide text-neutral-700">
           {title}
         </p>
-        <p className="text-[11px] leading-relaxed text-neutral-600">
+        <p className={`text-[11px] leading-relaxed text-neutral-600 ${compactOnPhone ? 'hidden sm:block' : ''}`}>
           {body}
           {showDirectoryLink && (
             <>
@@ -91,6 +98,28 @@ export function LegalDisclaimer({
             </>
           )}
         </p>
+        {compactOnPhone && (
+          <details className="sm:hidden">
+            <summary className="cursor-pointer text-[11px] font-semibold text-neutral-600 underline underline-offset-2">
+              More
+            </summary>
+          <p className="text-[11px] leading-relaxed text-neutral-600">
+            {body}
+            {showDirectoryLink && (
+              <>
+                {' '}
+                <Link
+                  href={directoryPath(locale)}
+                  className="font-semibold text-neutral-700 underline underline-offset-2 hover:text-neutral-900"
+                >
+                  Browse the directory
+                </Link>{' '}
+                to find one yourself.
+              </>
+            )}
+          </p>
+          </details>
+        )}
       </div>
     </aside>
   );
