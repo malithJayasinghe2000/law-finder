@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import bcrypt from 'bcryptjs';
-import { ADMIN_ROLE_EDIT_ENABLED } from '@/lib/admin/userTools';
+import { ADMIN_ROLE_EDIT_ENABLED, ADMIN_SET_PASSWORD_ENABLED } from '@/lib/admin/userTools';
+import { sendPasswordResetLink } from '@/lib/passwordReset';
 import { AdminUpdateUserSchema, AdminRevokeVerificationSchema } from '@/schemas/adminUser.schema';
 import { EmailService } from '@/lib/email/EmailService';
 
@@ -156,6 +157,29 @@ export async function PATCH(req: Request) {
       return NextResponse.json({
         message: emailChanged ? 'Details updated. The old address has been told about the change.' : 'User details updated.',
       }, { status: 200 });
+    }
+
+    // The person chooses their own password from a link sent to their inbox.
+    if (action === 'send-password-reset') {
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { id: true, email: true, status: true, authProvider: true },
+      });
+      if (!user) return NextResponse.json({ error: 'User not found.' }, { status: 404 });
+      if (user.status !== 'ACTIVE') {
+        return NextResponse.json({ error: 'This account is closed.' }, { status: 409 });
+      }
+      if (user.authProvider !== 'LOCAL') {
+        return NextResponse.json({ error: 'This account signs in with Google and has no password here.' }, { status: 409 });
+      }
+      await sendPasswordResetLink(user, { requestedById: session.userId });
+      return NextResponse.json({ message: `A reset link has been emailed to ${user.email}. It works once, for one hour.` }, { status: 200 });
+    }
+
+    // Off: an admin who chooses someone's password can sign in as them
+    // (src/lib/admin/userTools.ts). Replaced by send-password-reset above.
+    if (action === 'update-password' && !ADMIN_SET_PASSWORD_ENABLED) {
+      return NextResponse.json({ error: 'Passwords are not set by staff. Send the person a reset link instead.' }, { status: 410 });
     }
 
     if (action === 'update-password') {
