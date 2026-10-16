@@ -6,6 +6,7 @@ import { LogOut, Home, UserCircle, MessageCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Avatar } from '@/components/ui/avatar';
+import AttorneyPhoto from '@/components/lawyer/AttorneyPhoto';
 
 interface DashboardUserMenuProps {
   locale: string;
@@ -37,11 +38,8 @@ export default function DashboardUserMenu({ locale, fullName, profileImageUrl, r
     <DropdownMenu>
       <DropdownMenuTrigger className="relative flex items-center justify-center h-10 w-10 rounded-full shadow-sm outline-none hover:ring-2 hover:ring-primary/20 transition-all border border-border/50 cursor-pointer overflow-hidden">
         <Avatar className="h-10 w-10 rounded-full overflow-hidden border">
-          {profileImageUrl ? (
-            <img src={profileImageUrl} alt="Profile" className="h-full w-full object-cover" />
-          ) : (
-            <img src="/avatar.png" alt="Profile" className="h-full w-full object-cover" />
-          )}
+          {/* Their photo or their initials; never a stock figure. */}
+          <AttorneyPhoto src={profileImageUrl} name={fullName || 'Account'} className="h-full w-full" />
         </Avatar>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-64 rounded-2xl shadow-2xl border border-neutral-200/80 bg-white/95 backdrop-blur-md p-1.5" align="end" sideOffset={8}>
