@@ -71,12 +71,31 @@ const GUEST_QUERY_LIMIT = 5;
  * person who has been told plainly that this thing cannot advise them is far
  * less likely to act on it as though it had.
  */
-const GREETING =
-  'Hello. I answer questions **about Sri Lankan law**, using legislation I can cite and you can check - ' +
-  'currently the **Civil Procedure Code**, the **Companies Act**, the **Motor Traffic Act** and the ' +
-  '**Computer Crimes Act**.\n\n' +
-  'I am not a lawyer, and I cannot advise you on your own situation or tell you what to do about it. ' +
-  'Ask me what the law says, and I will show you where it says it.';
+function greeting(actTitles: string[]): string {
+  // Titles that are only a number ("Act No. 24 of 2007") say nothing to a reader.
+  const named = actTitles.filter((t) => !/^Act No\./i.test(t));
+  // The best-known first, when held; then the rest alphabetically.
+  const WELL_KNOWN = ['Penal Code', 'Civil Procedure Code', 'Companies Act', 'Partition Law', 'Prescription Ordinance', 'Motor Traffic Act'];
+  const ordered = [...WELL_KNOWN.filter((t) => named.includes(t)), ...named.filter((t) => !WELL_KNOWN.includes(t))];
+  const shown = ordered.slice(0, 6).map((t) => `**${t}**`);
+  const holdings = actTitles.length === 0
+    ? ''
+    : ` - currently ${actTitles.length} Acts and Ordinances, including ${shown.join(', ')}. ` +
+      'The Legal Library lists them all';
+  return (
+    'Hello. I answer questions **about Sri Lankan law**, using legislation I can cite and you can check' +
+    holdings + '.\n\n' +
+    'I am not a lawyer, and I cannot advise you on your own situation or tell you what to do about it. ' +
+    'Ask me what the law says, and I will show you where it says it.'
+  );
+}
+
+/**
+ * The "source" menu, "Attach" and "Voice" - OFF (2026-10-16). None of them did
+ * anything: the chosen source was never sent with the question, and the other
+ * two had no handler. A switch, not a deletion.
+ */
+const CHAT_EXTRA_CONTROLS_ENABLED = false;
 
 // ─── Component ─────────────────────────────────────────────────────────
 export default function ChatClient({
@@ -84,11 +103,14 @@ export default function ChatClient({
   initialQuery,
   isAuthenticated,
   conversationId: initialConversationId,
+  actTitles = [],
 }: {
   locale: string;
   initialQuery: string;
   isAuthenticated: boolean;
   conversationId?: string;
+  /** Titles in the Legal Library, for the greeting (page.tsx). */
+  actTitles?: string[];
 }) {
   const directoryEnabled = useDirectoryEnabled();
   // State
@@ -196,7 +218,7 @@ export default function ChatClient({
     if (initialConversationId) {
       loadConversation(initialConversationId);
     } else if (!initialQuery) {
-      setMessages([{ id: '1', role: 'assistant', content: GREETING }]);
+      setMessages([{ id: '1', role: 'assistant', content: greeting(actTitles) }]);
     }
   }, [initialConversationId, loadConversation, initialQuery]);
 
@@ -216,13 +238,15 @@ export default function ChatClient({
 
   // ─── Create new conversation ───────────────────────────────────────
   const handleNewChat = () => {
-    setMessages([{ id: '1', role: 'assistant', content: GREETING }]);
+    setMessages([{ id: '1', role: 'assistant', content: greeting(actTitles) }]);
     setActiveConversationId(null);
     window.history.replaceState(null, '', `/${locale}/chat`);
   };
 
   // ─── Delete conversation ───────────────────────────────────────────
   const handleDeleteConversation = async (id: string) => {
+    // It is gone for good (no undo), so ask first.
+    if (!window.confirm("Delete this chat? This can't be undone.")) return;
     try {
       await fetch(`/api/ai-chat/conversations/${id}`, { method: 'DELETE' });
       setConversations(prev => prev.filter(c => c.id !== id));
@@ -428,6 +452,7 @@ export default function ChatClient({
               <button
                 type="button"
                 onClick={(e) => { e.stopPropagation(); setEditingId(conv.id); setEditTitle(conv.title); }}
+                aria-label="Rename chat"
                 className="p-0.5 text-neutral-400 hover:text-neutral-900 transition-colors"
               >
                 <Edit3 className="h-3 w-3" />
@@ -435,6 +460,7 @@ export default function ChatClient({
               <button
                 type="button"
                 onClick={(e) => { e.stopPropagation(); handleDeleteConversation(conv.id); }}
+                aria-label="Delete chat"
                 className="p-0.5 text-neutral-400 hover:text-red-650 transition-colors"
               >
                 <Trash2 className="h-3 w-3" />
@@ -476,7 +502,7 @@ export default function ChatClient({
                     className="bg-transparent text-[10px] outline-none text-neutral-800 font-light w-20"
                   />
                 </div>
-                <button onClick={() => setSidebarOpen(false)} className="p-1 text-neutral-400 hover:text-neutral-900 transition-colors" title="Collapse Sidebar">
+                <button onClick={() => setSidebarOpen(false)} className="p-1 text-neutral-400 hover:text-neutral-900 transition-colors" title="Collapse Sidebar" aria-label="Hide saved chats">
                   <X className="h-4 w-4" />
                 </button>
               </div>
@@ -566,6 +592,7 @@ export default function ChatClient({
         {!sidebarOpen && isAuthenticated && (
           <button
             onClick={() => setSidebarOpen(true)}
+            aria-label="Show saved chats"
             className="fixed top-28 left-8 md:left-12 z-10 p-2.5 bg-white hover:bg-neutral-50 border border-[#efeae0] rounded-full text-neutral-500 hover:text-neutral-900 shadow-sm transition-all"
             title="Open Chat List"
           >
@@ -771,6 +798,7 @@ export default function ChatClient({
             <LegalDisclaimer
               variant="ai"
               className="mb-3 rounded-xl"
+              compactOnPhone
               showDirectoryLink={directoryEnabled}
               locale={locale}
             />
@@ -793,7 +821,8 @@ export default function ChatClient({
               />
               
               <div className="flex items-center justify-between border-t border-[#efeae0]/60 pt-3">
-                {/* Bottom Left: Select Source */}
+                {/* Bottom Left: Select Source - off (CHAT_EXTRA_CONTROLS_ENABLED). */}
+                {CHAT_EXTRA_CONTROLS_ENABLED ? (
                 <div className="relative">
                   <button
                     type="button"
@@ -822,6 +851,7 @@ export default function ChatClient({
                     </div>
                   )}
                 </div>
+                ) : <div />}
 
                 {/* Bottom Right: Attach, Voice, Send */}
                 <div className="flex items-center gap-2">
@@ -831,11 +861,14 @@ export default function ChatClient({
                       onClick={handleNewChat}
                       className="flex items-center justify-center p-2 sm:px-3.5 sm:py-2 border border-[#efeae0] hover:bg-neutral-50 text-neutral-550 rounded-full text-[11px] font-semibold transition-colors shrink-0"
                       title="New Chat"
+                      aria-label="New chat"
                     >
                       <Sparkles className="h-3.5 w-3.5 text-amber-500" />
                       <span className="hidden sm:inline ml-1 text-[#bfa37a]">New</span>
                     </button>
                   )}
+                  {CHAT_EXTRA_CONTROLS_ENABLED && (
+                    <>
                   <button
                     type="button"
                     className="flex items-center justify-center p-2 sm:px-3.5 sm:py-2 border border-[#efeae0] hover:bg-neutral-50 text-neutral-500 rounded-full text-[11px] font-semibold transition-colors shrink-0"
@@ -850,8 +883,11 @@ export default function ChatClient({
                     <Mic className="h-3.5 w-3.5 text-[#bfa37a]" />
                     <span className="hidden sm:inline ml-1">Voice</span>
                   </button>
+                    </>
+                  )}
                   <button
                     type="submit"
+                    aria-label="Send"
                     disabled={!input.trim() || isLoading}
                     className="flex items-center justify-center gap-1.5 p-2 sm:px-5 sm:py-2 bg-[#bfa37a] hover:bg-[#a68d67] text-white disabled:opacity-50 disabled:cursor-not-allowed rounded-full text-[11px] font-bold uppercase tracking-widest transition-all shadow-sm shrink-0"
                   >
