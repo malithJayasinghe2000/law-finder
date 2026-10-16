@@ -48,11 +48,10 @@ WHAT WE ARE DOING: a section-by-section review of every dashboard, one section a
 time — what it is for, keep / change / hide, and mobile layout. For each section:
 look at it on a phone, say what it does, list problems in a small table with a
 recommendation, and wait for my "ok" before changing anything.
-CLIENT and LAWYER sides are finished. ADMIN side done so far: Dashboard,
-Verification, Law Firms, Invoices, Ad Campaigns, User Management, Communities,
-Content Moderation, Legal Documents, Privacy Notice, Public Directory,
-Consultations, Financial Reports, Settings (now My Account).
-START WITH: continue the admin review at Subscription Config (§E item 2).
+CLIENT, LAWYER and ADMIN sides are all finished (admin review completed
+2026-10-16 with Subscription Config hidden).
+START WITH: §E — the launch blockers (privacy notice §E1, deploy checklist §E3,
+two-step sign-in for admins §E3b), then the remaining items.
 ```
 
 ---
@@ -176,7 +175,7 @@ Pushed up to `66212a8`. **Commits after it (Privacy Notice → Consultations, an
 |---|---|---|
 | `ADMIN_ROLE_EDIT_ENABLED = false` | `src/lib/admin/userTools.ts` | Changing an account's role by hand (403) |
 | `ADMIN_SET_PASSWORD_ENABLED = false` | `src/lib/admin/userTools.ts` | Staff typing someone's password (410); replaced by "Send reset link" |
-| `LICENSING_ENABLED` (existing) | `src/lib/licensing.ts` | Now also hides admin **Invoices** (menu, pages, API 410) |
+| `LICENSING_ENABLED` (existing) | `src/lib/licensing.ts` | Now also hides admin **Invoices** and **Subscription Config** (menu, pages, every admin subscriptions/roles/permissions API → 410 via `src/lib/licensingOff.ts`) |
 | `ADMIN_REFUNDS_VIEW_ENABLED = false` | `src/lib/consultations/adminRefunds.ts` | Admin **Refunds** (menu, page, API 410 for staff); practices keep theirs |
 | `ADMIN_FINANCE_REPORTS_ENABLED = false` | `src/lib/admin/financeReports.ts` | Admin **Financial Reports** (menu, page, API 410) |
 
@@ -221,6 +220,7 @@ Pushed up to `66212a8`. **Commits after it (Privacy Notice → Consultations, an
 - **Financial Reports** — hidden by switch; ad income counted campaign budgets as revenue
   (now paid invoices only); per-attorney client-fee totals removed.
 - **Settings → My Account** — dead attorney form removed; password rules shown.
+- **Subscription Config** — hidden by `LICENSING_ENABLED` (owner's choice). **Admin review complete.**
 
 **Migrations added this session (8 — all must run on production):**
 `lawyer_profile_verified_by`, `ads_drop_profile_card_from_placements`, `ads_cta_learn_more`,
@@ -314,7 +314,7 @@ data-only; none drops anything.
    verified attorneys' names locked, advertisers' contact details. Write it as a draft;
    the owner publishes it **on the live site** after deploy (a local publish does not
    carry over; 2026-08-03 reaches production by migration).
-2. **Continue the admin review** (same method): **Subscription Config** (the last section). Already known:
+2. ~~Admin review~~ — **complete** (2026-10-16). Already known:
    - Subscription Config is licensing — probably hide with `LICENSING_ENABLED`.
    - `src/components/layout/DashboardSidebar.tsx` is unused dead code.
 3. **Deploy checklist (owner + code):** push; run the 8 migrations of §B4 (and earlier ones)

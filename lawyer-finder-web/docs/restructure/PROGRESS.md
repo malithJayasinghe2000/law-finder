@@ -3380,3 +3380,14 @@ password refused, real change works (admin password restored to the seed value b
 `My Account` commit: unreachable copy of the attorney profile form removed; password rules
 shown under the fields; menu and title "My Account". **Launch list:** two-step sign-in for
 admin accounts (brief §E 3b).
+
+### 2026-10-16 — Subscription Config hidden; the admin-side review is complete
+
+Owner chose to hide it. `LICENSING_ENABLED` (off) now also hides the menu item, the four
+pages (shared `LicensingOff`) and every handler under `api/admin/subscriptions`,
+`api/admin/roles`, `api/admin/permissions` (410, `src/lib/licensingOff.ts`) — checked as
+admin on each method. Nothing deleted.
+
+**All three dashboards have now been reviewed section by section.** What remains before
+launch is in the brief §E: the privacy-notice version (waits on hosting), the deploy
+checklist, two-step sign-in for admins, and the owner's live-site log purge.
