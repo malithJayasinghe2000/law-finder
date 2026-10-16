@@ -96,7 +96,7 @@ export function AppSidebar({
       icon: CalendarDays,
       label: 'Consultations',
       subLinks: [
-        { href: `/${locale}/dashboard/admin/consultations`, icon: CalendarDays, label: 'All Bookings' },
+        { href: `/${locale}/dashboard/admin/consultations`, icon: CalendarDays, label: 'All Requests' },
         { href: `/${locale}/dashboard/admin/consultations/refunds`, icon: Banknote, label: 'Refunds' },
       ]
     },
