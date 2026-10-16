@@ -190,7 +190,7 @@ export const REFUSAL_MESSAGES: Record<RefusalCategory, string> = {
   REPRESENTATION_REQUEST:
     'I do not choose attorneys or firms, and I will not suggest one to you - not by name, not by type, ' +
     'and not based on what you have told me. The choice has to be yours, made from neutral information.\n\n' +
-    'You can browse every verified practice and practitioner in the directory. Its order changes every day ' +
+    'You can browse every verified law firm in the directory. Its order changes every day ' +
     'and is the same for everyone, position in it cannot be bought, and nothing you say to me affects what you see there.',
 
   NO_CITABLE_SOURCE:
