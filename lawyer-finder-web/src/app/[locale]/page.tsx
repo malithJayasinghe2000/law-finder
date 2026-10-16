@@ -59,8 +59,8 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
                 <p className="font-serif text-lg text-white/85">Welcome to TheLawyr.</p>
 
                 <h1 className="font-serif text-5xl leading-[1.05] tracking-tight text-[#d8c29d] sm:text-6xl">
-                  Defending Your Rights, <br className="hidden sm:block" />
-                  Delivering Justice
+                  Know What <br className="hidden sm:block" />
+                  the Law Says
                 </h1>
 
                 <p className="max-w-md text-sm font-light leading-relaxed text-white/75 sm:text-base">
