@@ -285,12 +285,22 @@ data-only; none drops anything.
 20. **Community icons are line icons from a fixed set**, never emoji, never a person.
 21. **"Needs more information" note shown in the practice's own pages — later** (the email
     already goes; §E 14).
+22. **Legal Documents table stays a table on phones** — no cards (owner, 2026-10-16, asked
+    about the cut-off Status/actions at 412px and said no).
+23. **The company behind TheLawyr is FiveNeurals.** Hosting (website + database) is not
+    decided yet (owner, 2026-10-16).
 
 ## E. Next up
 
-1. **Open question to the owner (ask first):** Legal Documents table on a phone — with
-   documents listed, Status and the action buttons are cut off at 412px. Proposed: cards on
-   phones, as done for User Management (`7d97735`). Awaiting "ok".
+1. **Privacy Notice — new version needed before launch (blocks launch).** The admin screen
+   is fine (no change). The published notice (2026-08-03) must get a new version that:
+   §2 names **FiveNeurals** as the operator, a monitored contact address and a data
+   protection officer; §8 names where data is held (database host + region, AI service,
+   Cloudinary, email provider) — **waiting for the hosting decision**; and adds: a practice
+   opening a request for its client (email + request held before the client agrees),
+   verified attorneys' names locked, advertisers' contact details. Write it as a draft;
+   the owner publishes it **on the live site** after deploy (a local publish does not
+   carry over; 2026-08-03 reaches production by migration).
 2. **Continue the admin review** (same method), in menu order: **Privacy Notice**, Public
    Directory, Consultations (All Bookings, Refunds), Financial Reports, Settings,
    Subscription Config. Already known:
