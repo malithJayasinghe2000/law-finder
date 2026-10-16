@@ -2,19 +2,21 @@ import { z } from 'zod';
 import { sanitizeString } from '@/lib/sanitize';
 
 // ─── Ad Types ─────────────────────────────────────────────────────
-export const AD_TYPES = ['BANNER_IMAGE', 'PROFILE_CARD', 'SIDEBAR_CARD', 'STICKY_BAR'] as const;
+// PROFILE_CARD ("Lawyer profile card showing photo, name, and practice areas")
+// is still a value of the AdType database enum, but the app no longer offers or
+// accepts it: an advert shaped like a profile is the anti-pattern Phase 4
+// removed, and it had no placement left (2026-10-16).
+export const AD_TYPES = ['BANNER_IMAGE', 'SIDEBAR_CARD', 'STICKY_BAR'] as const;
 export type AdTypeValue = (typeof AD_TYPES)[number];
 
 export const AD_TYPE_LABELS: Record<AdTypeValue, string> = {
   BANNER_IMAGE: 'Banner Image',
-  PROFILE_CARD: 'Profile Card',
   SIDEBAR_CARD: 'Sidebar Card',
   STICKY_BAR: 'Sticky Bar',
 };
 
 export const AD_TYPE_DESCRIPTIONS: Record<AdTypeValue, string> = {
   BANNER_IMAGE: 'Full-width image banner with overlay text. Best for hero areas and top banners.',
-  PROFILE_CARD: 'Lawyer profile card showing photo, name, and practice areas.',
   SIDEBAR_CARD: 'Compact card for sidebar areas with image and brief info.',
   STICKY_BAR: 'Thin horizontal bar that stays visible as users scroll.',
 };
@@ -110,10 +112,6 @@ export const AD_TYPE_PLACEMENTS: Record<AdTypeValue, readonly AdPlacementValue[]
     'BLOG_TOP_BANNER',
     'BLOG_POST_BOTTOM',
   ],
-  // PROFILE_CARD was the attorney-shaped unit. It has no placements left, and
-  // must not be given any: an advert shaped like a profile is the anti-pattern
-  // Phase 4 removed.
-  PROFILE_CARD: [],
   SIDEBAR_CARD: [
     'CHAT_RIGHT_SIDEBAR',
     'BLOG_RIGHT_SIDEBAR',

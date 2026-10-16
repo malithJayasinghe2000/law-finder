@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
-import { AD_PLACEMENTS, AD_PLACEMENT_LABELS, PLACEMENT_DETAILS, type AdPlacementValue, type AdTypeValue } from '@/schemas/ad.schema';
+import { AD_PLACEMENTS, AD_TYPES, AD_PLACEMENT_LABELS, PLACEMENT_DETAILS, type AdPlacementValue, type AdTypeValue } from '@/schemas/ad.schema';
 import { z } from 'zod';
 
 // Default configs for seeding
@@ -21,7 +21,7 @@ const DEFAULT_CONFIGS: Record<AdPlacementValue, {
     maxAdsPerSlot: 3,
     recommendedWidth: 1200,
     recommendedHeight: 400,
-    allowedAdTypes: ['BANNER_IMAGE', 'PROFILE_CARD'],
+    allowedAdTypes: ['BANNER_IMAGE'],
   },
   CHAT_RIGHT_SIDEBAR: {
     pricePerDay: 1500,
@@ -135,7 +135,7 @@ const UpdateConfigSchema = z.object({
   recommendedWidth: z.coerce.number().int().min(0).optional().nullable(),
   recommendedHeight: z.coerce.number().int().min(0).optional().nullable(),
   isActive: z.boolean().optional(),
-  allowedAdTypes: z.array(z.enum(['BANNER_IMAGE', 'PROFILE_CARD', 'SIDEBAR_CARD', 'STICKY_BAR'])).optional(),
+  allowedAdTypes: z.array(z.enum(AD_TYPES)).optional(),
   displayName: z.string().trim().min(1).max(100).optional(),
   description: z.string().trim().max(500).optional().nullable(),
 });
