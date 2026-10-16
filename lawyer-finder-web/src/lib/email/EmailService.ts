@@ -290,7 +290,13 @@ export const EmailService = {
   async sendApplicationApproved(email: string, fullName: string) {
     await sendMailSafe(email, 'Lawyer Application Approved', template('Application Approved', `
       <p>Dear ${fullName},</p>
-      <p>Congratulations! Your application has been approved. You can now log in to your Lawyer Dashboard.</p>
+      <p>Your application has been approved: you are verified as an Attorney-at-Law on TheLawyr.</p>
+      <p><strong>One more step before you appear on TheLawyr and receive requests:</strong> register your
+      practice (a firm or a sole practice) from your dashboard, or accept an invitation from your firm.
+      An administrator checks the practice before it is listed.</p>
+      <div style="text-align: center; margin: 30px 0;">
+        <a href="${process.env.NEXT_PUBLIC_APP_URL}/en/dashboard/lawyer/firm/register" style="background-color: #bfa37a; color: #ffffff; padding: 14px 28px; text-decoration: none; display: inline-block; font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.15em; border-radius: 0;">Register your practice</a>
+      </div>
     `));
   },
   
