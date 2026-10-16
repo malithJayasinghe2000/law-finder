@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { rejectSelfPromotion } from '@/lib/selfPromotion';
 import { PRACTICE_AREAS, LANGUAGES, DISTRICTS } from '@/schemas/profile.schema';
 import { sanitizeString } from '@/lib/sanitize';
+import { IDENTITY_DOCUMENT_URL_PREFIX } from '@/lib/identityDocumentUrl';
 
 // ── Step 1: Basic Profile & Contact ──────────────────────────────────────────
 
@@ -94,19 +95,23 @@ export const applicationStep3Schema = z.object({
  *
  * See docs/restructure/DATA-INVENTORY.md §7 finding D.
  */
-const uploadedDocumentUrl = z
-  .string()
-  .min(1)
-  .max(500, 'That does not look like an upload reference.')
-  .refine(
-    (v) => v.startsWith('https://') || v.startsWith('/uploads/'),
-    'Upload the document through the upload endpoint rather than embedding it. ' +
-      'An image pasted inline is not stored, scanned or size-limited.'
-  );
+const uploadedDocumentUrl = (missing: string) =>
+  z
+    .string({ message: missing })
+    .min(1, missing)
+    .max(500, 'That does not look like an upload reference.')
+    // Only the private store (src/lib/identityDocuments.ts). A Cloudinary or
+    // public/ address could be opened by anyone holding the link.
+    .refine(
+      (v) => v.startsWith(IDENTITY_DOCUMENT_URL_PREFIX),
+      'Please upload the photo again using the button on this page.'
+    );
 
 export const applicationStep4Schema = z.object({
-  licenseImage: uploadedDocumentUrl.describe('Attorney license document upload is required.'),
-  identityImage: uploadedDocumentUrl.describe('Face identity verification is required.'),
+  /** A photo of the front of the Attorney-at-Law ID card. */
+  licenseImage: uploadedDocumentUrl('Upload a photo of your Attorney-at-Law ID card.'),
+  /** A photo of the applicant taken with the camera during the application. */
+  identityImage: uploadedDocumentUrl('Take the photo of yourself.'),
 });
 
 // ── Full application schema (for final submission) ───────────────────────────
@@ -135,12 +140,28 @@ export const fullApplicationSchema = z.object({
  * completeness is enforced at submission and again at approval, not here.
  * ─────────────────────────────────────────────────────────────────────────────
  */
+/**
+ * In a draft, an empty box means "not filled in yet". The form sends every step's
+ * fields from step 1 on, so without this an empty BASL number on step 2 made the
+ * step-1 save fail and nobody could get past step 1 (proven 2026-10-16).
+ * Empty strings and empty lists are dropped before the strict, partial parse;
+ * what IS filled in is still checked, and completeness is checked per step.
+ */
+const withoutEmpties = (v: unknown) =>
+  v && typeof v === 'object' && !Array.isArray(v)
+    ? Object.fromEntries(
+        Object.entries(v).filter(([, x]) => x !== '' && !(Array.isArray(x) && x.length === 0))
+      )
+    : v;
+
+const draftStep = <T extends z.ZodTypeAny>(schema: T) => z.preprocess(withoutEmpties, schema).optional();
+
 export const ApplicationDraftSchema = z
   .object({
-    step1: applicationStep1Schema.strict().partial().optional(),
-    step2: applicationStep2Schema.strict().partial().optional(),
-    step3: applicationStep3Schema.strict().partial().optional(),
-    step4: applicationStep4Schema.strict().partial().optional(),
+    step1: draftStep(applicationStep1Schema.strict().partial()),
+    step2: draftStep(applicationStep2Schema.strict().partial()),
+    step3: draftStep(applicationStep3Schema.strict().partial()),
+    step4: draftStep(applicationStep4Schema.strict().partial()),
   })
   .strict();
 

@@ -27,6 +27,7 @@
  * ─────────────────────────────────────────────────────────────────────────────
  */
 import prisma from '@/lib/db';
+import { sweepOrphanIdentityDocuments } from '@/lib/identityDocuments';
 import {
   RETENTION_SCHEDULE,
   assertPurgeable,
@@ -96,6 +97,13 @@ async function main() {
   }
 
   console.log(`\n${total} rows ${dryRun ? 'would be' : ''} affected in total.`);
+
+  // Identity documents (ID card, face photo) no application or profile points at
+  // any more - e.g. those of an application this run just purged.
+  if (!dryRun) {
+    const swept = await sweepOrphanIdentityDocuments();
+    console.log(`  identity documents   ${swept} orphaned file(s) deleted`);
+  }
 
   // Say the quiet part every run, so the gap does not become invisible once the
   // script is green and scheduled.

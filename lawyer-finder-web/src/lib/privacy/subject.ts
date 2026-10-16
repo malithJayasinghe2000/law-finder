@@ -26,6 +26,7 @@
  * ─────────────────────────────────────────────────────────────────────────────
  */
 import prisma from '@/lib/db';
+import { sweepOrphanIdentityDocuments } from '@/lib/identityDocuments';
 import { ERASURE_PLAN, erasedEmailFor, summariseErasure } from './policy';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -259,6 +260,10 @@ export async function eraseSubject(userId: string): Promise<ErasureResult | null
       },
     });
   });
+
+  // The ID card and face photo files of the deleted application. Best effort:
+  // the daily purge sweeps anything left (src/lib/identityDocuments.ts).
+  await sweepOrphanIdentityDocuments({ ownerId: userId }).catch(() => {});
 
   const summary = summariseErasure();
 

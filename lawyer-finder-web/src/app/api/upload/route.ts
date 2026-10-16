@@ -12,6 +12,7 @@ cloudinary.config({
 });
 
 import { sanitizeFilename, validateFileMagicBytes, checkRateLimit, getClientIp } from '@/lib/security';
+import { saveIdentityDocument } from '@/lib/identityDocuments';
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
@@ -74,35 +75,18 @@ export async function POST(req: Request) {
       );
     }
 
+    // Identity documents (ID card, face photo) never go to Cloudinary or to
+    // public/: they are kept privately and read through an admin/owner-only route.
+    // See src/lib/identityDocuments.ts.
+    if (purpose === 'identity') {
+      const url = await saveIdentityDocument(session.userId, buffer, file.type);
+      return NextResponse.json({ url }, { status: 200 });
+    }
+
     // Fallback to local storage if Cloudinary is not configured
     if (!process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_CLOUD_NAME) {
-      /**
-       * The fallback writes into `public/uploads`, which Next serves to anyone
-       * who knows the path. That is acceptable for a profile photograph and is
-       * NOT acceptable for an identity document: a practising certificate and a
-       * photograph of someone's face, reachable without signing in, on a
-       * guessable `/uploads/<timestamp>-<filename>` URL.
-       *
-       * So an identity upload fails loudly rather than degrading quietly. A
-       * misconfigured deploy that silently publishes attorneys' identity
-       * documents is a worse outcome than an applicant seeing an error.
-       *
-       * The proper fix is an authenticated file-serving route for tier 3
-       * documents — recorded in PROGRESS.md as a follow-up, because it is a new
-       * subsystem rather than a guard.
-       */
-      if (purpose === 'identity') {
-        return NextResponse.json(
-          {
-            error:
-              'Document storage is not configured on this server, and identity documents ' +
-              'are not written to a publicly readable folder. Ask an administrator to ' +
-              'configure image storage before submitting your application.',
-          },
-          { status: 503 }
-        );
-      }
-
+      // public/uploads is served to anyone: fine for a profile photo. Identity
+      // documents returned above and never reach this.
       console.log('[UPLOAD] Cloudinary not configured, falling back to local storage.');
 
       const uploadDir = path.join(process.cwd(), 'public', 'uploads');
