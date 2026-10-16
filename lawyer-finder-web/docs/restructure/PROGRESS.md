@@ -3279,3 +3279,24 @@ withdrawn (`LISTED_FIRM_WHERE` does not look at the principal).
 - **Hub wording** (`ba044ef`): "Connect with verified lawyers … expert insights" → "Discuss Sri
   Lankan law and how it works, area by area. General discussion, not legal advice."
 - Archive is a soft status change; page fits a phone. No other change.
+
+### 2026-10-16 — Content Moderation: removed stays removed; reasons reach the author
+
+Proven first with a temporary post, comment and reports (deleted by id; scan clean;
+`legal-general.postCount` restored to 0 after the tests drifted it).
+
+- **Removed posts came back** (`9ee5eda`): every removal wrote the same `REMOVED`. Dismissing
+  a report republished *any* removed post — including one a moderator had just removed
+  through another report — and a verified attorney could PATCH their own removed or
+  rejected post straight to PUBLISHED (proven on the old code). `Post.removedBy`
+  (AUTHOR / MODERATOR / AUTO_REPORTS) is set on every removal; dismiss restores only an
+  automatic hide with no upheld report; a moderated post goes back to review on resubmit.
+- **A report is decided once** (`75b9bfd`): 409 for a report already decided.
+- **Comments hidden, not overwritten** (`bb30ab0`): "Take Action" replaced the text with
+  "[removed by moderator]". Now only `isDeleted`; the public API sends no text for it.
+- **Reasons** (`f28366e`): Reject/Remove need a reason (10+ chars), saved in
+  `Post.moderationNote` and shown in the author's My Posts.
+- **Remove / Restore in All Content** (`2483d6f`); an author's own deletion is not restorable.
+- **Phone** (`3010af6`): buttons below the text.
+
+One additive migration (`removedBy`, `moderationNote`).
