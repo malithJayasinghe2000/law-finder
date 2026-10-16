@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
-import crypto from 'crypto';
-import { EmailService } from '@/lib/email/EmailService';
+import { issueVerificationLink } from '@/lib/emailVerification';
 
 export async function POST(req: Request) {
   try {
-    const { email } = await req.json();
+    const body = await req.json().catch(() => ({}));
+    const email = typeof body?.email === 'string' ? body.email.toLowerCase().trim() : '';
 
     if (!email) {
       return NextResponse.json({ error: 'Email is required' }, { status: 400 });
@@ -37,19 +37,7 @@ export async function POST(req: Request) {
     // Delete existing tokens for this user
     await prisma.verificationToken.deleteMany({ where: { userId: user.id } });
 
-    // Generate new token
-    const token = crypto.randomBytes(32).toString('hex');
-    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
-
-    await prisma.verificationToken.create({
-      data: {
-        token,
-        userId: user.id,
-        expiresAt
-      }
-    });
-
-    await EmailService.sendEmailVerification(user.email, token, user.fullName || 'User');
+    await issueVerificationLink(user, { redirect: body?.redirect, locale: body?.locale });
 
     return NextResponse.json({ success: true }, { status: 200 });
   } catch (error) {

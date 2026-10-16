@@ -74,8 +74,9 @@ async function sendMailSafe(to: string | string[], subject: string, html: string
 }
 
 export const EmailService = {
-  async sendEmailVerification(email: string, token: string, fullName: string) {
-    const url = `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/verify-email?token=${token}`;
+  /** `query` is built by src/lib/emailVerification.ts: token, language and where to return. */
+  async sendEmailVerification(email: string, query: string, fullName: string) {
+    const url = `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/verify-email?${query}`;
     await sendMailSafe(email, 'Verify your email address - TheLawyr', template('Welcome to TheLawyr!', `
       <p>Dear ${fullName},</p>
       <p>Please click the button below to verify your email address.</p>

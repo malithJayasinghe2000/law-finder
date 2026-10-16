@@ -2,15 +2,16 @@ import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import prisma from '@/lib/db';
 import { registerSchema } from '@/schemas/auth.schema';
-import crypto from 'crypto';
-import { EmailService } from '@/lib/email/EmailService';
+import { issueVerificationLink } from '@/lib/emailVerification';
 import { checkRateLimit, getClientIp, sanitizeString } from '@/lib/security';
 
 export async function POST(req: Request) {
   try {
-    // Rate limiting: max 3 registrations per hour per IP
+    // Rate limiting: max 10 registrations per hour per IP. It was 3: mobile
+    // networks in Sri Lanka put many phones behind one public address, so three
+    // real people on one network could lock out the fourth for an hour.
     const clientIp = getClientIp(req);
-    const rateCheck = checkRateLimit(`register:${clientIp}`, 3, 60 * 60 * 1000);
+    const rateCheck = checkRateLimit(`register:${clientIp}`, 10, 60 * 60 * 1000);
     if (!rateCheck.allowed) {
       const retryAfterSec = Math.ceil(rateCheck.retryAfterMs / 1000);
       return NextResponse.json(
@@ -52,18 +53,9 @@ export async function POST(req: Request) {
       }
     });
 
-    const token = crypto.randomBytes(32).toString('hex');
-    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
-
-    await prisma.verificationToken.create({
-      data: {
-        token,
-        userId: user.id,
-        expiresAt
-      }
-    });
-
-    await EmailService.sendEmailVerification(user.email, token, user.fullName || 'User');
+    // Hashed token, email after the response, and the way back to where the
+    // person started. See src/lib/emailVerification.ts.
+    await issueVerificationLink(user, { redirect: body?.redirect, locale: body?.locale });
 
     // Don't expose userId in response — information leakage
     return NextResponse.json({ success: true }, { status: 201 });

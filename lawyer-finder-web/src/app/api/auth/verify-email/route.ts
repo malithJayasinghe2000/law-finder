@@ -1,42 +1,50 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
+import { hashVerificationToken, verificationLocale } from '@/lib/emailVerification';
+import { safeRedirect } from '@/lib/safeRedirect';
 
+/**
+ * The link in the verification email. Always lands on the sign-in page, in the
+ * person's language, carrying where they were going, with a message the page
+ * shows: verified, or why not (it used to show nothing for a bad link).
+ */
 export async function GET(req: Request) {
+  const url = new URL(req.url);
+  const locale = verificationLocale(url.searchParams.get('l'));
+  const redirect = safeRedirect(url.searchParams.get('redirect'));
+
+  const land = (outcome: Record<string, string>) => {
+    const params = new URLSearchParams(outcome);
+    if (redirect) params.set('redirect', redirect);
+    return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/${locale}/login?${params}`);
+  };
+
   try {
-    const url = new URL(req.url);
     const token = url.searchParams.get('token');
+    if (!token) return land({ error: 'InvalidToken' });
 
-    if (!token) {
-      return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/en/login?error=InvalidToken`);
-    }
-
+    // Only the hash is stored (src/lib/emailVerification.ts).
     const verificationToken = await prisma.verificationToken.findUnique({
-      where: { token },
-      include: { user: true }
+      where: { token: hashVerificationToken(token) },
     });
 
-    if (!verificationToken) {
-      return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/en/login?error=InvalidToken`);
-    }
+    // Unknown covers "already used": the row is deleted on success.
+    if (!verificationToken) return land({ error: 'InvalidToken' });
 
     if (verificationToken.expiresAt < new Date()) {
-      // Token expired
       await prisma.verificationToken.delete({ where: { id: verificationToken.id } });
-      return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/en/login?error=TokenExpired`);
+      return land({ error: 'TokenExpired' });
     }
 
-    // Update user
     await prisma.user.update({
       where: { id: verificationToken.userId },
-      data: { isEmailVerified: true }
+      data: { isEmailVerified: true },
     });
-
-    // Delete the token
     await prisma.verificationToken.delete({ where: { id: verificationToken.id } });
 
-    return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/en/login?verified=true`);
+    return land({ verified: 'true' });
   } catch (error) {
-    console.error('Verify email error:', error);
-    return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/en/login?error=ServerError`);
+    console.error('Verify email error:', error instanceof Error ? error.message : error);
+    return land({ error: 'ServerError' });
   }
 }
