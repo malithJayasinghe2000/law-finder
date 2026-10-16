@@ -50,8 +50,8 @@ look at it on a phone, say what it does, list problems in a small table with a
 recommendation, and wait for my "ok" before changing anything.
 CLIENT, LAWYER and ADMIN dashboards are all finished. NOW: the PUBLIC WEBSITE,
 section by section (Header, Footer and the whole home page done 2026-10-16; next each
-public page in menu order: firm page (/firms/[slug]) and its request form, AI Chat, Legal
-Library, Community Hub, About; the firms list is done). Deployment comes after (§E3, §E3b).
+public page in menu order: AI Chat, Legal Library, Community Hub, About, then the attorney
+page (/lawyers/[id]); the firms list, firm page and request form are done). Deployment comes after (§E3, §E3b).
 WORK ON BRANCH main (owner, 2026-10-16) — ask before pushing.
 ```
 

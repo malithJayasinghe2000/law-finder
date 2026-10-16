@@ -3446,3 +3446,12 @@ Rule 40 content only; fine on a phone. Fixed: the closing line invited requestin
 "directly" — the attorney page's Request button goes to the firm (decision 8), so it now says the
 firm assigns; tab title/description name the firm; "BASL BASL-…" once; label "Law firm". Local
 data note: Perera & Associates has an office "test / test testtest testtest test" (owner to delete).
+
+### 2026-10-16 — "Request an engagement" form
+
+Steps-before-the-form and no fee/calendar are right. Fixed (`c7e9060`): signed out, a visitor's
+typed problem was lost on the way to sign-in and back (proven) — signed out now shows "Sign in to
+send a request" (login/register, both return) instead of the form, verified through the real
+login form; the readers note now includes the practice manager (FIRM_ADMIN may read, per
+access.ts); two run-together phrases ("in writing.Perera", "Attorneys-at-Lawwho"); tab title.
+A rendered-text scan of 16 public/client pages found no other run-together words.
