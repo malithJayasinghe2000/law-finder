@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { ADMIN_FINANCE_REPORTS_ENABLED, ADMIN_FINANCE_REPORTS_OFF_REASON } from '@/lib/admin/financeReports';
 
 // GET: Retrieve financial summary and breakdown by lawyer (ADMIN only)
 export async function GET(req: Request) {
@@ -8,6 +9,11 @@ export async function GET(req: Request) {
     const session = await getSession();
     if (!session || session.role !== 'ADMIN') {
       return NextResponse.json({ error: 'Unauthorized. Admin access required.' }, { status: 401 });
+    }
+
+    // Off: see src/lib/admin/financeReports.ts.
+    if (!ADMIN_FINANCE_REPORTS_ENABLED) {
+      return NextResponse.json({ error: ADMIN_FINANCE_REPORTS_OFF_REASON }, { status: 410 });
     }
 
     // 1. Get all paid invoices (subscriptions)

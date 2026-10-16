@@ -8,6 +8,7 @@ import ChatBadge from '@/components/chat/ChatBadge';
 import { ATTORNEY_BOOKING_ENABLED } from '@/lib/directoryLinks';
 import { LICENSING_ENABLED } from '@/lib/licensing';
 import { ADMIN_REFUNDS_VIEW_ENABLED } from '@/lib/consultations/adminRefunds';
+import { ADMIN_FINANCE_REPORTS_ENABLED } from '@/lib/admin/financeReports';
 import { toast } from 'sonner';
 import React, { useState } from 'react';
 
@@ -104,7 +105,8 @@ export function AppSidebar({
           ]
         }
       : { href: `/${locale}/dashboard/admin/consultations`, icon: CalendarDays, label: 'All Requests' },
-    { href: `/${locale}/dashboard/admin/finances`, icon: DollarSign, label: 'Financial Reports' },
+    // Off: see src/lib/admin/financeReports.ts.
+    ...(ADMIN_FINANCE_REPORTS_ENABLED ? [{ href: `/${locale}/dashboard/admin/finances`, icon: DollarSign, label: 'Financial Reports' }] : []),
     { href: `/${locale}/dashboard/admin/settings`, icon: Settings, label: 'Settings' },
     { href: `/${locale}/dashboard/admin/subscriptions`, icon: ShieldPlus, label: 'Subscription Config' },
   ];
