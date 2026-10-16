@@ -3433,3 +3433,9 @@ a verified law firm." Owner: no disclaimer in the preview. si/ta still old — n
   Legalist", "Case Analysis", "Discovery Caller") with short area names that matched nothing
   (every card 0 firms, proven) → six real `PRACTICE_AREAS`; Family/Property Law now find Perera &
   Associates. Two per row on phones. Directory strip: "Verified law firms" (no attorneys).
+
+### 2026-10-16 — Find a Law Firm (list)
+
+In good shape (verified only, daily order disclosed, Rule 40 fields only, fits 412px). Fixed: a
+page number past the end now shows the last page (was "1 firm found" + "No firms found"); card
+label "Law firm" / "Sole practitioner" (was "Attorneys-at-Law" under names ending with it).
