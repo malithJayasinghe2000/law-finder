@@ -3266,3 +3266,16 @@ Checks: privilege 42, firm 15, billing 21, pdpa 72, ai 124 — all pass.
 
 **Found, not fixed:** a listed firm stays listed when its only principal's verification is
 withdrawn (`LISTED_FIRM_WHERE` does not look at the principal).
+
+### 2026-10-16 — Communities: line icons instead of emoji; the hub stops promoting lawyers
+
+- **Icons** (`2272ae1`, owner's question): community icons were emoji in a free-text box —
+  drawn differently per device, in colour, and some showed people (👨‍👩‍👧‍👦 on Family Law,
+  👷 on Labour) or made light of the subject (🚗 on Motor Traffic). Now a key into
+  `src/lib/community/icons.ts` (eleven line icons, none a person), picked in admin; the API
+  accepts only those keys. Seed updated; data-only migration. Verified: an emoji PATCH → 400
+  *after a dev-server restart* (the running server had kept the old schema module and
+  stored 🚗 — restored).
+- **Hub wording** (`ba044ef`): "Connect with verified lawyers … expert insights" → "Discuss Sri
+  Lankan law and how it works, area by area. General discussion, not legal advice."
+- Archive is a soft status change; page fits a phone. No other change.
