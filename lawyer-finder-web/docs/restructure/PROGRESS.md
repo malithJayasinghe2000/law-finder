@@ -3474,3 +3474,19 @@ Correction to my first report: sendMailSafe never throws, so a failed email neve
 **Deploy note:** verification links issued before `7db69fc` stop working (stored unhashed) —
 people press Resend. **Local config:** `.env` NEXT_PUBLIC_APP_URL is :3000 (another project) so
 local emails link there; owner to decide (dev runs on :3001).
+
+### 2026-10-16 — Apply as an Attorney
+
+Ran as a new applicant on a phone with a fake camera (temporary account + 2 files, deleted by id;
+scan clean). **Nobody could get past step 1** — the form sends every step's fields and the draft
+schema rejected the empty step-2 BASL number. Fixed (`46d8c83`): drafts drop empty values before
+the strict partial parse. Same commit closes the long-open "authenticated file route for identity
+documents": ID card and face photo go to `storage/identity-documents/` (never Cloudinary or
+public/), served by `/api/identity-documents/<name>` to admin or uploader only (other user 404,
+signed out 401, path tricks 404 — tested); orphans swept by the daily purge and on erasure (tested:
+2 swept). `a15b5f7`: notice that the practice is set up after approval; Attorney-at-Law ID card
+(owner chose; images only — the form offered PDF the server never accepted); plain labels;
+resuming works; signed-out → back to /apply; "being reviewed" page after sending (tested end to
+end). `b37caa0`: approval email says to register the practice, with a button.
+**Open:** confirm with a practising attorney that the Attorney-at-Law ID card shows a photo and
+number; if not, switch to the practising certificate and drop the face photo.
