@@ -264,6 +264,21 @@ export const EmailService = {
     );
   },
 
+  /** A one-hour link to choose a new password. */
+  async sendPasswordReset(params: { to: string; resetUrl: string; byAdmin: boolean }) {
+    await sendMailSafe(
+      params.to,
+      'Reset your TheLawyr password',
+      template('Reset your password', `
+        <p>${params.byAdmin ? 'Our team sent you this link at your request.' : 'Someone asked to reset the password for this account.'} Use the button below to choose a new password. The link works once and expires in one hour.</p>
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${params.resetUrl}" style="background-color: #bfa37a; color: #ffffff; padding: 14px 28px; text-decoration: none; display: inline-block; font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.15em; border-radius: 0;">Choose a new password</a>
+        </div>
+        <p>If you did not ask for this, ignore this email. Your password stays the same.</p>
+      `)
+    );
+  },
+
   async sendApplicationSubmitted(email: string, fullName: string) {
     await sendMailSafe(email, 'Lawyer Application Received', template('Application Received', `
       <p>Dear ${fullName},</p>

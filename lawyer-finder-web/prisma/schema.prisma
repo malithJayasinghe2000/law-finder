@@ -206,6 +206,7 @@ model User {
   erasedAt   DateTime?
 
   verificationTokens VerificationToken[]
+  passwordResetTokens PasswordResetToken[]
   profile            LawyerProfile?
   application        LawyerApplication?
   conversations      ConversationParticipant[]
@@ -244,6 +245,23 @@ model VerificationToken {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   expiresAt DateTime
   createdAt DateTime @default(now())
+}
+
+/// A "forgot password" link. Only a SHA-256 hash of the token is stored, so a
+/// copy of this table cannot be used to reset anyone's password. One use, one
+/// hour. `requestedById` is the admin who sent it from User Management, or null
+/// when the person asked for it themselves.
+model PasswordResetToken {
+  id            String    @id @default(uuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash     String    @unique
+  expiresAt     DateTime
+  usedAt        DateTime?
+  requestedById String?
+  createdAt     DateTime  @default(now())
+
+  @@index([userId])
 }
 
 model LawyerApplication {

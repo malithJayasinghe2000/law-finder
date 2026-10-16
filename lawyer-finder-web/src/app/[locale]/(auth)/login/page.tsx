@@ -157,6 +157,11 @@ export default function LoginPage() {
                 className="w-full bg-transparent border-b border-neutral-200 text-[#0a0a0a] px-0 py-2.5 rounded-none outline-none focus:border-[#bfa37a] transition-all font-light placeholder:text-neutral-350"
               />
               <FieldError message={errors.password?.message} />
+              <div className="text-right">
+                <Link href={`/${locale}/forgot-password`} className="text-[11px] font-bold text-[#bfa37a] hover:text-[#a68d67] hover:underline">
+                  Forgot password?
+                </Link>
+              </div>
             </div>
 
             <button type="submit" disabled={loading} className="w-full flex items-center justify-center gap-2 bg-[#bfa37a] text-white py-4.5 rounded-none font-bold uppercase tracking-widest text-xs hover:bg-[#a68d67] transition-colors mt-8 disabled:opacity-70">

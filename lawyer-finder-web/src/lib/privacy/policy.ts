@@ -164,6 +164,13 @@ export const RETENTION_SCHEDULE: RetentionRule[] = [
     reason: 'A spent credential is only a liability.',
   },
   {
+    model: 'passwordResetToken',
+    days: 30,
+    timestampField: 'expiresAt',
+    controller: 'PLATFORM',
+    reason: 'A spent credential is only a liability. Only a hash is stored, but a record of who asked to reset their password serves nothing after the link expires.',
+  },
+  {
     model: 'dataAccessLog',
     days: 730,
     timestampField: 'createdAt',
