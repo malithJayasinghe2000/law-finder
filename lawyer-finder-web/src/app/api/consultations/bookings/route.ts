@@ -439,7 +439,7 @@ export async function POST(req: Request) {
       // A firm-first request has no appointment yet, so there is no date to
       // confirm — only that the request reached the firm.
       const formattedDate = booking.date ? formatSriLankaDateIso(booking.date) : 'To be arranged';
-      const slotTime = booking.startTime ?? '—';
+      const slotTime = booking.startTime ?? ' - ';
       const recipientName = lawyer?.fullName ?? firm?.name ?? 'the firm';
 
       EmailService.sendBookingCreatedClient(client.email, clientName, recipientName, formattedDate, slotTime, booking.bookingNumber);

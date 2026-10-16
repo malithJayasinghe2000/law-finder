@@ -17,7 +17,7 @@ export default function SelfPromotionNotice({ text }: { text: string | null | un
     <p role="alert" className="flex items-start gap-1.5 text-[11px] leading-relaxed text-amber-800">
       <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
       <span>
-        Remove &ldquo;{word}&rdquo; — a description may say what the practice does, but not praise it
+        Remove &ldquo;{word}&rdquo; - a description may say what the practice does, but not praise it
         (Supreme Court Rules 39 and 49). Until then it cannot be saved, and it is not shown publicly.
       </span>
     </p>

@@ -115,12 +115,12 @@ export const EmailService = {
       `${params.invitedByName} has invited you to join ${params.firmName}`,
       template('An invitation to join a practice', `
         <p>${params.invitedByName} has invited you to join <strong>${params.firmName}</strong> on TheLawyr as ${roleLabel[params.role] ?? 'a member of the firm'}.</p>
-        <p>If you accept, you will be able to see that the firm's matters exist. What you can read about any one of them depends on your role and on whether the matter is assigned to you — a client's own account of their legal problem is not visible to everyone in a practice.</p>
+        <p>If you accept, you will be able to see that the firm's matters exist. What you can read about any one of them depends on your role and on whether the matter is assigned to you - a client's own account of their legal problem is not visible to everyone in a practice.</p>
         <p>You do not have to accept, and nothing happens until you do.</p>
         <div style="text-align: center; margin: 30px 0;">
           <a href="${url}" style="background-color: #bfa37a; color: #ffffff; padding: 14px 28px; text-decoration: none; display: inline-block; font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.15em; border-radius: 0;">View the invitation</a>
         </div>
-        <p style="font-size: 13px; color: #737373;">This invitation was sent to ${params.to} and can only be accepted by signing in with that address. It expires in 14 days. If you were not expecting it, ignore this email — no account of yours has been changed.</p>
+        <p style="font-size: 13px; color: #737373;">This invitation was sent to ${params.to} and can only be accepted by signing in with that address. It expires in 14 days. If you were not expecting it, ignore this email - no account of yours has been changed.</p>
       `)
     );
   },
@@ -142,7 +142,7 @@ export const EmailService = {
       `${params.firmName} asks you to confirm your request`,
       template('Confirm your request', `
         <p><strong>${firm}</strong> says you asked them to act for you, and has opened a request on TheLawyr, the software the practice uses to manage its matters.</p>
-        <p>Nothing is added to your account unless you confirm it. Sign in — or create an account with this email address — to see the request and accept or decline it.</p>
+        <p>Nothing is added to your account unless you confirm it. Sign in - or create an account with this email address - to see the request and accept or decline it.</p>
         <div style="text-align: center; margin: 30px 0;">
           <a href="${url}" style="background-color: #bfa37a; color: #ffffff; padding: 14px 28px; text-decoration: none; display: inline-block; font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.15em; border-radius: 0;">View the request</a>
         </div>
@@ -160,7 +160,7 @@ export const EmailService = {
     const firm = escapeHtml(params.firmName);
     await sendMailSafe(
       params.to,
-      `Your request ${params.bookingNumber} — ${params.firmName} is unable to act`,
+      `Your request ${params.bookingNumber} - ${params.firmName} is unable to act`,
       template('Request not accepted', `
         <p>Dear ${escapeHtml(params.clientName)},</p>
         <p><strong>${firm}</strong> has told us it is unable to act for you in request <strong>${params.bookingNumber}</strong>.</p>
@@ -314,7 +314,7 @@ export const EmailService = {
     firmName: string,
     attorneyName: string
   ) {
-    await sendMailSafe(email, `Your matter ${bookingNumber} — attorney assigned`, template('Attorney Assigned', `
+    await sendMailSafe(email, `Your matter ${bookingNumber} - attorney assigned`, template('Attorney Assigned', `
       <p>Dear ${clientName},</p>
       <p>${firmName} has assigned <strong>${attorneyName}</strong> to act on your matter
          <strong>${bookingNumber}</strong>.</p>

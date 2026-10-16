@@ -294,7 +294,7 @@ export default function LawyerProfileClient({
                     </div>
                     <div>
                       <p className="text-[9px] text-neutral-455 font-bold uppercase tracking-widest">Notary</p>
-                      <p className="text-sm font-serif font-bold text-[#1a1a1a] mt-0.5">Yes — Notary Public</p>
+                      <p className="text-sm font-serif font-bold text-[#1a1a1a] mt-0.5">Yes - Notary Public</p>
                     </div>
                   </div>
                 )}

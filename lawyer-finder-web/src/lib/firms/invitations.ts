@@ -149,7 +149,7 @@ export async function checkJoinEligibility(params: {
             `That attorney is still responsible for ${openMatters} open ` +
             `${openMatters === 1 ? 'matter' : 'matters'} at their current practice. ` +
             'Those clients engaged that firm, so the matters have to be closed or ' +
-            'reassigned there before the attorney can move — moving them silently would ' +
+            'reassigned there before the attorney can move - moving them silently would ' +
             'change who the client is retained by without telling them.',
           status: 409,
         };

@@ -207,11 +207,11 @@ export default function AdminFirmsPage() {
                   <div className="space-y-1">
                     <p className="font-bold uppercase tracking-widest text-neutral-400">Registration</p>
                     <p className="text-neutral-700">
-                      Firm no. {f.registrationNumber || '—'}<br />
-                      Principal BASL no. {f.principalBaslNumber || '—'}
+                      Firm no. {f.registrationNumber || ' - '}<br />
+                      Principal BASL no. {f.principalBaslNumber || ' - '}
                     </p>
                     <p className="text-neutral-500">
-                      {f.contactEmail || '—'}{f.contactPhone ? ` · ${f.contactPhone}` : ''}
+                      {f.contactEmail || ' - '}{f.contactPhone ? ` · ${f.contactPhone}` : ''}
                     </p>
                   </div>
 
@@ -239,7 +239,7 @@ export default function AdminFirmsPage() {
                   {f.members.map((m, i) => (
                     <p key={i} className="text-neutral-700">
                       {/* An attorney by their registered name: an account name can be anything (Kavindu's is "None"). */}
-                      {m.user.profile?.fullName || m.user.fullName || m.user.email} — {ROLE_LABELS[m.role] ?? m.role}
+                      {m.user.profile?.fullName || m.user.fullName || m.user.email} - {ROLE_LABELS[m.role] ?? m.role}
                       {m.user.profile?.baslNumber && ` · ${m.user.profile.baslNumber}`}
                       {m.user.profile && !m.user.profile.isVerified && (
                         <span className="text-amber-700"> · attorney not yet verified</span>
@@ -327,7 +327,7 @@ function VerificationDialog({
   const submit = async () => {
     if (!firm) return;
     if (decision === 'REJECTED' && !notes.trim()) {
-      toast.error('Give a reason — the firm is entitled to know why.');
+      toast.error('Give a reason - the firm is entitled to know why.');
       return;
     }
 

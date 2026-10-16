@@ -167,7 +167,7 @@ export default function PrivacyNoticesPage() {
     const warning = superseded
       ? `Publish version ${n.version}?\n\nThis supersedes version ${superseded.version}, which ` +
         `${superseded.consentRecordsAgreedUnderIt} consent record(s) point at. That version stays ` +
-        `readable at its own address permanently — it is evidence of what those people agreed to.`
+        `readable at its own address permanently - it is evidence of what those people agreed to.`
       : `Publish version ${n.version}? It becomes the notice in force.`;
 
     if (!confirm(warning)) return;
@@ -234,7 +234,7 @@ export default function PrivacyNoticesPage() {
           </h1>
           <p className="mt-2 max-w-2xl text-sm leading-relaxed text-neutral-600">
             Every published version is kept permanently at its own address. Publishing creates a
-            new version and supersedes the old one — it never edits one in place, because consent
+            new version and supersedes the old one - it never edits one in place, because consent
             records point at the exact words people were shown.
           </p>
         </div>
@@ -266,7 +266,7 @@ export default function PrivacyNoticesPage() {
               Consent records point at versions that are not in this register
             </h2>
             <p className="mt-1 text-sm leading-relaxed text-red-900/80">
-              {dangling.join(', ')} — consent recorded against a document that cannot be produced
+              {dangling.join(', ')} - consent recorded against a document that cannot be produced
               is not demonstrable consent. Add a version under that exact label holding the
               wording those people were shown.
             </p>
@@ -308,7 +308,7 @@ export default function PrivacyNoticesPage() {
               <p className="mt-1.5 text-xs text-neutral-500">
                 {creating
                   ? 'A date. Add a suffix (2026-09-06-b) to publish twice in one day. Never reused.'
-                  : 'A label cannot be changed — consent records point at it.'}
+                  : 'A label cannot be changed - consent records point at it.'}
               </p>
             </div>
 
@@ -352,7 +352,7 @@ export default function PrivacyNoticesPage() {
             />
             <p className="mt-1.5 text-xs text-neutral-500">
               {form.body.length} characters. It must match{' '}
-              <span className="font-semibold">DATA-INVENTORY.md</span> — if they disagree, one of
+              <span className="font-semibold">DATA-INVENTORY.md</span> - if they disagree, one of
               them is a lie, and the inventory is the source of truth.
             </p>
           </div>
@@ -404,7 +404,7 @@ export default function PrivacyNoticesPage() {
         {notices.length === 0 ? (
           <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50/60 p-5">
             <p className="text-sm leading-relaxed text-amber-900">
-              Nothing has been published. Until a version exists, new consents are refused —
+              Nothing has been published. Until a version exists, new consents are refused -
               recording agreement to a document that cannot be produced is not consent.
             </p>
           </div>
@@ -515,7 +515,7 @@ export default function PrivacyNoticesPage() {
           >
             <div className="sticky top-0 flex items-center justify-between rounded-t-2xl border-b border-neutral-200 bg-white px-5 py-3">
               <p className="text-sm font-semibold text-neutral-900">
-                Preview — exactly what the public page renders
+                Preview - exactly what the public page renders
               </p>
               <button
                 onClick={() => setPreviewing(null)}

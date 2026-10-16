@@ -183,7 +183,7 @@ export function AssignMatterDialog({
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
                 rows={2}
-                placeholder="Why this attorney is taking it — kept inside the firm."
+                placeholder="Why this attorney is taking it - kept inside the firm."
                 className="rounded-none text-sm"
               />
             </div>

@@ -148,7 +148,7 @@ export default function EngageFirmClient({
               <strong>Sending this creates no lawyer-client relationship and costs
               nothing.</strong>{' '}
               No fee is payable unless and until you accept a quote in writing.
-              {firm.name} — not this platform — provides the legal services, and any
+              {firm.name} - not this platform - provides the legal services, and any
               fee you agree is paid directly to the firm.
             </p>
           </div>
@@ -207,7 +207,7 @@ export default function EngageFirmClient({
                   ))}
             </div>
             <p className="text-[10px] text-neutral-400">
-              Not sure? Leave it blank — the firm will work it out.
+              Not sure? Leave it blank - the firm will work it out.
             </p>
           </div>
 

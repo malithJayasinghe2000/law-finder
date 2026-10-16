@@ -143,7 +143,7 @@ export const RETENTION_SCHEDULE: RetentionRule[] = [
       'An application holds an NIC number and images of identity and practising ' +
       'certificates. Two years after a decision is long enough to answer a challenge ' +
       'to how we handled it and short enough that a rejected applicant is not on file ' +
-      'indefinitely. An APPROVED application is reduced to a stub at approval — the ' +
+      'indefinitely. An APPROVED application is reduced to a stub at approval - the ' +
       'data it held now lives on the attorney profile, and two copies of a national ' +
       'identity number is one too many.',
   },
@@ -153,8 +153,8 @@ export const RETENTION_SCHEDULE: RetentionRule[] = [
     timestampField: 'expiresAt',
     controller: 'PLATFORM',
     reason:
-      'A lapsed hold records which attorney a person was considering — an interest ' +
-      'signal about their legal affairs — and serves no purpose once expired.',
+      'A lapsed hold records which attorney a person was considering - an interest ' +
+      'signal about their legal affairs - and serves no purpose once expired.',
   },
   {
     model: 'verificationToken',
@@ -219,7 +219,7 @@ export function assertPurgeable(model: string): { ok: true } | { ok: false; reas
       ok: false,
       reason:
         `${model} holds matter data the FIRM controls. We hold it as processor and ` +
-        `may not delete it on our own schedule — the firm's professional retention ` +
+        `may not delete it on our own schedule - the firm's professional retention ` +
         `duty decides, and that is counsel question 7(c), still unanswered.`,
     };
   }
@@ -282,7 +282,7 @@ export const CONSENT_PURPOSES: Record<
       'Keeps your conversations with the legal assistant so you can return to them. ' +
       `Kept for ${AI_CONVERSATION_RETENTION_DAYS} days from last use either way.`,
     onWithdrawal:
-      'Your existing conversations are deleted, not merely hidden — withdrawal that ' +
+      'Your existing conversations are deleted, not merely hidden - withdrawal that ' +
       'leaves the data in place is not withdrawal.',
   },
 };
@@ -370,7 +370,7 @@ export const ERASURE_PLAN: ErasureStep[] = [
     explanation:
       'Your name, email, photo and sign-in credentials are overwritten and the account ' +
       'is closed. The record itself remains so that any matter a law firm holds stays ' +
-      'intact — deleting it would damage the firm’s file, not just ours.',
+      'intact - deleting it would damage the firm’s file, not just ours.',
   },
   {
     model: 'aiConversation',
@@ -414,7 +414,7 @@ export const ERASURE_PLAN: ErasureStep[] = [
     controller: 'FIRM',
     explanation:
       'Your matter file belongs to the law firm you engaged, not to us. We hold it on ' +
-      'their behalf. Your request has been passed to them, and they will decide — an ' +
+      'their behalf. Your request has been passed to them, and they will decide - an ' +
       'attorney may be professionally required to keep it.',
   },
   {

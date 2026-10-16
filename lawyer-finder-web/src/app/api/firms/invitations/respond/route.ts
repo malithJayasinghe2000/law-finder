@@ -75,7 +75,7 @@ export async function POST(req: Request) {
       return NextResponse.json(
         {
           error:
-            'Sign in — or create an account with the email address this invitation was sent to — before responding.',
+            'Sign in - or create an account with the email address this invitation was sent to - before responding.',
         },
         { status: 401 }
       );

@@ -71,7 +71,7 @@ export function PaymentReviewDialog({
 
       toast.success(
         action === 'confirm_payment_received'
-          ? 'Payment confirmed — the consultation is now scheduled'
+          ? 'Payment confirmed - the consultation is now scheduled'
           : 'Sent back to the client to correct'
       );
       setRejecting(false);
@@ -140,7 +140,7 @@ export function PaymentReviewDialog({
                     <dt className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">
                       {label}
                     </dt>
-                    <dd className="text-right text-sm text-neutral-900">{value || '—'}</dd>
+                    <dd className="text-right text-sm text-neutral-900">{value || ' - '}</dd>
                   </div>
                 ))}
               </dl>

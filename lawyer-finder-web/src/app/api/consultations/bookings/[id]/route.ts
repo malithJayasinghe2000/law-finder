@@ -213,7 +213,7 @@ export async function PATCH(
     const attorneyName = booking.lawyer?.fullName ?? 'your attorney';
     const attorneyEmail = booking.lawyer?.user?.email ?? null;
     const scheduleDate = booking.date ? formatSriLankaDateIso(booking.date) : 'To be arranged';
-    const scheduleStart = booking.startTime ?? '—';
+    const scheduleStart = booking.startTime ?? ' - ';
 
     /**
      * Actions that only make sense once an appointment exists.

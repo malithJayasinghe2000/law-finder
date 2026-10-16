@@ -194,7 +194,7 @@ export default function ClientConsultationsPage() {
         toast.error(data.error || 'Could not send your response');
         return;
       }
-      toast.success(action === 'confirm' ? 'Thank you — refund confirmed' : 'The firm has been notified');
+      toast.success(action === 'confirm' ? 'Thank you - refund confirmed' : 'The firm has been notified');
       loadBookings();
     } catch {
       toast.error('Could not send your response');
@@ -391,7 +391,7 @@ export default function ClientConsultationsPage() {
                           </p>
                         ) : b.payment ? (
                           <p className="mt-1.5 text-[10px] italic text-neutral-500">
-                            Payment recorded — waiting for the firm to confirm it arrived.
+                            Payment recorded - waiting for the firm to confirm it arrived.
                           </p>
                         ) : null}
                       </div>

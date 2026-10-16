@@ -223,7 +223,7 @@ export function QuoteComposerDialog({
               </p>
               <p className="text-[10px] leading-relaxed text-neutral-500">
                 {clientName} engaged the firm rather than booking a slot, so there is no
-                time set yet. Offer one from your own diary — it is held for you while
+                time set yet. Offer one from your own diary - it is held for you while
                 the quote is outstanding.
               </p>
               <div className="grid gap-2 sm:grid-cols-3">

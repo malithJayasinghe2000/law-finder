@@ -9,7 +9,7 @@ import { SidebarAd, AdBanner, StickyBottomAd } from '@/components/ads/AdComponen
 import { CommunityDisclaimer } from '@/components/community/CommunityNotice';
 
 export const metadata = {
-  title: 'Legal Community Hub — Sri Lanka',
+  title: 'Legal Community Hub - Sri Lanka',
   description:
     'Join Sri Lanka\'s largest legal community. Discuss law, share experiences, and learn from verified attorneys.',
 };
@@ -160,10 +160,10 @@ export default async function CommunityHubPage({
                 </h3>
                 <ul className="space-y-3.5 text-xs text-neutral-500 font-light">
                   <li className="flex gap-2"><span className="text-[#bfa37a] font-bold">1.</span> Be respectful and professional</li>
-                  <li className="flex gap-2"><span className="text-[#bfa37a] font-bold">2.</span> General discussion only — no legal advice</li>
+                  <li className="flex gap-2"><span className="text-[#bfa37a] font-bold">2.</span> General discussion only - no legal advice</li>
                   <li className="flex gap-2"><span className="text-[#bfa37a] font-bold">3.</span> Cite sources when discussing legal provisions</li>
                   <li className="flex gap-2"><span className="text-[#bfa37a] font-bold">4.</span> No spam, self-promotion, or advertisements</li>
-                  <li className="flex gap-2"><span className="text-[#bfa37a] font-bold">5.</span> Respect privacy — never share case details</li>
+                  <li className="flex gap-2"><span className="text-[#bfa37a] font-bold">5.</span> Respect privacy - never share case details</li>
                 </ul>
               </CardContent>
             </Card>

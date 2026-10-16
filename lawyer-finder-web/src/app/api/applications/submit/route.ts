@@ -36,7 +36,7 @@ export async function POST(req: Request) {
       return NextResponse.json(
         {
           error: first
-            ? `Your application is not complete yet — ${first.path.join('.')}: ${first.message}`
+            ? `Your application is not complete yet - ${first.path.join('.')}: ${first.message}`
             : 'Your application is not complete yet.',
           details: complete.error.issues,
         },

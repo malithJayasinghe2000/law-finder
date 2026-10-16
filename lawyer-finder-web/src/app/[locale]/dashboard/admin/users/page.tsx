@@ -374,7 +374,7 @@ export default function UserManagementPage() {
                           {user.district}
                         </>
                       ) : (
-                        <span className="text-neutral-400">—</span>
+                        <span className="text-neutral-400">-</span>
                       )}
                     </span>
                   </td>

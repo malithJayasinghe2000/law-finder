@@ -221,7 +221,7 @@ export default async function FirmProfilePage({
               Attorneys at this firm
             </h2>
             <p className="mb-5 text-xs text-neutral-500">
-              {DIRECTORY_ORDER_NOTICE} Choosing an attorney is entirely your decision — this
+              {DIRECTORY_ORDER_NOTICE} Choosing an attorney is entirely your decision - this
               ordering is not a recommendation.
             </p>
 
@@ -290,7 +290,7 @@ export default async function FirmProfilePage({
 
               <p className="mt-3 text-[11px] leading-relaxed text-neutral-500">
                 Prefer a particular attorney? Open their profile above and request from
-                them directly — the choice is entirely yours either way.
+                them directly - the choice is entirely yours either way.
               </p>
             </div>
 

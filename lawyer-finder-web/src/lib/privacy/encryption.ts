@@ -70,7 +70,7 @@ const ENVELOPE_VERSION = 'v1';
 const ENVELOPE_PARTS = 6;
 
 /** Shown when a value cannot be decrypted. Never the ciphertext. */
-export const UNDECRYPTABLE_MARKER = '[Unavailable — this record could not be decrypted]';
+export const UNDECRYPTABLE_MARKER = '[Unavailable - this record could not be decrypted]';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // The key ring
@@ -129,7 +129,7 @@ export function loadKeyRing(): KeyRing | null {
 
     if (!/^[A-Za-z0-9_-]+$/.test(keyId)) {
       throw new Error(
-        `MATTER_ENCRYPTION_KEYS: key id "${keyId}" must be alphanumeric — it is stored in the envelope.`
+        `MATTER_ENCRYPTION_KEYS: key id "${keyId}" must be alphanumeric - it is stored in the envelope.`
       );
     }
 
@@ -423,7 +423,7 @@ export const UNENCRYPTED_TIER1_FIELDS: { field: string; reason: string }[] = [
       'A fee note is a tax document the firm can be compelled to produce, with a ' +
       'statutory retention period measured in years. Making it undecryptable if we ' +
       'mislay a key trades a confidentiality risk for a compliance failure the firm ' +
-      'cannot argue its way out of. Encrypt these once key escrow is designed — ' +
+      'cannot argue its way out of. Encrypt these once key escrow is designed - ' +
       'counsel question 4(c) and the key-custody note in DATA-INVENTORY.md §11.',
   },
   {
@@ -436,7 +436,7 @@ export const UNENCRYPTED_TIER1_FIELDS: { field: string; reason: string }[] = [
     field: 'FeeNote.lineItems narration',
     reason:
       'The narration is typed by the firm when it raises the note, not copied from ' +
-      'anything the client wrote — so unlike the engagement letter it is not a ' +
+      'anything the client wrote - so unlike the engagement letter it is not a ' +
       'plaintext copy of an encrypted column. It is still tier 1 and still access-' +
       'gated; it shares the tax-document reason above.',
   },

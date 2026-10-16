@@ -270,7 +270,7 @@ export async function POST(
       booking.bookingNumber,
       booking.lawyer.fullName,
       data.proposedDate ?? formatSriLankaDateIsoOrNull(booking.date) ?? 'To be arranged',
-      `${data.proposedStartTime ?? booking.startTime ?? '—'} - ${data.proposedEndTime ?? booking.endTime ?? '—'}`
+      `${data.proposedStartTime ?? booking.startTime ?? ' - '} - ${data.proposedEndTime ?? booking.endTime ?? ' - '}`
     );
 
     // Echo the scope back as the attorney typed it, not as it is stored.
@@ -571,7 +571,7 @@ export async function PATCH(
         booking.lawyer.fullName,
         booking.client.fullName || 'Client',
         formatSriLankaDateIsoOrNull(booking.date) ?? 'To be confirmed',
-        booking.startTime ?? '—'
+        booking.startTime ?? ' - '
       );
     }
 

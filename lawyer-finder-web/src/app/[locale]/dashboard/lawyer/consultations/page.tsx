@@ -615,7 +615,7 @@ export default function LawyerBookingsPage() {
                               variant="outline"
                               onClick={() => setFeeNoteBooking(booking)}
                               disabled={actionLoading}
-                              title="Bill this client for the work — your firm's own fee note"
+                              title="Bill this client for the work - your firm's own fee note"
                               className="rounded-none h-7 text-[10px] px-2.5 font-bold border-neutral-300"
                             >
                               <Receipt className="w-3 h-3 mr-1" /> Fee note

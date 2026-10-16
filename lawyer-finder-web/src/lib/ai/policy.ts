@@ -135,13 +135,13 @@ export const REFUSAL_MESSAGES: Record<RefusalCategory, string> = {
   UNSUPPORTED_LANGUAGE:
     'I can only answer legal questions in English at the moment.\n\n' +
     'The checks that keep this assistant from straying into legal advice, or into ' +
-    'suggesting a particular lawyer, only work in English — so answering in Sinhala or ' +
+    'suggesting a particular lawyer, only work in English - so answering in Sinhala or ' +
     'Tamil would mean answering without them. That is not a limitation I am willing to ' +
     'work around, because those checks are what make the answers safe to rely on.\n\n' +
     'Please ask your question in English, or contact an attorney-at-law directly.',
 
   FOLLOW_UP_WITHOUT_CONTEXT:
-    'I am not sure what "that" refers to — I do not have the earlier part of this conversation.\n\n' +
+    'I am not sure what "that" refers to - I do not have the earlier part of this conversation.\n\n' +
     'Could you ask the whole question in one go? For example, instead of *"tell me more about that"*, ' +
     'try *"tell me more about removing a company director under the Companies Act"*.\n\n' +
     'If you sign in, I can follow a conversation across several questions.',
@@ -170,13 +170,13 @@ export const REFUSAL_MESSAGES: Record<RefusalCategory, string> = {
     // "/legal-library" would be wrong in at least two of the three languages.
     // The page is named in words; the disclaimer under the chat box already
     // carries the real links, built where the locale is known.
-    'What I can do is explain what the law itself says. Ask about the rule rather than your own case — ' +
+    'What I can do is explain what the law itself says. Ask about the rule rather than your own case - ' +
     'what an Act requires, or how a procedure works. The Legal Library page lists every piece of ' +
     'legislation I hold.\n\n' +
     'For advice on your actual matter, you can browse practices in the directory and approach one yourself.',
 
   OUTCOME_PREDICTION:
-    'I cannot tell you how a case would turn out. Nobody can — an outcome depends on evidence, procedure, ' +
+    'I cannot tell you how a case would turn out. Nobody can - an outcome depends on evidence, procedure, ' +
     'and findings of fact that no assistant can see, and a confident guess from me could cost you a great deal.\n\n' +
     'I can explain what the law provides, what a court considers, or how a procedure works. ' +
     'For an assessment of your own position, you need an attorney-at-law who can look at the papers.',
@@ -188,7 +188,7 @@ export const REFUSAL_MESSAGES: Record<RefusalCategory, string> = {
     'Before you sign anything that matters, have an attorney-at-law read it.',
 
   REPRESENTATION_REQUEST:
-    'I do not choose attorneys or firms, and I will not suggest one to you — not by name, not by type, ' +
+    'I do not choose attorneys or firms, and I will not suggest one to you - not by name, not by type, ' +
     'and not based on what you have told me. The choice has to be yours, made from neutral information.\n\n' +
     'You can browse every verified practice and practitioner in the directory. Its order changes every day ' +
     'and is the same for everyone, position in it cannot be bought, and nothing you say to me affects what you see there.',
@@ -202,8 +202,8 @@ export const REFUSAL_MESSAGES: Record<RefusalCategory, string> = {
   ADVICE_IN_ANSWER:
     'I started to answer this, but the answer strayed into advising you about your own situation, ' +
     'so I have withheld it.\n\n' +
-    'Try asking the general legal question instead — what the law says, what a procedure involves, ' +
-    'what a term means — and I can help with that.',
+    'Try asking the general legal question instead - what the law says, what a procedure involves, ' +
+    'what a term means - and I can help with that.',
 
   PRACTITIONER_STEERING:
     'I withheld that answer because it began steering you toward a particular kind of practitioner.\n\n' +

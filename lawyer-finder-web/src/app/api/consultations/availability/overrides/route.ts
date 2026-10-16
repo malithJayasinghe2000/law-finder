@@ -74,7 +74,7 @@ export async function POST(req: Request) {
 
       if (existingBookings > 0) {
         return NextResponse.json({
-          error: `Cannot block this date — ${existingBookings} booking(s) exist. Cancel them first.`,
+          error: `Cannot block this date - ${existingBookings} booking(s) exist. Cancel them first.`,
         }, { status: 409 });
       }
     }

@@ -372,7 +372,7 @@ export default function ChatInterface({ userId, locale }: { userId: string; loca
               <p className="flex items-start gap-2 text-left text-neutral-500 text-sm font-light leading-relaxed">
                 <Lock className="mt-1 w-3.5 h-3.5 shrink-0 text-[#bfa37a]" />
                 <span>
-                  Only the people in a conversation can read it — the client and the attorney
+                  Only the people in a conversation can read it - the client and the attorney
                   handling their request. Messages are stored encrypted, and platform staff
                   cannot read them.
                 </span>

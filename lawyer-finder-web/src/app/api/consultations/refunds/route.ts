@@ -283,7 +283,7 @@ export async function PATCH(req: Request) {
     }
     if (refunded < owed && (!notes || notes.trim().length < 10)) {
       return NextResponse.json(
-        { error: 'You refunded less than the client paid. Say why — the client is shown your reason.' },
+        { error: 'You refunded less than the client paid. Say why - the client is shown your reason.' },
         { status: 400 }
       );
     }

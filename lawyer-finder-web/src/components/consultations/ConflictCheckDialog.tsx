@@ -84,7 +84,7 @@ export function ConflictCheckDialog({
 
       toast.success(
         outcome === 'CLEAR'
-          ? 'Accepted — you can now send a quote.'
+          ? 'Accepted - you can now send a quote.'
           : outcome === 'NEEDS_REVIEW'
             ? 'On hold. Review it again when you are ready.'
             : 'Declined. The client has been told only that your practice cannot act.'
@@ -101,7 +101,7 @@ export function ConflictCheckDialog({
 
   const OUTCOMES: { value: Outcome; label: string; next: string; tone: string }[] = [
     { value: 'CLEAR', label: 'Accept', next: 'You can then send a quote', tone: 'border-green-600 bg-green-50 text-green-900' },
-    { value: 'CONFLICT_FOUND', label: 'Decline', next: 'The client is told you cannot act — never why', tone: 'border-red-600 bg-red-50 text-red-900' },
+    { value: 'CONFLICT_FOUND', label: 'Decline', next: 'The client is told you cannot act - never why', tone: 'border-red-600 bg-red-50 text-red-900' },
     { value: 'NEEDS_REVIEW', label: 'Hold', next: 'Decide later, e.g. after speaking to the client', tone: 'border-amber-500 bg-amber-50 text-amber-900' },
   ];
 
@@ -173,7 +173,7 @@ export function ConflictCheckDialog({
             onChange={(e) => setNotes(e.target.value)}
             rows={3}
             maxLength={2000}
-            placeholder={needsNote ? 'Why your practice cannot act — for your own record.' : 'Anything your practice should remember.'}
+            placeholder={needsNote ? 'Why your practice cannot act - for your own record.' : 'Anything your practice should remember.'}
             className="rounded-none"
           />
           <p className="flex items-start gap-1.5 text-[11px] text-neutral-500">

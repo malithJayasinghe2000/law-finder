@@ -42,10 +42,10 @@ type Request = {
 };
 
 const TYPE_LABEL: Record<string, string> = {
-  ACCESS: 'Access — wants a copy of what you hold',
-  PORTABILITY: 'Portability — wants their data in a portable form',
-  ERASURE: 'Erasure — wants it deleted',
-  RECTIFICATION: 'Rectification — wants something corrected',
+  ACCESS: 'Access - wants a copy of what you hold',
+  PORTABILITY: 'Portability - wants their data in a portable form',
+  ERASURE: 'Erasure - wants it deleted',
+  RECTIFICATION: 'Rectification - wants something corrected',
   OBJECTION: 'Objection',
 };
 
@@ -173,7 +173,7 @@ export default function FirmSubjectRequestsPage() {
           <p className="font-semibold text-neutral-900">Your decision, not ours.</p>
           <p className="mt-1">
             We host your matter files as your processor and cannot release or delete them on our
-            own authority. Your answer is shown to the person who asked, in your words — so where
+            own authority. Your answer is shown to the person who asked, in your words - so where
             you are keeping a file, name the duty that requires it.
           </p>
         </div>
@@ -215,7 +215,7 @@ export default function FirmSubjectRequestsPage() {
                           className={`flex items-center gap-1 ${overdue ? 'font-bold text-red-600' : ''}`}
                         >
                           <Clock className="h-3 w-3" />
-                          {overdue ? 'Overdue — due ' : 'Due '}
+                          {overdue ? 'Overdue - due ' : 'Due '}
                           {new Date(r.dueBy).toLocaleDateString('en-GB', {
                             day: 'numeric',
                             month: 'long',
@@ -286,7 +286,7 @@ export default function FirmSubjectRequestsPage() {
                         {reason.trim().length}/20 characters minimum.{' '}
                         {(outcome === 'REFUSED_RETAINED' || outcome === 'PARTIAL') && (
                           <span className="font-semibold text-amber-700">
-                            Name the duty — a refusal that does not is not a defensible refusal.
+                            Name the duty - a refusal that does not is not a defensible refusal.
                           </span>
                         )}
                       </p>

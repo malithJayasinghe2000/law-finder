@@ -298,7 +298,7 @@ export default function FirmPage() {
           <p className="mt-3 font-serif text-lg text-neutral-900">You don&apos;t have a practice yet</p>
           <p className="mx-auto mt-2 max-w-md text-sm text-neutral-600">
             Until you have one, you are not listed in the directory and clients cannot send you
-            requests. Register your own practice — as a sole practitioner or a firm — or accept an
+            requests. Register your own practice - as a sole practitioner or a firm - or accept an
             invitation from a firm that has added you. A registered practice is checked by our
             team before it is listed.
           </p>
@@ -364,7 +364,7 @@ export default function FirmPage() {
               You practise as a firm of one. Nothing has changed for you.
             </p>
             <p className="mt-1">
-              Clients engage <strong>your practice</strong>, not this platform — so every
+              Clients engage <strong>your practice</strong>, not this platform - so every
               engagement letter, quote and fee note names your practice as the provider
               of legal services. If you later take on another attorney or an assistant,
               you can add them here and share the workload without moving anything.
@@ -394,8 +394,8 @@ export default function FirmPage() {
                 <p className="mt-1">
                   This practice was created automatically when your own registration was approved.
                   Automatic practices are no longer listed in the directory or able to receive new
-                  requests. Register it — as a sole practitioner or a firm, with its real name and
-                  address — and our team will check it before it is listed.{' '}
+                  requests. Register it - as a sole practitioner or a firm, with its real name and
+                  address - and our team will check it before it is listed.{' '}
                   <strong>Your existing matters and licence are unaffected.</strong>
                 </p>
               </div>
@@ -622,7 +622,7 @@ export default function FirmPage() {
             <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0" />
             <span>
               Everyone you add here can see something about your clients&apos; matters.
-              What each role can read is fixed and shown below — a client&apos;s account of
+              What each role can read is fixed and shown below - a client&apos;s account of
               their problem is privileged, so it is shared as narrowly as the work allows.
             </span>
           </p>
@@ -954,7 +954,7 @@ function InviteMemberDialog({
         <DialogHeader>
           <DialogTitle className="text-base">Invite someone to the firm</DialogTitle>
           <DialogDescription className="text-xs leading-relaxed">
-            We email them a link. They join only if they accept, within 14 days — nothing about
+            We email them a link. They join only if they accept, within 14 days - nothing about
             your matters is visible to them until then. They can accept with an existing account
             or create one.
           </DialogDescription>
@@ -1307,7 +1307,7 @@ function RetireOfficeDialog({
           <DialogDescription className="text-xs leading-relaxed">
             It stops showing on your practice&apos;s profile. The record is kept, because past
             engagement letters may name this address.
-            {office?.isPrimary && ' This is your registered office — mark another office as registered afterwards.'}
+            {office?.isPrimary && ' This is your registered office - mark another office as registered afterwards.'}
           </DialogDescription>
         </DialogHeader>
         <DialogFooter className="gap-2 sm:gap-2">

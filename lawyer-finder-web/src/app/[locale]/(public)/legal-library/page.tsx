@@ -121,7 +121,7 @@ export default function LegalLibraryPage() {
             </h1>
 
             <p className="text-neutral-500 text-sm sm:text-base max-w-xl font-light leading-relaxed">
-              Explore Sri Lankan Acts, Ordinances, Case Law, and Gazette Notifications — cataloged and structured by our AI knowledge graph for high-precision semantic search.
+              Explore Sri Lankan Acts, Ordinances, Case Law, and Gazette Notifications - cataloged and structured by our AI knowledge graph for high-precision semantic search.
             </p>
 
             <LegalDisclaimer variant="library" className="max-w-xl" />

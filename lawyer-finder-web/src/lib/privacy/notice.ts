@@ -177,7 +177,7 @@ export function assertEditable(status: 'DRAFT' | 'PUBLISHED' | 'SUPERSEDED'):
     reason:
       `This version is ${status} and cannot be edited. People agreed to these exact words, ` +
       'and consent records point at them. To change the notice, create a new version and ' +
-      'publish it — the old one stays readable at its own address.',
+      'publish it - the old one stays readable at its own address.',
   };
 }
 

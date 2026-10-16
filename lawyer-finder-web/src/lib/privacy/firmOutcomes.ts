@@ -38,7 +38,7 @@ const COPY_OPTIONS: OutcomeOption[] = [
 const ERASURE_OPTIONS: OutcomeOption[] = [
   {
     value: 'REFUSED_RETAINED',
-    label: 'Kept — a duty requires it',
+    label: 'Kept - a duty requires it',
     help: 'Name the duty. The person is shown your reason.',
   },
   { value: 'NO_DATA', label: 'We hold nothing', help: 'No matter data for this person.' },

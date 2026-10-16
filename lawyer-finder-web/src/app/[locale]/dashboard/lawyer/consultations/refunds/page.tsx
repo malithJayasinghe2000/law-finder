@@ -141,7 +141,7 @@ export default function LawyerRefundsPage() {
         toast.error(`Enter the amount you refunded, up to Rs. ${target.totalAmount.toLocaleString()}`); return;
       }
       if (n < target.totalAmount && notes.trim().length < 10) {
-        toast.error('You refunded less than the client paid — say why in the note'); return;
+        toast.error('You refunded less than the client paid - say why in the note'); return;
       }
     }
 
@@ -164,7 +164,7 @@ export default function LawyerRefundsPage() {
         toast.error(data.error || 'Action failed');
         return;
       }
-      toast.success(action === 'process' ? 'Recorded — the client will be asked to confirm receipt' : 'Refund declined');
+      toast.success(action === 'process' ? 'Recorded - the client will be asked to confirm receipt' : 'Refund declined');
       setTarget(null);
       setNotes('');
       setReference('');
@@ -210,7 +210,7 @@ export default function LawyerRefundsPage() {
             Clients paid your practice directly, so return the money from the practice&apos;s
             account and then record it here. What the client paid is shown as owed in full;
             if your terms with the client mean you return less, record what you returned and
-            why — the client sees your reason and can dispute it. Recording it does not
+            why - the client sees your reason and can dispute it. Recording it does not
             transfer anything.
           </p>
         </div>
@@ -221,21 +221,21 @@ export default function LawyerRefundsPage() {
         <Card className="rounded-none border-l-4 border-l-amber-500 shadow-sm">
           <CardContent className="p-5">
             <p className="text-[11px] font-bold uppercase tracking-wider text-neutral-400">Awaiting refund</p>
-            <p className="mt-1 text-3xl font-bold text-neutral-900">{loading ? '—' : stats.pendingCount}</p>
+            <p className="mt-1 text-3xl font-bold text-neutral-900">{loading ? ' - ' : stats.pendingCount}</p>
           </CardContent>
         </Card>
         <Card className="rounded-none border-l-4 border-l-red-500 shadow-sm">
           <CardContent className="p-5">
             <p className="text-[11px] font-bold uppercase tracking-wider text-neutral-400">Total you owe</p>
             <p className="mt-1 text-3xl font-bold text-red-600">
-              {loading ? '—' : `Rs. ${stats.totalPendingAmount.toLocaleString()}`}
+              {loading ? ' - ' : `Rs. ${stats.totalPendingAmount.toLocaleString()}`}
             </p>
           </CardContent>
         </Card>
         <Card className="rounded-none border-l-4 border-l-green-500 shadow-sm">
           <CardContent className="p-5">
             <p className="text-[11px] font-bold uppercase tracking-wider text-neutral-400">Refunded</p>
-            <p className="mt-1 text-3xl font-bold text-green-600">{loading ? '—' : stats.processedCount}</p>
+            <p className="mt-1 text-3xl font-bold text-green-600">{loading ? ' - ' : stats.processedCount}</p>
           </CardContent>
         </Card>
       </div>
@@ -360,7 +360,7 @@ export default function LawyerRefundsPage() {
               <p className="border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
                 Only record this once the money has actually been sent from your
                 practice&apos;s account. The client is notified and asked to confirm they received
-                it — so the record does not rest on your word alone.
+                it - so the record does not rest on your word alone.
               </p>
 
               <div className="space-y-1.5">
@@ -379,7 +379,7 @@ export default function LawyerRefundsPage() {
                 />
                 {target && Number(amount) > 0 && Number(amount) < target.totalAmount && (
                   <p className="text-xs text-amber-800">
-                    Less than the Rs. {target.totalAmount.toLocaleString()} the client paid — say why in the note below.
+                    Less than the Rs. {target.totalAmount.toLocaleString()} the client paid - say why in the note below.
                   </p>
                 )}
               </div>

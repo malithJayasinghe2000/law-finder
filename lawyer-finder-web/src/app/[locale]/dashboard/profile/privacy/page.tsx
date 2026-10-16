@@ -67,7 +67,7 @@ type ErasurePreview = {
 };
 
 const TIER_LABEL: Record<number, string> = {
-  1: 'Privileged — your legal matters',
+  1: 'Privileged - your legal matters',
   2: 'Sensitive',
   3: 'Identity and credentials',
   4: 'Ordinary',
@@ -221,7 +221,7 @@ export default function YourDataPage() {
       a.click();
       a.remove();
       URL.revokeObjectURL(url);
-      toast.success('Downloaded. It does not contain your matter files — see below for why.');
+      toast.success('Downloaded. It does not contain your matter files - see below for why.');
     } catch {
       toast.error('Could not build your export.');
     } finally {
@@ -285,7 +285,7 @@ export default function YourDataPage() {
           <ul className="mt-3 space-y-3">
             {(erasureResult.retained ?? []).map((r: any) => (
               <li key={r.model} className="text-sm leading-relaxed text-amber-900/90">
-                <span className="font-semibold">{r.model}</span> — {r.explanation}
+                <span className="font-semibold">{r.model}</span> - {r.explanation}
               </li>
             ))}
           </ul>
@@ -293,7 +293,7 @@ export default function YourDataPage() {
             <p className="mt-4 text-sm leading-relaxed text-amber-900/90">
               Your request has been referred to {erasureResult.referredFirmIds.length} law
               firm{erasureResult.referredFirmIds.length === 1 ? '' : 's'} holding a matter for
-              you. They decide what happens to your file — an attorney may be professionally
+              you. They decide what happens to your file - an attorney may be professionally
               required to keep it.
             </p>
           )}
@@ -413,14 +413,14 @@ export default function YourDataPage() {
             <ul className="mt-3 space-y-2">
               {firms.map((f) => (
                 <li key={f.firmId} className="text-sm text-neutral-600">
-                  <span className="font-semibold text-neutral-900">{f.firmName}</span> —{' '}
+                  <span className="font-semibold text-neutral-900">{f.firmName}</span> -{' '}
                   {f.matterCount} matter{f.matterCount === 1 ? '' : 's'}
                 </li>
               ))}
             </ul>
             <p className="mt-3 text-xs leading-relaxed text-neutral-500">
               Ask these firms directly to see or delete a matter file. We pass your request to
-              them automatically, and they decide — an attorney may be professionally required
+              them automatically, and they decide - an attorney may be professionally required
               to keep a file.
             </p>
           </div>
@@ -434,8 +434,8 @@ export default function YourDataPage() {
         </h2>
         <p className="mt-2 max-w-2xl text-sm leading-relaxed text-neutral-600">
           These are the only things on this platform that run on your consent, and refusing all
-          three costs you nothing. Everything else — your account, and your matter with a law
-          firm — rests on our contract with you and on the firm&apos;s professional duties, which
+          three costs you nothing. Everything else - your account, and your matter with a law
+          firm - rests on our contract with you and on the firm&apos;s professional duties, which
           is why they are not offered here as switches.
         </p>
 
@@ -445,7 +445,7 @@ export default function YourDataPage() {
             <p className="text-sm leading-relaxed text-amber-900">
               No privacy notice is currently published, so we cannot record what you were shown
               when you agreed. New consents are refused until one is. You can still withdraw a
-              consent — that is your right, and a gap in our paperwork is not a reason to
+              consent - that is your right, and a gap in our paperwork is not a reason to
               refuse it.
             </p>
           </div>
@@ -534,7 +534,7 @@ export default function YourDataPage() {
       <section id="correct" className="scroll-mt-20 mt-12">
         <h2 className="font-serif text-xl tracking-tight text-neutral-900">Correct your details</h2>
         <p className="mt-2 max-w-2xl text-sm leading-relaxed text-neutral-600">
-          You can correct what you told us about yourself. You cannot edit a matter file — it is
+          You can correct what you told us about yourself. You cannot edit a matter file - it is
           the firm&apos;s record of what happened, and a client rewriting it would corrupt the file
           rather than correct it. Send a correction to the firm and they will decide.
         </p>
@@ -591,7 +591,7 @@ export default function YourDataPage() {
             <li className="flex gap-2">
               <span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-[#bfa37a]" />
               A conflict-of-interest record <span className="font-semibold">names other people</span>{' '}
-              — other clients, opposing parties. Answering your request by handing it over would
+              - other clients, opposing parties. Answering your request by handing it over would
               breach several other people&apos;s confidentiality at once.
             </li>
           </ul>
@@ -659,7 +659,7 @@ export default function YourDataPage() {
                   r.status === 'AWAITING_FIRM' && (
                     <p className="mt-3 border-t border-neutral-100 pt-3 text-xs leading-relaxed text-neutral-500">
                       Referred to the law firm holding your matter. They decide what happens to
-                      the file — we host it for them and cannot release or delete it on our own
+                      the file - we host it for them and cannot release or delete it on our own
                       authority. Their answer will appear here.
                     </p>
                   )
@@ -681,7 +681,7 @@ export default function YourDataPage() {
           </h3>
           <p className="mt-2 text-sm leading-relaxed text-red-900/80">
             We do not delete the account record itself. Matters reference you for years, and
-            removing the row outright would damage or orphan a law firm&apos;s file — which is not
+            removing the row outright would damage or orphan a law firm&apos;s file - which is not
             ours to break. Instead your identifying details are overwritten and the account is
             closed permanently.
           </p>
@@ -710,7 +710,7 @@ export default function YourDataPage() {
               </div>
               <div>
                 <h4 className="text-[10px] font-bold uppercase tracking-[0.2em] text-red-700">
-                  Kept — and why
+                  Kept - and why
                 </h4>
                 <ul className="mt-2 space-y-2">
                   {erasurePreview.willBeKept.map((k) => (

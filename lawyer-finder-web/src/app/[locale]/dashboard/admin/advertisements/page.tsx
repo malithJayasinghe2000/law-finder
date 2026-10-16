@@ -699,7 +699,7 @@ export default function AdvertisementsPage() {
                       <div>
                         <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1">Pricing</p>
                         <p className="text-neutral-700">
-                          {campaign.pricePerDay ? `LKR ${campaign.pricePerDay}/day` : '—'}
+                          {campaign.pricePerDay ? `LKR ${campaign.pricePerDay}/day` : ' - '}
                           {campaign.totalBudget ? ` • Budget: LKR ${campaign.totalBudget}` : ''}
                         </p>
                         {campaign.invoiceId && (

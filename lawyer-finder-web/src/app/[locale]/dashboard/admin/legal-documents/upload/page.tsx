@@ -142,7 +142,7 @@ export default function UploadLegalDocumentPage() {
             )}
             <div>
               <h3 className={`font-semibold text-sm ${uploadResult.success ? 'text-emerald-850' : 'text-red-850'}`}>
-                {uploadResult.success ? 'Uploaded — the AI is reading it' : 'Upload Failed'}
+                {uploadResult.success ? 'Uploaded - the AI is reading it' : 'Upload Failed'}
               </h3>
               {uploadResult.success ? (
                 <div className="mt-2 text-sm text-emerald-700 space-y-1">

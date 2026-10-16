@@ -99,7 +99,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
           <div className="max-w-[1200px] mx-auto flex flex-col lg:flex-row gap-16 justify-between items-start">
             <div className="max-w-3xl">
               <h2 className="text-3xl sm:text-4xl lg:text-5xl font-light leading-snug tracking-tight text-foreground">
-                Since 2026, we've transformed the way legal support is delivered —
+                Since 2026, we've transformed the way legal support is delivered -
                 blending strategic thinking, deep domain expertise, and unwavering
                 dedication to secure the best outcomes for our clients.
               </h2>
@@ -156,12 +156,12 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
                 {
                   icon: Search,
                   title: 'Search You Control',
-                  desc: 'Filter by practice area, district and language — criteria you choose. The order changes every day, is the same for everyone, and nothing about position can be bought.',
+                  desc: 'Filter by practice area, district and language - criteria you choose. The order changes every day, is the same for everyone, and nothing about position can be bought.',
                 },
                 {
                   icon: MessageSquare,
                   title: 'Engage a Practice Directly',
-                  desc: 'Send an enquiry to a firm you have chosen. The firm decides whether it can act, checks for conflicts, and quotes its own fee — you pay the firm directly.',
+                  desc: 'Send an enquiry to a firm you have chosen. The firm decides whether it can act, checks for conflicts, and quotes its own fee - you pay the firm directly.',
                 },
                 {
                   icon: BookOpen,
