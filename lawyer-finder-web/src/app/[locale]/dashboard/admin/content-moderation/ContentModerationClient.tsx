@@ -109,6 +109,9 @@ export default function ContentModerationClient({
       if (res.ok) {
         setReports((prev) => prev.filter((r) => r.id !== reportId));
         toast.success(`Report ${status === 'DISMISSED' ? 'dismissed' : 'action taken'}.`);
+      } else {
+        const result = await res.json().catch(() => ({}));
+        toast.error(typeof result.error === 'string' ? result.error : 'Could not record that.');
       }
     } catch {
       toast.error('Error processing report.');

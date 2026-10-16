@@ -26,6 +26,12 @@ export async function PATCH(
       return NextResponse.json({ error: 'Report not found.' }, { status: 404 });
     }
 
+    // A decision stands: a report already upheld could later be dismissed,
+    // quietly overturning the removal.
+    if (report.status !== 'PENDING') {
+      return NextResponse.json({ error: 'This report has already been decided.' }, { status: 409 });
+    }
+
     await prisma.report.update({
       where: { id },
       data: {
