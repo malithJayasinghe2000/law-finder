@@ -217,7 +217,7 @@ export default function CreatePostPage({
                 <option value="">Select a community...</option>
                 {communities.map((c) => (
                   <option key={c.id} value={c.id}>
-                    {c.icon || '📋'} {c.displayName}
+                    {c.displayName}
                   </option>
                 ))}
               </select>

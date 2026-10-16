@@ -1,5 +1,6 @@
 import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { CommunityIcon } from '@/components/community/CommunityIcon';
 import { redirect } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -102,8 +103,8 @@ export default async function MyPostsPage({
                         <Badge className={`text-[10px] uppercase font-bold tracking-wider rounded-none ${STATUS_COLORS[post.status]}`}>
                           {STATUS_LABELS[post.status]}
                         </Badge>
-                        <span className="text-xs text-neutral-500 font-medium">
-                          {post.community.icon} {post.community.displayName}
+                        <span className="inline-flex items-center gap-1 text-xs text-neutral-500 font-medium">
+                          <CommunityIcon icon={post.community.icon} className="h-3 w-3" /> {post.community.displayName}
                         </span>
                       </div>
                       <Link

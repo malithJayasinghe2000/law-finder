@@ -7,6 +7,29 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Check, X, Users, FileText, Plus, Pencil, Archive } from 'lucide-react';
 import { toast } from 'sonner';
+import { COMMUNITY_ICONS, COMMUNITY_ICON_KEYS, DEFAULT_COMMUNITY_ICON } from '@/lib/community/icons';
+import { CommunityIcon } from '@/components/community/CommunityIcon';
+
+/** Pick a community icon from the fixed set — never typed (src/lib/community/icons.ts). */
+function IconPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  return (
+    <div role="radiogroup" aria-label="Icon" className="flex flex-wrap gap-1.5 sm:col-span-full">
+      {COMMUNITY_ICON_KEYS.map((key) => {
+        const { label, Icon } = COMMUNITY_ICONS[key];
+        const selected = value === key;
+        return (
+          <button
+            key={key} type="button" role="radio" aria-checked={selected} aria-label={label} title={label}
+            onClick={() => onChange(key)}
+            className={`h-9 w-9 inline-flex items-center justify-center border transition-colors ${selected ? 'border-neutral-900 bg-neutral-900 text-white' : 'border-neutral-200 text-neutral-600 hover:border-neutral-400'}`}
+          >
+            <Icon className="h-4 w-4" />
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 
 interface Community {
   id: string;
@@ -42,7 +65,7 @@ export default function CommunityManagement({ communities, pendingRequests, loca
   const [processing, setProcessing] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [newCommunity, setNewCommunity] = useState({
-    name: '', displayName: '', description: '', category: 'general', icon: '📋',
+    name: '', displayName: '', description: '', category: 'general', icon: DEFAULT_COMMUNITY_ICON as string,
   });
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({
@@ -55,7 +78,7 @@ export default function CommunityManagement({ communities, pendingRequests, loca
       displayName: community.displayName,
       description: community.description,
       category: community.category,
-      icon: community.icon || '📋'
+      icon: community.icon && community.icon in COMMUNITY_ICONS ? community.icon : DEFAULT_COMMUNITY_ICON
     });
   };
 
@@ -128,7 +151,7 @@ export default function CommunityManagement({ communities, pendingRequests, loca
       if (res.ok) {
         toast.success('Community created!');
         setShowCreate(false);
-        setNewCommunity({ name: '', displayName: '', description: '', category: 'general', icon: '📋' });
+        setNewCommunity({ name: '', displayName: '', description: '', category: 'general', icon: DEFAULT_COMMUNITY_ICON });
         router.refresh();
       } else {
         const data = await res.json();
@@ -233,12 +256,7 @@ export default function CommunityManagement({ communities, pendingRequests, loca
                   <option value="advisory">Advisory</option>
                   <option value="general">General</option>
                 </select>
-                <input
-                  placeholder="Icon (emoji)"
-                  value={newCommunity.icon}
-                  onChange={(e) => setNewCommunity({ ...newCommunity, icon: e.target.value })}
-                  className="p-2 text-sm border rounded-lg"
-                />
+                <IconPicker value={newCommunity.icon} onChange={(icon) => setNewCommunity({ ...newCommunity, icon })} />
               </div>
               <div className="flex gap-2 justify-end">
                 <Button variant="ghost" size="sm" onClick={() => setShowCreate(false)}>Cancel</Button>
@@ -273,20 +291,13 @@ export default function CommunityManagement({ communities, pendingRequests, loca
                         <option value="general">General</option>
                       </select>
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-                      <input
-                        placeholder="Icon (emoji)"
-                        value={editForm.icon}
-                        onChange={(e) => setEditForm({ ...editForm, icon: e.target.value })}
-                        className="p-2 text-sm border rounded-lg"
-                      />
-                      <input
-                        placeholder="Description"
-                        value={editForm.description}
-                        onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
-                        className="sm:col-span-3 p-2 text-sm border rounded-lg"
-                      />
-                    </div>
+                    <IconPicker value={editForm.icon} onChange={(icon) => setEditForm({ ...editForm, icon })} />
+                    <input
+                      placeholder="Description"
+                      value={editForm.description}
+                      onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                      className="w-full p-2 text-sm border rounded-lg"
+                    />
                     <div className="flex gap-2 justify-end mt-2">
                       <Button variant="ghost" size="sm" onClick={() => setEditingId(null)}>Cancel</Button>
                       <Button size="sm" onClick={() => handleEdit(community.id)}>Save Changes</Button>
@@ -295,7 +306,9 @@ export default function CommunityManagement({ communities, pendingRequests, loca
                 ) : (
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div className="flex items-center gap-3 min-w-0 flex-1">
-                      <span className="text-2xl">{community.icon || '📋'}</span>
+                      <span className="h-9 w-9 shrink-0 inline-flex items-center justify-center border border-neutral-200 text-neutral-700">
+                        <CommunityIcon icon={community.icon} className="h-4 w-4" />
+                      </span>
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
                           <span className="font-semibold">{community.displayName}</span>
