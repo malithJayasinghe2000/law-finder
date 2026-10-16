@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
+import { staffRequestView } from '@/lib/consultations/staffView';
 import { getSession } from '@/lib/auth';
 import { CancelBookingSchema, CompleteBookingSchema } from '@/schemas/consultation.schema';
 import { formatSriLankaDateIso, formatSriLankaDateIsoOrNull } from '@/lib/utils';
@@ -70,6 +71,18 @@ export async function GET(
 
     if (!access.canRead) {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+    }
+
+    // Platform staff: the slim view only (src/lib/consultations/staffView.ts).
+    if (access.basis === 'PLATFORM_STAFF') {
+      const firm = booking.firmId
+        ? await prisma.lawFirm.findUnique({ where: { id: booking.firmId }, select: { name: true } })
+        : null;
+      return NextResponse.json({
+        booking: staffRequestView({ ...booking, firm }),
+        role: 'ADMIN',
+        matterDetailRedacted: true,
+      });
     }
 
     const isClient = access.basis === 'CLIENT';

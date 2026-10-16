@@ -13,6 +13,7 @@ import { findAttorneyFirmId } from '@/lib/firms/provisioning';
 import { isListedFirm } from '@/lib/directory';
 import { ATTORNEY_BOOKING_ENABLED } from '@/lib/directoryLinks';
 import { nextBookingNumber } from '@/lib/consultations/bookingNumber';
+import { staffRequestView } from '@/lib/consultations/staffView';
 
 // GET: List bookings (filtered by role)
 export async function GET(req: Request) {
@@ -81,6 +82,29 @@ export async function GET(req: Request) {
       where.date = {};
       if (dateFrom) where.date.gte = new Date(dateFrom);
       if (dateTo) where.date.lte = new Date(dateTo);
+    }
+
+    // Platform staff get the slim view only (src/lib/consultations/staffView.ts),
+    // and may look a request up by its number.
+    if (session.role === 'ADMIN') {
+      const number = searchParams.get('q')?.trim().slice(0, 40);
+      if (number) where.bookingNumber = { contains: number, mode: 'insensitive' };
+
+      const [rows, total] = await Promise.all([
+        prisma.booking.findMany({
+          where,
+          select: { id: true, bookingNumber: true, status: true, createdAt: true, firm: { select: { name: true } } },
+          orderBy: { createdAt: 'desc' },
+          skip,
+          take: limit,
+        }),
+        prisma.booking.count({ where }),
+      ]);
+
+      return NextResponse.json({
+        bookings: rows.map(staffRequestView),
+        pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+      });
     }
 
     const [bookings, total] = await Promise.all([
