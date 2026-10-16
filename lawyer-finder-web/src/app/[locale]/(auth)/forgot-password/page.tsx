@@ -60,9 +60,11 @@ export default function ForgotPasswordPage() {
                 <input
                   id="forgot-email"
                   type="email"
-                  placeholder="hello@example.com"
+                  autoComplete="email"
+                  inputMode="email"
+                  placeholder="name@example.com"
                   {...register('email')}
-                  className="w-full bg-transparent border-b border-neutral-200 text-[#0a0a0a] px-0 py-2.5 rounded-none outline-none focus:border-[#bfa37a] transition-all font-light placeholder:text-neutral-350"
+                  className="w-full bg-transparent border-b border-neutral-200 text-[#0a0a0a] px-0 py-2.5 rounded-none outline-none focus:border-[#bfa37a] transition-all font-light placeholder:text-neutral-400"
                 />
                 <FieldError message={errors.email?.message} />
               </div>

@@ -47,7 +47,7 @@ export default function ResetPasswordPage() {
     }
   };
 
-  const inputClass = 'w-full bg-transparent border-b border-neutral-200 text-[#0a0a0a] px-0 py-2.5 rounded-none outline-none focus:border-[#bfa37a] transition-all font-light placeholder:text-neutral-350';
+  const inputClass = 'w-full bg-transparent border-b border-neutral-200 text-[#0a0a0a] px-0 py-2.5 rounded-none outline-none focus:border-[#bfa37a] transition-all font-light placeholder:text-neutral-400';
 
   return (
     <div className="flex min-h-[85vh] items-center justify-center px-4 bg-background pt-16 pb-16">
@@ -77,13 +77,13 @@ export default function ResetPasswordPage() {
               <input type="hidden" {...register('token')} />
               <div className="space-y-2 text-left">
                 <label htmlFor="reset-password" className="text-[11px] font-bold text-neutral-400 uppercase tracking-widest block">New password</label>
-                <input id="reset-password" type="password" autoComplete="new-password" placeholder="••••••••" {...register('password')} className={inputClass} />
+                <input id="reset-password" type="password" autoComplete="new-password" {...register('password')} className={inputClass} />
                 <FieldError message={errors.password?.message} />
                 <p className="text-[11px] text-neutral-400">At least 8 characters, with an upper- and lower-case letter, a number and one of @$!%*?&amp;.</p>
               </div>
               <div className="space-y-2 text-left">
                 <label htmlFor="reset-confirm" className="text-[11px] font-bold text-neutral-400 uppercase tracking-widest block">Confirm password</label>
-                <input id="reset-confirm" type="password" autoComplete="new-password" placeholder="••••••••" {...register('confirmPassword')} className={inputClass} />
+                <input id="reset-confirm" type="password" autoComplete="new-password" {...register('confirmPassword')} className={inputClass} />
                 <FieldError message={errors.confirmPassword?.message} />
               </div>
 
