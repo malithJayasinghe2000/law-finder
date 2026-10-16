@@ -75,8 +75,6 @@ export async function GET(req: Request) {
       filtered = filtered.filter(u => u.role === 'LAWYER' && u.isVerified === false);
     }
 
-    console.log(filtered);
-
     return NextResponse.json({ users: filtered }, { status: 200 });
   } catch (err) {
     console.error(err);
