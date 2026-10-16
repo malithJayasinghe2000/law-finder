@@ -47,7 +47,9 @@ export async function GET(req: Request) {
       email: u.email,
       role: u.role,
       createdAt: u.createdAt,
-      fullName: u.profile?.fullName || null,
+      // An attorney by their registered name; anyone else by their account name.
+      fullName: u.profile?.fullName || u.fullName || null,
+      accountStatus: u.status,
       isVerified: u.profile?.isVerified || false,
       district: u.profile?.district || null,
       latitude: u.profile?.latitude || null,
@@ -55,7 +57,6 @@ export async function GET(req: Request) {
       baslNumber: u.profile?.baslNumber || null,
       profileId: u.profile?.id || null,
       applicationStatus: u.application?.status || null,
-      isActive: true, // Placeholder — no isActive field in schema yet
     }));
 
     // Filter by search

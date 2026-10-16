@@ -22,6 +22,7 @@ interface PlatformUser {
   baslNumber: string | null;
   profileId: string | null;
   applicationStatus: string | null;
+  accountStatus: 'ACTIVE' | 'DEACTIVATED' | 'ERASED';
 }
 
 export default function UserManagementPage() {
@@ -170,6 +171,62 @@ export default function UserManagementPage() {
     return 'bg-neutral-50 text-neutral-600 border border-neutral-200';
   };
 
+  // The account's real state first; a lawyer's verification only on an active account.
+  const statusBadge = (user: PlatformUser) => {
+    if (user.accountStatus !== 'ACTIVE') {
+      return (
+        <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 border bg-neutral-100 text-neutral-600 border-neutral-300">
+          {user.accountStatus === 'ERASED' ? 'Erased' : 'Deactivated'}
+        </span>
+      );
+    }
+    if (user.role === 'LAWYER') {
+      return (
+        <span className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 border ${user.isVerified ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>
+          {user.isVerified ? 'Verified' : 'Unverified'}
+        </span>
+      );
+    }
+    return <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 text-neutral-500 border border-neutral-200">Active</span>;
+  };
+
+  // An erased account was anonymised under a data request: nothing to edit.
+  const renderActions = (user: PlatformUser) => user.accountStatus === 'ERASED' ? (
+      <p className="text-right text-[11px] text-neutral-400">No actions</p>
+    ) : (
+      <div className="flex items-center justify-end gap-1.5">
+        <button
+          onClick={() => { 
+            setEditUser(user); 
+            setEditEmail(user.email); 
+            setEditRole(user.role); 
+            setEditLatitude(user.latitude?.toString() || '');
+            setEditLongitude(user.longitude?.toString() || '');
+          }}
+          title="Edit Details"
+          className="p-2 hover:bg-neutral-100 transition-colors text-neutral-500 hover:text-neutral-900"
+        >
+          <Edit3 className="w-3.5 h-3.5" />
+        </button>
+        <button
+          onClick={() => { setPasswordUser(user); setNewPassword(''); }}
+          title={ADMIN_SET_PASSWORD_ENABLED ? 'Change Password' : 'Send password reset link'}
+          className="p-2 hover:bg-neutral-100 transition-colors text-neutral-500 hover:text-neutral-900"
+        >
+          <Key className="w-3.5 h-3.5" />
+        </button>
+        {user.role === 'LAWYER' && user.isVerified && (
+          <button
+            onClick={() => { setRevokeUser(user); setRevokeReason(''); }}
+            title="Withdraw verification"
+            className="p-2 transition-colors text-red-600 hover:bg-red-50"
+          >
+            <ShieldOff className="w-3.5 h-3.5" />
+          </button>
+        )}
+      </div>
+  );
+
   const limit = 10;
   const totalPages = Math.max(1, Math.ceil(users.length / limit));
   const paginatedUsers = users.slice((page - 1) * limit, page * limit);
@@ -251,7 +308,29 @@ export default function UserManagementPage() {
           <p className="text-sm text-neutral-500 font-medium">No users found.</p>
         </div>
       ) : (
-        <div className="bg-white border border-neutral-200 overflow-x-auto">
+        <>
+        {/* Phones: one card per person, every action reachable. */}
+        <ul className="md:hidden space-y-3">
+          {paginatedUsers.map((user) => (
+            <li key={user.id} className="bg-white border border-neutral-200 p-4" data-user-card>
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-neutral-900">{user.fullName || 'No name'}</p>
+                  <p className="text-[11px] text-neutral-500 break-all">{user.email}</p>
+                </div>
+                <span className={`shrink-0 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 ${roleColor(user.role)}`}>{user.role}</span>
+              </div>
+              <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-[11px] text-neutral-500">
+                {statusBadge(user)}
+                {user.district && <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{user.district}</span>}
+                <span>Joined {new Date(user.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+              </div>
+              <div className="mt-3 border-t border-neutral-100 pt-2">{renderActions(user)}</div>
+            </li>
+          ))}
+        </ul>
+
+        <div className="hidden md:block bg-white border border-neutral-200 overflow-x-auto">
           <table className="w-full">
             <thead>
               <tr className="border-b border-neutral-200 bg-neutral-50">
@@ -272,7 +351,7 @@ export default function UserManagementPage() {
                         <User className="w-4 h-4 text-neutral-500" />
                       </div>
                       <div>
-                        <p className="text-sm font-semibold text-neutral-900">{user.fullName || 'No Profile'}</p>
+                        <p className="text-sm font-semibold text-neutral-900">{user.fullName || 'No name'}</p>
                         <p className="text-[11px] text-neutral-500 flex items-center gap-1">
                           <Mail className="w-3 h-3" /> {user.email}
                         </p>
@@ -285,15 +364,7 @@ export default function UserManagementPage() {
                     </span>
                   </td>
                   <td className="px-5 py-4">
-                    {user.role === 'LAWYER' ? (
-                      <span className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 border ${user.isVerified ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>
-                        {user.isVerified ? 'Verified' : 'Unverified'}
-                      </span>
-                    ) : (
-                      <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 bg-neutral-50 text-neutral-400 border border-neutral-200">
-                        N/A
-                      </span>
-                    )}
+                    {statusBadge(user)}
                   </td>
                   <td className="px-5 py-4">
                     <span className="text-sm text-neutral-700 font-medium flex items-center gap-1.5">
@@ -313,43 +384,14 @@ export default function UserManagementPage() {
                     </span>
                   </td>
                   <td className="px-5 py-4">
-                    <div className="flex items-center justify-end gap-1.5">
-                      <button
-                        onClick={() => { 
-                          setEditUser(user); 
-                          setEditEmail(user.email); 
-                          setEditRole(user.role); 
-                          setEditLatitude(user.latitude?.toString() || '');
-                          setEditLongitude(user.longitude?.toString() || '');
-                        }}
-                        title="Edit Details"
-                        className="p-2 hover:bg-neutral-100 transition-colors text-neutral-500 hover:text-neutral-900"
-                      >
-                        <Edit3 className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        onClick={() => { setPasswordUser(user); setNewPassword(''); }}
-                        title={ADMIN_SET_PASSWORD_ENABLED ? 'Change Password' : 'Send password reset link'}
-                        className="p-2 hover:bg-neutral-100 transition-colors text-neutral-500 hover:text-neutral-900"
-                      >
-                        <Key className="w-3.5 h-3.5" />
-                      </button>
-                      {user.role === 'LAWYER' && user.isVerified && (
-                        <button
-                          onClick={() => { setRevokeUser(user); setRevokeReason(''); }}
-                          title="Withdraw verification"
-                          className="p-2 transition-colors text-red-600 hover:bg-red-50"
-                        >
-                          <ShieldOff className="w-3.5 h-3.5" />
-                        </button>
-                      )}
-                    </div>
+                    {renderActions(user)}
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
+        </>
       )}
 
       {/* Pagination */}
