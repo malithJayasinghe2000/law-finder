@@ -197,7 +197,12 @@ export default function DirectorySwitchPage() {
                     Turned {h.enabled ? 'on' : 'off'}
                   </span>
                   <span className="text-neutral-700">{h.changedBy}</span>
-                  <span className="text-neutral-400">{new Date(h.createdAt).toLocaleString()}</span>
+                  <span className="text-neutral-400">
+                    {new Date(h.createdAt).toLocaleString('en-GB', {
+                      day: 'numeric', month: 'short', year: 'numeric',
+                      hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Colombo',
+                    })}
+                  </span>
                 </div>
                 <p className="mt-2 text-sm leading-relaxed text-neutral-600">{h.reason}</p>
               </li>
