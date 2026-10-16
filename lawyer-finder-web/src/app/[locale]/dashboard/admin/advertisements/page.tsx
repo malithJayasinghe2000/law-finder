@@ -125,7 +125,7 @@ export default function AdvertisementsPage() {
     description: '',
     imageUrl: '',
     targetUrl: '',
-    ctaText: 'View Profile',
+    ctaText: 'Learn more',
     targetDistricts: [] as string[],
     targetPracticeAreas: [] as string[],
     startDate: '',
@@ -295,7 +295,7 @@ export default function AdvertisementsPage() {
       setShowCreate(false);
       setForm({
         advertiserId: '', name: '', type: 'BANNER_IMAGE', placement: 'HOMEPAGE_BELOW_HERO',
-        title: '', description: '', imageUrl: '', targetUrl: '', ctaText: 'View Profile',
+        title: '', description: '', imageUrl: '', targetUrl: '', ctaText: 'Learn more',
         targetDistricts: [], targetPracticeAreas: [], startDate: '', endDate: '',
         totalBudget: '', pricePerDay: String(selectedConfig?.pricePerDay || 2000), status: 'DRAFT',
       });
@@ -505,7 +505,7 @@ export default function AdvertisementsPage() {
                 </div>
                 <div>
                   <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5">CTA Button Text</label>
-                  <input type="text" placeholder="View Profile" value={form.ctaText} onChange={(e) => updateForm('ctaText', e.target.value)} className="w-full py-2.5 px-3 bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-900 outline-none focus:border-[#0a0a0a]" />
+                  <input type="text" placeholder="Learn more" value={form.ctaText} onChange={(e) => updateForm('ctaText', e.target.value)} className="w-full py-2.5 px-3 bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-900 outline-none focus:border-[#0a0a0a]" />
                   <FieldError message={formErrors.ctaText} />
                 </div>
                 <div className="md:col-span-2">

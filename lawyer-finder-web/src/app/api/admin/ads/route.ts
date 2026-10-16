@@ -233,7 +233,7 @@ export async function POST(req: Request) {
         description: description || null,
         imageUrl: imageUrl || null,
         targetUrl: targetUrl || null,
-        ctaText: ctaText || 'View Profile',
+        ctaText: ctaText || 'Learn more',
         targetDistricts: targetDistricts || [],
         targetPracticeAreas: targetPracticeAreas || [],
         startDate: start,

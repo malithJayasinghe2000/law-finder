@@ -199,7 +199,7 @@ export const AdCampaignBaseSchema = z.object({
   description: optionalText,
   imageUrl: optionalText,
   targetUrl: optionalText,
-  ctaText: z.string().trim().default('View Profile').transform((val) => sanitizeString(val)),
+  ctaText: z.string().trim().default('Learn more').transform((val) => sanitizeString(val)),
   targetDistricts: z.array(z.string()).default([]),
   targetPracticeAreas: z.array(z.string()).default([]),
   startDate: z.string().min(1, 'Start date is required'),
