@@ -298,6 +298,28 @@ export const BOOKING_STATUS_LABELS: Record<string, string> = {
   DISPUTED: 'Disputed',
 };
 
+/**
+ * The same statuses as the PRACTICE sees them, matching the tabs on its queue.
+ * The client's wording read wrongly on the firm side: a request the attorney had
+ * already accepted showed "Under review" while sitting under the "To quote" tab.
+ */
+export const FIRM_STATUS_LABELS: Record<string, string> = {
+  REQUESTED: 'New request',
+  CONFLICT_CHECK: 'To quote',
+  DECLINED: 'Not accepted',
+  QUOTED: 'Awaiting client',
+  QUOTE_EXPIRED: 'Proposal expired',
+  CLIENT_DECLINED: 'Client declined',
+  ACCEPTED: 'Awaiting payment',
+  SCHEDULED: 'Scheduled',
+  RESCHEDULE_REQUESTED: 'New time proposed',
+  COMPLETED: 'Completed',
+  CANCELLED_BY_CLIENT: 'Cancelled by client',
+  CANCELLED_BY_FIRM: 'Cancelled by practice',
+  NO_SHOW: 'Missed',
+  DISPUTED: 'Disputed',
+};
+
 export const DAY_ORDER: string[] = [
   'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY',
 ];
@@ -330,7 +352,21 @@ export const RecordConflictCheckSchema = z.object({
     .max(2000, 'Notes cannot exceed 2000 characters')
     .optional()
     .transform((v) => (v ? sanitizeString(v, 2000) : undefined)),
-});
+  /** The attorney confirms they checked the practice does not act for the other side. */
+  confirmedNoConflict: z.boolean().optional(),
+})
+  // Accepting is the attorney's statement that they screened for conflicts. The
+  // names list is optional (2026-10-13), so this confirmation is the record.
+  .refine((d) => d.outcome !== 'CLEAR' || d.confirmedNoConflict === true, {
+    message: 'Confirm that you checked your practice does not act for the other side.',
+    path: ['confirmedNoConflict'],
+  })
+  // Declining is final and the client is never told why, so the practice keeps
+  // its own reason.
+  .refine((d) => d.outcome !== 'CONFLICT_FOUND' || !!d.notes, {
+    message: 'Note why your practice cannot act — it stays private to your practice.',
+    path: ['notes'],
+  });
 
 export type RecordConflictCheckInput = z.infer<typeof RecordConflictCheckSchema>;
 

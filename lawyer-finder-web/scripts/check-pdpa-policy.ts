@@ -52,6 +52,7 @@ import {
   resolveNoticeVersion,
 } from '@/lib/privacy/notice';
 import { recordFirmResponse, assertFirmReason } from '@/lib/privacy/firmResponse';
+import { isOutcomeAllowed } from '@/lib/privacy/firmOutcomes';
 
 let pass = 0;
 const fails: string[] = [];
@@ -517,20 +518,54 @@ async function main() {
      'a clean COMPLETED over a firm that is still holding the file is a false answer to a ' +
        'statutory request');
 
+  // "Erased" used to be the correction here. It is no longer an answer a firm can
+  // give (firmOutcomes.ts), so the correction is to a different allowed outcome —
+  // and the outcome is checked, or a refused correction would pass this vacuously.
   ok('a firm re-deciding corrects its own row rather than adding a second answer',
-     (await (async () => {
-       await recordFirmResponse({
+     await (async () => {
+       const corrected = await recordFirmResponse({
          requestId: dsr.id,
          firmId: firm.id,
-         outcome: 'ERASED',
-         reason: 'On review the retention duty had expired, so the file was deleted.',
+         outcome: 'NO_DATA',
+         reason: 'On review this practice holds no matter for this person after all.',
          respondedById: attorneyUser.id,
        });
-       return prisma.subjectRequestFirmResponse.count({
+       const rows = await prisma.subjectRequestFirmResponse.findMany({
          where: { requestId: dsr.id, firmId: firm.id },
        });
-     })()) === 1,
+       return corrected.ok && rows.length === 1 && rows[0].outcome === 'NO_DATA';
+     })(),
      'two answers to one question from one firm leaves nobody able to say what it decided');
+
+  // ── The answer has to fit the question ─────────────────────────────────
+  ok('a firm cannot answer "erased" to a deletion request',
+     !(await recordFirmResponse({
+       requestId: dsr.id,
+       firmId: firm.id,
+       outcome: 'ERASED',
+       reason: 'We deleted the whole matter file for this person.',
+       respondedById: attorneyUser.id,
+     })).ok,
+     'there is no tool for a firm to delete a matter here, so the person would be told their ' +
+       'file was gone while we still held it');
+
+  ok('"erased" is offered for no request type',
+     !['ACCESS', 'PORTABILITY', 'ERASURE'].some((t) => isOutcomeAllowed(t, 'ERASED')),
+     'the same false answer, from any direction');
+
+  ok('a deletion request cannot be answered "gave them a copy"',
+     !isOutcomeAllowed('ERASURE', 'RELEASED'),
+     'the answer has to be to the question asked');
+
+  // The general forms must still be answerable — a rule that refuses every
+  // answer is as broken as one that accepts every answer.
+  ok('a deletion request CAN be answered "kept — a duty requires it"',
+     isOutcomeAllowed('ERASURE', 'REFUSED_RETAINED'),
+     'retention duties are the normal reason a firm keeps a file');
+
+  ok('a copy request CAN be answered "gave them a copy" or "we hold nothing"',
+     isOutcomeAllowed('ACCESS', 'RELEASED') && isOutcomeAllowed('PORTABILITY', 'NO_DATA'),
+     'otherwise a firm could never fulfil an access request');
 
   ok('a firm response holds no matter content column',
      !Object.keys(

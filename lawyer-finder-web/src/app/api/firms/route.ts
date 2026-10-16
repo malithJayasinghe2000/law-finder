@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
+import { inDailyOrder, LISTED_FIRM_WHERE } from '@/lib/directory';
+import { isPublicDirectoryEnabled } from '@/lib/directory';
 
 /**
  * Public firm directory.
@@ -10,7 +12,7 @@ import prisma from '@/lib/db';
  * practice information. There is no fee indication, no rating, no review count,
  * no subscription signal, and no ordering that anyone can buy.
  *
- * Ordering is alphabetical and is disclosed on the page. Filtering is on
+ * Ordering is the daily order (src/lib/directory.ts), disclosed on the page. Filtering is on
  * criteria the client supplies — district, practice area, language — never on
  * anything we decide about a firm.
  *
@@ -19,6 +21,11 @@ import prisma from '@/lib/db';
  * ─────────────────────────────────────────────────────────────────────────────
  */
 export async function GET(req: Request) {
+  // Withdrawn by an administrator — see src/lib/directory.ts.
+  if (!(await isPublicDirectoryEnabled())) {
+    return NextResponse.json({ error: 'Not found.' }, { status: 404 });
+  }
+
   try {
     const { searchParams } = new URL(req.url);
     const district = searchParams.get('district');
@@ -26,10 +33,7 @@ export async function GET(req: Request) {
     const language = searchParams.get('language');
     const search = searchParams.get('search');
 
-    const where: Record<string, unknown> = {
-      isActive: true,
-      verificationStatus: 'VERIFIED',
-    };
+    const where: Record<string, unknown> = { ...LISTED_FIRM_WHERE };
 
     if (district) where.district = district;
     if (practiceArea) where.practiceAreas = { has: practiceArea };
@@ -45,7 +49,6 @@ export async function GET(req: Request) {
         slug: true,
         name: true,
         firmType: true,
-        description: true,
         practiceAreas: true,
         languages: true,
         courts: true,
@@ -58,11 +61,10 @@ export async function GET(req: Request) {
         establishedYear: true,
         _count: { select: { lawyers: true } },
       },
-      orderBy: { name: 'asc' },
     });
 
     return NextResponse.json(
-      firms.map((f) => ({
+      inDailyOrder(firms).map((f) => ({
         ...f,
         attorneyCount: f._count.lawyers,
         _count: undefined,

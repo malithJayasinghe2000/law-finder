@@ -3,13 +3,15 @@ import type { Prisma, PrismaClient } from '@prisma/client';
 type Tx = Prisma.TransactionClient | PrismaClient;
 
 /**
- * Creating the firm that every attorney practises in.
+ * Creating the practice an attorney works through.
  *
- * A solo practitioner should never have to think about "firms" — so we make one
- * for them, silently, at the moment their application is approved. From the
- * attorney's point of view nothing changes; from the platform's point of view
- * the provider of legal services is now an entity that can grow to two people
- * without a migration.
+ * Until 2026-10-13 a "firm of one" was created silently the moment an
+ * attorney's application was approved. It no longer is: an approved attorney
+ * has no practice — and is not listed and cannot be engaged — until they
+ * REGISTER one (as a sole practitioner or a firm, through
+ * /api/firms/register) or accept an invitation into one. A practice exists
+ * because a principal deliberately registered it and an administrator checked
+ * it, never as a side effect. See docs/restructure/PROGRESS.md (2026-10-13).
  *
  * See docs/restructure/LEGAL-GUARDRAILS.md (rule 7) and PHASE-2-BRIEF.md §4.
  */
@@ -132,13 +134,23 @@ export async function createSoloFirmForAttorney(
   return { firmId: firm.id, slug: firm.slug };
 }
 
+/** The practice an attorney belongs to, or null. Never creates one. */
+export async function findAttorneyFirmId(tx: Tx, profileId: string): Promise<string | null> {
+  const profile = await tx.lawyerProfile.findUnique({
+    where: { id: profileId },
+    select: { firmId: true },
+  });
+  return profile?.firmId ?? null;
+}
+
 /**
- * Guarantee an attorney has a firm.
+ * Create the practice for an attorney who is registering one and has none.
  *
- * Safety net for profiles created before Phase 2 or by a path that forgot to
- * provision one. Returns the existing firm id when there already is one.
+ * Called ONLY from firm registration — the attorney's deliberate act. Returns
+ * the existing firm id when there already is one (an attorney approved before
+ * 2026-10-13 still has the firm of one created for them then).
  */
-export async function ensureAttorneyHasFirm(
+export async function createPracticeForAttorney(
   tx: Tx,
   profileId: string
 ): Promise<string | null> {

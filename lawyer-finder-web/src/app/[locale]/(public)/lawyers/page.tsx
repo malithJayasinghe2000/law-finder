@@ -1,4 +1,8 @@
 import prisma from '@/lib/db';
+import { redirect } from 'next/navigation';
+import { directoryPath, PEOPLE_TAB_ENABLED } from '@/lib/directoryLinks';
+import { isPublicDirectoryEnabled, LISTED_ATTORNEY_WHERE, inDailyOrder, DIRECTORY_ORDER_NOTICE } from '@/lib/directory';
+import DirectoryWithdrawn from '@/components/directory/DirectoryWithdrawn';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -22,10 +26,25 @@ export default async function LawyerDirectory({
   searchParams: Promise<{ [key: string]: string | undefined }>;
 }) {
   const { locale } = await params;
+
+  // The People tab is hidden for launch (src/lib/directoryLinks.ts). Send the
+  // visitor to Practices with the same filters rather than to a dead page.
+  if (!PEOPLE_TAB_ENABLED) {
+    const sp = await searchParams;
+    const keep = new URLSearchParams();
+    for (const k of ['district', 'practiceArea', 'language']) if (sp[k]) keep.set(k, sp[k]!);
+    redirect(directoryPath(locale, keep.toString()));
+  }
+
+  // Withdrawn by an administrator — see src/lib/directory.ts.
+  if (!(await isPublicDirectoryEnabled())) {
+    return <DirectoryWithdrawn locale={locale} />;
+  }
+
   const filters = await searchParams;
 
   // --- Build Prisma where clause ---
-  const where: Record<string, unknown> = { isVerified: true };
+  const where: Record<string, unknown> = { ...LISTED_ATTORNEY_WHERE };
   if (filters.district) where.district = filters.district;
   if (filters.practiceArea) where.practiceAreas = { has: filters.practiceArea };
   if (filters.language) where.languages = { has: filters.language };
@@ -33,7 +52,6 @@ export default async function LawyerDirectory({
     const searchTerm = filters.search.trim();
     where.OR = [
       { fullName: { contains: searchTerm, mode: 'insensitive' } },
-      { bio: { contains: searchTerm, mode: 'insensitive' } },
       { district: { contains: searchTerm, mode: 'insensitive' } },
       { practiceAreas: { has: searchTerm } },
     ];
@@ -43,9 +61,13 @@ export default async function LawyerDirectory({
   const currentPage = Math.max(1, parseInt(filters.page || '1', 10) || 1);
   const skip = (currentPage - 1) * PAGE_SIZE;
 
-  const [lawyers, totalCount] = await Promise.all([
-    prisma.lawyerProfile.findMany({
-      where,
+  // Daily order (src/lib/directory.ts): rank every match, then load one page.
+  const orderedIds = inDailyOrder(await prisma.lawyerProfile.findMany({ where, select: { id: true } }));
+  const totalCount = orderedIds.length;
+  const pageIds = orderedIds.slice(skip, skip + PAGE_SIZE).map((r) => r.id);
+
+  const rows = await prisma.lawyerProfile.findMany({
+      where: { id: { in: pageIds } },
       // Rule 40 content limit: no fee range, no rating, no subscription signal.
       // A bare findMany would serialize every column into the RSC payload.
       // See docs/restructure/LEGAL-GUARDRAILS.md.
@@ -53,18 +75,14 @@ export default async function LawyerDirectory({
         id: true,
         fullName: true,
         profileImageUrl: true,
-        bio: true,
+        // No bio: the directory card does not show it (see LawyerCard).
         practiceAreas: true,
         languages: true,
         district: true,
+        firm: { select: { name: true, firmType: true } },
       },
-      // Alphabetical, and disclosed as such below. Nobody can buy a position.
-      orderBy: { fullName: 'asc' },
-      skip,
-      take: PAGE_SIZE,
-    }),
-    prisma.lawyerProfile.count({ where }),
-  ]);
+    });
+  const lawyers = pageIds.flatMap((id) => rows.filter((r) => r.id === id));
 
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
   const hasFilters = !!(filters.search || filters.district || filters.practiceArea || filters.language);
@@ -88,7 +106,7 @@ export default async function LawyerDirectory({
         <div className="mb-10 max-w-2xl">
           <h1 className="text-3xl font-light tracking-tight sm:text-4xl">Attorneys</h1>
           <p className="mt-3 text-muted-foreground">
-            Browse verified Sri Lankan Attorneys-at-Law. Listings are ordered alphabetically and cannot be paid for. Use the filters to narrow the list, then choose for yourself.
+            Browse verified Sri Lankan Attorneys-at-Law. {DIRECTORY_ORDER_NOTICE} Use the filters to narrow the list, then choose for yourself.
           </p>
         </div>
 
@@ -146,7 +164,7 @@ export default async function LawyerDirectory({
             </CardContent>
           </Card>
         ) : (
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {/* Sponsored listings removed from the directory in Phase 2.
                 Attorneys were buying an AdCampaign slot and appearing as a
                 "★ Sponsored" card ahead of everyone else in this very list.
@@ -166,13 +184,11 @@ export default async function LawyerDirectory({
                   id={lawyer.id}
                   fullName={lawyer.fullName}
                   profileImageUrl={lawyer.profileImageUrl}
-                  bio={lawyer.bio}
                   practiceAreas={lawyer.practiceAreas}
                   languages={lawyer.languages}
                   district={lawyer.district}
-
+                  firm={lawyer.firm}
                   locale={locale}
-                  imageHeight="h-[280px]"
                 />
               );
             })}

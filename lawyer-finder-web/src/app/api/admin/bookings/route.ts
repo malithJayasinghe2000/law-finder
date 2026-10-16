@@ -2,9 +2,11 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { formatSriLankaDateIso, formatSriLankaDateIsoOrNull, parseDateOnlyToUtc } from '@/lib/utils';
-import { ensureAttorneyHasFirm } from '@/lib/firms/provisioning';
+import { findAttorneyFirmId } from '@/lib/firms/provisioning';
+import { isListedFirm } from '@/lib/directory';
 import { z } from 'zod';
 import { SLOT_BLOCKING_STATUSES } from '@/lib/consultations/bookingStatus';
+import { ADMIN_CREATE_BOOKING_ENABLED, ADMIN_CREATE_BOOKING_OFF_REASON } from '@/lib/consultations/adminBooking';
 
 const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
@@ -28,6 +30,11 @@ export async function POST(req: Request) {
     const session = await getSession();
     if (!session || session.role !== 'ADMIN') {
       return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
+    }
+
+    // Off: see src/lib/consultations/adminBooking.ts.
+    if (!ADMIN_CREATE_BOOKING_ENABLED) {
+      return NextResponse.json({ error: ADMIN_CREATE_BOOKING_OFF_REASON }, { status: 410 });
     }
 
     const body = await req.json();
@@ -70,11 +77,19 @@ export async function POST(req: Request) {
     // `clientSelectedAttorneyId` is set for the same reason it is at normal
     // intake: the choice was theirs, not ours.
     // See docs/restructure/LEGAL-GUARDRAILS.md (rules 4 and 7).
-    const firmId = await ensureAttorneyHasFirm(prisma, lawyerId);
+    const firmId = await findAttorneyFirmId(prisma, lawyerId);
+    const attorneyFirm = firmId
+      ? await prisma.lawFirm.findUnique({
+          where: { id: firmId },
+          select: { isActive: true, isRegisteredPractice: true, verificationStatus: true },
+        })
+      : null;
 
-    if (!firmId) {
+    // The same rule as client intake: only a registered, verified practice can
+    // be engaged. Support staff booking by phone do not get a way around it.
+    if (!firmId || !isListedFirm(attorneyFirm)) {
       return NextResponse.json(
-        { error: 'That attorney is not attached to a firm, so cannot be engaged.' },
+        { error: "That attorney's practice is not registered and verified, so cannot be engaged." },
         { status: 400 }
       );
     }
@@ -185,6 +200,11 @@ export async function GET(req: Request) {
     const session = await getSession();
     if (!session || session.role !== 'ADMIN') {
       return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
+    }
+
+    // The lists exist only to feed the create form, which is off.
+    if (!ADMIN_CREATE_BOOKING_ENABLED) {
+      return NextResponse.json({ error: ADMIN_CREATE_BOOKING_OFF_REASON }, { status: 410 });
     }
 
     const { searchParams } = new URL(req.url);

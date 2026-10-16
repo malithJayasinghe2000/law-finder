@@ -5,6 +5,8 @@ import { notFound } from 'next/navigation';
 import { routing } from '@/i18n/routing';
 import { Toaster } from 'sonner';
 import HeaderWrapper from '@/components/layout/HeaderWrapper';
+import { DirectoryProvider } from '@/components/directory/DirectoryProvider';
+import { isPublicDirectoryEnabled } from '@/lib/directory';
 import './globals.css';
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
@@ -40,7 +42,10 @@ export default async function RootLayout({
     notFound();
   }
 
-  const messages = await getMessages({ locale });
+  const [messages, directoryEnabled] = await Promise.all([
+    getMessages({ locale }),
+    isPublicDirectoryEnabled(),
+  ]);
 
   return (
     <html lang={locale} suppressHydrationWarning data-scroll-behavior="smooth">
@@ -54,10 +59,12 @@ export default async function RootLayout({
       </head>
       <body className="min-h-screen flex flex-col antialiased font-light">
         <NextIntlClientProvider messages={messages} locale={locale}>
-          <HeaderWrapper locale={locale} />
-          <div className="flex-1">
-            {children}
-          </div>
+          <DirectoryProvider enabled={directoryEnabled}>
+            <HeaderWrapper locale={locale} />
+            <div className="flex-1">
+              {children}
+            </div>
+          </DirectoryProvider>
         </NextIntlClientProvider>
         <Toaster position="top-right" 
           toastOptions={{

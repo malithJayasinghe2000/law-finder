@@ -6,6 +6,7 @@ import { Users, FileText, TrendingUp, PenSquare, Search, ArrowRight, Scale, Book
 import Link from 'next/link';
 import PostFeed from '@/components/community/PostFeed';
 import { SidebarAd, AdBanner, StickyBottomAd } from '@/components/ads/AdComponents';
+import { CommunityDisclaimer } from '@/components/community/CommunityNotice';
 
 export const metadata = {
   title: 'Legal Community Hub — Sri Lanka',
@@ -54,7 +55,7 @@ export default async function CommunityHubPage({
               Sri Lanka&apos;s Legal <br />Knowledge Community
             </h1>
             <p className="text-neutral-550 text-sm sm:text-base font-light leading-relaxed max-w-xl">
-              Connect with verified lawyers, share legal experiences, and discover expert insights across all areas of Sri Lankan law.
+              Discuss Sri Lankan law and how it works, area by area. General discussion, not legal advice.
             </p>
             <div className="flex flex-wrap items-center gap-4 pt-2">
               {session ? (
@@ -97,6 +98,7 @@ export default async function CommunityHubPage({
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-10">
           {/* Main Feed */}
           <div>
+            <CommunityDisclaimer className="mb-4" />
             <PostFeed locale={locale} search={search} />
           </div>
 

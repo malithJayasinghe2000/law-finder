@@ -9,6 +9,7 @@ import { ArrowLeft, ImagePlus, Loader2, Send } from 'lucide-react';
 import Link from 'next/link';
 import RichTextEditor from '@/components/community/RichTextEditor';
 import { toast } from 'sonner';
+import { LawyerWritingReminder } from '@/components/community/CommunityNotice';
 
 interface Community {
   id: string;
@@ -216,7 +217,7 @@ export default function CreatePostPage({
                 <option value="">Select a community...</option>
                 {communities.map((c) => (
                   <option key={c.id} value={c.id}>
-                    {c.icon || '📋'} {c.displayName}
+                    {c.displayName}
                   </option>
                 ))}
               </select>
@@ -299,6 +300,7 @@ export default function CreatePostPage({
             <label className="block text-sm font-medium mb-2">
               Content <span className="text-red-500">*</span>
             </label>
+            <LawyerWritingReminder className="mb-2" />
             <RichTextEditor
               value={content}
               onChange={setContent}

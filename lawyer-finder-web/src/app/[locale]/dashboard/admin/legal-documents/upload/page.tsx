@@ -96,7 +96,7 @@ export default function UploadLegalDocumentPage() {
 
       if (res.ok && data.success) {
         setUploadResult({ success: true, document: data.document });
-        toast.success('Document uploaded and ingested successfully!');
+        toast.success('Uploaded. The AI is reading it now.');
       } else {
         setUploadResult({ success: false, error: data.error });
         toast.error(data.error || 'Upload failed');
@@ -142,13 +142,13 @@ export default function UploadLegalDocumentPage() {
             )}
             <div>
               <h3 className={`font-semibold text-sm ${uploadResult.success ? 'text-emerald-850' : 'text-red-850'}`}>
-                {uploadResult.success ? 'Document Uploaded Successfully' : 'Upload Failed'}
+                {uploadResult.success ? 'Uploaded — the AI is reading it' : 'Upload Failed'}
               </h3>
               {uploadResult.success ? (
                 <div className="mt-2 text-sm text-emerald-700 space-y-1">
                   <p>Title: <strong>{uploadResult.document?.title}</strong></p>
-                  <p>Chunks created: <strong>{uploadResult.document?.chunksCount || 0}</strong></p>
-                  <p>Graph entities: <strong>{uploadResult.document?.graphEntities || 0}</strong></p>
+                  <p>Indexing can take several minutes for a long Act. The document list shows &ldquo;Processing&rdquo;
+                    until it is done, then &ldquo;Active&rdquo; (or &ldquo;Failed&rdquo;, with the reason).</p>
                   <button
                     onClick={() => router.push(`/${locale}/dashboard/admin/legal-documents`)}
                     className="mt-3 inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold uppercase tracking-widest transition rounded-none border-none cursor-pointer"

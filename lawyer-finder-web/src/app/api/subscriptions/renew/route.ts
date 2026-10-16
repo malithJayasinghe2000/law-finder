@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import prisma from '@/lib/db';
+import { LICENSING_ENABLED } from '@/lib/licensing';
 
 /**
  * POST /api/subscriptions/renew
@@ -8,6 +9,12 @@ import prisma from '@/lib/db';
  * Only works if subscription hasn't expired yet.
  */
 export async function POST(request: NextRequest) {
+  // Nobody is billed, and nobody pays us, while licensing is off for launch —
+  // not even through an old link (src/lib/licensing.ts).
+  if (!LICENSING_ENABLED) {
+    return NextResponse.json({ error: 'Licences are not sold yet.' }, { status: 410 });
+  }
+
   try {
     const session = await getSession();
 

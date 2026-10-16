@@ -1,4 +1,6 @@
 import prisma from '@/lib/db';
+import { directoryPath } from '@/lib/directoryLinks';
+import { isPublicDirectoryEnabled } from '@/lib/directory';
 import { getSession } from '@/lib/auth';
 import { notFound } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
@@ -8,6 +10,7 @@ import { ShieldCheck, Clock, Eye, Pin, Lock, ArrowLeft, Scale } from 'lucide-rea
 import Link from 'next/link';
 import PostInteractions from './PostInteractions';
 import { SidebarAd, AdBanner } from '@/components/ads/AdComponents';
+import { CommunityDisclaimer } from '@/components/community/CommunityNotice';
 
 export default async function PostDetailPage({
   params,
@@ -15,6 +18,7 @@ export default async function PostDetailPage({
   params: Promise<{ locale: string; slug: string }>;
 }) {
   const { locale, slug } = await params;
+  const directoryEnabled = await isPublicDirectoryEnabled();
   const session = await getSession();
 
   const post = await prisma.post.findFirst({
@@ -158,7 +162,10 @@ export default async function PostDetailPage({
 
             {/* Author card */}
             <div className="flex flex-col sm:flex-row sm:items-center gap-4 p-5 bg-[#faf8f6] border border-[#efeae0]">
-              <Link href={post.author.profile ? `/${locale}/lawyers/${post.author.profile.id}` : '#'}>
+              {/* Not a link, and no practice areas or district: a post is not a
+                  route to hiring its author. Name and "Lawyer" stay — they are
+                  what the reader needs to weigh what was written. */}
+              <div>
                 <div className="flex h-12 w-12 items-center justify-center bg-neutral-100 border border-neutral-200 text-neutral-800 font-bold flex-shrink-0 overflow-hidden">
                   {post.author.profileImageUrl ? (
                     <img src={post.author.profileImageUrl} alt="" className="h-full w-full object-cover" />
@@ -166,10 +173,10 @@ export default async function PostDetailPage({
                     (post.author.profile?.fullName || post.author.fullName || '?').split(' ').map((n) => n[0]).join('').slice(0, 2)
                   )}
                 </div>
-              </Link>
+              </div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="font-serif font-bold text-neutral-900">{post.author.profile?.fullName || post.author.fullName || 'Unknown User'}</span>
+                  <span className="font-serif font-bold text-neutral-900">{post.author.profile?.fullName || post.author.fullName || 'Community member'}</span>
                   {post.author.profile?.isVerified && (
                     <ShieldCheck className="h-4 w-4 text-[#bfa37a]" />
                   )}
@@ -177,17 +184,13 @@ export default async function PostDetailPage({
                     <span className="text-[9px] font-bold uppercase tracking-widest text-[#bfa37a] bg-[#bfa37a]/10 px-2 py-0.5 border border-[#bfa37a]/20">Lawyer</span>
                   )}
                 </div>
-                {post.author.profile && (
-                  <div className="text-xs text-neutral-450 mt-1 font-light">
-                    {post.author.profile.practiceAreas?.slice(0, 2).join(', ')}
-                    {post.author.profile.district && ` • ${post.author.profile.district}`}
-                  </div>
-                )}
               </div>
             </div>
           </header>
 
           <Separator className="my-8 bg-[#efeae0]" />
+
+          <CommunityDisclaimer className="mb-6" />
 
           {/* Post content + interactions (client component) */}
           <PostInteractions
@@ -213,23 +216,20 @@ export default async function PostDetailPage({
           {/* Footer CTA */}
           <Card className="border border-[#efeae0] rounded-none bg-[#faf8f6] shadow-none">
             <CardContent className="flex flex-col items-center gap-5 p-8 text-center">
-              <h3 className="text-lg font-serif font-bold text-neutral-900">Need legal assistance?</h3>
+              <h3 className="text-lg font-serif font-bold text-neutral-900">Need help with your own matter?</h3>
               <p className="text-xs text-neutral-500 max-w-md font-light leading-relaxed">
-                Connect with verified Sri Lankan legal professionals for expert advice.
+                A discussion here is general. For advice on your own situation, send a request to a practice of your choice.
               </p>
               <div className="flex flex-wrap gap-3 pt-2">
-                {post.author.profile && (
-                  <Link href={`/${locale}/lawyers/${post.author.profile.id}`}>
-                    <button className="inline-flex items-center px-6 py-4 bg-[#bfa37a] text-white hover:bg-[#a68d67] text-xs font-bold uppercase tracking-widest transition-all">
-                      Contact Author
+                {/* No "Contact Author": a post must not become a lead for the
+                    attorney who wrote it (BASL note, June 2021; Rule 39). */}
+                {directoryEnabled && (
+                  <Link href={directoryPath(locale)}>
+                    <button className="inline-flex items-center px-6 py-4 border border-[#bfa37a] text-[#bfa37a] hover:bg-[#bfa37a]/5 text-xs font-bold uppercase tracking-widest transition-all">
+                      Browse Directory
                     </button>
                   </Link>
                 )}
-                <Link href={`/${locale}/lawyers`}>
-                  <button className="inline-flex items-center px-6 py-4 border border-[#bfa37a] text-[#bfa37a] hover:bg-[#bfa37a]/5 text-xs font-bold uppercase tracking-widest transition-all">
-                    Browse Directory
-                  </button>
-                </Link>
               </div>
             </CardContent>
           </Card>

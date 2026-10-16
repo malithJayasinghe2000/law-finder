@@ -1,8 +1,15 @@
 import { NextResponse, NextRequest } from 'next/server';
 import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { LICENSING_ENABLED } from '@/lib/licensing';
 
 export async function GET(req: NextRequest) {
+  // Hidden while licensing is off (src/lib/licensing.ts): there is nothing to
+  // review, and marking an invoice paid would start a licence nobody can buy.
+  if (!LICENSING_ENABLED) {
+    return NextResponse.json({ error: 'Licences are not sold yet.' }, { status: 410 });
+  }
+
   try {
     const session = await getSession();
 

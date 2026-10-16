@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { directoryPath } from '@/lib/directoryLinks';
 import { useParams } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -13,6 +14,7 @@ import {
 import { BOOKING_STATUS_COLORS, BOOKING_STATUS_LABELS } from '@/schemas/consultation.schema';
 import { formatDateOnlyString } from '@/lib/utils';
 import Link from 'next/link';
+import { useDirectoryEnabled } from '@/components/directory/DirectoryProvider';
 import QuoteReviewDialog from '@/components/consultations/QuoteReviewDialog';
 import EngagementLetterDialog from '@/components/consultations/EngagementLetterDialog';
 import FeeNoteDialog from '@/components/consultations/FeeNoteDialog';
@@ -34,6 +36,10 @@ interface Booking {
   lawyerFee: number;
   totalAmount: number;
   refundAmount: number | null;
+  /** What the practice kept, when it refunded less than was paid. */
+  retainedLawyerFee: number | null;
+  /** The practice's own words about the refund, shown to the client verbatim. */
+  refundNotes: string | null;
   subject: string;
   description: string;
   status: string;
@@ -46,13 +52,16 @@ interface Booking {
   refundProofUrl: string | null;
   refundSentOn: string | null;
   createdAt: string;
-  lawyer: { id: string; fullName: string; profileImageUrl: string | null; district: string | null; contactPhone: string | null };
+  lawyer: { id: string; fullName: string; profileImageUrl: string | null; district: string | null; contactPhone: string | null } | null;
+  /** The practice the client engaged — the provider of the legal service. */
+  firm?: { name: string } | null;
   payment: any;
 }
 
 export default function ClientConsultationsPage() {
   const params = useParams();
   const locale = params.locale as string;
+  const directoryEnabled = useDirectoryEnabled();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -253,7 +262,11 @@ export default function ClientConsultationsPage() {
     { value: '', label: 'All' },
     { value: 'REQUESTED', label: 'Submitted' },
     { value: 'QUOTED', label: 'Awaiting your response' },
-    { value: 'CONFIRMED', label: 'Upcoming' },
+    { value: 'ACCEPTED', label: 'Payment due' },
+    { value: 'RESCHEDULE_REQUESTED', label: 'New time proposed' },
+    // Was 'CONFIRMED', which is not a status: the API refused it and the tab
+    // was always empty.
+    { value: 'SCHEDULED', label: 'Upcoming' },
     { value: 'COMPLETED', label: 'Completed' },
     { value: 'DECLINED', label: 'Not accepted' },
     { value: 'CANCELLED_BY_CLIENT', label: 'Cancelled' },
@@ -268,15 +281,15 @@ export default function ClientConsultationsPage() {
         </div>
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-neutral-900">My Consultations</h1>
-          <p className="text-sm text-neutral-500 font-medium">Track your lawyer consultation bookings</p>
+          <p className="text-sm text-neutral-500 font-medium">Your requests to practices</p>
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 border-b border-neutral-200">
+      <div className="flex gap-1 border-b border-neutral-200 overflow-x-auto scrollbar-none">
         {statusTabs.map((tab) => (
           <button key={tab.value} onClick={() => { setStatusFilter(tab.value); setPage(1); }}
-            className={`px-4 py-2.5 text-xs font-bold uppercase tracking-wide border-b-2 -mb-px transition-colors ${statusFilter === tab.value ? 'border-[#0a0a0a] text-neutral-900' : 'border-transparent text-neutral-400 hover:text-neutral-600'}`}
+            className={`px-4 py-2.5 text-xs font-bold uppercase tracking-wide whitespace-nowrap shrink-0 border-b-2 -mb-px transition-colors ${statusFilter === tab.value ? 'border-[#0a0a0a] text-neutral-900' : 'border-transparent text-neutral-400 hover:text-neutral-600'}`}
           >{tab.label}</button>
         ))}
       </div>
@@ -287,20 +300,32 @@ export default function ClientConsultationsPage() {
       ) : bookings.length === 0 ? (
         <div className="text-center py-16 border border-dashed border-neutral-200 bg-neutral-50/50">
           <CalendarDays className="h-10 w-10 text-neutral-300 mx-auto mb-3" />
-          <p className="text-sm font-semibold text-neutral-900">No consultations yet</p>
-          <p className="text-xs text-neutral-500 mt-1 mb-4">Browse lawyers and book your first consultation</p>
-          <Link href={`/${locale}/lawyers`}>
-            <Button className="bg-[#0a0a0a] text-white hover:bg-neutral-800 rounded-none h-9 text-xs font-bold uppercase tracking-wide">Find a Lawyer</Button>
-          </Link>
+          <p className="text-sm font-semibold text-neutral-900">
+            {statusFilter ? 'Nothing in this list' : 'No consultations yet'}
+          </p>
+          {statusFilter ? (
+            <p className="text-xs text-neutral-500 mt-1">Choose “All” to see every request.</p>
+          ) : directoryEnabled ? (
+            <>
+              <p className="text-xs text-neutral-500 mt-1 mb-4">Browse practices and send your first request</p>
+              <Link href={directoryPath(locale)}>
+                <Button className="bg-[#0a0a0a] text-white hover:bg-neutral-800 rounded-none h-9 text-xs font-bold uppercase tracking-wide">Find a practice</Button>
+              </Link>
+            </>
+          ) : (
+            <p className="text-xs text-neutral-500 mt-1">To start one, use the link your law firm gave you.</p>
+          )}
         </div>
       ) : (
         <div className="space-y-3">
           {bookings.map((b) => (
-            <Card key={b.id} className="rounded-none shadow-sm hover:shadow-md transition-shadow">
+            <Card key={b.id} className="py-0 rounded-none shadow-sm hover:shadow-md transition-shadow">
               <CardContent className="p-5">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-3 mb-2">
+                {/* Details, then status, then actions underneath. Side by side, the
+                    right-hand column squeezed the details to a word per line on a phone. */}
+                <div className="flex flex-col gap-3">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2 mb-2">
                       <span className="text-xs font-mono text-neutral-400">{b.bookingNumber}</span>
                       <Badge className={`text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-sm ${BOOKING_STATUS_COLORS[b.status]}`}>
                         {BOOKING_STATUS_LABELS[b.status]}
@@ -309,16 +334,17 @@ export default function ClientConsultationsPage() {
                         {b.mode === 'PHYSICAL' ? <><MapPin className="w-3 h-3 mr-1" /> Physical</> : <><Video className="w-3 h-3 mr-1" /> Online</>}
                       </Badge>
                     </div>
-                    <h3 className="text-sm font-bold text-neutral-900">{b.subject}</h3>
-                    <div className="flex items-center gap-4 mt-2 text-xs text-neutral-500">
-                      <span>Lawyer: <strong className="text-neutral-700">{b.lawyer?.fullName}</strong></span>
+                    <h3 className="text-sm font-bold text-neutral-900 wrap-break-word">{b.subject}</h3>
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-xs text-neutral-500">
+                      {b.firm?.name && <span>Practice: <strong className="text-neutral-700">{b.firm.name}</strong></span>}
+                      <span>Lawyer: <strong className="text-neutral-700">{b.lawyer?.fullName ?? 'Not assigned yet'}</strong></span>
                       {b.date ? (
                         <>
-                          <span className="flex items-center gap-1"><CalendarDays className="w-3 h-3" />{formatDateOnlyString(b.date, 'en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
-                          <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{b.startTime} – {b.endTime}</span>
+                          <span className="flex items-center gap-1 whitespace-nowrap"><CalendarDays className="w-3 h-3" />{formatDateOnlyString(b.date, 'en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
+                          <span className="flex items-center gap-1 whitespace-nowrap"><Clock className="w-3 h-3" />{b.startTime} – {b.endTime}</span>
                         </>
                       ) : (
-                        <span className="flex items-center gap-1"><Clock className="w-3 h-3" />Appointment proposed with the firm&apos;s quote</span>
+                        <span className="flex items-center gap-1"><Clock className="w-3 h-3" />Time proposed with the practice&apos;s quote</span>
                       )}
                     </div>
                     {/* Meeting link for confirmed online bookings */}
@@ -344,7 +370,7 @@ export default function ClientConsultationsPage() {
                       </div>
                     )}
                   </div>
-                  <div className="text-right shrink-0">
+                  <div>
                     {b.status === 'REQUESTED' && (
                       <p className="mb-2 text-xs italic text-neutral-500">Waiting for the firm to review your request…</p>
                     )}
@@ -355,7 +381,7 @@ export default function ClientConsultationsPage() {
                       <p className="mb-2 text-xs font-semibold text-amber-700">A fee proposal is waiting for your response.</p>
                     )}
                     {b.status === 'ACCEPTED' && (
-                      <div className="mb-3 text-right">
+                      <div className="mb-3">
                         <p className="mb-1 text-xs text-neutral-500">Agreed fee, payable to the firm:</p>
                         <p className="text-sm font-bold text-[#0a0a0a]">Rs. {b.totalAmount?.toLocaleString()}</p>
                         {b.payment?.status === 'RESUBMIT' ? (
@@ -380,6 +406,15 @@ export default function ClientConsultationsPage() {
                         <p className="mt-0.5 text-sm font-bold text-green-900">
                           Rs. {b.refundAmount?.toLocaleString()}
                         </p>
+                        {/* Less than was paid: the practice's reason, in its words. The
+                            practice decides under its terms; the client can dispute. */}
+                        {!!b.retainedLawyerFee && b.retainedLawyerFee > 0 && (
+                          <p className="mt-1 text-[10px] text-amber-800">
+                            You paid Rs. {b.totalAmount.toLocaleString()}. The practice kept Rs.{' '}
+                            {b.retainedLawyerFee.toLocaleString()}
+                            {b.refundNotes ? `: ${b.refundNotes}` : '.'}
+                          </p>
+                        )}
                         <dl className="mt-1.5 space-y-0.5 text-[10px] text-green-800">
                           {b.refundMethod && <div>Method: {b.refundMethod}</div>}
                           {b.refundReference && <div>Reference: {b.refundReference}</div>}
@@ -413,15 +448,18 @@ export default function ClientConsultationsPage() {
                         You reported this refund as not received. The firm has been notified.
                       </p>
                     )}
-                    {b.status === 'CANCELLED_BY_CLIENT' && b.refundStatus === 'PENDING' && b.refundAmount !== null && b.refundAmount > 0 && (
-                      <div className="mt-2 text-right bg-red-50 p-1.5 border border-red-100">
-                        {b.refundAmount < b.totalAmount && (
-                          <p className="text-[10px] text-red-600 font-bold">- Rs. {(b.totalAmount - b.refundAmount).toLocaleString()} (Late Cancel Penalty)</p>
-                        )}
-                        <p className="text-xs text-green-600 font-bold">Refund: Rs. {b.refundAmount.toLocaleString()}</p>
-                      </div>
+                    {b.refundStatus === 'PENDING' && b.refundAmount !== null && b.refundAmount > 0 && (
+                      <p className="mt-2 border border-amber-200 bg-amber-50 p-1.5 text-[10px] text-amber-800">
+                        You paid Rs. {b.totalAmount.toLocaleString()}. The practice decides any refund
+                        under its terms with you and will record what it returns here.
+                      </p>
                     )}
-                    <div className="flex gap-1.5 mt-3 justify-end flex-wrap">
+                    {b.refundStatus === 'DECLINED' && (
+                      <p className="mt-2 border border-red-200 bg-red-50 p-1.5 text-[10px] text-red-700">
+                        The practice is not refunding this{b.refundNotes ? `: ${b.refundNotes}` : '.'}
+                      </p>
+                    )}
+                    <div className="flex gap-1.5 mt-3 pt-3 border-t border-neutral-100 justify-end flex-wrap empty:hidden">
                       {['REQUESTED', 'CONFLICT_CHECK', 'QUOTED', 'ACCEPTED', 'SCHEDULED'].includes(b.status) && (
                         <Button size="sm" variant="outline" onClick={() => setCancelModal(b.id)} className="rounded-none h-7 text-[10px] px-2.5 font-bold text-red-600 border-red-300">
                           <XCircle className="w-3 h-3 mr-1" /> Cancel
@@ -437,7 +475,7 @@ export default function ClientConsultationsPage() {
                           <ScrollText className="w-3 h-3 mr-1" /> Engagement letter
                         </Button>
                       )}
-                      {['ACCEPTED', 'AWAITING_PAYMENT', 'SCHEDULED', 'COMPLETED'].includes(b.status) && (
+                      {['ACCEPTED', 'SCHEDULED', 'COMPLETED'].includes(b.status) && (
                         <Button size="sm" variant="outline" onClick={() => setFeeNoteBookingId(b.id)} className="rounded-none h-7 text-[10px] px-2.5 font-bold">
                           <Receipt className="w-3 h-3 mr-1" /> Fee notes
                         </Button>
@@ -488,7 +526,7 @@ export default function ClientConsultationsPage() {
         <QuoteReviewDialog
           bookingId={quoteReview.id}
           bookingNumber={quoteReview.bookingNumber}
-          firmName={quoteReview.lawyer.fullName}
+          firmName={quoteReview.firm?.name ?? quoteReview.lawyer?.fullName ?? 'the practice'}
           open={Boolean(quoteReview)}
           onOpenChange={(o) => { if (!o) setQuoteReview(null); }}
           onResponded={loadBookings}
@@ -531,9 +569,8 @@ export default function ClientConsultationsPage() {
             <div className="p-6 border-b"><h2 className="text-lg font-bold flex items-center gap-2"><AlertTriangle className="w-5 h-5 text-amber-500" /> Cancel Booking</h2></div>
             <div className="p-6 space-y-4">
               <div className="p-3 bg-amber-50 border border-amber-200 text-xs text-amber-800">
-                <p className="font-semibold mb-1">Cancellation Policy</p>
-                <p>• 24+ hours before: Full refund</p>
-                <p>• Less than 24 hours: 50% refund</p>
+                <p className="font-semibold mb-1">If you have paid</p>
+                <p>The practice decides any refund under its terms with you, and returns it from its own account. You will see what it refunded, and why if it is less, and can dispute it.</p>
               </div>
               <div>
                 <label className="block text-xs font-semibold text-neutral-600 mb-1">Reason for cancellation *</label>

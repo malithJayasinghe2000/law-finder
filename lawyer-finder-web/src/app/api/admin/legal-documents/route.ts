@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import prisma from '@/lib/db';
 import { ragFetch } from '@/lib/ai/ragService';
+import { mkdir, writeFile } from 'fs/promises';
+import { LEGAL_DOCUMENT_STORAGE, legalDocumentStoragePath } from '@/lib/legalDocuments';
 
 // Category mapping for display ↔ enum
 const CATEGORY_MAP: Record<string, string> = {
@@ -174,11 +176,12 @@ export async function POST(req: Request) {
 
     if (!file) return NextResponse.json({ error: 'No file provided' }, { status: 400 });
     
-    // Validate file extension/type (Only PDF/DOCX/TXT/log documents are allowed)
-    const allowedExtensions = ['pdf', 'docx', 'txt', 'log'];
+    // PDF only, as the upload page says — it accepted Word, text and .log too.
+    // Checked by content as well as name: a PDF starts with "%PDF-".
     const fileExt = file.name.split('.').pop()?.toLowerCase();
-    if (!fileExt || !allowedExtensions.includes(fileExt)) {
-      return NextResponse.json({ error: 'Unsupported file type. Only PDF, DOCX, and TXT files are allowed.' }, { status: 400 });
+    const head = Buffer.from(await file.slice(0, 5).arrayBuffer()).toString('latin1');
+    if (fileExt !== 'pdf' || head !== '%PDF-') {
+      return NextResponse.json({ error: 'Only PDF files can be uploaded.' }, { status: 400 });
     }
 
     const sanitizedName = sanitizeFilename(file.name);
@@ -202,79 +205,81 @@ export async function POST(req: Request) {
       },
     });
 
-    // Forward the file to the RAG backend for ingestion
-    try {
-      const ragFormData = new FormData();
-      ragFormData.append('file', file);
-      ragFormData.append('title', title);
-      ragFormData.append('category', category);
-      ragFormData.append('description', description);
-      if (actNumber) ragFormData.append('act_number', actNumber);
-      if (year) ragFormData.append('year', String(year));
-      if (courtName) ragFormData.append('court_name', courtName);
-      if (caseNumber) ragFormData.append('case_number', caseNumber);
-      if (gazetteNumber) ragFormData.append('gazette_number', gazetteNumber);
+    // The website's own copy, so the library can serve the file wherever the
+    // AI service runs (src/lib/legalDocuments.ts).
+    await mkdir(LEGAL_DOCUMENT_STORAGE, { recursive: true });
+    await writeFile(legalDocumentStoragePath(doc.id, sanitizedName), Buffer.from(await file.arrayBuffer()));
 
-      // No Content-Type: fetch sets the multipart boundary for a FormData
-      // body, and ragFetch only adds the service token.
-      const ragRes = await ragFetch('/api/ingest/upload', {
-        method: 'POST',
-        body: ragFormData,
-      });
+    // Indexing runs after the response. It used to run inside the request, and
+    // a long Act could outlast a server's time limit (often 60-100 s): the
+    // admin saw an error while indexing carried on. server.js is long-lived, so
+    // the work completes; the admin page shows PROCESSING until it does.
+    void ingestLegalDocument(doc.id, file, {
+      title, category, description, actNumber, year, courtName, caseNumber, gazetteNumber,
+    });
 
-      const ragData = await ragRes.json();
-
-      if (ragRes.ok && ragData.success) {
-        // Update document with ingestion results
-        await prisma.legalDocument.update({
-          where: { id: doc.id },
-          data: {
-            status: 'ACTIVE',
-            ragDocumentName: ragData.document_name || title,
-            chunksCount: ragData.chunks_added || 0,
-            graphEntities: ragData.graph_stats?.entity_count || 0,
-            graphRelationships: ragData.graph_stats?.relationship_count || 0,
-            pageCount: ragData.pdf_info?.page_count || null,
-            outline: ragData.outline || null,
-          },
-        });
-      } else {
-        await prisma.legalDocument.update({
-          where: { id: doc.id },
-          data: {
-            status: 'FAILED',
-            errorMessage: ragData.error || 'Ingestion failed',
-          },
-        });
-
-        return NextResponse.json({
-          error: `Document uploaded but ingestion failed: ${ragData.error}`,
-          documentId: doc.id,
-        }, { status: 500 });
-      }
-    } catch (ragError: any) {
-      await prisma.legalDocument.update({
-        where: { id: doc.id },
-        data: {
-          status: 'FAILED',
-          errorMessage: `RAG API unreachable: ${ragError.message}`,
-        },
-      });
-
-      return NextResponse.json({
-        error: 'RAG backend is unreachable. Document saved but not ingested.',
-        documentId: doc.id,
-      }, { status: 503 });
-    }
-
-    const updatedDoc = await prisma.legalDocument.findUnique({ where: { id: doc.id } });
-
-    return NextResponse.json({
-      success: true,
-      document: updatedDoc,
-    }, { status: 201 });
+    return NextResponse.json({ success: true, indexing: true, document: doc }, { status: 202 });
   } catch (error) {
     console.error('[LEGAL_DOC_UPLOAD]', error instanceof Error ? error.message : 'Upload failed');
     return NextResponse.json({ error: 'Failed to upload document' }, { status: 500 });
+  }
+}
+
+/**
+ * Sends a stored upload to the AI service and records the outcome on the
+ * document. Never throws: every failure ends as FAILED with a reason.
+ */
+async function ingestLegalDocument(
+  docId: string,
+  file: File,
+  meta: {
+    title: string; category: string; description: string; actNumber?: string; year?: number;
+    courtName?: string; caseNumber?: string; gazetteNumber?: string;
+  }
+): Promise<void> {
+  try {
+    const ragFormData = new FormData();
+    ragFormData.append('file', file);
+    ragFormData.append('title', meta.title);
+    ragFormData.append('category', meta.category);
+    ragFormData.append('description', meta.description);
+    if (meta.actNumber) ragFormData.append('act_number', meta.actNumber);
+    if (meta.year) ragFormData.append('year', String(meta.year));
+    if (meta.courtName) ragFormData.append('court_name', meta.courtName);
+    if (meta.caseNumber) ragFormData.append('case_number', meta.caseNumber);
+    if (meta.gazetteNumber) ragFormData.append('gazette_number', meta.gazetteNumber);
+
+    // No Content-Type: fetch sets the multipart boundary for a FormData
+    // body, and ragFetch only adds the service token.
+    const ragRes = await ragFetch('/api/ingest/upload', { method: 'POST', body: ragFormData });
+    const ragData = await ragRes.json().catch(() => ({}));
+
+    if (ragRes.ok && ragData.success) {
+      await prisma.legalDocument.update({
+        where: { id: docId },
+        data: {
+          status: 'ACTIVE',
+          ragDocumentName: ragData.document_name || meta.title,
+          chunksCount: ragData.chunks_added || 0,
+          graphEntities: ragData.graph_stats?.entity_count || 0,
+          graphRelationships: ragData.graph_stats?.relationship_count || 0,
+          pageCount: ragData.pdf_info?.page_count || null,
+          outline: ragData.outline || null,
+          errorMessage: null,
+        },
+      });
+    } else {
+      await prisma.legalDocument.update({
+        where: { id: docId },
+        data: { status: 'FAILED', errorMessage: ragData.error || `Indexing failed (AI service answered ${ragRes.status}).` },
+      });
+    }
+  } catch (error) {
+    await prisma.legalDocument
+      .update({
+        where: { id: docId },
+        data: { status: 'FAILED', errorMessage: `The AI service could not be reached: ${error instanceof Error ? error.message : 'unknown error'}` },
+      })
+      .catch(() => {});
   }
 }

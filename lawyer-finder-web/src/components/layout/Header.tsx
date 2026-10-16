@@ -13,6 +13,8 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
 import ChatBadge from '@/components/chat/ChatBadge';
+import { useDirectoryEnabled } from '@/components/directory/DirectoryProvider';
+import { LICENSING_ENABLED } from '@/lib/licensing';
 
 interface HeaderProps {
   locale: string;
@@ -27,6 +29,7 @@ export default function Header({ locale, userRole = null, appStatus = null, user
   const t = useTranslations('Navigation');
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const directoryEnabled = useDirectoryEnabled();
   const isPremiumDesign = pathname === `/${locale}` || pathname === '/';
 
   if (pathname.includes('/dashboard')) {
@@ -38,14 +41,16 @@ export default function Header({ locale, userRole = null, appStatus = null, user
     // practitioner IS their practice — so listing both in the nav showed the
     // same people twice. The toggle on the page switches lens.
     // See docs/restructure/LEGAL-GUARDRAILS.md (rules 4 and 7).
-    { href: `/${locale}/firms`, label: t('directory'), icon: Search },
+    // Hidden while the public directory is switched off (src/lib/directory.ts).
+    ...(directoryEnabled ? [{ href: `/${locale}/firms`, label: t('directory'), icon: Search }] : []),
     { href: `/${locale}/chat`, label: t('chat'), icon: MessageCircle },
     { href: `/${locale}/legal-library`, label: t('legalLibrary'), icon: BookOpen },
     { href: `/${locale}/blog`, label: t('blog'), icon: FileText },
     { href: `/${locale}/about`, label: t('about'), icon: Scale },
   ];
 
-  if (userRole === 'LAWYER' || userRole === 'ADMIN') {
+  // Licence pricing is hidden while licensing is off (src/lib/licensing.ts).
+  if (LICENSING_ENABLED && (userRole === 'LAWYER' || userRole === 'ADMIN')) {
     navLinks.push({ href: `/${locale}/pricing`, label: 'Pricing', icon: Scale });
   }
 
@@ -154,8 +159,10 @@ export default function Header({ locale, userRole = null, appStatus = null, user
           <div className="px-6 py-5 bg-neutral-50/50 border-b">
             <div className="flex flex-col space-y-2">
               <p className="text-[15px] font-bold text-neutral-900 leading-none">{userProfile?.fullName || 'Account'}</p>
-              <p className="text-[10px] text-neutral-400 font-bold uppercase tracking-[0.15em]">{userRole}</p>
-              {userRole === 'LAWYER' && subscriptionTier && (
+              <p className="text-[10px] text-neutral-400 font-bold uppercase tracking-[0.15em]">
+                {userRole === 'LAWYER' ? 'Attorney' : userRole === 'ADMIN' ? 'Platform admin' : 'Client'}
+              </p>
+              {LICENSING_ENABLED && userRole === 'LAWYER' && subscriptionTier && (
                 <div className="flex items-center gap-2 mt-2 pt-2 border-t border-neutral-200">
                   <Zap className="w-4 h-4 text-amber-500" />
                   <div className="text-xs">

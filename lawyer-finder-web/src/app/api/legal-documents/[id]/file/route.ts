@@ -2,6 +2,24 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { promises as fs, existsSync } from 'fs';
 import path from 'path';
+import { legalDocumentStoragePath } from '@/lib/legalDocuments';
+
+/**
+ * GET: the file of a library document — only one that is ACTIVE in the library.
+ *
+ * It used to serve any document, including a failed upload or an archived one.
+ * The file is read from the website's own copy (kept at upload), or, for
+ * documents that came from the AI service, from its folders when they are on
+ * the same disk. Every candidate is resolved and must stay inside its folder.
+ * Never public/uploads: nothing stores library files there, and it holds the
+ * files people upload about themselves.
+ */
+const RAG_DATA = path.join(process.cwd(), '..', 'lawyer-rag', 'data');
+
+function inside(base: string, name: string): string | null {
+  const resolved = path.resolve(base, name);
+  return resolved.startsWith(path.resolve(base) + path.sep) ? resolved : null;
+}
 
 export async function GET(
   req: Request,
@@ -12,37 +30,28 @@ export async function GET(
 
     const doc = await prisma.legalDocument.findUnique({
       where: { id },
+      select: { id: true, status: true, fileName: true, ragDocumentName: true },
     });
 
-    if (!doc) {
+    if (!doc || doc.status !== 'ACTIVE') {
       return NextResponse.json({ error: 'Document not found' }, { status: 404 });
     }
 
-    const fileName = doc.fileName;
-    
-    // 1. Try public/uploads
-    let filePath = path.join(process.cwd(), 'public', 'uploads', fileName);
-    
-    // 2. If not exists, try ../lawyer-rag/data/uploads
-    if (!existsSync(filePath)) {
-      filePath = path.join(process.cwd(), '..', 'lawyer-rag', 'data', 'uploads', fileName);
+    const candidates = [
+      legalDocumentStoragePath(doc.id, doc.fileName),
+      inside(path.join(RAG_DATA, 'uploads'), doc.fileName),
+      inside(path.join(RAG_DATA, 'acts'), doc.fileName),
+      doc.ragDocumentName ? inside(path.join(RAG_DATA, 'uploads'), `${doc.ragDocumentName}.pdf`) : null,
+    ].filter((p): p is string => !!p);
+
+    const filePath = candidates.find((p) => existsSync(p));
+    if (!filePath) {
+      return NextResponse.json({ error: 'The file for this document is not available.' }, { status: 404 });
     }
 
-    // 3. If not exists, check if any PDF with ragDocumentName exists
-    if (!existsSync(filePath) && doc.ragDocumentName) {
-      filePath = path.join(process.cwd(), '..', 'lawyer-rag', 'data', 'uploads', `${doc.ragDocumentName}.pdf`);
-    }
-
-    // 4. Check if file exists finally
-    if (!existsSync(filePath)) {
-      return NextResponse.json({ error: 'File not found on disk' }, { status: 404 });
-    }
-
-    // Read file
     const fileBuffer = await fs.readFile(filePath);
 
-    // Return response with correct content-type
-    const ext = fileName.split('.').pop()?.toLowerCase();
+    const ext = doc.fileName.split('.').pop()?.toLowerCase();
     let contentType = 'application/pdf';
     if (ext === 'docx') {
       contentType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
@@ -53,16 +62,13 @@ export async function GET(
     const headers = new Headers();
     headers.set('Content-Type', contentType);
     headers.set('Content-Length', fileBuffer.length.toString());
-    headers.set('Content-Disposition', `inline; filename="${fileName}"`);
+    headers.set('Content-Disposition', `inline; filename="${doc.fileName.replace(/"/g, '')}"`);
     headers.set('Accept-Ranges', 'bytes');
     headers.set('Cache-Control', 'public, max-age=3600');
 
-    return new Response(fileBuffer, {
-      status: 200,
-      headers,
-    });
+    return new Response(fileBuffer, { status: 200, headers });
   } catch (error) {
     console.error('[LEGAL_DOC_FILE_GET]', error);
-    return NextResponse.json({ error: 'Failed to fetch document file' }, { status: 555 });
+    return NextResponse.json({ error: 'Failed to fetch document file' }, { status: 500 });
   }
 }

@@ -147,7 +147,7 @@ export function FeatureLimitManager() {
 
             <div className="mb-6 flex gap-2">
               <Input
-                placeholder="Enter new feature name (e.g. articles_per_month)"
+                placeholder="Enter new feature name (e.g. document_templates)"
                 value={newFeatureName}
                 onChange={(e) => setNewFeatureName(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleAddLimit()}

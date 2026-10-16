@@ -1,6 +1,8 @@
 import { getTranslations } from 'next-intl/server';
+import { directoryPath } from '@/lib/directoryLinks';
 import Link from 'next/link';
 import Footer from '@/components/layout/Footer';
+import { isPublicDirectoryEnabled } from '@/lib/directory';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import {
@@ -20,6 +22,7 @@ import LawyersMarquee from '@/components/home/LawyersMarquee';
 
 export default async function HomePage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
+  const directoryEnabled = await isPublicDirectoryEnabled();
   const t = await getTranslations({ locale });
 
   return (
@@ -153,7 +156,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
                 {
                   icon: Search,
                   title: 'Search You Control',
-                  desc: 'Filter by practice area, district and language — criteria you choose. Ordering is alphabetical and nothing about position can be bought.',
+                  desc: 'Filter by practice area, district and language — criteria you choose. The order changes every day, is the same for everyone, and nothing about position can be bought.',
                 },
                 {
                   icon: MessageSquare,
@@ -209,12 +212,14 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
                   Register Your Practice
                 </Button>
               </Link>
-              <Link href={`/${locale}/lawyers`}>
-                <Button size="lg" variant="outline" className="gap-2 font-semibold px-8 rounded-none">
-                  Browse Directory
-                  <ArrowRight className="h-4 w-4" />
-                </Button>
-              </Link>
+              {directoryEnabled && (
+                <Link href={directoryPath(locale)}>
+                  <Button size="lg" variant="outline" className="gap-2 font-semibold px-8 rounded-none">
+                    Browse Directory
+                    <ArrowRight className="h-4 w-4" />
+                  </Button>
+                </Link>
+              )}
             </div>
           </div>
         </section>

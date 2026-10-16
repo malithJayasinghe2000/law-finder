@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { RecordConflictCheckSchema } from '@/schemas/consultation.schema';
-import { canTransition } from '@/lib/consultations/bookingStatus';
+import { EmailService } from '@/lib/email/EmailService';
 import { getMatterAccess, discloseField, discloseFieldList } from '@/lib/firms/access';
 import { recordAccess, actorRoleFor } from '@/lib/privacy/audit';
 import { encryptField, encryptFieldList } from '@/lib/privacy/encryption';
@@ -146,6 +146,9 @@ export async function POST(
         firmId: true,
         clientId: true,
         lawyer: { select: { userId: true } },
+        bookingNumber: true,
+        client: { select: { email: true, fullName: true } },
+        firm: { select: { name: true } },
       },
     });
 
@@ -193,10 +196,17 @@ export async function POST(
       screenedParties
     );
 
-    // A conflict found (or unresolved) means the firm cannot act.
-    const nextStatus = outcome === 'CLEAR' ? 'CONFLICT_CHECK' : 'DECLINED';
+    // CLEAR      → the firm may act; the request moves on to a quote.
+    // FOUND      → the firm cannot act; the request is declined.
+    // NEEDS_REVIEW → on hold. The record is kept, the request stays a new
+    //   request (or goes back to one, if it had been cleared), and nothing can be
+    //   quoted until the attorney screens it again. It used to decline at once,
+    //   which made "unresolved" mean exactly the same as "conflict found".
+    const nextStatus =
+      outcome === 'CLEAR' ? 'CONFLICT_CHECK' : outcome === 'NEEDS_REVIEW' ? 'REQUESTED' : 'DECLINED';
 
-    if (booking.status !== 'CONFLICT_CHECK' && !canTransition(booking.status, nextStatus)) {
+    // Screening is recorded before the firm quotes, and may be re-run until then.
+    if (booking.status !== 'REQUESTED' && booking.status !== 'CONFLICT_CHECK') {
       return NextResponse.json(
         { error: `Cannot record a conflict check on a request in "${booking.status}".` },
         { status: 400 }
@@ -223,8 +233,8 @@ export async function POST(
       prisma.booking.update({
         where: { id },
         data:
-          outcome === 'CLEAR'
-            ? { status: 'CONFLICT_CHECK' }
+          outcome !== 'CONFLICT_FOUND'
+            ? { status: nextStatus }
             : {
                 status: 'DECLINED',
                 // The client is told the firm cannot act, never why — the reason
@@ -235,6 +245,17 @@ export async function POST(
               },
       }),
     ]);
+
+    // Tell the client, without the reason — it is confidential to the other
+    // client involved. Before this they found out only by opening their dashboard.
+    if (outcome === 'CONFLICT_FOUND' && booking.client?.email) {
+      EmailService.sendRequestDeclined({
+        to: booking.client.email,
+        clientName: booking.client.fullName || 'Client',
+        firmName: booking.firm?.name ?? 'The practice',
+        bookingNumber: booking.bookingNumber,
+      });
+    }
 
     // Echo back what the attorney just typed, not the ciphertext of it.
     return NextResponse.json(

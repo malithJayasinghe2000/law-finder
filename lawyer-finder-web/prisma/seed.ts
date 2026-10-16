@@ -1,5 +1,4 @@
 import { PrismaClient } from '@prisma/client'
-import { ensureAttorneyHasFirm } from '../src/lib/firms/provisioning'
 import { Pool } from 'pg'
 import { PrismaPg } from '@prisma/adapter-pg'
 import * as bcrypt from 'bcryptjs'
@@ -170,23 +169,10 @@ async function main() {
     },
   })
 
-  // 3.9 Give every seeded attorney a firm of one.
-  //
-  // Since Phase 2 the FIRM is the provider of legal services, so an attorney
-  // must never exist on the system without one. This mirrors what
-  // api/applications/[id]/approve does on real approval, and what the
-  // 20260801210442_law_firm_entity migration did for existing data.
-  // See docs/restructure/LEGAL-GUARDRAILS.md (rule 7).
-  console.log('Provisioning firms for seeded attorneys...')
-
-  const seededProfiles = await prisma.lawyerProfile.findMany({
-    where: { firmId: null },
-    select: { id: true },
-  })
-
-  for (const { id } of seededProfiles) {
-    await ensureAttorneyHasFirm(prisma, id)
-  }
+  // 3.9 No firms are provisioned for seeded attorneys. Since 2026-10-13 an
+  // approved attorney has no practice until they register one, exactly as on
+  // real approval (api/applications/[id]/approve). Register a practice from the
+  // lawyer dashboard (My Firm) and verify it from Admin → Law Firms to list it.
 
   // 4. Seed Subscription Roles
   console.log('Creating subscription tiers...')
@@ -231,12 +217,12 @@ async function main() {
   console.log('Creating permissions...')
   
   const permissionsData = [
-    // Article Permissions
-    { name: 'create_article', slug: 'create-article', category: 'articles', description: 'Create new articles' },
-    { name: 'edit_article', slug: 'edit-article', category: 'articles', description: 'Edit own articles' },
-    { name: 'delete_article', slug: 'delete-article', category: 'articles', description: 'Delete articles' },
-    { name: 'publish_article', slug: 'publish-article', category: 'articles', description: 'Publish articles' },
-    
+    // The four "article" permissions and the `articles_per_month` limit were
+    // removed on 2026-10-14. Nothing could write an article — lawyers write
+    // community posts, which no tier limits — and a tier that let a firm
+    // publish more about itself for more money was selling visibility
+    // (LEGAL-GUARDRAILS.md rule 3).
+
     // The three "inquiries" permissions were removed in Phase 7 along with the
     // `Inquiry` model. They gated an unauthenticated intake that no longer
     // exists — and "receive client inquiries" as a paid tier feature was the
@@ -251,10 +237,11 @@ async function main() {
     { name: 'edit_profile', slug: 'edit-profile', category: 'profile', description: 'Edit profile information' },
     { name: 'upload_documents', slug: 'upload-documents', category: 'profile', description: 'Upload identity documents' },
     
-    // Promotion Permissions
-    { name: 'access_paid_promo', slug: 'access-paid-promo', category: 'promotion', description: 'Access paid promotion features' },
-    { name: 'create_promo', slug: 'create-promo', category: 'promotion', description: 'Create promotional campaigns' },
-    
+    // The two "promotion" permissions (paid promotion, promotional campaigns) were
+    // removed on 2026-10-15. They gated nothing — attorneys cannot place adverts —
+    // but listing paid promotion as a feature of a dearer tier offered attorneys
+    // visibility for money on the pricing page (LEGAL-GUARDRAILS.md rule 3).
+
     // Analytics Permissions
     { name: 'view_analytics', slug: 'view-analytics', category: 'analytics', description: 'View analytics and statistics' },
     { name: 'export_data', slug: 'export-data', category: 'analytics', description: 'Export data reports' },
@@ -275,7 +262,6 @@ async function main() {
   
   // BASIC: Limited permissions
   const basicPermissions = [
-    'create_article',
     'access_chat',
     'send_message',
     'edit_profile',
@@ -284,8 +270,6 @@ async function main() {
   // PROFESSIONAL: More permissions
   const professionalPermissions = [
     ...basicPermissions,
-    'edit_article',
-    'publish_article',
     'view_analytics',
     'upload_documents',
   ]
@@ -293,9 +277,6 @@ async function main() {
   // PREMIUM: Advanced permissions
   const premiumPermissions = [
     ...professionalPermissions,
-    'delete_article',
-    'access_paid_promo',
-    'create_promo',
     'export_data',
   ]
 
@@ -459,7 +440,6 @@ async function main() {
   const featuresData = [
     { name: 'firm_seats', slug: 'firm-seats', unit: 'count', description: 'People at the firm who can sign in' },
     { name: 'storage_gb', slug: 'storage-gb', unit: 'GB', description: 'Document storage' },
-    { name: 'articles_per_month', slug: 'articles-per-month', unit: 'count', description: 'Articles the firm may publish per month' },
     { name: 'document_templates', slug: 'document-templates', unit: 'count', description: 'Document automation templates' },
     { name: 'ai_research_queries_per_month', slug: 'ai-research-queries-per-month', unit: 'count', description: 'AI legal research queries (software capability, not client volume)' },
   ]
@@ -481,16 +461,16 @@ async function main() {
   // never on how many clients reach the firm through it.
   const featureLimits = [
     // BASIC — a sole practitioner
-    { role: basicRole, limits: { firm_seats: 1, storage_gb: 5, articles_per_month: 2, document_templates: 5, ai_research_queries_per_month: 50 } },
+    { role: basicRole, limits: { firm_seats: 1, storage_gb: 5, document_templates: 5, ai_research_queries_per_month: 50 } },
 
     // PROFESSIONAL — a small practice
-    { role: professionalRole, limits: { firm_seats: 5, storage_gb: 50, articles_per_month: 10, document_templates: 25, ai_research_queries_per_month: 300 } },
+    { role: professionalRole, limits: { firm_seats: 5, storage_gb: 50, document_templates: 25, ai_research_queries_per_month: 300 } },
 
     // PREMIUM — an established firm
-    { role: premiumRole, limits: { firm_seats: 20, storage_gb: 250, articles_per_month: 50, document_templates: 100, ai_research_queries_per_month: 1500 } },
+    { role: premiumRole, limits: { firm_seats: 20, storage_gb: 250, document_templates: 100, ai_research_queries_per_month: 1500 } },
 
     // ENTERPRISE (-1 = unlimited)
-    { role: enterpriseRole, limits: { firm_seats: -1, storage_gb: -1, articles_per_month: -1, document_templates: -1, ai_research_queries_per_month: -1 } },
+    { role: enterpriseRole, limits: { firm_seats: -1, storage_gb: -1, document_templates: -1, ai_research_queries_per_month: -1 } },
   ]
 
   for (const { role, limits } of featureLimits) {
@@ -511,16 +491,16 @@ async function main() {
   console.log('Creating community hub seed data...')
 
   const communitiesData = [
-    { name: 'family-law', displayName: 'Family Law', description: 'Discussion on marriage, divorce, custody, adoption, and domestic relations under Sri Lankan law.', category: 'civil', icon: '👨‍👩‍👧‍👦', rules: '1. No personal case details\n2. Cite relevant sections of the Marriage Registration Ordinance or Family Law Acts\n3. Distinguish between Kandyan, Tesawalamai, and General law where applicable' },
-    { name: 'property-law', displayName: 'Property & Land Law', description: 'Land ownership, deeds, partition actions, landlord-tenant disputes, and real estate transactions in Sri Lanka.', category: 'civil', icon: '🏘️', rules: '1. Reference land registry and survey department regulations\n2. Specify the relevant land registration system\n3. No promoting real estate agents' },
-    { name: 'criminal-law', displayName: 'Criminal Law', description: 'Discussion on the Penal Code, Criminal Procedure Code, bail, sentencing, and criminal defense in Sri Lanka.', category: 'criminal', icon: '⚖️', rules: '1. No incitement to criminal activity\n2. Discuss legal principles, not specific ongoing cases\n3. Respect the presumption of innocence' },
-    { name: 'labour-law', displayName: 'Labour & Employment Law', description: 'Employment contracts, worker rights, EPF/ETF, termination procedures, and industrial disputes.', category: 'civil', icon: '👷', rules: '1. Reference relevant Labour Acts\n2. Distinguish between BOI and non-BOI establishments\n3. Employee or employer context must be stated' },
-    { name: 'commercial-law', displayName: 'Commercial & Business Law', description: 'Company registrations, partnerships, contracts, commercial disputes, and corporate governance.', category: 'commercial', icon: '💼', rules: '1. Reference Companies Act No. 07 of 2007 where applicable\n2. No advertising of business services\n3. Specify whether advice is for sole proprietors, partnerships, or companies' },
-    { name: 'motor-traffic', displayName: 'Motor Traffic Law', description: 'Road accidents, motor insurance claims, traffic violations, license issues, and vehicle-related legal matters.', category: 'civil', icon: '🚗', rules: '1. Reference the Motor Traffic Act\n2. Include relevant police station details when discussing procedures\n3. No sharing of police officer identities' },
-    { name: 'banking-finance', displayName: 'Banking & Finance Law', description: 'Banking regulations, loan agreements, debt recovery, financial fraud, and Central Bank regulations.', category: 'commercial', icon: '🏦', rules: '1. No sharing of personal financial details\n2. Reference CBSL regulations where applicable\n3. Distinguish between licensed banks and finance companies' },
-    { name: 'constitutional-law', displayName: 'Constitutional Law & Fundamental Rights', description: 'Fundamental rights, constitutional interpretation, public interest litigation, and governance matters.', category: 'advisory', icon: '📜', rules: '1. Reference specific Articles of the Constitution\n2. Keep discussions non-partisan\n3. Focus on legal analysis, not political opinion' },
-    { name: 'immigration', displayName: 'Immigration & Visa Law', description: 'Visa applications, residency permits, citizenship, deportation, and immigration procedures in Sri Lanka.', category: 'advisory', icon: '✈️', rules: '1. Reference the Immigrants and Emigrants Act\n2. State nationality when asking questions\n3. No promoting immigration agents' },
-    { name: 'legal-general', displayName: 'General Legal Discussion', description: 'General discussions about Sri Lankan law, legal news, reforms, and legal education.', category: 'general', icon: '📚', rules: '1. Keep discussions civil and respectful\n2. Share reliable sources for legal news\n3. Beginner questions are welcome' },
+    { name: 'family-law', displayName: 'Family Law', description: 'Discussion on marriage, divorce, custody, adoption, and domestic relations under Sri Lankan law.', category: 'civil', icon: 'document', rules: '1. No personal case details\n2. Cite relevant sections of the Marriage Registration Ordinance or Family Law Acts\n3. Distinguish between Kandyan, Tesawalamai, and General law where applicable' },
+    { name: 'property-law', displayName: 'Property & Land Law', description: 'Land ownership, deeds, partition actions, landlord-tenant disputes, and real estate transactions in Sri Lanka.', category: 'civil', icon: 'house', rules: '1. Reference land registry and survey department regulations\n2. Specify the relevant land registration system\n3. No promoting real estate agents' },
+    { name: 'criminal-law', displayName: 'Criminal Law', description: 'Discussion on the Penal Code, Criminal Procedure Code, bail, sentencing, and criminal defense in Sri Lanka.', category: 'criminal', icon: 'scale', rules: '1. No incitement to criminal activity\n2. Discuss legal principles, not specific ongoing cases\n3. Respect the presumption of innocence' },
+    { name: 'labour-law', displayName: 'Labour & Employment Law', description: 'Employment contracts, worker rights, EPF/ETF, termination procedures, and industrial disputes.', category: 'civil', icon: 'hard-hat', rules: '1. Reference relevant Labour Acts\n2. Distinguish between BOI and non-BOI establishments\n3. Employee or employer context must be stated' },
+    { name: 'commercial-law', displayName: 'Commercial & Business Law', description: 'Company registrations, partnerships, contracts, commercial disputes, and corporate governance.', category: 'commercial', icon: 'briefcase', rules: '1. Reference Companies Act No. 07 of 2007 where applicable\n2. No advertising of business services\n3. Specify whether advice is for sole proprietors, partnerships, or companies' },
+    { name: 'motor-traffic', displayName: 'Motor Traffic Law', description: 'Road accidents, motor insurance claims, traffic violations, license issues, and vehicle-related legal matters.', category: 'civil', icon: 'signpost', rules: '1. Reference the Motor Traffic Act\n2. Include relevant police station details when discussing procedures\n3. No sharing of police officer identities' },
+    { name: 'banking-finance', displayName: 'Banking & Finance Law', description: 'Banking regulations, loan agreements, debt recovery, financial fraud, and Central Bank regulations.', category: 'commercial', icon: 'landmark', rules: '1. No sharing of personal financial details\n2. Reference CBSL regulations where applicable\n3. Distinguish between licensed banks and finance companies' },
+    { name: 'constitutional-law', displayName: 'Constitutional Law & Fundamental Rights', description: 'Fundamental rights, constitutional interpretation, public interest litigation, and governance matters.', category: 'advisory', icon: 'scroll', rules: '1. Reference specific Articles of the Constitution\n2. Keep discussions non-partisan\n3. Focus on legal analysis, not political opinion' },
+    { name: 'immigration', displayName: 'Immigration & Visa Law', description: 'Visa applications, residency permits, citizenship, deportation, and immigration procedures in Sri Lanka.', category: 'advisory', icon: 'plane', rules: '1. Reference the Immigrants and Emigrants Act\n2. State nationality when asking questions\n3. No promoting immigration agents' },
+    { name: 'legal-general', displayName: 'General Legal Discussion', description: 'General discussions about Sri Lankan law, legal news, reforms, and legal education.', category: 'general', icon: 'book', rules: '1. Keep discussions civil and respectful\n2. Share reliable sources for legal news\n3. Beginner questions are welcome' },
   ]
 
   for (const communityData of communitiesData) {

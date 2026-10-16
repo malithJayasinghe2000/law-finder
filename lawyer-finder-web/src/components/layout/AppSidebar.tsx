@@ -3,8 +3,12 @@
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { Sidebar, SidebarContent, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarGroup, SidebarGroupLabel, SidebarFooter, SidebarMenuSub, SidebarMenuSubItem, SidebarMenuSubButton } from '@/components/ui/sidebar';
-import { LayoutDashboard, Users, FileText, Settings, Star, ShieldCheck, LogOut, Megaphone, Image, ShieldPlus, ChevronDown, History, CreditCard, MessageCircle, Globe, PenSquare, Flag, CalendarDays, DollarSign, Banknote, BookOpen, Building2, Shield, Lock } from 'lucide-react';
+import { LayoutDashboard, Users, FileText, Settings, Star, ShieldCheck, LogOut, Megaphone, Image, ShieldPlus, ChevronDown, History, CreditCard, MessageCircle, Globe, PenSquare, Flag, CalendarDays, DollarSign, Banknote, BookOpen, Building2, Shield, Lock, Power } from 'lucide-react';
 import ChatBadge from '@/components/chat/ChatBadge';
+import { ATTORNEY_BOOKING_ENABLED } from '@/lib/directoryLinks';
+import { LICENSING_ENABLED } from '@/lib/licensing';
+import { ADMIN_REFUNDS_VIEW_ENABLED } from '@/lib/consultations/adminRefunds';
+import { ADMIN_FINANCE_REPORTS_ENABLED } from '@/lib/admin/financeReports';
 import { toast } from 'sonner';
 import React, { useState } from 'react';
 
@@ -27,11 +31,11 @@ export function AppSidebar({
 }) {
   const pathname = usePathname();
   // Open by default, so the screens underneath are visible rather than one
-  // click behind a chevron. 'My Firm' is here because a collapsed submenu hid
+  // click behind a chevron. 'My Practice' is here because a collapsed submenu hid
   // 'Data Requests' entirely — a link nobody can see is the sidebar problem
   // Phase 7 fixed, in a different costume.
-  const [openSubmenus, setOpenSubmenus] = useState<string[]>(['Payments','Consultations','My Firm']);
-  const [counts, setCounts] = useState({ pendingInvoicesCount: 0, pendingAdCampaignsCount: 0, pendingBankPaymentsCount: 0 });
+  const [openSubmenus, setOpenSubmenus] = useState<string[]>(['Payments', 'Requests', 'My Practice']);
+  const [counts, setCounts] = useState({ pendingInvoicesCount: 0, pendingAdCampaignsCount: 0 });
 
   React.useEffect(() => {
     const fetchCounts = async () => {
@@ -64,7 +68,8 @@ export function AppSidebar({
     { href: `/${locale}/dashboard/admin`, icon: LayoutDashboard, label: 'Dashboard', exact: true },
     { href: `/${locale}/dashboard/admin/verification`, icon: ShieldCheck, label: 'Verification' },
     { href: `/${locale}/dashboard/admin/firms`, icon: Building2, label: 'Law Firms' },
-    { href: `/${locale}/dashboard/admin/invoices`, icon: FileText, label: 'Invoices' },
+    // Licence invoices: hidden while licensing is off (src/lib/licensing.ts).
+    ...(LICENSING_ENABLED ? [{ href: `/${locale}/dashboard/admin/invoices`, icon: FileText, label: 'Invoices' }] : []),
     // 'Payment Templates' was removed in Phase 6. The page was an orphan — this
     // link had been commented out — but it was still routable, and it rendered a
     // hardcoded invoice billing an attorney for "Premium Lawyer Profile
@@ -87,26 +92,56 @@ export function AppSidebar({
     { href: `/${locale}/dashboard/admin/content-moderation`, icon: Flag, label: 'Content Moderation' },
     { href: `/${locale}/dashboard/admin/legal-documents`, icon: BookOpen, label: 'Legal Documents' },
     { href: `/${locale}/dashboard/admin/privacy-notices`, icon: Shield, label: 'Privacy Notice' },
-    {
-      href: `/${locale}/dashboard/admin/consultations`,
-      icon: CalendarDays,
-      label: 'Consultations',
-      subLinks: [
-        { href: `/${locale}/dashboard/admin/consultations`, icon: CalendarDays, label: 'All Bookings' },
-        { href: `/${locale}/dashboard/admin/consultations/refunds`, icon: Banknote, label: 'Refunds' },
-      ]
-    },
-    { href: `/${locale}/dashboard/admin/finances`, icon: DollarSign, label: 'Financial Reports' },
-    { href: `/${locale}/dashboard/admin/settings`, icon: Settings, label: 'Settings' },
-    { href: `/${locale}/dashboard/admin/subscriptions`, icon: ShieldPlus, label: 'Subscription Config' },
+    { href: `/${locale}/dashboard/admin/directory`, icon: Power, label: 'Public Directory' },
+    // Refunds off: see src/lib/consultations/adminRefunds.ts.
+    ADMIN_REFUNDS_VIEW_ENABLED
+      ? {
+          href: `/${locale}/dashboard/admin/consultations`,
+          icon: CalendarDays,
+          label: 'Consultations',
+          subLinks: [
+            { href: `/${locale}/dashboard/admin/consultations`, icon: CalendarDays, label: 'All Requests' },
+            { href: `/${locale}/dashboard/admin/consultations/refunds`, icon: Banknote, label: 'Refunds' },
+          ]
+        }
+      : { href: `/${locale}/dashboard/admin/consultations`, icon: CalendarDays, label: 'All Requests' },
+    // Off: see src/lib/admin/financeReports.ts.
+    ...(ADMIN_FINANCE_REPORTS_ENABLED ? [{ href: `/${locale}/dashboard/admin/finances`, icon: DollarSign, label: 'Financial Reports' }] : []),
+    { href: `/${locale}/dashboard/admin/settings`, icon: Settings, label: 'My Account' },
+    ...(LICENSING_ENABLED ? [{ href: `/${locale}/dashboard/admin/subscriptions`, icon: ShieldPlus, label: 'Subscription Config' }] : []),
   ];
 
+  // Daily work first (requests, messages), set-up after (the practice itself).
   const lawyerLinks: NavLink[] = [
-    { href: `/${locale}/dashboard/lawyer`, icon: LayoutDashboard, label: 'Dashboard' },
+    { href: `/${locale}/dashboard/lawyer`, icon: LayoutDashboard, label: 'Dashboard', exact: true },
+    {
+      href: `/${locale}/dashboard/lawyer/consultations`,
+      icon: CalendarDays,
+      label: 'Requests',
+      subLinks: [
+        { href: `/${locale}/dashboard/lawyer/consultations`, icon: CalendarDays, label: 'All requests' },
+        // Slots and booking settings only served attorney-first booking, off for launch.
+        ...(ATTORNEY_BOOKING_ENABLED
+          ? [
+              { href: `/${locale}/dashboard/lawyer/consultations/availability`, icon: History, label: 'Set Availability' },
+              { href: `/${locale}/dashboard/lawyer/consultations/pricing`, icon: DollarSign, label: 'Pricing' },
+            ]
+          : []),
+        { href: `/${locale}/dashboard/lawyer/consultations/earnings`, icon: Banknote, label: 'Fees' },
+        { href: `/${locale}/dashboard/lawyer/consultations/refunds`, icon: Banknote, label: 'Refunds' },
+      ]
+    },
+    // Firm-side threads are between a client and the attorney on their request,
+    // and only participants may read them, so a practice manager or paralegal has
+    // none here (their own messages as a client stay in the client menu). The page
+    // admits attorneys only; the link used to send staff to the home page.
+    ...(role === 'LAWYER'
+      ? [{ href: `/${locale}/dashboard/lawyer/chat`, icon: MessageCircle, label: 'Messages', hasBadge: true }]
+      : []),
     {
       href: `/${locale}/dashboard/lawyer/firm`,
       icon: Building2,
-      label: 'My Firm',
+      label: 'My Practice',
       subLinks: [
         { href: `/${locale}/dashboard/lawyer/firm`, icon: Building2, label: 'Practice' },
         ...(canManageFirm
@@ -114,19 +149,8 @@ export function AppSidebar({
           : []),
       ]
     },
-    {
-      href: `/${locale}/dashboard/lawyer/consultations`,
-      icon: CalendarDays,
-      label: 'Consultations',
-      subLinks: [
-        { href: `/${locale}/dashboard/lawyer/consultations`, icon: CalendarDays, label: 'Bookings' },
-        { href: `/${locale}/dashboard/lawyer/consultations/availability`, icon: History, label: 'Set Availability' },
-        { href: `/${locale}/dashboard/lawyer/consultations/pricing`, icon: DollarSign, label: 'Pricing' },
-        { href: `/${locale}/dashboard/lawyer/consultations/earnings`, icon: Banknote, label: 'Consultation Income' },
-        { href: `/${locale}/dashboard/lawyer/consultations/refunds`, icon: Banknote, label: 'Refunds' },
-      ]
-    },
-    { href: `/${locale}/dashboard/lawyer/chat`, icon: MessageCircle, label: 'Messages', hasBadge: true },
+    // Licence invoices: hidden while licensing is off (src/lib/licensing.ts).
+    ...(LICENSING_ENABLED ? [
     { 
       href: `/${locale}/dashboard/lawyer/payments`, 
       icon: CreditCard, 
@@ -135,7 +159,8 @@ export function AppSidebar({
         { href: `/${locale}/dashboard/lawyer/payments/invoices`, icon: FileText, label: 'Invoices' },
         { href: `/${locale}/dashboard/lawyer/payments/history`, icon: History, label: 'Payment History' },
       ]
-    },
+    }]
+    : []),
     { href: `/${locale}/dashboard/blog/my-posts`, icon: PenSquare, label: 'Community Posts' },
     { href: `/${locale}/dashboard/profile`, icon: Settings, label: 'Profile Settings', exact: true },
     { href: `/${locale}/dashboard/profile/privacy`, icon: Lock, label: 'Your Data' },
@@ -144,6 +169,7 @@ export function AppSidebar({
   const clientLinks: NavLink[] = [
     { href: `/${locale}/dashboard/client`, icon: LayoutDashboard, label: 'Dashboard', exact: true },
     { href: `/${locale}/dashboard/client/consultations`, icon: CalendarDays, label: 'My Consultations' },
+    { href: `/${locale}/dashboard/client/messages`, icon: MessageCircle, label: 'Messages', hasBadge: true },
     { href: `/${locale}/dashboard/blog/my-posts`, icon: PenSquare, label: 'Community Posts' },
     { href: `/${locale}/dashboard/profile`, icon: Settings, label: 'Profile Settings', exact: true },
     { href: `/${locale}/dashboard/profile/privacy`, icon: Lock, label: 'Your Data' },
@@ -173,7 +199,7 @@ export function AppSidebar({
     <Sidebar className="border-r border-[#efeae0] bg-[#fbf9f6]">
       <SidebarHeader className="h-20 flex flex-col justify-center px-6 border-b border-[#efeae0] bg-[#fbf9f6]">
         <div className="flex flex-col gap-0.5">
-          <h2 className="text-[13px] font-bold tracking-widest text-neutral-900 uppercase font-serif">{role === 'ADMIN' ? 'Control Panel' : (role === 'LAWYER' ? 'Lawyer Portal' : (isFirmMember ? 'Firm Portal' : 'Client Portal'))}</h2>
+          <h2 className="text-[13px] font-bold tracking-widest text-neutral-900 uppercase font-serif">{role === 'ADMIN' ? 'Control Panel' : (role === 'LAWYER' || isFirmMember ? 'Practice Portal' : 'Client Portal')}</h2>
           <p className="text-[9px] text-[#bfa37a] font-bold tracking-wider uppercase">{role === 'ADMIN' ? 'Platform Administration' : (role === 'LAWYER' || isFirmMember ? 'Manage your practice' : 'Manage your account')}</p>
         </div>
       </SidebarHeader>
@@ -209,11 +235,6 @@ export function AppSidebar({
                           {link.label === 'Ad Campaigns' && role === 'ADMIN' && counts.pendingAdCampaignsCount > 0 && (
                             <span className="ml-2 bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full flex items-center justify-center min-w-[16px] h-[16px]">
                               {counts.pendingAdCampaignsCount}
-                            </span>
-                          )}
-                          {link.label === 'Consultations' && role === 'ADMIN' && counts.pendingBankPaymentsCount > 0 && (
-                            <span className="ml-2 bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full flex items-center justify-center min-w-[16px] h-[16px]">
-                              {counts.pendingBankPaymentsCount}
                             </span>
                           )}
                           <ChevronDown className={`w-4 h-4 ml-auto transition-transform ${openSubmenus.includes(link.label) ? 'rotate-180' : ''}`} />

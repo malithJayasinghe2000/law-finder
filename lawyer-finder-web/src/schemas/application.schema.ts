@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { rejectSelfPromotion } from '@/lib/selfPromotion';
 import { PRACTICE_AREAS, LANGUAGES, DISTRICTS } from '@/schemas/profile.schema';
 import { sanitizeString } from '@/lib/sanitize';
 
@@ -19,7 +20,8 @@ export const applicationStep1Schema = z.object({
     .max(2000, 'Bio must not exceed 2,000 characters.')
     .optional()
     .or(z.literal(''))
-    .transform((val) => val ? sanitizeString(val) : val),
+    .transform((val) => val ? sanitizeString(val) : val)
+    .superRefine(rejectSelfPromotion),
   phone: z.string()
     .min(1, 'Mobile number is required.')
     .regex(/^(?:0|(?:\+94))7[0-9]{8}$/, 'Enter a valid Sri Lankan mobile number (e.g. 07XXXXXXXX or +947XXXXXXXX).'),
@@ -158,6 +160,18 @@ export const APPROVED_DRAFT_STUB = {
     'Approved. The application details were written to the attorney profile and ' +
     'removed from here, so the identity documents are held once rather than twice.',
 } as const;
+
+/**
+ * An admin's rejection. The reason is emailed to the applicant and kept on the
+ * application, so a rejection without one cannot be explained to anybody.
+ */
+export const RejectApplicationSchema = z.object({
+  reason: z.string({ message: 'Give the applicant a reason.' })
+    .transform((val) => sanitizeString(val))
+    .pipe(z.string()
+      .min(10, 'Give the applicant a reason (at least 10 characters).')
+      .max(1000, 'Keep the reason under 1,000 characters.')),
+});
 
 // ── Type exports ─────────────────────────────────────────────────────────────
 

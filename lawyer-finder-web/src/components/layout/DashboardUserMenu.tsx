@@ -12,9 +12,11 @@ interface DashboardUserMenuProps {
   fullName: string | null;
   profileImageUrl: string | null;
   role: string;
+  /** The role in words, for display ("Attorney", not "LAWYER"). */
+  roleLabel?: string;
 }
 
-export default function DashboardUserMenu({ locale, fullName, profileImageUrl, role }: DashboardUserMenuProps) {
+export default function DashboardUserMenu({ locale, fullName, profileImageUrl, role, roleLabel }: DashboardUserMenuProps) {
   const router = useRouter();
 
   const handleLogout = async () => {
@@ -46,7 +48,7 @@ export default function DashboardUserMenu({ locale, fullName, profileImageUrl, r
         <div className="px-4 py-3 border-b border-neutral-100">
           <div className="flex flex-col space-y-1">
             <p className="text-sm font-semibold text-neutral-900 leading-none">{fullName || 'Account'}</p>
-            <p className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider">{role}</p>
+            <p className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider">{roleLabel ?? role}</p>
           </div>
         </div>
 

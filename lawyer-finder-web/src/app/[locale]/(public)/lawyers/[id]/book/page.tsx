@@ -1,6 +1,8 @@
 import { getSession } from '@/lib/auth';
+import { ATTORNEY_BOOKING_ENABLED, directoryPath, engagePath } from '@/lib/directoryLinks';
 import { redirect } from 'next/navigation';
 import prisma from '@/lib/db';
+import { LISTED_ATTORNEY_WHERE } from '@/lib/directory';
 import BookingWizardClient from './BookingWizardClient';
 
 export default async function BookingPage(props: {
@@ -9,12 +11,23 @@ export default async function BookingPage(props: {
   const session = await getSession();
   const { id, locale } = await props.params;
 
+  // Requests go to the practice for launch; it assigns the attorney. An old
+  // link to this page lands on the attorney's practice. See directoryLinks.ts.
+  if (!ATTORNEY_BOOKING_ENABLED) {
+    const listed = await prisma.lawyerProfile.findFirst({
+      where: { id, ...LISTED_ATTORNEY_WHERE },
+      select: { firm: { select: { slug: true } } },
+    });
+    redirect(listed?.firm ? engagePath(locale, listed.firm.slug) : directoryPath(locale));
+  }
+
   if (!session) {
     redirect(`/${locale}/login?redirect=/${locale}/lawyers/${id}/book`);
   }
 
-  const lawyer = await prisma.lawyerProfile.findUnique({
-    where: { id },
+  // Only an attorney listed through an active, verified firm can be engaged.
+  const lawyer = await prisma.lawyerProfile.findFirst({
+    where: { id, ...LISTED_ATTORNEY_WHERE },
     include: {
       user: { select: { fullName: true } },
       // consultationPricing is deliberately NOT loaded — it would be serialized
@@ -24,7 +37,7 @@ export default async function BookingPage(props: {
   });
 
   if (!lawyer) {
-    redirect(`/${locale}/lawyers`);
+    redirect(directoryPath(locale));
   }
 
 

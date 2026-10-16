@@ -1,4 +1,5 @@
 import prisma from '@/lib/db';
+import { isListedFirm } from '@/lib/directory';
 import { notFound } from 'next/navigation';
 import { getSession } from '@/lib/auth';
 import EngageFirmClient from './EngageFirmClient';
@@ -29,12 +30,13 @@ export default async function EngageFirmPage({
       practiceAreas: true,
       officeHours: true,
       isActive: true,
+      isRegisteredPractice: true,
       verificationStatus: true,
       _count: { select: { lawyers: true } },
     },
   });
 
-  if (!firm || !firm.isActive || firm.verificationStatus !== 'VERIFIED') notFound();
+  if (!firm || !isListedFirm(firm)) notFound();
 
   return (
     <EngageFirmClient

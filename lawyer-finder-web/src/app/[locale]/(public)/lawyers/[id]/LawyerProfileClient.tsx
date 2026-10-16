@@ -1,16 +1,19 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState } from 'react';
+import { useDirectoryEnabled } from '@/components/directory/DirectoryProvider';
+import AttorneyPhoto from '@/components/lawyer/AttorneyPhoto';
+import { ATTORNEY_BOOKING_ENABLED, directoryPath, engagePath, PEOPLE_TAB_ENABLED } from '@/lib/directoryLinks';
+import { publishableDescription } from '@/lib/selfPromotion';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import {
   Star, MapPin, Languages, ShieldCheck, Phone, Clock, Calendar,
   Briefcase, Scale, Gavel, BookOpen, ArrowRight, ArrowLeft,
-  MessageSquare, CalendarCheck, Send, X, Loader2, Globe, User, Zap,
+  MessageSquare, CalendarCheck, Send, X, Loader2, Globe, Zap,
   Facebook, Linkedin
 } from 'lucide-react';
-import LawyerCard from '@/components/lawyer/LawyerCard';
 
 /**
  * Public attorney profile.
@@ -32,28 +35,17 @@ interface LawyerData {
   practiceAreas: string[];
   languages: string[];
   district: string | null;
-  gender: string | null;
   yearsOfExperience: number | null;
   practiceType: string | null;
   courts: string[];
   isNotary: boolean;
   isVerified: boolean;
   user: { id: string; createdAt: string } | null;
-}
-
-interface OtherLawyer {
-  id: string;
-  fullName: string;
-  profileImageUrl: string | null;
-  bio: string | null;
-  practiceAreas: string[];
-  district: string | null;
-  languages: string[];
+  firm: { name: string; slug: string; firmType: string } | null;
 }
 
 interface Props {
   lawyer: LawyerData;
-  otherLawyers: OtherLawyer[];
   locale: string;
   isLoggedIn: boolean;
   currentUserId: string | null;
@@ -61,15 +53,13 @@ interface Props {
 
 export default function LawyerProfileClient({
   lawyer,
-  otherLawyers,
   locale,
   isLoggedIn,
   currentUserId,
 }: Props) {
+  const directoryEnabled = useDirectoryEnabled();
   const router = useRouter();
 
-  const lawyerMarqueeRef = useRef<HTMLDivElement>(null);
-  const [lawyerPaused, setLawyerPaused] = useState(false);
   const [chatLoading, setChatLoading] = useState(false);
 
   const handleChatClick = async () => {
@@ -108,22 +98,20 @@ export default function LawyerProfileClient({
 
   return (
     <div className="min-h-screen bg-[#fcfbf9]">
-      <style>{`
-        @keyframes marquee-half {
-          0% { transform: translateX(0); }
-          100% { transform: translateX(-50%); }
-        }
-      `}</style>
       {/* ─── Breadcrumb ─── */}
       <div className="border-b border-[#efeae0] bg-[#faf8f6]/80 backdrop-blur-md sticky top-24 z-10">
         <div className="mx-auto max-w-[1400px] px-6 lg:px-12 xl:px-24 py-4 flex items-center gap-3 text-xs uppercase tracking-widest">
           <Link href={`/${locale}`} className="text-neutral-500 hover:text-[#bfa37a] transition-colors flex items-center gap-1.5">
             <ArrowLeft className="h-3.5 w-3.5" /> Back
           </Link>
-          <span className="text-neutral-300">/</span>
-          <Link href={`/${locale}/lawyers`} className="text-neutral-500 hover:text-[#bfa37a] transition-colors">
-            Lawyers
-          </Link>
+          {directoryEnabled && (
+            <>
+              <span className="text-neutral-300">/</span>
+              <Link href={directoryPath(locale)} className="text-neutral-500 hover:text-[#bfa37a] transition-colors">
+                {PEOPLE_TAB_ENABLED ? 'Lawyers' : 'Directory'}
+              </Link>
+            </>
+          )}
           <span className="text-neutral-300">/</span>
           <span className="text-neutral-900 font-serif font-bold tracking-normal normal-case">{lawyer.fullName}</span>
         </div>
@@ -139,10 +127,13 @@ export default function LawyerProfileClient({
               {/* Profile Image Card */}
               <div className="relative group overflow-hidden bg-[#1a1a1a] rounded-none border border-[#efeae0] p-3 bg-[#fdfcfb]">
                 <div className="relative overflow-hidden bg-neutral-900">
-                  <img
-                    src={lawyer.profileImageUrl || 'https://images.unsplash.com/photo-1556157382-97eda2d62296?auto=format&fit=crop&w=800&q=80'}
-                    alt={lawyer.fullName}
-                    className="w-full aspect-[4/5] object-cover transition-all duration-750 group-hover:grayscale group-hover:scale-102"
+                  <AttorneyPhoto
+                    src={lawyer.profileImageUrl}
+                    name={lawyer.fullName}
+                    // A photo keeps its portrait shape; initials alone do not need a
+                    // screen-tall block — on a phone that pushed everything below the fold.
+                    className={lawyer.profileImageUrl ? 'w-full aspect-[4/5]' : 'w-full aspect-[3/2] lg:aspect-[4/5]'}
+                    initialsClassName="font-serif text-6xl"
                   />
                   {/* Languages - Always Visible */}
                   <div className="absolute top-4 left-4 z-10 flex flex-wrap items-center gap-1.5">
@@ -174,12 +165,20 @@ export default function LawyerProfileClient({
 
               {/* Action Buttons */}
               <div className="mt-4 flex gap-3">
-                <button
-                  onClick={() => router.push(`/${locale}/lawyers/${lawyer.id}/book`)}
-                  className="flex-1 flex items-center justify-center gap-2 bg-[#1a1a1a] text-white py-4.5 text-xs font-bold uppercase tracking-widest hover:bg-neutral-800 transition-all rounded-none text-center leading-tight px-2"
-                >
-                  <CalendarCheck className="h-4 w-4 shrink-0" /> Request Consultation
-                </button>
+                {/* While attorney-first booking is off, the request goes to the
+                    practice, which assigns the attorney. See directoryLinks.ts. */}
+                {(ATTORNEY_BOOKING_ENABLED || lawyer.firm) && (
+                  <button
+                    onClick={() => router.push(
+                      ATTORNEY_BOOKING_ENABLED
+                        ? `/${locale}/lawyers/${lawyer.id}/book`
+                        : engagePath(locale, lawyer.firm!.slug)
+                    )}
+                    className="flex-1 flex items-center justify-center gap-2 bg-[#1a1a1a] text-white py-4.5 text-xs font-bold uppercase tracking-widest hover:bg-neutral-800 transition-all rounded-none text-center leading-tight px-2"
+                  >
+                    <CalendarCheck className="h-4 w-4 shrink-0" /> Request Consultation
+                  </button>
+                )}
                 <button
                   onClick={handleChatClick}
                   disabled={chatLoading}
@@ -190,13 +189,6 @@ export default function LawyerProfileClient({
                 </button>
               </div>
 
-              {/* Quick Stats under card */}
-              <div className="mt-4 border border-[#efeae0] bg-[#faf8f6]">
-                <div className="py-4 text-center">
-                  <p className="text-xl font-serif font-bold text-[#1a1a1a]">{lawyer.yearsOfExperience || '--'}</p>
-                  <p className="text-[9px] text-neutral-400 font-bold uppercase tracking-widest mt-1">Years Exp</p>
-                </div>
-              </div>
             </div>
           </div>
 
@@ -219,6 +211,18 @@ export default function LawyerProfileClient({
               <p className="text-lg text-[#bfa37a] font-serif italic mb-4">
                 {lawyer.practiceAreas.join(' · ') || 'Legal Professional'}
               </p>
+              {/* The client engages the firm, not the individual (rule 7). */}
+              {lawyer.firm && (
+                <p className="text-sm text-neutral-600">
+                  {lawyer.firm.firmType === 'SOLE_PRACTITIONER' ? 'Sole practitioner' : 'Practises at'}{' '}
+                  <Link
+                    href={`/${locale}/firms/${lawyer.firm.slug}`}
+                    className="font-semibold text-[#1a1a1a] underline underline-offset-4 hover:text-[#bfa37a]"
+                  >
+                    {lawyer.firm.firmType === 'SOLE_PRACTITIONER' ? 'View practice' : lawyer.firm.name}
+                  </Link>
+                </p>
+              )}
 
 
             </div>
@@ -228,7 +232,9 @@ export default function LawyerProfileClient({
             <div className="mb-8 pb-8 border-b border-[#efeae0]">
               <h3 className="text-xs font-bold text-[#bfa37a] uppercase tracking-[0.2em] mb-4">About</h3>
               <p className="text-neutral-600 leading-relaxed font-light">
-                {lawyer.bio || 'This attorney has not yet added a biography. Contact them directly for more information about their practice and expertise.'}
+                {/* Saved text that praises rather than describes is not published
+                    (src/lib/selfPromotion.ts — Rules 39 and 49). */}
+                {publishableDescription(lawyer.bio) || 'This attorney has not added a description of their practice.'}
               </p>
             </div>
 
@@ -259,28 +265,17 @@ export default function LawyerProfileClient({
                     </div>
                   </div>
                 )}
-                {lawyer.user?.createdAt && (
+                {lawyer.yearsOfExperience ? (
                   <div className="flex items-start gap-3.5">
                     <div className="flex h-10 w-10 items-center justify-center bg-[#faf8f6] border border-[#efeae0] text-[#bfa37a] shrink-0 rounded-none">
                       <Calendar className="h-4 w-4" />
                     </div>
                     <div>
-                      <p className="text-[9px] text-neutral-455 font-bold uppercase tracking-widest">Member Since</p>
-                      <p className="text-sm font-serif font-bold text-[#1a1a1a] mt-0.5">{new Date(lawyer.user.createdAt).getFullYear()}</p>
+                      <p className="text-[9px] text-neutral-455 font-bold uppercase tracking-widest">In practice</p>
+                      <p className="text-sm font-serif font-bold text-[#1a1a1a] mt-0.5">{lawyer.yearsOfExperience} years</p>
                     </div>
                   </div>
-                )}
-                {lawyer.gender && (
-                  <div className="flex items-start gap-3.5">
-                    <div className="flex h-10 w-10 items-center justify-center bg-[#faf8f6] border border-[#efeae0] text-[#bfa37a] shrink-0 rounded-none">
-                      <User className="h-4 w-4" />
-                    </div>
-                    <div>
-                      <p className="text-[9px] text-neutral-455 font-bold uppercase tracking-widest">Gender</p>
-                      <p className="text-sm font-serif font-bold text-[#1a1a1a] mt-0.5">{lawyer.gender}</p>
-                    </div>
-                  </div>
-                )}
+                ) : null}
                 {lawyer.baslNumber && (
                   <div className="flex items-start gap-3.5">
                     <div className="flex h-10 w-10 items-center justify-center bg-[#faf8f6] border border-[#efeae0] text-[#bfa37a] shrink-0 rounded-none">
@@ -365,60 +360,10 @@ export default function LawyerProfileClient({
       </section>
 
 
-      {/* ─── Other Lawyers Marquee ─── */}
-      {otherLawyers.length > 0 && (
-        <section className="border-t border-[#efeae0] bg-white py-12 lg:py-16">
-          <div className="mx-auto max-w-[1400px] px-6 lg:px-12 xl:px-24 mb-10">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-2xl font-serif font-bold tracking-tight text-[#1a1a1a]">
-                  Explore <span className="text-neutral-400">Other Lawyers</span>
-                </h2>
-                <p className="text-xs text-neutral-400 font-bold uppercase tracking-widest mt-1">Discover more verified legal professionals</p>
-              </div>
-              <Link href={`/${locale}/lawyers`} className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-[#1a1a1a] hover:text-[#bfa37a] transition-colors">
-                View All <ArrowRight className="h-4 w-4" />
-              </Link>
-            </div>
-          </div>
-
-          <div className="mx-auto max-w-[1400px] px-6 lg:px-12 xl:px-24">
-            <div
-              className="overflow-hidden relative flex"
-              onMouseEnter={() => setLawyerPaused(true)}
-              onMouseLeave={() => setLawyerPaused(false)}
-            >
-              <div
-                className="flex gap-6 pb-6"
-                style={{
-                  width: 'max-content',
-                  animation: `marquee-half ${Math.max(30, otherLawyers.length * 5)}s linear infinite`,
-                  animationPlayState: lawyerPaused ? 'paused' : 'running',
-                }}
-              >
-                {[...otherLawyers, ...otherLawyers].map((l, idx) => {
-                  return (
-                    <div key={`${l.id}-${idx}`} className="shrink-0 w-[320px]">
-                      <LawyerCard
-                        id={l.id}
-                        fullName={l.fullName}
-                        profileImageUrl={l.profileImageUrl}
-                        bio={l.bio}
-                        practiceAreas={l.practiceAreas}
-                        languages={l.languages}
-                        district={l.district}
-
-                        locale={locale}
-                        imageHeight="h-[280px]"
-                      />
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-        </section>
-      )}
+      {/* The "Explore Other Lawyers" marquee was removed. It showed the first 12
+          attorneys alphabetically on every other attorney's page — the same
+          few names promoted everywhere, and a path from a page the client
+          reached by the attorney's own link on to everyone else. */}
 
 
     </div>

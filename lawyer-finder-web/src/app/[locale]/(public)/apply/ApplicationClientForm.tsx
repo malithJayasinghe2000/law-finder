@@ -12,6 +12,7 @@ import {
   COURT_OPTIONS,
 } from '@/schemas/application.schema';
 import { PRACTICE_AREAS, LANGUAGES, DISTRICTS } from '@/schemas/profile.schema';
+import SelfPromotionNotice from '@/components/shared/SelfPromotionNotice';
 // ── Types ────────────────────────────────────────────────────────────────────
 
 type FieldErrors = Record<string, string>;
@@ -445,6 +446,7 @@ export default function ApplicationClientForm({ locale, initialStep, initialData
                 }}
                 className={`${inputClass('bio')} min-h-[100px] resize-none`}
               />
+              <SelfPromotionNotice text={formData.step1?.bio} />
               <div className="flex items-center justify-between mt-1">
                 <ErrorMessage field="bio" />
                 <span className="text-[11px] text-neutral-400 ml-auto">

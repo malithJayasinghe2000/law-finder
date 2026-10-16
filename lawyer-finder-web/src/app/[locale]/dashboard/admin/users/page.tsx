@@ -6,6 +6,8 @@ import {
   Users, Search, Edit3, Key, ShieldCheck, ShieldOff,
   Loader2, X, CheckCircle2, User, Mail, MapPin, ChevronLeft, ChevronRight
 } from 'lucide-react';
+import { ADMIN_ROLE_EDIT_ENABLED, ADMIN_SET_PASSWORD_ENABLED } from '@/lib/admin/userTools';
+import { AdminRevokeVerificationSchema } from '@/schemas/adminUser.schema';
 
 interface PlatformUser {
   id: string;
@@ -20,6 +22,7 @@ interface PlatformUser {
   baslNumber: string | null;
   profileId: string | null;
   applicationStatus: string | null;
+  accountStatus: 'ACTIVE' | 'DEACTIVATED' | 'ERASED';
 }
 
 export default function UserManagementPage() {
@@ -37,6 +40,10 @@ export default function UserManagementPage() {
   const [editRole, setEditRole] = useState('');
   const [editLatitude, setEditLatitude] = useState('');
   const [editLongitude, setEditLongitude] = useState('');
+
+  // Withdraw-verification modal state
+  const [revokeUser, setRevokeUser] = useState<PlatformUser | null>(null);
+  const [revokeReason, setRevokeReason] = useState('');
 
   // Password modal state
   const [passwordUser, setPasswordUser] = useState<PlatformUser | null>(null);
@@ -72,18 +79,39 @@ export default function UserManagementPage() {
           userId: editUser.id, 
           action: 'update-details', 
           email: editEmail, 
-          role: editRole,
+          ...(ADMIN_ROLE_EDIT_ENABLED ? { role: editRole } : {}),
           latitude: editUser.role === 'LAWYER' ? editLatitude : undefined,
           longitude: editUser.role === 'LAWYER' ? editLongitude : undefined
         }),
       });
       const result = await res.json();
       if (!res.ok) throw new Error(result.error);
-      toast.success('User details updated.');
+      toast.success(result.message || 'User details updated.');
       setEditUser(null);
       fetchUsers();
     } catch (e: any) {
       toast.error(e.message || 'Failed to update.');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  // The person chooses their own password from the emailed link.
+  const handleSendReset = async () => {
+    if (!passwordUser) return;
+    setActionLoading('password');
+    try {
+      const res = await fetch('/api/admin/users', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: passwordUser.id, action: 'send-password-reset' }),
+      });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error);
+      toast.success(result.message);
+      setPasswordUser(null);
+    } catch (e: any) {
+      toast.error(e.message || 'Could not send the link.');
     } finally {
       setActionLoading(null);
     }
@@ -111,20 +139,27 @@ export default function UserManagementPage() {
     }
   };
 
-  const handleToggleVerification = async (userId: string) => {
-    setActionLoading(`verify-${userId}`);
+  // Withdraw only. Verification is granted from an application on the
+  // Verification page, never here.
+  const handleRevokeVerification = async () => {
+    if (!revokeUser) return;
+    const parsed = AdminRevokeVerificationSchema.safeParse({ userId: revokeUser.id, action: 'revoke-verification', reason: revokeReason });
+    if (!parsed.success) return toast.error(parsed.error.issues[0]?.message ?? 'A reason is required.');
+    setActionLoading('revoke');
     try {
       const res = await fetch('/api/admin/users', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, action: 'toggle-verification' }),
+        body: JSON.stringify(parsed.data),
       });
       const result = await res.json();
       if (!res.ok) throw new Error(result.error);
       toast.success(result.message);
+      setRevokeUser(null);
+      setRevokeReason('');
       fetchUsers();
     } catch (e: any) {
-      toast.error(e.message || 'Failed to toggle verification.');
+      toast.error(e.message || 'Could not withdraw verification.');
     } finally {
       setActionLoading(null);
     }
@@ -135,6 +170,62 @@ export default function UserManagementPage() {
     if (role === 'LAWYER') return 'bg-neutral-100 text-neutral-800 border border-neutral-300';
     return 'bg-neutral-50 text-neutral-600 border border-neutral-200';
   };
+
+  // The account's real state first; a lawyer's verification only on an active account.
+  const statusBadge = (user: PlatformUser) => {
+    if (user.accountStatus !== 'ACTIVE') {
+      return (
+        <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 border bg-neutral-100 text-neutral-600 border-neutral-300">
+          {user.accountStatus === 'ERASED' ? 'Erased' : 'Deactivated'}
+        </span>
+      );
+    }
+    if (user.role === 'LAWYER') {
+      return (
+        <span className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 border ${user.isVerified ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>
+          {user.isVerified ? 'Verified' : 'Unverified'}
+        </span>
+      );
+    }
+    return <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 text-neutral-500 border border-neutral-200">Active</span>;
+  };
+
+  // An erased account was anonymised under a data request: nothing to edit.
+  const renderActions = (user: PlatformUser) => user.accountStatus === 'ERASED' ? (
+      <p className="text-right text-[11px] text-neutral-400">No actions</p>
+    ) : (
+      <div className="flex items-center justify-end gap-1.5">
+        <button
+          onClick={() => { 
+            setEditUser(user); 
+            setEditEmail(user.email); 
+            setEditRole(user.role); 
+            setEditLatitude(user.latitude?.toString() || '');
+            setEditLongitude(user.longitude?.toString() || '');
+          }}
+          title="Edit Details"
+          className="p-2 hover:bg-neutral-100 transition-colors text-neutral-500 hover:text-neutral-900"
+        >
+          <Edit3 className="w-3.5 h-3.5" />
+        </button>
+        <button
+          onClick={() => { setPasswordUser(user); setNewPassword(''); }}
+          title={ADMIN_SET_PASSWORD_ENABLED ? 'Change Password' : 'Send password reset link'}
+          className="p-2 hover:bg-neutral-100 transition-colors text-neutral-500 hover:text-neutral-900"
+        >
+          <Key className="w-3.5 h-3.5" />
+        </button>
+        {user.role === 'LAWYER' && user.isVerified && (
+          <button
+            onClick={() => { setRevokeUser(user); setRevokeReason(''); }}
+            title="Withdraw verification"
+            className="p-2 transition-colors text-red-600 hover:bg-red-50"
+          >
+            <ShieldOff className="w-3.5 h-3.5" />
+          </button>
+        )}
+      </div>
+  );
 
   const limit = 10;
   const totalPages = Math.max(1, Math.ceil(users.length / limit));
@@ -217,7 +308,29 @@ export default function UserManagementPage() {
           <p className="text-sm text-neutral-500 font-medium">No users found.</p>
         </div>
       ) : (
-        <div className="bg-white border border-neutral-200 overflow-x-auto">
+        <>
+        {/* Phones: one card per person, every action reachable. */}
+        <ul className="md:hidden space-y-3">
+          {paginatedUsers.map((user) => (
+            <li key={user.id} className="bg-white border border-neutral-200 p-4" data-user-card>
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-neutral-900">{user.fullName || 'No name'}</p>
+                  <p className="text-[11px] text-neutral-500 break-all">{user.email}</p>
+                </div>
+                <span className={`shrink-0 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 ${roleColor(user.role)}`}>{user.role}</span>
+              </div>
+              <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-[11px] text-neutral-500">
+                {statusBadge(user)}
+                {user.district && <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{user.district}</span>}
+                <span>Joined {new Date(user.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+              </div>
+              <div className="mt-3 border-t border-neutral-100 pt-2">{renderActions(user)}</div>
+            </li>
+          ))}
+        </ul>
+
+        <div className="hidden md:block bg-white border border-neutral-200 overflow-x-auto">
           <table className="w-full">
             <thead>
               <tr className="border-b border-neutral-200 bg-neutral-50">
@@ -238,7 +351,7 @@ export default function UserManagementPage() {
                         <User className="w-4 h-4 text-neutral-500" />
                       </div>
                       <div>
-                        <p className="text-sm font-semibold text-neutral-900">{user.fullName || 'No Profile'}</p>
+                        <p className="text-sm font-semibold text-neutral-900">{user.fullName || 'No name'}</p>
                         <p className="text-[11px] text-neutral-500 flex items-center gap-1">
                           <Mail className="w-3 h-3" /> {user.email}
                         </p>
@@ -251,15 +364,7 @@ export default function UserManagementPage() {
                     </span>
                   </td>
                   <td className="px-5 py-4">
-                    {user.role === 'LAWYER' ? (
-                      <span className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 border ${user.isVerified ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>
-                        {user.isVerified ? 'Verified' : 'Unverified'}
-                      </span>
-                    ) : (
-                      <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 bg-neutral-50 text-neutral-400 border border-neutral-200">
-                        N/A
-                      </span>
-                    )}
+                    {statusBadge(user)}
                   </td>
                   <td className="px-5 py-4">
                     <span className="text-sm text-neutral-700 font-medium flex items-center gap-1.5">
@@ -279,50 +384,14 @@ export default function UserManagementPage() {
                     </span>
                   </td>
                   <td className="px-5 py-4">
-                    <div className="flex items-center justify-end gap-1.5">
-                      <button
-                        onClick={() => { 
-                          setEditUser(user); 
-                          setEditEmail(user.email); 
-                          setEditRole(user.role); 
-                          setEditLatitude(user.latitude?.toString() || '');
-                          setEditLongitude(user.longitude?.toString() || '');
-                        }}
-                        title="Edit Details"
-                        className="p-2 hover:bg-neutral-100 transition-colors text-neutral-500 hover:text-neutral-900"
-                      >
-                        <Edit3 className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        onClick={() => { setPasswordUser(user); setNewPassword(''); }}
-                        title="Change Password"
-                        className="p-2 hover:bg-neutral-100 transition-colors text-neutral-500 hover:text-neutral-900"
-                      >
-                        <Key className="w-3.5 h-3.5" />
-                      </button>
-                      {user.role === 'LAWYER' && (
-                        <button
-                          onClick={() => handleToggleVerification(user.id)}
-                          disabled={actionLoading === `verify-${user.id}`}
-                          title={user.isVerified ? 'Revoke Verification' : 'Grant Verification'}
-                          className={`p-2 transition-colors ${user.isVerified ? 'text-emerald-600 hover:bg-emerald-50' : 'text-amber-600 hover:bg-amber-50'}`}
-                        >
-                          {actionLoading === `verify-${user.id}` ? (
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                          ) : user.isVerified ? (
-                            <ShieldCheck className="w-3.5 h-3.5" />
-                          ) : (
-                            <ShieldOff className="w-3.5 h-3.5" />
-                          )}
-                        </button>
-                      )}
-                    </div>
+                    {renderActions(user)}
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
+        </>
       )}
 
       {/* Pagination */}
@@ -366,6 +435,8 @@ export default function UserManagementPage() {
                   className="w-full py-2.5 px-3 bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-900 outline-none focus:border-[#0a0a0a]"
                 />
               </div>
+              {/* Off: see src/lib/admin/userTools.ts. */}
+              {ADMIN_ROLE_EDIT_ENABLED && (
               <div>
                 <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5">Role</label>
                 <select
@@ -378,6 +449,7 @@ export default function UserManagementPage() {
                   <option value="ADMIN">Admin</option>
                 </select>
               </div>
+              )}
               {editUser.role === 'LAWYER' && (
                 <>
                   <div>
@@ -420,16 +492,82 @@ export default function UserManagementPage() {
         </div>
       )}
 
+      {/* Withdraw Verification Modal */}
+      {revokeUser && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 sm:p-6" onClick={() => setRevokeUser(null)}>
+          <div className="bg-white w-full max-w-md border border-neutral-200 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-5 border-b border-neutral-200">
+              <h3 className="text-sm font-bold text-neutral-900 uppercase tracking-wide">Withdraw verification</h3>
+              <button onClick={() => setRevokeUser(null)} className="text-neutral-400 hover:text-neutral-900">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="p-5 space-y-4">
+              <p className="text-xs text-neutral-600">
+                <span className="font-bold text-neutral-900">{revokeUser.fullName || revokeUser.email}</span> will no longer be
+                shown as verified or listed. They are emailed the reason. Verification can only be granted again from an application.
+              </p>
+              <div>
+                <label htmlFor="revoke-reason" className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5">Reason (sent to the attorney)</label>
+                <textarea
+                  id="revoke-reason"
+                  value={revokeReason}
+                  onChange={(e) => setRevokeReason(e.target.value)}
+                  rows={3}
+                  className="w-full py-2.5 px-3 bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-900 outline-none focus:border-[#0a0a0a] resize-none"
+                />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 p-5 border-t border-neutral-200">
+              <button onClick={() => setRevokeUser(null)} className="px-5 py-2.5 text-xs font-bold text-neutral-600 hover:text-neutral-900">
+                Cancel
+              </button>
+              <button
+                onClick={handleRevokeVerification}
+                disabled={actionLoading === 'revoke'}
+                className="px-5 py-2.5 bg-red-600 text-white text-xs font-bold uppercase tracking-wide hover:bg-red-700 disabled:opacity-50 flex items-center gap-1.5"
+              >
+                {actionLoading === 'revoke' ? <Loader2 className="w-3 h-3 animate-spin" /> : <ShieldOff className="w-3 h-3" />}
+                Withdraw
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Change Password Modal */}
       {passwordUser && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-6" onClick={() => setPasswordUser(null)}>
           <div className="bg-white w-full max-w-md border border-neutral-200 shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between p-5 border-b border-neutral-200">
-              <h3 className="text-sm font-bold text-neutral-900 uppercase tracking-wide">Change Password</h3>
+              <h3 className="text-sm font-bold text-neutral-900 uppercase tracking-wide">{ADMIN_SET_PASSWORD_ENABLED ? 'Change Password' : 'Password reset'}</h3>
               <button onClick={() => setPasswordUser(null)} className="text-neutral-400 hover:text-neutral-900">
                 <X className="w-4 h-4" />
               </button>
             </div>
+            {!ADMIN_SET_PASSWORD_ENABLED ? (
+              <>
+                <div className="p-5 space-y-3">
+                  <p className="text-xs text-neutral-600">
+                    Email <span className="font-bold text-neutral-900 break-all">{passwordUser.email}</span> a link to choose a
+                    new password. It works once, for one hour. You never see or set their password.
+                  </p>
+                </div>
+                <div className="flex justify-end gap-2 p-5 border-t border-neutral-200">
+                  <button onClick={() => setPasswordUser(null)} className="px-5 py-2.5 text-xs font-bold text-neutral-600 hover:text-neutral-900">
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSendReset}
+                    disabled={actionLoading === 'password'}
+                    className="px-5 py-2.5 bg-[#0a0a0a] text-white text-xs font-bold uppercase tracking-wide hover:bg-neutral-800 disabled:opacity-50 flex items-center gap-1.5"
+                  >
+                    {actionLoading === 'password' ? <Loader2 className="w-3 h-3 animate-spin" /> : <Mail className="w-3 h-3" />}
+                    Send reset link
+                  </button>
+                </div>
+              </>
+            ) : (<>
             <div className="p-5 space-y-4">
               <p className="text-xs text-neutral-500 font-medium">
                 Changing password for: <span className="font-bold text-neutral-900">{passwordUser.email}</span>
@@ -458,6 +596,7 @@ export default function UserManagementPage() {
                 Update Password
               </button>
             </div>
+            </>)}
           </div>
         </div>
       )}

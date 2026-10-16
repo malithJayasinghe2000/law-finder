@@ -13,7 +13,6 @@ export async function GET() {
       pendingApplications,
       totalVerified,
       totalFirms,
-      totalArticles,
       totalUsers,
       totalLawyers,
       totalClients,
@@ -23,11 +22,10 @@ export async function GET() {
       prisma.lawyerApplication.findMany({
         where: { status: 'SUBMITTED' },
         orderBy: { submittedAt: 'desc' },
-        include: { user: { select: { email: true, createdAt: true } } },
+        select: { id: true, draftData: true },
       }),
       prisma.lawyerProfile.count({ where: { isVerified: true } }),
       prisma.lawFirm.count({ where: { isActive: true } }),
-      prisma.article.count({ where: { status: 'PUBLISHED' } }),
       prisma.user.count(),
       prisma.user.count({ where: { role: 'LAWYER' } }),
       prisma.user.count({ where: { role: 'CLIENT' } }),
@@ -62,14 +60,16 @@ export async function GET() {
       monthlyData.push({ month: monthLabel, lawyers: lawyersCount, clients: clientsCount });
     }
 
+    // Name and BASL number only. This used to send each applicant's whole
+    // application — phone, home address, map location and the links to their
+    // identity and licence images — to a page that shows two fields. The
+    // Verification page has the full application.
     const mappedApplications = pendingApplications.map(app => {
       const data = app.draftData as any;
       return {
         id: app.id,
         fullName: data?.step1?.fullName || 'No Name Provided',
         baslNumber: data?.step2?.baslNumber || 'MISSING',
-        user: app.user,
-        draftData: data
       };
     });
 
@@ -79,7 +79,6 @@ export async function GET() {
         totalVerified,
         pendingApprovals: pendingApplications.length,
         totalFirms,
-        totalArticles,
         totalUsers,
         totalLawyers,
         totalClients,

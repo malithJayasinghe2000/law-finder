@@ -111,6 +111,15 @@ DPO designation, which are documents rather than code.
 | 2026-09-06 | The firm's answer is **required to carry a reason** and is shown to the person verbatim | A refusal that does not name the duty requiring retention is not a defensible refusal. The outcome that matters most here is the refusal, so the reason is not optional |
 | 2026-09-06 | Sidebar navigation follows **firm membership**, not platform role | Phase 7 fixed this in four layers and missed the fifth. A practice manager's platform role is CLIENT, so they were admitted by the layout and then shown the client menu with no link to their own firm — reachable only by typing a URL. Membership that grants nothing is worse than no membership |
 | 2026-08-03 | `Booking.clientRating` / `clientFeedback` **dropped**, not disabled | Phase 2 reported ratings "gone entirely" and they were not. A column that exists is a column a future decision can populate, and `clientRating` was one `orderBy` away from being ranking |
+| 2026-10-13 | The public directory sits behind an **admin switch** (`/dashboard/admin/directory`); a firm's or attorney's own page stays reachable by direct link | DIRECTION.md §2 / SYSTEM-REVIEW §3.7. If counsel answers Q16–18 unfavourably, withdrawal is a switch, not a release. Append-only `DirectorySwitch` rows with a required reason, because "when was it taken down, by whom, and why" is a regulator's question. A failed read answers **off** — showing a directory we cannot confirm is still permitted is the one wrong answer with criminal exposure |
+| 2026-10-13 | Directory order is a **daily shuffle, the same for everyone**, not alphabetical | Alphabetical was neutral but not fair: the same attorney was first on every page every day, and late-alphabet names never reached page one. Ranked by a hash of (Colombo date, id) — nothing an attorney does or pays moves it, every visitor sees the same order, pagination is stable within a day, and over a year each entry spends about the same time on page one (simulated: 129–166 days for 30 entries, fair ≈ 146). Rule 4 asks for neutral and disclosed; this is both, and the notice says so |
+| 2026-10-13 | Consultation requests go to the **practice only**; the practice assigns the attorney (`ATTORNEY_BOOKING_ENABLED = false`) | Owner's decision. The practice is the service provider (rule 7), so engaging the practice is the cleanest shape, and the choice of attorney is the practice's, never ours. A sole practitioner is a practice of one and loses nothing. A switch, not a deletion — refused in the API too, because hiding the button alone left a direct POST able to book an attorney |
+| 2026-10-13 | A practice can open a request for a client who came to it directly; **the client must sign in and accept** before it exists | Owner's choice (option A: invite by email, not only existing accounts). The practice writes it, confirms the client asked it to act, and may pick its own attorney; the client confirms. A practice cannot place itself in front of a stranger — the stranger never accepts, the email says nothing about the matter, and a practice can open 20 a day. Starts at REQUESTED, so the conflict check still runs. Replaces the admin "create booking" tool, where platform staff chose the attorney and typed in the client's legal problem |
+| 2026-10-13 | The admin **"create booking" tool is off** (`ADMIN_CREATE_BOOKING_ENABLED = false`) | Platform staff chose the attorney (rule 4), typed in the client's legal problem (rule 5), and sent the matter straight to SCHEDULED past the conflict check. Replaced first by the practice-side New request, then switched off — a switch, not a deletion |
+| 2026-10-13 | The conflict check is a simple **Review request: Accept / Decline / Hold + a private note**; the "parties screened" list is gone from the screen | Owner's decision. Requests are often not disputes (wills, deeds, advice), and the screening duty is the attorney's own. Two safeguards kept and enforced on the server: Accept requires the attorney to tick "I have checked that my practice does not act, and has not acted, for the other side" (that tick is now the record, in place of the names); Decline requires a private reason and never reaches the client. The names column stays in the schema, optional, so old records still read |
+| 2026-10-13 | A firm-side attorney may open a chat with a client **only about a live request that client sent to their practice, as the attorney assigned to it** | The client made contact first, so it is not soliciting. Before this, `POST /api/chat/conversations` let any LAWYER open a thread with any CLIENT on the platform — a stranger who never contacted them, which is touting. Closed requests (declined, cancelled, quote declined or expired) cannot get a new thread from the firm; an existing one stays readable |
+| 2026-10-14 | **Licensing and pricing hidden for launch** (`LICENSING_ENABLED = false`); while off there is **no seat limit** | Owner's decision. With no plans on sale, the seat limit left every new practice unable to invite a colleague. Free use takes no share of any fee and seats count people, never clients, so neither rule 1 nor 3 is touched. A switch: limits and the licence line return with it |
+| 2026-10-15 | **The platform sets no refund terms.** A cancelled paid request is owed in full; the practice records what it returned, with a reason if less | The code forfeited half the fee when a client cancelled inside 24 hours — a term no practice set and no fee proposal or engagement letter mentioned. That is the platform writing the retainer (rule 7). The client sees what was kept and why, and can dispute |
 
 ## Session log
 
@@ -2392,3 +2401,993 @@ once and declaring victory is how an intermittent bug survives a fix.**
 **The prompt change alone was not the fix.** Telling the model to write impersonally
 (previous commit) removed the second-person *phrasing*, but the numbered list survived and
 that was what the gate was matching. A prompt is a preference; the gate is the rule.
+
+### 2026-10-13 — Public directory switch
+
+An administrator can now turn the consumer directory off at `/dashboard/admin/directory`
+without a release. State is the newest `DirectorySwitch` row (`src/lib/directory.ts`); no
+rows means on, which is how the product behaved before.
+
+**What "off" hides:** `/lawyers` and `/firms` (they show a short "not available" page
+instead), `/api/lawyers` and `/api/firms` (404), the header link, the footer's Services
+column, the home page's attorney grid, practice-area section, "Find Lawyers" button and
+hero search tab, the about/blog "Browse Directory" buttons, the chat disclaimer's
+directory link, the client consultations empty-state link, and the "Other Lawyers"
+marquee and breadcrumb on an attorney's page. **The queries are skipped, not just the
+JSX** — an attorney list in the RSC payload is published whether or not it renders.
+
+**What "off" keeps:** `/firms/[slug]` and `/lawyers/[id]`, reached by a link the firm or
+attorney gave the client — the counsel Q18(d) shape.
+
+Verified against a running production build: flipped off, every surface above checked by
+HTTP, flipped on, checked again; unauthenticated PUT 401, short reason 400, no-op flip 409.
+The test rows were deleted afterwards.
+
+> **A running dev server must be restarted** after this migration. `src/lib/db.ts` keeps
+> the Prisma client on `globalThis`, so a server started before `prisma generate` has no
+> `directorySwitch` model — and the read fails closed, so the directory silently
+> disappears.
+
+
+### 2026-10-13 — Directory cards reduced to what Rule 45 permits
+
+Rule 45 of the 1988 Rules lets an attorney appear in a Legal Directory with "name,
+address and description". The directory now shows that and no more:
+
+- **`LawyerCard`**: no bio, a 64px photo the same size for everyone, initials when there
+  is no photo. Bios read "Expert in…", "Specialist in…", "Senior attorney with 15 years…"
+  — self-promotion, and Rule 49 bars publishing particulars of one's practice. Bios are
+  no longer selected by `/lawyers` or `/api/lawyers`, nor searched. They remain on the
+  attorney's own page only.
+- **Every attorney without a photo showed the same Unsplash stranger.** Gone.
+- **Home page attorney grid removed**, replaced by one "Browse the directory" button.
+  Alphabetical order put the same eight names on the front page permanently.
+- **"Explore Other Lawyers" marquee removed** from the attorney page, for the same reason
+  (the first twelve names, on every other attorney's page).
+
+Verified on a running build: home has no attorney links; `/lawyers` cards carry no bio
+text; `/api/lawyers` returns no `bio`; a search for "expert" returns nothing.
+
+**Not changed, worth a look:** the hero still uses stock "Lawyer Portrait" photos as
+decoration; the practice-area cards say "Trusted Lawyer" / "Legal Champion"; firm cards
+still show the firm's own `description`.
+
+### 2026-10-13 — Home hero: stock photos replaced with an example answer
+
+The hero's right column was a scrolling wall of Unsplash portraits labelled "Lawyer
+Portrait" — models, not anyone on the platform. Replaced with one fixed example of the
+assistant: "Does a sale of land in Sri Lanka need a notary?", answered from **Prevention of
+Frauds Ordinance s.2(1)** as amended by Acts 30 of 2022 and 4 of 2024, read from
+`lawyer-rag/data/acts/Prevention-of-Frauds-Consolidated-2024.pdf`. **It is fixed text:
+re-check it whenever the Ordinance is amended.** The source chip links to
+`/legal-library?search=Prevention of Frauds`, which matches on title — it finds nothing
+until that Act is uploaded to the library (the local library is empty).
+
+Also: "Welcome to LawHub" → TheLawyr, and the "{n}+ Lawyers" counter removed (it read
+"5+" and made the platform look empty).
+
+**Superseded the same day:** the example-answer card was replaced by a photograph of the
+Supreme Court of Sri Lanka, Hulftsdorp (`public/assets/images/home1/supreme-court-colombo.jpg`,
+Mystìc / Wikimedia Commons, **CC BY-SA 3.0 — the credit line under it is a licence
+condition, not decoration**). It is 600×399, shown landscape at column width; a sharper
+licensed photo would be an improvement.
+
+**Superseded again the same day:** the court photograph was removed (and its file
+deleted). The hero is now a split panel — headline on charcoal, and on gold our own
+Lady Justice artwork (`public/justieswomen.png`, the logo figure) with "Equal before the
+law — Constitution of Sri Lanka, Article 12(1)". **The right panel must never be a
+person**: a portrait there is either a stranger presented as our attorney or a real
+attorney given the front page over every other. Checked at 1440px and on an emulated
+390px phone (no horizontal overflow).
+
+**And again:** the split panel was replaced by a full-width hero over a photograph of a
+law library (`public/assets/images/home1/hero-library.jpg` — Dmitrij Paskevic on Unsplash,
+photo YjVa-F9P9kk, Unsplash License, no credit required), darkened from the left, gold
+serif headline. Gavel photos were rejected: Sri Lankan courts do not use gavels. The
+rule stands — **never a person in the hero.** Checked at 1440px and on an emulated
+390px phone, no horizontal overflow.
+
+**Photo swapped:** the library shelves read as empty on the right. Now Lady Justice on
+black (`public/assets/images/home1/hero-justice.jpg` — Sasun Bughdaryan on Unsplash,
+KRNCAqkk8TE, Unsplash License); the library photo file was deleted.
+
+### 2026-10-13 — An attorney is listed only through a listed firm
+
+`/lawyers`, `/api/lawyers`, the attorney page and the booking page checked only
+`LawyerProfile.isVerified`. An administrator deactivating or un-verifying a firm removed
+it from "Practices" while its attorneys stayed in "People" and stayed bookable. One rule
+now, in `src/lib/directory.ts`: `LISTED_FIRM_WHERE` (active + VERIFIED) and
+`LISTED_ATTORNEY_WHERE` (verified attorney in such a firm), used by all of them and by
+`/firms`.
+
+**And a real gap in `POST /api/consultations/bookings`:** the firm-first path refused an
+inactive or unverified firm, the attorney-first path did not — a request from an
+attorney's page reached a deactivated firm. Both paths now apply the same test.
+
+The attorney card and page now say which firm the attorney practises in ("Sole
+practitioner" for a firm of one), linked to the firm's page.
+
+Verified against a running build by deactivating one firm in the local DB: its attorney
+left `/lawyers` (5 → 4) and `/api/lawyers`, the attorney page rendered not-found, and a
+booking from the attorney's page was refused with 400; the firm was then re-activated
+and everything returned. (Not-found pages answer HTTP 200 here because the layout has
+already streamed; the content is the not-found page, with `noindex`.)
+
+### 2026-10-13 — Profile pages: no stock faces, no self-praise, no non-listing fields
+
+- **Stock photo fallback removed everywhere.** The attorney page, the firm page's attorney
+  list and the attorney's own dashboard preview all fell back to the same Unsplash model
+  when no photo was uploaded — a stranger's face presented as the attorney's.
+  `src/components/lawyer/AttorneyPhoto.tsx` shows initials instead and is used by every
+  public surface.
+- **Self-praise blocked** (`src/lib/selfPromotion.ts`): "expert", "specialist", "best",
+  "leading firm", "No. 1", "guarantee", "renowned"… Rejected on save in all four places a
+  bio or firm description is written (`profile.schema`, `/api/profile`,
+  `application.schema`, `firm.schema`), and **not published** when already saved —
+  filtered in the server component, because props are serialized into the page source.
+  Narrow on purpose: "best interests of the child" and "leading question" pass.
+- **Removed from the attorney page:** "Member Since" (platform tenure reads as seniority),
+  gender (no part of choosing counsel), and the large "Years Exp" stat — now a plain
+  "In practice: N years" line.
+- **Firm description off the `/firms` cards and `/api/firms`**, same rule as attorney bios;
+  it stays on the firm's own page, through the same filter.
+
+Verified on a running build: no stock photo on any attorney or firm page; Anura Bandara's
+"Expert in Criminal Law…" appears nowhere in the page source (attorney or firm page);
+Kavindu Perera's factual bio still shows; saving "Expert in tax law" returns 400 with the
+reason. Note: seeded bios that praise (Anura Bandara's "Expert in…", Nethmi Wijesinghe's
+"Specialist in…") now publish as "has not added a description".
+
+### 2026-10-13 — No automatic practices; only registered practices are listed
+
+Decided by the owner: a practice exists because a principal registered it, never as a
+side effect of approval.
+
+- **Approval no longer creates a firm of one** (`api/applications/[id]/approve`). An
+  approved attorney has no practice — not listed, cannot be engaged — until they register
+  one (sole practitioner or firm) or accept an invitation. The seed no longer provisions
+  firms either, so a fresh seed has an empty directory until a practice is registered and
+  verified.
+- **`ensureAttorneyHasFirm` is gone.** Booking (client and admin) uses
+  `findAttorneyFirmId`, which never creates; registration uses `createPracticeForAttorney`,
+  the one place a practice is made — because registering is the attorney's choice.
+- **Listing requires `isRegisteredPractice`** (`LISTED_FIRM_WHERE`, `isListedFirm`), applied
+  to `/firms`, `/api/firms`, `/lawyers`, `/api/lawyers`, the firm and engage pages, the
+  attorney and booking pages, and both booking APIs. This is how the four firms of one
+  created automatically before today were "removed": they are **not deactivated**, because
+  `getFirmMembership` requires an active firm and Anura Bandara's has an open request he
+  would have lost access to. They are simply unlisted and unbookable. Registering one
+  converts it (and re-activates it) into a PENDING practice, history intact.
+- **My Firm** now tells an attorney with no practice how to register one, and tells an
+  attorney with an unregistered automatic one that it is not listed.
+
+Verified on a running build: directory shows only Perera & Associates (1 firm, 1 attorney);
+a booking to Anura refused 400 while he still sees his open request; a temporary attorney
+with no firm registered "Idle Test Chambers" as a sole practitioner → PENDING, unlisted →
+admin verified → listed with its attorney (firms 1→2, lawyers 1→2). Test records deleted
+afterwards. `check:firm` 15/15.
+
+### 2026-10-13 — The People tab is hidden for launch
+
+Owner's decision: clients browse **practices**; a practice's attorneys are on its own page.
+A switch, not a deletion — `PEOPLE_TAB_ENABLED` in `src/lib/directoryLinks.ts` (a plain
+module, so client components can import it). While false: `/lawyers` redirects to `/firms`
+keeping district / practice area / language, `/api/lawyers` is 404, the Practices/People
+toggle is not rendered, and every link that pointed at `/lawyers` (home hero and
+practice-area cards, footer, about, blog, client consultations, the chat disclaimer, the
+booking page's fallback, the attorney-page breadcrumb) goes through `directoryPath()`.
+An attorney's own page (`/lawyers/[id]`) still works; the firm page links to it.
+
+Verified on a running build: `/api/lawyers` 404; no People toggle on `/firms`; no link to
+the `/lawyers` list on the home page; a browser opening `/en/lawyers?practiceArea=Family
+Law` lands on `/en/firms?practiceArea=Family+Law`; Kavindu Perera's page opens from his
+firm's page with a "Directory" breadcrumb to `/firms`.
+
+### 2026-10-13 — Requests go to the practice only
+
+Owner's decision: a client sends a request to a **practice**; the practice assigns the
+attorney. `ATTORNEY_BOOKING_ENABLED = false` in `src/lib/directoryLinks.ts` — a switch,
+not a deletion. While off: the attorney page's "Request Consultation" opens the
+practice's engage page, `/lawyers/[id]/book` redirects there, and
+`POST /api/consultations/bookings` refuses a request naming an attorney (400). Requests
+made before the switch are untouched; the admin "create booking" tool is not covered.
+
+Verified on the running app: the button in headless Chrome lands on
+`/firms/perera-associates-attorneys-at-law/engage`; the old booking URL redirects there
+logged in and out; a POST naming Kavindu Perera returns 400; a request to the practice
+was created with no attorney, seen only by Perera & Associates, whose owner got the
+assign list. The test request was deleted. All five checks pass; build clean.
+
+### 2026-10-13 — A practice can open a request for its own client
+
+Clients reach a practice by phone, walk-in and referral. Before this the only way to put
+such a matter in the system was the admin "create booking" tool — platform staff choosing
+the attorney and typing the client's legal problem (rules 4 and 5).
+
+- **Practice side:** Consultation bookings → **New request** (principal or practice
+  manager, by membership). Client email, subject, what the client said, area of law,
+  meeting mode, optional attorney, and a required "this client asked our practice to act".
+  The list below shows sent requests with Withdraw.
+- **Client side:** an email with no matter details links to `/client-request?token=…`.
+  Signed out it shows only the practice's name and Sign in / Create account (the redirect
+  survives both). Signed in with the invited address it shows the request; Accept creates
+  the `Booking` at REQUESTED in the client's name. Anyone else sees nothing of the matter.
+- **Rules** (`src/lib/firms/clientIntake.ts`): practice must be registered + verified;
+  attorney must be an active attorney of the same practice, re-checked at acceptance (if
+  they left, the request arrives unassigned); `clientSelectedAttorneyId` stays null;
+  20 requests per practice per 24 h; `subject`/`description` encrypted
+  (`ENCRYPTED_FIELDS`) and wiped on accept, decline, withdraw and expiry.
+- **New table** `ClientIntakeInvitation` (migration `client_intake_invitations`).
+  `npm run invitations:expire` added to `jobs:daily`. Booking numbering moved to
+  `src/lib/consultations/bookingNumber.ts`.
+
+Verified on the running app: 23 API checks (refusals for no confirmation, another
+practice's attorney, own member, unregistered practice, non-member; encrypted at rest;
+list leaks neither token nor text; signed-out and wrong-person views show no details;
+wrong person cannot accept; accept → REQUESTED with the practice's attorney and no client
+choice recorded; text wiped; double accept refused; appears in both queues; decline and
+withdraw wipe; another practice cannot withdraw). Then in headless Chrome: the practice
+form (desktop + 390px phone), and the client opening the email link signed out, signing
+in, being returned to the request, and accepting. All test rows deleted. Checks: privilege
+42 (one new: the registry entry), firm 15, ai 124, billing 21, pdpa 67; build clean.
+
+The admin "create booking" tool was switched off right after — see the next entry.
+
+### 2026-10-13 — Admin "create booking" switched off; admin list crash fixed
+
+- **Off:** `ADMIN_CREATE_BOOKING_ENABLED = false` (`src/lib/consultations/adminBooking.ts`).
+  The "Create Booking" button is gone from Admin → All Consultations, the old URL shows a
+  notice pointing to the practice-side New request, and `POST /api/admin/bookings` and its
+  lawyer/client lists answer 410.
+- **Crash fixed (pre-existing):** Admin → All Consultations rendered "Something went wrong"
+  whenever any request had been sent to a practice — its `date` is null and the table
+  formatted it unconditionally. Now "No appointment yet" / "Unassigned".
+
+Verified in headless Chrome as admin: the list renders (3 bookings, two with no date), no
+Create Booking button, notice on the old URL, API 410 for create and lists. Checks and
+build clean.
+
+**Seen, not changed:** the admin table's amount column says "Paid to lawyer" under Rs. 0 for
+every request that has no quote yet.
+
+### 2026-10-13 — A practice manager can see the queue and assign
+
+A practice manager is not an attorney, so their account is `CLIENT`; their authority is
+the `FIRM_ADMIN` membership. Two routes still loaded membership only for `LAWYER`
+accounts — the sixth layer of the same mistake:
+
+- `GET /api/consultations/bookings` — a manager's queue was **empty**. Membership is now
+  loaded for every non-admin. Because the client and firm dashboards share this endpoint,
+  a `CLIENT` account gets the firm queue only with `scope=firm` (sent by the firm
+  dashboard), so a manager's own requests as a client stay in their client view.
+- `GET/POST /api/consultations/bookings/[id]/assign` — a manager got **403** on the very
+  job the role exists for. Now from membership.
+
+Verified with a temporary FIRM_ADMIN in Perera & Associates (deleted afterwards): before,
+queue empty and assign 403; after, the queue shows BK-2026-0003 with its text, the assign
+list offers Kavindu Perera, and assigning to another practice's attorney is refused by the
+same-firm rule (400), not the role check. In Chrome the manager sees the queue, New
+request and the assign dialog. A plain client with `scope=firm` gets nothing; their own
+list and the owner's queue are unchanged.
+
+**Still role-gated, not checked here:** chat (`/api/chat/conversations`,
+`unread-count`), sidebar counts, refunds, and the subscription routes (a manager cannot see
+the practice's licence).
+
+### 2026-10-13 — Conflict check and quote buttons shown only to the assigned attorney
+
+The queue showed "Conflict check" on every new request, including unassigned ones, so a
+principal could fill in the whole form and only then be refused ("not assigned to an
+attorney yet") — the server allows only the assigned attorney to screen and to quote. The
+buttons now follow `access.basis === 'ASSIGNED_ATTORNEY'`, and an unassigned request
+shows "Assign an attorney first" beside Assign. Checked in Chrome as the owner on
+BK-2026-0003, unassigned and then temporarily assigned to the owner (restored exactly).
+
+Unresolved was fixed the same day — next entry.
+
+### 2026-10-13 — "Unresolved" holds a request; the client is told when a practice cannot act
+
+- **Unresolved (`NEEDS_REVIEW`) no longer declines.** It declined at once, exactly like
+  Conflict found. Now the screening is recorded and the request stays (or goes back to)
+  REQUESTED, shown in the queue as **Check on hold**; the attorney re-runs the check, and
+  nothing can be quoted until it is cleared. Screening may be recorded while REQUESTED or
+  CONFLICT_CHECK only. The dialog's hint reads "On hold — check again before quoting".
+- **The client is emailed when a practice cannot act** (`sendRequestDeclined`) — that it
+  cannot, never why. Before, they found out only by opening their dashboard.
+- **The outcome reaches the firm's list only** (`conflictOutcome`), null for the client and
+  platform staff.
+
+Verified on the running app with a temporary client at example.com (13 checks): unassigned
+check refused; Unresolved → REQUESTED + on hold; a valid quote refused while on hold
+("Run the conflict check before quoting a fee") and the same quote accepted once cleared;
+the client sees neither the outcome nor the screened names; Clear → CONFLICT_CHECK;
+Unresolved after Clear → back on hold; Conflict found → DECLINED with the generic remark;
+a declined request cannot be re-screened. Test client, requests, checks and quote deleted.
+
+**Note:** local `.env` has live SMTP credentials, so every test that creates a request or
+an invitation sends real email. Tests today mailed citizen@thelawyr.lk; later ones used
+example.com addresses.
+
+### 2026-10-13 — Conflict check simplified to "Review request"
+
+Owner's decision. The dialog is now **Review request**: the client's own request at the
+top, then **Accept** ("you can then send a quote"), **Decline** ("the client is told you
+cannot act — never why") or **Hold** ("decide later, e.g. after speaking to the client"),
+and a private note. The "Parties screened" names box is removed.
+
+- **Accept** requires ticking "I have checked that my practice does not act, and has not
+  acted, for the other side". **Decline** requires a note and warns it cannot be undone and
+  emails the client. Both rules are in `RecordConflictCheckSchema`, which the dialog also
+  uses, so the server refuses what the screen would not allow.
+- Queue labels: "Conflict check" → "Review request"; "Check on hold" → "On hold".
+- No migration: `screenedParties` stays, optional, and existing values still decrypt.
+
+Verified on the running app with a temporary example.com client: API refuses Accept
+without the tick and Decline without a note, accepts Hold alone and Accept with the tick
+and no names. In Chrome (desktop and 390px phone): the dialog shows the client's request,
+no names box, the save button follows the rules for each choice, and Hold puts the request
+"On hold" in the queue. Test client and requests deleted.
+
+**Test-harness note:** in headless Chrome a *physical* mouse click or Enter on any of the
+queue's dialog buttons (Details included, and before this change too) does not open the
+dialog; a DOM click does. The owner opened the dialog in real Chrome, so this looks like a
+headless/Base UI quirk, but it is unexplained.
+
+### 2026-10-13 — "Message client" on a request; the firm can no longer message strangers
+
+- **Button:** the assigned attorney sees **Message client** on a live request in the queue.
+  It opens (or reuses) the thread linked to that request and goes to
+  `/dashboard/lawyer/chat?conv=…`.
+- **Gap closed:** `POST /api/chat/conversations` let any `LAWYER` open a thread with any
+  `CLIENT` on the platform. Now a firm-side thread needs a `bookingId` that is the client's
+  request to the attorney's practice, assigned to that attorney, and not in
+  `CHAT_CLOSED_STATUSES` (`src/lib/consultations/bookingStatus.ts`: DECLINED,
+  CLIENT_DECLINED, QUOTE_EXPIRED, CANCELLED_BY_CLIENT, CANCELLED_BY_FIRM). The button uses
+  the same list. Client-initiated threads are unchanged — the pre-engagement Chat button on
+  attorney pages is still open item §E1.
+
+Verified with a temporary example.com client: refused with no request named, on an
+unassigned request, on another client's request, and for another practice's attorney;
+opened by the assigned attorney; in Chrome the button opens the chat page on that client;
+after a decline the button is gone and the server refuses (403). Test client, request,
+thread and its two audit rows deleted.
+
+**Not changed:** an existing thread stays usable after the request is declined — the
+firm can still write in it. Closing a thread is a separate decision.
+
+
+### 2026-10-14 — Client dashboard Messages; chat names and phone layout
+
+- **Messages in the client dashboard** (`/dashboard/client/messages`, sidebar item with the
+  unread badge), as attorneys have. `/messages` behind the header link is unchanged.
+- **Names:** the conversation list showed the seeded attorney as "None" — their *account*
+  `fullName` is the literal string. It now shows the attorney's profile name, then the
+  account name, then the email.
+- **Phone layout:** the list and the conversation sat side by side and the conversation was
+  cut off. Below `md` they take turns, with a back arrow. Desktop unchanged.
+
+Verified in Chrome as the client (390px phone: list → tap → conversation with back arrow
+→ list, no overflow; desktop side by side) and as the attorney (list unchanged).
+
+### 2026-10-14 — Client dashboard home: what needs the client, not post counters
+
+The client dashboard home was entirely about community posts (four post counters, recent
+posts, "create post"). Replaced, with the owner's agreement, by:
+
+- **Needs your attention** — requests a practice opened for the client (link to the
+  confirm page), requests awaiting the client (fee proposal, payment after accepting
+  terms, a proposed new time), and unread conversations. A count badge on the heading.
+- **Your requests** — the three newest, with status and practice, and "View all".
+- **Find a practice** — only while the public directory is switched on.
+
+Community posts stay in the menu; whether they stay at all is the next decision in the
+section-by-section review of the client dashboard. The unread count moved to
+`src/lib/chat/unread.ts`, shared by `/api/chat/unread-count` and this page.
+
+Verified in Chrome at 412px and 1440px with a temporary example.com client holding one
+invitation, one quote and one unread message (all three listed; "View request" opens the
+invitation with its details), and as citizen@ (nothing needing attention, three requests).
+No horizontal overflow. Test client and its data deleted.
+
+### 2026-10-14 — Client "My Consultations": Upcoming tab, phone layout, practice name
+
+- **The Upcoming tab was always empty** — on both the client page and the firm queue it
+  filtered on `CONFIRMED`, which is not a status; the API answered 400. Now `SCHEDULED`.
+- **Tabs added** for Payment due (`ACCEPTED`) and New time proposed
+  (`RESCHEDULE_REQUESTED`); tabs scroll sideways on a phone instead of wrapping.
+- **Phone layout:** details, then the status panel, then the actions in their own row —
+  the side-by-side layout wrapped "BK-2026-0005" over three lines and the title a word
+  per line.
+- **Practice shown** on each card (list API now includes `firm.name`); "Lawyer: Not
+  assigned yet" instead of a blank. The fee proposal dialog names the practice, not the
+  attorney.
+- **Empty states:** "Find a Lawyer" → "Find a practice"; a filtered tab with nothing in it
+  says "Nothing in this list" instead of "No consultations yet".
+
+Verified with a temporary example.com client holding a submitted, a quoted and an
+accepted request: every tab's API call 200, Payment due shows the accepted one, the
+proposal dialog names Perera & Associates, no overflow at 412px. Test client, requests,
+quotes, reviews and engagement letter deleted.
+
+### 2026-10-14 — Community: open to all, but the platform no longer promotes attorneys through it
+
+Owner's decision after discussion: the community stays open to everyone, attorneys
+included — an attorney answers for their own conduct. The research (BASL cautionary note
+June 2021; Rules 39 and 49) puts the risk of *advising through a publicised platform* on
+the attorney, and the Intermeddlers Ordinance needs payment for procuring, which we never
+take. What the **platform** answers for was fixed:
+
+- **No ordering by votes.** Posts ("Hot"/"Top", the default) and comments ("Best", the
+  default) were sorted by score, so the most up-voted attorney led the page. Posts are now
+  newest first and comments in conversation order; the sort tabs are gone; votes are still
+  counted and shown. (The comments API sorted the tree in a second place — the `orderBy`
+  it built was never used; both are fixed.)
+- **A post is not a lead.** An attorney's post showed their practice areas and district,
+  linked their photo to their profile, offered "Contact Author", and said "connect with
+  verified Sri Lankan legal professionals for expert advice". All removed; the name and the
+  "Lawyer" label stay. The footer now says a discussion is general and points to the
+  neutral directory (while it is on).
+- **Notice on every community page:** general discussion, not legal advice, no
+  lawyer-client relationship, don't post identifying details.
+- **Reminder to attorneys** above the post editor (create/edit), the comment box and the
+  reply box: general information only, no advice on someone's own case, no promotion —
+  BASL note, Rules 39 and 49. It informs; it does not block.
+
+Verified with test posts and comments (an older attorney post with 3 votes, a newer client
+post with none; a client comment, then an attorney comment with 2 votes): the API returns
+newest-first for `sort=hot|top|none` and comments in order; `/blog` shows the notice and
+no sort tabs; the post page has no Contact Author, no links to attorney pages and no
+"expert advice"; the reminder appears for the attorney on the post page and create page
+and not for the client; no overflow at 412px. Test posts, comments and votes deleted and
+`Community.postCount` restored.
+
+**Seen, not changed:** the site footer still lists "Civil Litigation, Criminal Defense…"
+as *Services* and says "connecting citizens with verified legal professionals" — §E item 2.
+
+### 2026-10-14 — Client profile settings: three small fixes
+
+Kept as is (picture, name, read-only email, password) — no new fields; a practice asks
+for what else it needs. Fixed:
+
+- **Password boxes looked filled** — the "••••••••" placeholders are gone.
+- **Accounts without a password** (Google sign-up) saw "Change Password", which always
+  failed with "Password not set". `GET /api/profile` now returns `hasPassword` (a boolean;
+  the hash never leaves the server) and the page says "You sign in with Google" instead.
+- **Names:** a hint under Full Name for clients — "Practices see this name on your
+  requests". On the public forum a person with no name now shows as "Community member",
+  not "Anonymous" (which is a choice they did not make) and never their email.
+
+Verified in Chrome at 412px as citizen@ (hint, three empty password boxes, `hasPassword`
+true) and as a temporary account whose password was removed (no password boxes, the
+Google note, `hasPassword` false; no `passwordHash` in either response). Temporary account
+deleted. The forum fallback is a text change and was not separately driven.
+
+### 2026-10-14 — "Your data": jump links and unambiguous consent state
+
+Kept entirely — every section is a PDPA right (access, consent and withdrawal,
+correction, portability, erasure). Two fixes:
+
+- **Jump links** at the top (What we hold · Your choices · Correct · Download · Delete
+  account); the page is roughly eight phone screens and deletion was at the bottom.
+- **Consent state stated:** each optional use shows "Agreed" or "Not agreed"; the button
+  is only the action. Before, "✓ Agree" on a consent that was *not* given read as already
+  agreed.
+
+Verified in Chrome at 412px as citizen@: three "Not agreed" labels, plain "Agree"
+buttons, the "Delete account" link lands on that section, no overflow. Consent buttons
+were not clicked — each click writes a consent record, which is evidence and is kept.
+
+**Client dashboard review complete:** Dashboard, My Consultations, Messages, Community,
+Profile Settings, Your Data.
+
+### 2026-10-14 — Lawyer dashboard home: what needs the firm, not counters
+
+First section of the lawyer-side review. The home page was a welcome banner, a licence
+card, "Open Matters", "Published Articles" and a read-only profile summary. Replaced by a
+server page built from **firm membership** (`a752a99`, `f482b23`, `f0df2e6`, `981aab8`):
+
+- **Practice manager crash fixed.** The page loaded `/api/lawyers/profile`, which answers
+  LAWYER only, so a manager (account CLIENT) got a 401 and "Something went wrong".
+- **Needs your attention:** assign (principal/manager, unassigned), review or on hold
+  (assigned attorney), quote, check payment (`ACCEPTED`), unread messages. Each shown only
+  to the person the server would let act.
+- **Latest requests:** firm-wide for principal, manager and paralegal; an attorney's own
+  otherwise. Subject only where `canReadMatterDetail` — a paralegal sees none.
+- **Your practice:** directory status (listed / not registered / being checked / not
+  granted / directory off), licence in one line (Plans link for the principal only), and
+  **My community posts** in place of "Published Articles".
+- **"Published Articles" was always 0:** it counted the `Article` table, which has no
+  editor and nothing writes to — lawyers write community posts. Removed from the page and
+  from `/api/lawyers/profile`. The rest of `Article` was then removed — see the next entry.
+
+Verified at 412px and 1440px as Kavindu (principal: Quote + On hold), Anura (Assign),
+Nuwan (unregistered: "Register"), and a temporary example.com manager and paralegal (no
+crash; paralegal sees no subjects). Post count checked with a temporary published and a
+pending post (only published counted). Temporary account and posts deleted by id.
+
+**Mistake in passing:** a cleanup by pattern (`%@example.com`) also deleted
+`newpartner@example.com`, a test paralegal at Perera & Associates from 2026-08-16, with
+its membership row. No posts, messages or matters. Clean up by exact id.
+
+### 2026-10-14 — `Article` removed: it was the blog before community posts
+
+`Article` was the first blog (lawyers only). Community posts replaced it, but the model
+stayed, with no editor and no rows. Owner agreed to remove it all:
+
+- **Admin dashboard** "Published Articles" tile and count (`2f538b3`).
+- **Plans:** `articles_per_month` (Basic 2 → Premium 50 → unlimited) and the four
+  `*_article` permissions — the signed-in pricing page showed "10 articles/mo" and
+  "50 articles/mo". A tier that lets a firm publish more about itself for more money is
+  selling visibility (rule 3). Removed from seed, pricing labels and, by a **data-only
+  migration** `remove_article_plan_limit`, from the database (`b21dfff`). Earlier tier
+  removals were done by hand in the local DB only; this one reaches every database.
+- **Table dropped** by migration `drop_article` (empty, checked first) (`ffbd153`).
+
+Verified: lawyer dashboard, admin dashboard and pricing page load after the drop and a
+dev-server restart; no "article" on the pricing page; build passes; `check:billing` 21/21.
+
+**Seen, not changed (Payments / licence review):** the plans still carry
+`access_paid_promo` / `create_promo` permissions and show "Priority Ad Placement" on the
+pricing page — paid promotion for attorneys is rule 3. The admin dashboard shows invented
+figures ("+12%", "99% Platform health") — admin review.
+
+### 2026-10-14 — My Firm → Practice: people join by invitation; members and offices can be managed
+
+Second section of the lawyer-side review. Kept: the public profile form (Rule 45 limits,
+self-praise notice) and the client account / tax details. Changed, each its own commit:
+
+- **Invite, never add** (`3755d77`). "Add member" put an existing user straight into the
+  firm — no email, no consent — and for an attorney moved their practice here. That broke
+  the 2026-08-16 decision (joining is by an invitation the person accepts). Invitations
+  could only be sent while registering. The button now sends the invitation; direct adding
+  is switched off in the API (`DIRECT_ADD_ENABLED = false`, 410). Invite and Withdraw show
+  only to the principal — a practice manager saw a button the server refused.
+- **Change role / Remove** for the principal (`1fed579`). The API could; no screen did, so
+  a firm could not take access away from someone who had left. **Hole closed on the way:**
+  a role change skipped the joining rules, so a paralegal (CLIENT account) could be made a
+  principal or attorney. Now: into those roles needs a verified attorney not practising
+  elsewhere; an attorney with open matters cannot be moved out of an attorney role. Removal
+  clears the profile's practice link only if it points at this firm.
+- **`/dashboard` page** (`714a4ba`). There was none, yet five places redirect there — a
+  removed manager landed on a 404. It now routes admin / attorney or member / client.
+- **Offices: Edit and Retire** (`f7c843f`) — the API could, the page could only add.
+- **Member names** by attorney profile name (`b056acd`) — Kavindu showed as "None".
+- **Badge** "Not registered" on an unregistered practice instead of "Verified firm"
+  (`50a5078`); readable labels for the other statuses.
+- **Jump links** (`5b895cb`).
+
+Verified at 412px as Kavindu with a temporary example.com manager: invitation sent to an
+example.com address, listed, withdrawn (row deleted); direct add 410; manager sees no
+Invite/Withdraw; manager → Principal refused, → Support staff saved; demoting or removing
+the only principal refused; manager removed, then routed to the client dashboard;
+temporary office added, edited (pre-filled), retired (row deleted). `check:firm` 15/15,
+`check:privilege` 42/42. **Not driven:** demoting an attorney who holds open matters (needs
+a second verified attorney in one firm). Temporary account deleted by id.
+
+**Follow-up — bank details (owner asked what "Client account" is for):** quotes took their
+payment details from each attorney's own Pricing page while fee notes used the firm's, so
+one matter could show two accounts and a client could pay an attorney personally. Quotes now
+pre-fill from the firm's details, which attorneys can now read (paralegals still cannot)
+(`1744d4d`); the section is renamed "Bank and tax details" — "client account" means a trust
+account to a lawyer (`8654623`). Verified: a new quote for BK-2026-0003 opens with the firm's
+Commercial Bank account (it was empty before — Kavindu never filled in Pricing); a
+temporary paralegal gets no bank details or TIN from `/api/firms/me`. **Left for the Pricing
+review:** remove the bank fields from Consultations → Pricing.
+
+### 2026-10-14 — Licensing hidden for launch; no seat limit while it is
+
+Owner: licences and pricing are hidden at launch. `LICENSING_ENABLED = false` in
+`src/lib/licensing.ts` hides the dashboard licence line (`a4bde95`). The only thing that
+*enforced* a licence was the seat limit — sending, accepting, or registering with
+invitations — which refused any practice without a licence. Owner chose no limit while
+licensing is off (`d6e014d`). Checked with a temporary unlicensed practice (allowed,
+deleted); `check:billing` 21/21. Still to wire: pricing page, Payments menu.
+
+### 2026-10-14 — My Firm → Data Requests: answers fit the request; the practice is told
+
+Third section of the lawyer-side review. Kept: the page is a PDPA duty — the practice
+answers the matter-file half of a client's access / portability / erasure request, and the
+client reads the answer on **Your data → Requests you have made**. Changed:
+
+- **Answers fit the request; no "Erased"** (`425e179`). "Erased" claimed something no firm
+  can do here (no deletion tool; the purge cannot touch matter data) — a false answer to a
+  statutory request. And a copy request could be answered "kept" — a retention duty is a
+  reason not to delete, not a reason to refuse a copy (Perera's seeded answer did this; now
+  labelled "Refused"). Copy: gave a copy / part / refused (legal ground) / hold nothing.
+  Deletion: kept (duty) / hold nothing. Enforced on the server (`firmOutcomes.ts`);
+  `check:pdpa` 72/72 with five new cases, and a correction case that silently relied on
+  ERASED now uses a valid outcome.
+- **Amber** for kept / refused / partly (`38327a4`); **phone layout** as the Practice page
+  (`f3fa68a`); client side shows "Copy of your data" / "Waiting for a practice to answer"
+  instead of `ACCESS` / `AWAITING_FIRM` (`061693c`).
+- **The practice is told.** Dashboard "Needs your attention" lists unanswered requests with
+  the due date, principal and manager only (`c3a73c8`) — Anura's practice had one **overdue
+  since 27 Sept** that nothing mentioned. And an email to the principal and manager on
+  referral, nothing about the person (`a439cce`), sent in the background (awaiting it held
+  the client's request 18s; now 77ms). Verified with a temporary example.com practice,
+  manager and client; all deleted by id, leftover scan clean.
+
+**Open item:** no way to delete a matter file when a practice has no duty to keep it. We
+are its processor and must be able to act on that instruction. Until then an erasure
+request says "contact us before you answer".
+
+### 2026-10-14 — Consultations → Bookings: the practice's request queue, in the practice's words
+
+Fourth section of the lawyer-side review. Kept: the queue and its rules from 2026-10-13
+(only the assigned attorney reviews and quotes; messaging only about the client's own
+request). Changed, nothing about who may see or do what:
+
+- **Labels for the practice** (`c3e443c`): the firm side used the client's wording, so an
+  accepted request read "Under review" under the "To quote" tab. `FIRM_STATUS_LABELS` now
+  on the queue, its Details and the lawyer dashboard; the client keeps its own wording.
+- **Details** (`0d566a4`): "Rs. 0" before any proposal → "Not proposed yet"; mode in words
+  (and BOTH no longer shown as "Online"); attorney and received date added.
+- Closed requests no longer show "No appointment yet · Time proposed with the quote"
+  (`3d8b55f`).
+- Title **"Requests"**, not "Consultation Bookings" (`ea2e36b`); **"Not accepted"** tab and
+  "Cancelled by practice" (`eec24f3`); phone: smaller title, labelled New request button,
+  calendar behind Show calendar (`c19fbe7`).
+
+Verified at 412px and 1440px as Kavindu: every tab's API call 200 and lists the right
+request (Not accepted → BK-2026-0004), Details for BK-2026-0003, calendar toggle, no
+overflow; the client still sees "Under review".
+
+**Seen, not changed:** the Cancel dialog speaks of bookings and "the refund policy" — at the
+Refunds review. The menu still says "Bookings" — at the menu review.
+
+### 2026-10-15 — Consultations → Set Availability: hidden while attorney booking is off
+
+Weekly slots and days off only fed attorney-first booking (off since 2026-10-13); the practice
+request form and the quote form use no slots, and the local DB held 0 availability rows,
+0 overrides, 0 holds. Hidden from the menu, old URL explains, behind `ATTORNEY_BOOKING_ENABLED`
+— nothing deleted (`e4ec055`). **Missed on 2026-10-13:** `POST /api/consultations/holds` still
+let any signed-in user hold any attorney's diary, recording whose diary they looked at (an
+interest signal). Now 410 while the switch is off. Verified: citizen hold → 410, menu without
+Set Availability, old link shows the notice; build passes.
+
+### 2026-10-15 — Consultations → Pricing: an open bank-details API closed; page hidden
+
+**Security:** `GET /api/consultations/pricing` took any `lawyerId` and answered signed out,
+returning the whole row — the attorney's own bank account number included (`91c7e9a`).
+Now only the signed-in attorney's own row. Checked with a temporary row and a fake account
+number: signed out 401, client 401, another attorney sees only their own, owner sees it;
+row deleted. 0 rows locally; **on a live database any attorney who saved bank details
+there had them exposed** — worth checking production.
+
+The page held no prices — advance notice (attorney-first only) and the attorney's own bank
+details (superseded by the practice's). Hidden with Set Availability behind
+`ATTORNEY_BOOKING_ENABLED`; the old link points to Bank and tax details (`48cb6fa`).
+The Practice page now scrolls to a `#section` after loading.
+
+### 2026-10-15 — Consultations → Consultation Income → "Fees", for the practice
+
+(`10281fa`) Was per attorney and LAWYER-only though fees are paid to the practice: now the
+principal and manager see every matter's fee with its attorney, an attorney their own, a
+paralegal none. "Awaiting payment" was drawn from SCHEDULED/COMPLETED only — always paid —
+so it could never hold anything; it now counts ACCEPTED, and "Proposed" counts QUOTED. Text
+says the practice is paid into its account. Verified with temporary example.com data
+(8,000 proposed / 15,000 awaiting / 20,000 received): principal and manager see those,
+paralegal and client refused, another practice nothing; deleted by id, no leftovers.
+`check:billing` 21/21.
+
+### 2026-10-15 — Consultations → Refunds: the practice sets refund terms, not the platform
+
+- **Platform 50% rule removed** (`fadea33`): inside 24 hours a client cancelling forfeited half,
+  applied by our code, shown only in the cancel box. Now owed in full; the practice decides
+  under its own terms. Client sees paid / kept / the practice's reason and can dispute.
+- **Practice-only recording, practice-wide, with the amount** (`300642e`): admins could mark a
+  practice's refund sent or declined — now view-only. Principal and manager see all of the
+  practice's refunds, attorney their own, paralegal none. Amount refunded is recorded; less
+  needs a reason; more than paid refused.
+- Firm Cancel box wording (`a45cf9b`).
+
+Driven with a temporary paid request (client cancelled ~3h before): owed 20,000; admin 403;
+paralegal 403; 15,000 without reason refused, 25,000 refused, 15,000 with reason recorded
+(5,000 kept) and shown to the client. Deleted by id, no leftovers. `check:billing` 21/21,
+`check:privilege` 42/42.
+
+**Idea, not built:** a "cancellation terms" field on the fee proposal, so the client sees
+the practice's terms before accepting and paying.
+
+### 2026-10-15 — Messages: no false privacy claims; request number on each thread
+
+- **False claims removed** (`8e43dc3`): "fully encrypted", "End-To-End Secure", "Encrypted
+  session", "documents exchanged". Checked before rewording: `Message.content` is stored as
+  `enc.v1…`, `resolveConversationAccess` refuses ADMIN and non-participants — but the server
+  decrypts, so not end-to-end, and nothing can be attached. Now says only that. Shared with
+  the client's Messages page.
+- **Request number** in the thread list and header (number only; the subject is privileged).
+- **Menu** (`7ea123f`): firm Messages shown to attorneys only — a manager's link landed on the
+  home page; staff have no firm threads.
+
+Verified at 412 / 1440 as Kavindu (BK-2026-0005 on the thread), citizen (two threads told
+apart by number), and a temporary manager (no link; deleted). `check:privilege` 42/42.
+
+**Rule for copy:** never describe the chat as end-to-end encrypted unless it becomes so.
+
+### 2026-10-15 — Payments: licence billing hidden; promotion and inquiry features removed from plans
+
+- **Plans** (`fec19b3`): "Priority Ad Placement support" and two paid-promotion permissions
+  (attorneys cannot place adverts — they gated nothing, but offering paid visibility is rule
+  3). Found while doing it: the Enterprise plan still carried **"Receive client inquiries"**
+  and two other inquiry permissions — the seed dropped them in Phase 7 but no migration ever
+  removed the rows (pay-per-lead, rules 1 and 3). Both removed by data-only migrations.
+- **Hidden behind `LICENSING_ENABLED`** (`648ec3a`): Payments menu, all licence pages and
+  `/pricing` ("Licences are not sold yet"), top-bar Pricing link, subscription line; invoice
+  create / payment submit / renew → 410. Verified: menu and top bar without them, four pages
+  show the notice, three APIs 410. `check:billing` 21/21.
+
+**Lesson, again:** removing something from the seed does not remove it from a database that
+was already seeded. Every removal ships as a migration.
+
+### 2026-10-15 — Community Posts (no change) and Profile Settings: verified name locked, no secrets in logs
+
+**Community Posts:** checked as an attorney — the write screen's BASL / Rules 39 and 49
+reminder is there, delete asks and soft-deletes, author-only. No change.
+
+**Profile Settings** — both serious items proved by running before fixing:
+- **A verified attorney could rename themselves** (`1510d2c`): Kavindu renamed via the API →
+  public page "VERIFIED Probe Renamed Attorney". Name and NIC now locked once verified, never
+  rewritten; correction via us. Restored his exact values afterwards.
+- **Values in the server log** (`1510d2c`): a password change logged the bcrypt hash (proved
+  with a temporary account, deleted); profile saves logged NIC and address. Field names only
+  now. **Production logs may hold hashes and NICs — check and purge.**
+- Form (`cf6cad7`): gender and coordinates no longer asked (unused / unshown); "Photo on your
+  public page" instead of "Lawyer Card Image".
+
+### 2026-10-15 — The firm menu; the lawyer-side review is complete
+
+(`22b666c`) "Practice Portal" for everyone firm-side; Requests (All requests, Fees, Refunds),
+Messages, then My Practice — names match the pages, page addresses unchanged. The default
+open-groups list still named the old labels, so the renamed groups started collapsed and
+hid Data Requests again; fixed. All ten firm links open for Kavindu; manager and client
+menus correct. User menu shows the attorney's registered name, not "None" (`3a5ee25`).
+`src/components/layout/DashboardSidebar.tsx` is unused (dead code), left in place.
+
+**Lawyer side done.** Next: the admin side.
+
+### 2026-10-16 — Admin Dashboard: what is waiting for an admin, and true numbers
+
+First section of the admin-side review. The page showed typed-in trends ("+12%", "+5%",
+"+8%", "99% Platform health · Stable"), counted all 5 firms as "Law Firms" when 1 is listed,
+called every CLIENT account an "active client" (practice managers included), and repeated
+its cards in a "System Overview" box.
+
+- **API leak closed** (`4c0e6b4`): `/api/admin` sent each pending applicant's whole
+  application — phone, home address, map location, identity/licence image links, account
+  email — to a page showing name and BASL number. Proven with a temporary application on
+  the old code; now returns those two fields. The page no longer calls it.
+- **Rebuilt as a server page** (`22c2aaf`): *Needs your attention* lists practices to verify,
+  attorney applications, open/overdue data requests, reported posts, posts to review,
+  community requests, advertisers and ad campaigns — each only when non-empty, linked to
+  its page. Figures: accounts, client accounts (no practice managers), verified attorneys,
+  listed practices; 2 columns on phones. Sign-up charts last, months in Sri Lanka time.
+
+Verified at 412px and 1440px; a temporary practice manager raised Accounts to 10 and left
+Client accounts at 2. Temporary rows deleted by id; all text columns scanned, none left.
+
+**Found:** there is **no admin page for data requests**. An OBJECTION or RECTIFICATION
+request is created `IN_PROGRESS` and nothing on staff's side ever shows it; the dashboard
+now counts them but has nowhere to link. Local DB has one ACCESS request overdue since
+27 Sep (awaiting Perera & Associates).
+
+### 2026-10-16 — Verification: reject guarded, approve truthful, who verified is recorded
+
+Tested with temporary applicants (complete, incomplete, already approved); all found by
+running before any change.
+
+- **Reject** (`106d70a`) updated any application by id: an approved one became REJECTED and
+  the attorney was emailed a rejection while staying verified. It also accepted no reason
+  (emailed a blank one). Now 409 unless SUBMITTED; `RejectApplicationSchema` (server and
+  page) requires a reason of 10+ characters. A rejected applicant sees the reason on
+  `/apply` and can apply again.
+- **Approve** (`0e76674`) said "with a practice of one created" (none is, decision 1); the
+  page showed "Failed to approve." for every refusal. Now it shows the reason — incomplete
+  (named by form step) or BASL number already registered.
+- **Email off the request** (`1863159`): approve took 15.1 s on the mail server; now 0.6 s.
+- **Phone** (`dca021d`): Phone/Email and District/Languages overlapped at 412px (a
+  `col-span-2` cell on a one-column grid). Documents shown whole, not cropped.
+- **Who verified** (`25fd279`, additive migration): `LawyerProfile.verifiedById` and
+  `verifiedAt`, set on approval. Null for profiles verified earlier. Not shown anywhere yet.
+
+**For the User Management review:** `api/admin/users` toggles `isVerified` directly — a
+second way to mark someone verified with no application, no BASL check and no record.
+Known, not fixed here: identity documents sit at public Cloudinary URLs (the open
+authenticated file route).
+
+### 2026-10-16 — Law Firms: tabs say what is listed; the practice is told the decision
+
+- **No decision on an unregistered practice** (`448072c`): 409. It changed nothing a client
+  sees and recorded a check nobody could make.
+- **Tabs and badges** (`2b5dbcf`): "Verified" showed five firms, one listed — the other four
+  are firms of one that never registered (verified by the old seed, `verifiedById` null).
+  Tabs are now Waiting for check · Listed · Not verified · Not registered · All, and each
+  card says whether it is listed and why not. Members by registered name (Perera's
+  principal showed as "None"); "View public page" only for a listed firm (it 404'd for the
+  other four) and in the current locale. `AWAITING_CHECK_FIRM_WHERE` is shared with the
+  admin dashboard count (which had not required registration).
+- **Decision email** (`502cc0f`): principal and practice manager get the decision and the
+  note (escaped; tags already stripped on save), sent after the response.
+
+Verified at 412px/1440px with a temporary registered practice (account name "None", shown
+as its registered name): waiting tab and dashboard count, Needs more information through
+the dialog on a phone, verified → Listed. Deleted by id; no leftovers.
+
+**Noticed:** every public page's `<title>` is "Find the Right Lawyer in Sri Lanka" —
+marketplace wording; belongs to the landing-page wording item.
+
+### 2026-10-16 — Admin Invoices hidden; Ad Campaigns kept, attorney-era leftovers removed
+
+- **Invoices** (`f932d94`): licence billing is off but the admin menu, list, review page and
+  PUT (marks an invoice PAID, starts a licence) were live. Hidden by `LICENSING_ENABLED`;
+  APIs 410.
+- **Ads — kept** (owner, 2026-10-16: non-legal advertisers are permitted revenue; my "hide
+  for launch" was withdrawn — the BASL note concerns attorneys advising, not adverts).
+  Removed leftovers from when attorneys bought ads: the "Profile Card" type (`ec989c8`),
+  the "View Profile" default button → "Learn more" (`5888dc3`), practice-area targeting
+  (`d6bf6e2`), and the legal-library slot priced but rendered nowhere (`f236b82`). Three
+  data-only migrations; enum values and columns kept.
+- **Billing advertisers is offline for now**: a campaign runs with no linked invoice (the
+  licence Invoice is hidden). Not client money, not a legal fee.
+
+End to end with a temporary bank advertiser: approval refused without the "not legal"
+confirmation; a profile-card campaign refused; a banner campaign posted with
+`['Criminal Law']` stored with `[]`, went ACTIVE with no invoice, and showed on the home page
+labelled ADVERTISEMENT, linking out with `rel="sponsored"`. Deleted by id (campaign,
+4 slot bookings, 1 analytics row, 2 advertisers); scan clean.
+
+### 2026-10-16 — User Management: staff cannot sign in as anyone; people reset their own passwords
+
+All proven first with temporary accounts (deleted by id; scan clean).
+
+- **Log leak** (`408283a`): every page load printed every user's email, BASL number and map
+  location to the server log. Removed. The live logs need the same purge as §E2.
+- **Roles** (`378b5d2`): one request made a client an ADMIN; an unknown role → 500.
+  `ADMIN_ROLE_EDIT_ENABLED = false` (`src/lib/admin/userTools.ts`); validated by
+  `AdminUpdateUserSchema`.
+- **Email** (`73224c2`): saved "not-an-email"; a taken address → 500. Now validated,
+  duplicates refused (409, case-insensitive), and the **old** address is emailed.
+- **Verification** (`38a7e10`): the shield toggled `isVerified` both ways — granting with no
+  application, no BASL check, no record. Now withdraw-only, with a reason, recorded
+  (`verificationRevoked*`, additive migration), and the attorney is emailed. Granting is
+  only on the Verification page. *No in-app way back after a withdrawal yet* — re-applying
+  hits the existing profile; a developer must restore it.
+- **Forgot password** (`65c7434`): there was none — the only recovery was an admin typing a
+  password, which let staff sign in as any attorney (rule 5). New `/forgot-password` and
+  `/reset-password`; `PasswordResetToken` stores a SHA-256 hash only; one use, one hour;
+  same answer for unknown addresses; rate-limited; in `RETENTION_SCHEDULE` and erasure.
+  Sessions are 24 h signed cookies, so a reset does not sign out other devices.
+- **Send reset link** (`2a3e9e3`): `ADMIN_SET_PASSWORD_ENABLED = false`; the key button
+  emails the person a link (`requestedById` = the admin).
+- **Phone and status** (`7d97735`): the table cut off every action at 412px → cards. Real
+  names (not "No Profile") and real `UserStatus` (the API hard-coded `isActive: true`).
+
+Checks: privilege 42, firm 15, billing 21, pdpa 72, ai 124 — all pass.
+
+**Found, not fixed:** a listed firm stays listed when its only principal's verification is
+withdrawn (`LISTED_FIRM_WHERE` does not look at the principal).
+
+### 2026-10-16 — Communities: line icons instead of emoji; the hub stops promoting lawyers
+
+- **Icons** (`2272ae1`, owner's question): community icons were emoji in a free-text box —
+  drawn differently per device, in colour, and some showed people (👨‍👩‍👧‍👦 on Family Law,
+  👷 on Labour) or made light of the subject (🚗 on Motor Traffic). Now a key into
+  `src/lib/community/icons.ts` (eleven line icons, none a person), picked in admin; the API
+  accepts only those keys. Seed updated; data-only migration. Verified: an emoji PATCH → 400
+  *after a dev-server restart* (the running server had kept the old schema module and
+  stored 🚗 — restored).
+- **Hub wording** (`ba044ef`): "Connect with verified lawyers … expert insights" → "Discuss Sri
+  Lankan law and how it works, area by area. General discussion, not legal advice."
+- Archive is a soft status change; page fits a phone. No other change.
+
+### 2026-10-16 — Content Moderation: removed stays removed; reasons reach the author
+
+Proven first with a temporary post, comment and reports (deleted by id; scan clean;
+`legal-general.postCount` restored to 0 after the tests drifted it).
+
+- **Removed posts came back** (`9ee5eda`): every removal wrote the same `REMOVED`. Dismissing
+  a report republished *any* removed post — including one a moderator had just removed
+  through another report — and a verified attorney could PATCH their own removed or
+  rejected post straight to PUBLISHED (proven on the old code). `Post.removedBy`
+  (AUTHOR / MODERATOR / AUTO_REPORTS) is set on every removal; dismiss restores only an
+  automatic hide with no upheld report; a moderated post goes back to review on resubmit.
+- **A report is decided once** (`75b9bfd`): 409 for a report already decided.
+- **Comments hidden, not overwritten** (`bb30ab0`): "Take Action" replaced the text with
+  "[removed by moderator]". Now only `isDeleted`; the public API sends no text for it.
+- **Reasons** (`f28366e`): Reject/Remove need a reason (10+ chars), saved in
+  `Post.moderationNote` and shown in the author's My Posts.
+- **Remove / Restore in All Content** (`2483d6f`); an author's own deletion is not restorable.
+- **Phone** (`3010af6`): buttons below the text.
+
+One additive migration (`removedBy`, `moderationNote`).
+
+### 2026-10-16 — Legal Documents: the library matches the AI; deleting from the AI is deliberate
+
+- **File route** (`935d724`): served any document (failed, archived) and looked first in
+  `public/uploads` (people's own uploads). Now ACTIVE only, path-contained, never
+  public/uploads; uploads keep the site's own copy in `storage/legal-documents/` (gitignored)
+  so files do not depend on the AI service sharing the web server's disk. **Deploy:** that
+  folder must persist on the web server.
+- **Edits validated** (`ba30d29`): a FAILED upload could be set ACTIVE; bad year → 500.
+- **PDF only** (`6984b3b`): name and `%PDF-` header; Word/text/.log were accepted.
+- **Archive, then remove from the AI** (`27cb96d`): Delete removed the document from the AI
+  index (only backup: git) and hard-deleted the row even when the AI service failed. Now
+  Archive/Restore; "Remove from the AI" only when archived, title typed, and nothing changes
+  unless the AI confirms. Tested with a non-existent AI name only — the AI data folder was
+  byte-identical before and after.
+- **Sync from AI** (`a727059`): the AI held 14 Acts (3,401 sections), the library 0. The admin
+  page compares and adds the missing ones; **the 14 are now in the local library**.
+- **Background indexing** (`84dae81`): upload answers 202; status updates when indexing ends.
+
+**Not fixed — the phone table:** with documents listed, Status and the action buttons are cut
+off at 412px (same pattern as User Management). Raised with the owner.
+
+### 2026-10-16 — Privacy Notice: screen fine; the notice needs a new version before launch
+
+No code change. The admin register (drafts, publish creates a new version, published
+versions locked) and the public notice both fit 412px and 1440px; version 2026-08-03
+reaches production by its migration. **The text is the problem:** §8 "Where your data is
+held" is still unfinished and promises to be completed before a real client's matter;
+§2 names no operator and no data protection officer. Owner: the company is
+**FiveNeurals**; hosting is not decided. A new version waits for that (brief §E1).
+Legal Documents phone table: owner chose to keep the table (no cards).
+
+### 2026-10-16 — Public Directory: wording matches Rule 45; dates readable
+
+- `4439b71`: the warning said lawfulness was unconfirmed — now says Rule 45 permits a legal
+  directory and a written opinion is still owed; "list of attorneys and firms" → "list of
+  law firms" (People tab hidden).
+- `6724fe8`: history dates in Sri Lanka time, day-month-year.
+Switch tested off → `/firms` "not available" → on; test rows deleted by id.
+
+### 2026-10-16 — Consultations: staff cannot act on a request, and see only that it exists
+
+Proven first with a temporary client, request and bank-transfer payment (deleted by id,
+scan clean): an **admin confirmed the client's payment as received (PAID, verifiedBy =
+the admin) and cancelled the request, recorded as CANCELLED_BY_FIRM.**
+
+- `8a95621`: PATCH refuses platform staff (403) — confirm/reject payment, cancel,
+  complete, no-show, reschedule are the practice's (rules 2, 7). Assigned attorney still can.
+- `32f9384`: sidebar badge counting clients' bank transfers removed (rule 2).
+- `4ca6b63`: "Manage Payments" button removed (it 404'd).
+- `cd3e82e`: staff get `staffRequestView()` only — number, practice, status, received
+  date — from the list and the single-request API (they got the whole row: client name and
+  email, fee, payment, cancel/refund reasons). Search by request number (`q`).
+- `a54e8ae`: page "All Requests": those four columns, cards on phones (table was cut off).
+- `ed4f18c`: `ADMIN_REFUNDS_VIEW_ENABLED = false` (`src/lib/consultations/adminRefunds.ts`)
+  hides admin Refunds — menu, page, API 410 for staff. Practices keep their Refunds page.
+
+Checks: privilege 42, firm 15, billing 21, pdpa 72, ai 124; build and tsc clean.
+
+### 2026-10-16 — Financial Reports: hidden for launch; income means money received
+
+Proven with a temporary advertiser and an APPROVED, unpaid, not-yet-started campaign
+(deleted by id, scan clean): **"Total Platform Revenue" showed LKR 250,000** — ad income
+was the larger of paid ad invoices and campaign *budgets*.
+
+- `c7aa92a`: ad income = paid invoices only (re-tested: 0); per-attorney client-fee totals
+  removed from API and page (the practice's business; rule 1); a 500 no longer returns the
+  stack trace.
+- `ADMIN_FINANCE_REPORTS_ENABLED = false` (`src/lib/admin/financeReports.ts`): menu item,
+  page and API (410). Rebuild per firm (the licence belongs to the firm) when billing returns.
+
+Checks: privilege 42, firm 15, billing 21, pdpa 72, ai 124; build and tsc clean.
+
+### 2026-10-16 — Settings → My Account
+
+The admin's own account page (name, photo, password). Password change tested: wrong current
+password refused, real change works (admin password restored to the seed value by hash).
+`My Account` commit: unreachable copy of the attorney profile form removed; password rules
+shown under the fields; menu and title "My Account". **Launch list:** two-step sign-in for
+admin accounts (brief §E 3b).
+
+### 2026-10-16 — Subscription Config hidden; the admin-side review is complete
+
+Owner chose to hide it. `LICENSING_ENABLED` (off) now also hides the menu item, the four
+pages (shared `LicensingOff`) and every handler under `api/admin/subscriptions`,
+`api/admin/roles`, `api/admin/permissions` (410, `src/lib/licensingOff.ts`) — checked as
+admin on each method. Nothing deleted.
+
+**All three dashboards have now been reviewed section by section.** What remains before
+launch is in the brief §E: the privacy-notice version (waits on hosting), the deploy
+checklist, two-step sign-in for admins, and the owner's live-site log purge.

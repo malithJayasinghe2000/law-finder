@@ -18,6 +18,7 @@ interface PendingPost {
   language: string;
   createdAt: string;
   status: string;
+  removedBy?: string | null;
   author: { id: string; fullName: string | null; role: string };
   community: { name: string; displayName: string };
 }
@@ -48,6 +49,9 @@ export default function ContentModerationClient({
   const [searchQuery, setSearchQuery] = useState('');
   const [processing, setProcessing] = useState<string | null>(null);
   const [expandedPost, setExpandedPost] = useState<string | null>(null);
+  // Reject and Remove need a reason the author will see; asked for inline.
+  const [noteFor, setNoteFor] = useState<{ postId: string; status: 'REJECTED' | 'REMOVED' } | null>(null);
+  const [note, setNote] = useState('');
 
   const stripHtml = (html: string) => {
     return html.replace(/<[^>]*>?/gm, '');
@@ -77,19 +81,23 @@ export default function ContentModerationClient({
     p.author.fullName?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const handleModeratePost = async (postId: string, status: 'PUBLISHED' | 'REJECTED') => {
+  const handleModeratePost = async (postId: string, status: 'PUBLISHED' | 'REJECTED' | 'REMOVED', adminNotes?: string) => {
     setProcessing(postId);
     try {
       const res = await fetch('/api/admin/posts', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ postId, status }),
+        body: JSON.stringify({ postId, status, adminNotes }),
       });
       if (res.ok) {
         setPosts((prev) => prev.filter((p) => p.id !== postId));
+        setAllPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, status } : p)));
+        setNoteFor(null);
+        setNote('');
         toast.success(`Post ${status.toLowerCase()}.`);
       } else {
-        toast.error('Failed to moderate post.');
+        const result = await res.json().catch(() => ({}));
+        toast.error(typeof result.error === 'string' ? result.error : 'Failed to moderate post.');
       }
     } catch {
       toast.error('Error moderating post.');
@@ -109,6 +117,9 @@ export default function ContentModerationClient({
       if (res.ok) {
         setReports((prev) => prev.filter((r) => r.id !== reportId));
         toast.success(`Report ${status === 'DISMISSED' ? 'dismissed' : 'action taken'}.`);
+      } else {
+        const result = await res.json().catch(() => ({}));
+        toast.error(typeof result.error === 'string' ? result.error : 'Could not record that.');
       }
     } catch {
       toast.error('Error processing report.');
@@ -116,6 +127,28 @@ export default function ContentModerationClient({
       setProcessing(null);
     }
   };
+
+  const renderNoteBox = () => noteFor && (
+    <div className="mt-3 border border-red-200 bg-red-50/40 p-3 space-y-2">
+      <label htmlFor="mod-note" className="block text-xs font-semibold text-neutral-800">
+        {noteFor.status === 'REJECTED' ? 'Why is it rejected?' : 'Why is it removed?'} The author sees this in My Posts.
+      </label>
+      <textarea
+        id="mod-note" rows={2} value={note} onChange={(e) => setNote(e.target.value)}
+        className="w-full border border-neutral-200 bg-white p-2 text-sm outline-none focus:border-neutral-900"
+      />
+      <div className="flex justify-end gap-2">
+        <Button size="sm" variant="ghost" onClick={() => setNoteFor(null)}>Cancel</Button>
+        <Button
+          size="sm" className="bg-red-600 hover:bg-red-700 text-white"
+          disabled={processing === noteFor.postId}
+          onClick={() => handleModeratePost(noteFor.postId, noteFor.status, note)}
+        >
+          {noteFor.status === 'REJECTED' ? 'Reject' : 'Remove'}
+        </Button>
+      </div>
+    </div>
+  );
 
   return (
     <Tabs defaultValue="posts" className="space-y-4">
@@ -145,9 +178,9 @@ export default function ContentModerationClient({
           posts.map((post) => (
             <Card key={post.id} className="border-amber-200/50">
               <CardContent className="p-4">
-                <div className="flex items-start justify-between gap-4">
+                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 sm:gap-4">
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1 text-xs text-muted-foreground">
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mb-1 text-xs text-muted-foreground">
                       <span>{post.community.displayName}</span>
                       <span>•</span>
                       <span>by {post.author.fullName} ({post.author.role})</span>
@@ -167,7 +200,7 @@ export default function ContentModerationClient({
                       </p>
                     )}
                     
-                    <div className="flex items-center gap-3 mt-1">
+                    <div className="flex flex-wrap items-center gap-3 mt-1">
                       <button
                         onClick={() => setExpandedPost(expandedPost === post.id ? null : post.id)}
                         className="text-xs text-primary hover:underline"
@@ -195,7 +228,7 @@ export default function ContentModerationClient({
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => handleModeratePost(post.id, 'REJECTED')}
+                      onClick={() => { setNoteFor({ postId: post.id, status: 'REJECTED' }); setNote(''); }}
                       disabled={processing === post.id}
                       className="gap-1 text-red-500 border-red-200"
                     >
@@ -203,6 +236,7 @@ export default function ContentModerationClient({
                     </Button>
                   </div>
                 </div>
+                {noteFor?.postId === post.id && renderNoteBox()}
               </CardContent>
             </Card>
           ))
@@ -222,14 +256,14 @@ export default function ContentModerationClient({
           reports.map((report) => (
             <Card key={report.id} className="border-red-200/50">
               <CardContent className="p-4">
-                <div className="flex items-start justify-between gap-4">
+                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 sm:gap-4">
                   <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
+                    <div className="flex flex-wrap items-center gap-2 mb-1">
                       <Badge variant="outline" className="text-xs text-red-500 border-red-200">
                         {report.reason}
                       </Badge>
                       <span className="text-xs text-muted-foreground">
-                        Reported by {report.reporter.fullName}
+                        Reported by {report.reporter.fullName || 'a user with no name set'}
                       </span>
                     </div>
                     {report.post && (
@@ -305,7 +339,7 @@ export default function ContentModerationClient({
             {filteredAllPosts.map((post) => (
               <Card key={post.id}>
                 <CardContent className="p-4">
-                  <div className="flex items-start justify-between gap-4">
+                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 sm:gap-4">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1 text-xs text-muted-foreground flex-wrap">
                         <Badge className={`text-[10px] px-1.5 py-0 ${STATUS_COLORS[post.status as any]}`}>
@@ -321,17 +355,40 @@ export default function ContentModerationClient({
                       <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5 italic">
                         {stripHtml(post.content).substring(0, 150)}...
                       </p>
-                      <div className="mt-2 text-xs">
+                      <div className="mt-2 flex flex-wrap items-center gap-3 text-xs">
                         <Link 
                           href={`/${locale}/blog/${post.slug}`}
                           className="text-xs text-primary hover:underline flex items-center gap-1 font-semibold"
                           target="_blank"
                         >
-                          <ExternalLink className="h-3 w-3" /> Manage full post
+                          <ExternalLink className="h-3 w-3" /> Open post
                         </Link>
+                        {/* Take a published post down without waiting for reports. */}
+                        {post.status === 'PUBLISHED' && (
+                          <Button
+                            size="sm" variant="outline" className="h-7 gap-1 text-red-600 border-red-200"
+                            onClick={() => { setNoteFor({ postId: post.id, status: 'REMOVED' }); setNote(''); }}
+                          >
+                            <X className="h-3 w-3" /> Remove
+                          </Button>
+                        )}
+                        {/* Undo a moderator's or the reports' removal; an author's own deletion is theirs. */}
+                        {post.status === 'REMOVED' && post.removedBy !== 'AUTHOR' && (
+                          <Button
+                            size="sm" variant="outline" className="h-7 gap-1"
+                            disabled={processing === post.id}
+                            onClick={() => handleModeratePost(post.id, 'PUBLISHED')}
+                          >
+                            <RefreshCcw className="h-3 w-3" /> Restore
+                          </Button>
+                        )}
+                        {post.status === 'REMOVED' && post.removedBy === 'AUTHOR' && (
+                          <span className="text-neutral-400">Deleted by its author</span>
+                        )}
                       </div>
                     </div>
                   </div>
+                  {noteFor?.postId === post.id && renderNoteBox()}
                 </CardContent>
               </Card>
             ))}

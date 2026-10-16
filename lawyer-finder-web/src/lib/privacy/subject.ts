@@ -228,6 +228,9 @@ export async function eraseSubject(userId: string): Promise<ErasureResult | null
 
     deleted.vote = (await tx.vote.deleteMany({ where: { userId } })).count;
 
+    // Any "forgot password" link: the password itself is removed below.
+    deleted.passwordResetToken = (await tx.passwordResetToken.deleteMany({ where: { userId } })).count;
+
     deleted.slotHold = (await tx.slotHold.deleteMany({ where: { clientId: userId } })).count;
 
     // Community writing stays — other people's replies depend on it — but is

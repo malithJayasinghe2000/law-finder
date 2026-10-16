@@ -48,7 +48,7 @@ export async function POST(req: Request) {
       if (reportCount >= 3) {
         await prisma.post.update({
           where: { id: parsed.data.postId },
-          data: { status: 'REMOVED' },
+          data: { status: 'REMOVED', removedBy: 'AUTO_REPORTS' },
         });
       }
     }

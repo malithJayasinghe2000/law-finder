@@ -67,6 +67,7 @@ asserted by `npm run check:privilege`.
 | `EngagementLetter` | 🔒 `body`, 🔒 `matterSubject`, 🔒 `scopeOfWork` — a full snapshot naming the client, the matter and the terms | Client and firm. Explicitly not platform staff | With the matter file |
 | `FeeNote` | `clientName`, `clientAddress`, `clientEmail`, `lineItems` (a narration of legal work), `content` snapshot | Firm and its client. Platform staff cannot read one | **Statutory tax retention** — cannot expire on a data-protection schedule |
 | `BookingPayment` | `accountHolder`, `accountNumber`, `transactionRef`, `receiptImageUrl` | Client and firm | With the matter file |
+| `ClientIntakeInvitation` | `email`, 🔒 `subject`, 🔒 `description` — a request a practice wrote for a client who contacted it directly, waiting for the client to confirm | The practice's principal/practice manager wrote it; the invited client sees it only when signed in with that address. The practice's list screen shows neither the text nor the link token. Not platform staff | **Text wiped** the moment it stops being pending (accepted → copied to the `Booking`; declined, withdrawn, or expired after 14 days via `jobs:daily`). The email/status row remains as the record that the request was sent |
 | `Message` (+ `Conversation`, `ConversationParticipant`) | 🔒 `content` — direct client↔attorney chat | Participants only, and a lawyer participant must still be an ACTIVE member of `Conversation.firmId`. **Not** the firm's principal unless they are in the thread; **not** platform staff | With the matter file |
 
 > ✅ **Closed in Phase 7.** `Conversation` now carries `firmId`, `clientId` and an
@@ -108,6 +109,7 @@ released field-filtered, never whole.
 | `LawyerProfile` | `nic` (national identity number), `identityImageUrl`, `licenseImageUrl`, `baslNumber`, `address`, `contactPhone`, `gender`, `latitude`/`longitude` | Legitimate interest — verifying that a person holding themselves out as an Attorney-at-Law really is one. **Not consent** | While enrolled + limited period after |
 | `LawyerApplication` | `draftData` — now a **typed, strict** shape (`ApplicationDraftSchema`): name, gender, languages, bio, phone, address, district, coordinates, BASL number, years, practice type, courts, notary flag, practice areas, and **URLs** to two uploaded identity documents. Plus `adminNotes` | Steps at the subject's request | **730 days from last update**, live in `RETENTION_SCHEDULE`. An APPROVED application is reduced to a stub immediately, since its contents move to the profile. See [finding D](#d-lawyerapplicationdraftdata-is-an-unaudited-json-blob) |
 | `VerificationToken` | `token`, `userId` | Contract / security | Delete on expiry + 30 days |
+| `PasswordResetToken` | `tokenHash` (SHA-256 only), `userId`, `requestedById` (admin who sent it, if any) | Contract / security | Delete on expiry + 30 days (`RETENTION_SCHEDULE`); deleted on erasure. Added 2026-10-16 |
 | `Invoice` / `InvoiceRemark` | `paymentDetails` (bank details), `receiptImageUrl`, `adminNotes` — **our** bill to a firm | Contract + our own tax obligation | Statutory tax retention |
 | `Advertiser` | `contactName`, `contactEmail`, `contactPhone`, `nonLegalConfirmedById` | Contract | Life of relationship + statutory |
 | `LawFirm` | `contactEmail`, `contactPhone`, bank details, `taxIdentificationNumber`, `vatNumber` | Contract | Life of relationship + statutory |
@@ -130,7 +132,6 @@ auto-deleted; the purge refuses to touch matter data rather than guess.
 | `Post`, `Comment` (+ `PostTranslation`, `CommentTranslation`) | `authorId`, `content`, `images` | Contract | Life of account, or until the author deletes |
 | `Vote` | `userId` + what they voted on — a record of opinion | Contract | Life of account |
 | `Report` | `reporterId`, `reason`, `description`, `adminNotes` — who reported whom | Legitimate interest (moderation) | 12 months after resolution (proposed) |
-| `Article` | `authorId`, `content` | Contract | Life of account |
 | `SlotHold` | `clientId` + which attorney's diary they were looking at — an **interest signal** even when no booking follows | Steps at the subject's request | 7 days after `expiresAt` (proposed) |
 | `LawyerAvailability`, `AvailabilityOverride` | `reason` on a blocked day can be personal ("medical leave") | Contract | Life of profile |
 | `ConsultationPricing` | Firm bank details | Contract | Life of profile |
@@ -440,6 +441,7 @@ modes were verified by deliberately breaking the code and watching the check go 
 | `Quote` | `scopeOfWork`, `exclusions`, `declineReason` |
 | `EngagementLetter` | `body`, `matterSubject`, `scopeOfWork`, `exclusions` |
 | `Message` | `content` |
+| `ClientIntakeInvitation` | `subject`, `description` |
 
 `EngagementLetter.matterSubject` and `scopeOfWork` are on that list because they are
 **copies** of encrypted columns on `Booking` and `Quote`. Leaving the copies in the

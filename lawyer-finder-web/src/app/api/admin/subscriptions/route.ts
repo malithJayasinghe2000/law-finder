@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { SubscriptionTier } from '@prisma/client';
+import { LICENSING_ENABLED } from '@/lib/licensing';
+import { licensingOffResponse } from '@/lib/licensingOff';
 
 const tierMap: { [key: number]: SubscriptionTier } = {
   1: 'BASIC',
@@ -12,6 +14,9 @@ const tierMap: { [key: number]: SubscriptionTier } = {
 
 // GET all subscriptions with their details
 export async function GET() {
+  // Hidden while licensing is off (src/lib/licensing.ts).
+  if (!LICENSING_ENABLED) return licensingOffResponse();
+
   try {
     const session = await getSession();
     if (!session || session.role !== 'ADMIN') {
@@ -36,6 +41,9 @@ export async function GET() {
 
 // POST a new subscription with its details
 export async function POST(req: Request) {
+  // Hidden while licensing is off (src/lib/licensing.ts).
+  if (!LICENSING_ENABLED) return licensingOffResponse();
+
   try {
     const session = await getSession();
     if (!session || session.role !== 'ADMIN') {
@@ -75,6 +83,9 @@ export async function POST(req: Request) {
 
 // PATCH/PUT an existing subscription
 export async function PATCH(req: Request) {
+  // Hidden while licensing is off (src/lib/licensing.ts).
+  if (!LICENSING_ENABLED) return licensingOffResponse();
+
   try {
     const session = await getSession();
     if (!session || session.role !== 'ADMIN') {
@@ -121,6 +132,9 @@ export async function PATCH(req: Request) {
 
 // DELETE a subscription
 export async function DELETE(req: Request) {
+  // Hidden while licensing is off (src/lib/licensing.ts).
+  if (!LICENSING_ENABLED) return licensingOffResponse();
+
   try {
     const session = await getSession();
     if (!session || session.role !== 'ADMIN') {

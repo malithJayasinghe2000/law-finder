@@ -11,7 +11,6 @@ export async function GET() {
 
     let pendingInvoicesCount = 0;
     let pendingAdCampaignsCount = 0;
-    let pendingBankPaymentsCount = 0;
 
     if (session.role === 'LAWYER') {
       const lawyerProfile = await prisma.lawyerProfile.findUnique({
@@ -32,21 +31,13 @@ export async function GET() {
           status: 'PENDING_REVIEW',
         },
       });
-      pendingBankPaymentsCount = await prisma.booking.count({
-        where: {
-          status: 'ACCEPTED',
-          payment: {
-            method: 'BANK_TRANSFER',
-            status: 'PENDING',
-          },
-        },
-      });
+      // No count of clients' bank transfers: checking a client's payment is the
+      // practice's job, never the platform's (rule 2).
     }
 
     return NextResponse.json({
       pendingInvoicesCount,
       pendingAdCampaignsCount,
-      pendingBankPaymentsCount,
     });
   } catch (error) {
     console.error('Error fetching sidebar counts:', error);

@@ -17,6 +17,7 @@ import {
   Building2, Users, MapPin, ShieldCheck, Info, Loader2, Plus, Lock, Landmark, Clock,
 } from 'lucide-react';
 import { DISTRICTS, PRACTICE_AREAS, LANGUAGES } from '@/schemas/profile.schema';
+import SelfPromotionNotice from '@/components/shared/SelfPromotionNotice';
 
 /**
  * The firm console.
@@ -43,7 +44,7 @@ interface FirmMember {
     fullName: string | null;
     email: string;
     profileImageUrl: string | null;
-    profile: { id: string; baslNumber: string; isVerified: boolean } | null;
+    profile: { id: string; fullName: string; baslNumber: string; isVerified: boolean } | null;
   };
 }
 
@@ -113,6 +114,22 @@ const ROLE_ACCESS_NOTE: Record<string, string> = {
   PARALEGAL: 'Sees that matters exist, never what they are about.',
 };
 
+/**
+ * An attorney by their profile name first. The account name can be wrong — the
+ * seeded principal's account name is the literal string "None" — and the
+ * profile name is the one their BASL registration was checked against.
+ */
+function memberName(m: FirmMember): string {
+  return m.user.profile?.fullName || m.user.fullName || m.user.email;
+}
+
+const VERIFICATION_LABEL: Record<string, string> = {
+  VERIFIED: 'Verified practice',
+  PENDING: 'Being checked',
+  UNVERIFIED: 'Not verified',
+  REJECTED: 'Not granted',
+};
+
 const VERIFICATION_STYLE: Record<string, string> = {
   VERIFIED: 'bg-green-100 text-green-800',
   PENDING: 'bg-amber-100 text-amber-800',
@@ -122,15 +139,23 @@ const VERIFICATION_STYLE: Record<string, string> = {
 
 export default function FirmPage() {
   const [firm, setFirm] = useState<Firm | null>(null);
+  // Live copy of the description field, for the self-praise notice. null = untouched.
+  const [descriptionDraft, setDescriptionDraft] = useState<string | null>(null);
   const router = useRouter();
   const pathname = usePathname();
   const [canManage, setCanManage] = useState(false);
+  // Only the principal may bring people in or change who is in the firm.
+  const [canManageMembers, setCanManageMembers] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
   const [memberDialogOpen, setMemberDialogOpen] = useState(false);
+  const [roleTarget, setRoleTarget] = useState<FirmMember | null>(null);
+  const [removeTarget, setRemoveTarget] = useState<FirmMember | null>(null);
   const [invitations, setInvitations] = useState<FirmInvitation[]>([]);
   const [officeDialogOpen, setOfficeDialogOpen] = useState(false);
+  const [editOffice, setEditOffice] = useState<FirmOffice | null>(null);
+  const [retireTarget, setRetireTarget] = useState<FirmOffice | null>(null);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -139,6 +164,7 @@ export default function FirmPage() {
       .then((d) => {
         setFirm(d.firm);
         setCanManage(!!d.membership?.canManageFirm);
+        setCanManageMembers(!!d.membership?.canManageMembers);
       })
       .catch(() => toast.error('Could not load your firm.'))
       .finally(() => setLoading(false));
@@ -168,6 +194,13 @@ export default function FirmPage() {
   };
 
   useEffect(load, [load]);
+
+  // The sections render only after the firm has loaded, so a link such as
+  // /firm#account arrives before its target exists and the browser cannot jump.
+  useEffect(() => {
+    if (loading || typeof window === 'undefined' || !window.location.hash) return;
+    document.getElementById(window.location.hash.slice(1))?.scrollIntoView();
+  }, [loading]);
 
   const saveProfile = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -239,7 +272,7 @@ export default function FirmPage() {
         }),
       });
       if (!res.ok) throw new Error('Could not save the account details.');
-      toast.success('Client account details saved.');
+      toast.success('Bank and tax details saved.');
       load();
     } catch (err: any) {
       toast.error(err.message);
@@ -262,11 +295,16 @@ export default function FirmPage() {
       <Card className="rounded-none">
         <CardContent className="p-8 text-center">
           <Building2 className="mx-auto h-8 w-8 text-neutral-300" />
-          <p className="mt-3 text-sm text-neutral-600">
-            Your account is not linked to a firm yet. This is set up automatically when
-            an attorney application is approved — contact support if you think this is
-            wrong.
+          <p className="mt-3 font-serif text-lg text-neutral-900">You don&apos;t have a practice yet</p>
+          <p className="mx-auto mt-2 max-w-md text-sm text-neutral-600">
+            Until you have one, you are not listed in the directory and clients cannot send you
+            requests. Register your own practice — as a sole practitioner or a firm — or accept an
+            invitation from a firm that has added you. A registered practice is checked by our
+            team before it is listed.
           </p>
+          <Button className="mt-5 rounded-none" onClick={() => router.push(`${pathname}/register`)}>
+            Register your practice
+          </Button>
         </CardContent>
       </Card>
     );
@@ -283,17 +321,42 @@ export default function FirmPage() {
             {firm.district && ` · ${firm.district}`}
           </p>
         </div>
+        {/* An automatic practice can carry VERIFIED from its founder's own
+            check, yet is not registered and not listed — the badge must not say
+            "verified" right above the notice saying it is not listed. */}
         <Badge
           className={`w-fit rounded-none text-[10px] uppercase tracking-widest ${
-            VERIFICATION_STYLE[firm.verificationStatus] ?? ''
+            firm.isRegisteredPractice
+              ? VERIFICATION_STYLE[firm.verificationStatus] ?? ''
+              : VERIFICATION_STYLE.UNVERIFIED
           }`}
         >
-          {firm.verificationStatus === 'VERIFIED' ? 'Verified firm' : firm.verificationStatus}
+          {firm.isRegisteredPractice
+            ? VERIFICATION_LABEL[firm.verificationStatus] ?? firm.verificationStatus
+            : 'Not registered'}
         </Badge>
       </div>
 
+      {/* The page runs to about six phone screens; the bank details were at the bottom. */}
+      <nav aria-label="On this page" className="flex flex-wrap gap-2 text-xs">
+        {[
+          ['#profile', 'Public profile'],
+          ['#members', 'Members'],
+          ['#offices', 'Offices'],
+          ...(canManage ? [['#account', 'Bank and tax details']] : []),
+        ].map(([href, label]) => (
+          <a
+            key={href}
+            href={href}
+            className="rounded-full border border-neutral-300 bg-white px-3 py-1.5 font-semibold text-neutral-700 hover:bg-neutral-50"
+          >
+            {label}
+          </a>
+        ))}
+      </nav>
+
       {/* Why does a solo practitioner have a firm? Answer it before they ask. */}
-      {firm.isSoloPractice && (
+      {firm.isSoloPractice && firm.isRegisteredPractice && (
         <div className="flex items-start gap-3 border border-neutral-200 bg-neutral-50 p-4 text-[12px] leading-relaxed text-neutral-600">
           <Info className="mt-0.5 h-4 w-4 shrink-0" />
           <div>
@@ -326,13 +389,14 @@ export default function FirmPage() {
               <Building2 className="mt-0.5 h-5 w-5 shrink-0 text-[#bfa37a]" />
               <div className="text-[12px] leading-relaxed text-neutral-600">
                 <p className="font-semibold text-neutral-800">
-                  Practising with partners or staff? Register your practice.
+                  Your practice is not registered, so it is not listed.
                 </p>
                 <p className="mt-1">
-                  This practice was created automatically and named after you when your own
-                  registration was approved. If you practise as a firm, give it its real name and
-                  address and invite your partners — they each get an email and decide for
-                  themselves. <strong>Your existing matters and licence are unaffected.</strong>
+                  This practice was created automatically when your own registration was approved.
+                  Automatic practices are no longer listed in the directory or able to receive new
+                  requests. Register it — as a sole practitioner or a firm, with its real name and
+                  address — and our team will check it before it is listed.{' '}
+                  <strong>Your existing matters and licence are unaffected.</strong>
                 </p>
               </div>
             </div>
@@ -356,7 +420,7 @@ export default function FirmPage() {
       )}
 
       {/* Public profile */}
-      <Card className="rounded-none">
+      <Card id="profile" className="scroll-mt-20 rounded-none">
         <CardContent className="p-5 sm:p-6">
           <div className="mb-4 flex items-center gap-2">
             <Building2 className="h-4 w-4" />
@@ -473,9 +537,11 @@ export default function FirmPage() {
               <Textarea
                 id="description" name="description" rows={3}
                 defaultValue={firm.description || ''}
+                onChange={(e) => setDescriptionDraft(e.target.value)}
                 disabled={!canManage} className="rounded-none text-sm"
                 placeholder="A factual description of the practice and the work it does."
               />
+              <SelfPromotionNotice text={descriptionDraft ?? firm.description} />
               <p className="text-[10px] text-neutral-400">
                 Keep this factual. Claims of superiority, success rates and testimonials
                 are not permitted.
@@ -533,7 +599,7 @@ export default function FirmPage() {
       </Card>
 
       {/* Members */}
-      <Card className="rounded-none">
+      <Card id="members" className="scroll-mt-20 rounded-none">
         <CardContent className="p-5 sm:p-6">
           <div className="mb-4 flex items-center justify-between gap-3">
             <div className="flex items-center gap-2">
@@ -542,12 +608,12 @@ export default function FirmPage() {
                 Members
               </h2>
             </div>
-            {canManage && (
+            {canManageMembers && (
               <Button
                 size="sm" variant="outline" className="rounded-none"
                 onClick={() => setMemberDialogOpen(true)}
               >
-                <Plus className="mr-1.5 h-3.5 w-3.5" /> Add member
+                <Plus className="mr-1.5 h-3.5 w-3.5" /> Invite
               </Button>
             )}
           </div>
@@ -569,7 +635,7 @@ export default function FirmPage() {
               >
                 <div className="min-w-0">
                   <p className="truncate text-sm font-semibold text-neutral-900">
-                    {m.user.fullName || m.user.email}
+                    {memberName(m)}
                     {m.user.profile?.isVerified && (
                       <ShieldCheck className="ml-1.5 inline h-3.5 w-3.5 text-neutral-400" />
                     )}
@@ -582,9 +648,28 @@ export default function FirmPage() {
                     {ROLE_ACCESS_NOTE[m.role]}
                   </p>
                 </div>
-                <Badge variant="secondary" className="w-fit shrink-0 rounded-none text-[10px] uppercase tracking-widest">
-                  {ROLE_LABELS[m.role]}
-                </Badge>
+                <div className="flex shrink-0 flex-wrap items-center gap-1.5">
+                  <Badge variant="secondary" className="w-fit rounded-none text-[10px] uppercase tracking-widest">
+                    {ROLE_LABELS[m.role]}
+                  </Badge>
+                  {canManageMembers && (
+                    <>
+                      <Button
+                        size="sm" variant="outline" className="h-7 rounded-none px-2.5 text-[11px]"
+                        onClick={() => setRoleTarget(m)}
+                      >
+                        Change role
+                      </Button>
+                      <Button
+                        size="sm" variant="outline"
+                        className="h-7 rounded-none border-red-300 px-2.5 text-[11px] text-red-600"
+                        onClick={() => setRemoveTarget(m)}
+                      >
+                        Remove
+                      </Button>
+                    </>
+                  )}
+                </div>
               </div>
             ))}
           </div>
@@ -622,7 +707,7 @@ export default function FirmPage() {
                           them until they accept.
                         </p>
                       </div>
-                      {canManage && (
+                      {canManageMembers && (
                         <Button
                           size="sm" variant="ghost"
                           className="w-fit shrink-0 rounded-none text-[11px]"
@@ -640,7 +725,7 @@ export default function FirmPage() {
       </Card>
 
       {/* Offices */}
-      <Card className="rounded-none">
+      <Card id="offices" className="scroll-mt-20 rounded-none">
         <CardContent className="p-5 sm:p-6">
           <div className="mb-4 flex items-center justify-between gap-3">
             <div className="flex items-center gap-2">
@@ -652,7 +737,7 @@ export default function FirmPage() {
             {canManage && (
               <Button
                 size="sm" variant="outline" className="rounded-none"
-                onClick={() => setOfficeDialogOpen(true)}
+                onClick={() => { setEditOffice(null); setOfficeDialogOpen(true); }}
               >
                 <Plus className="mr-1.5 h-3.5 w-3.5" /> Add office
               </Button>
@@ -681,6 +766,22 @@ export default function FirmPage() {
                       </Badge>
                     )}
                   </div>
+                  {canManage && (
+                    <div className="mt-2 flex gap-1.5">
+                      <Button
+                        size="sm" variant="outline" className="h-7 rounded-none px-2.5 text-[11px]"
+                        onClick={() => { setEditOffice(o); setOfficeDialogOpen(true); }}
+                      >
+                        Edit
+                      </Button>
+                      <Button
+                        size="sm" variant="outline" className="h-7 rounded-none px-2.5 text-[11px]"
+                        onClick={() => setRetireTarget(o)}
+                      >
+                        Retire
+                      </Button>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -688,22 +789,24 @@ export default function FirmPage() {
         </CardContent>
       </Card>
 
-      {/* Client account */}
+      {/* Bank and tax details. Not called "client account": to a lawyer that is a
+          trust account holding clients' money, and this is the firm's ordinary
+          account where its fees are paid. */}
       {canManage && (
-        <Card className="rounded-none">
+        <Card id="account" className="scroll-mt-20 rounded-none">
           <CardContent className="p-5 sm:p-6">
             <div className="mb-4 flex items-center gap-2">
               <Landmark className="h-4 w-4" />
               <h2 className="text-sm font-bold uppercase tracking-widest text-neutral-800">
-                Client account
+                Bank and tax details
               </h2>
             </div>
 
             <p className="mb-5 flex items-start gap-2 border border-neutral-200 bg-neutral-50 p-3 text-[11px] leading-relaxed text-neutral-600">
               <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
               <span>
-                These details are printed on the quotes you send, so clients pay
-                <strong> your firm directly</strong>. This platform never receives, holds
+                New quotes start with this account and your fee notes print it, so clients
+                pay <strong>your firm directly</strong>. This platform never receives, holds
                 or handles client money, and never takes any part of your fee.
               </span>
             </p>
@@ -777,21 +880,34 @@ export default function FirmPage() {
         </Card>
       )}
 
-      <AddMemberDialog
+      <InviteMemberDialog
         open={memberDialogOpen}
         onOpenChange={setMemberDialogOpen}
         onAdded={load}
       />
-      <AddOfficeDialog
+      <ChangeRoleDialog member={roleTarget} onClose={() => setRoleTarget(null)} onChanged={load} />
+      <RemoveMemberDialog member={removeTarget} onClose={() => setRemoveTarget(null)} onRemoved={load} />
+      <OfficeDialog
         open={officeDialogOpen}
+        office={editOffice}
         onOpenChange={setOfficeDialogOpen}
-        onAdded={load}
+        onSaved={load}
       />
+      <RetireOfficeDialog office={retireTarget} onClose={() => setRetireTarget(null)} onRetired={load} />
     </div>
   );
 }
 
-function AddMemberDialog({
+/**
+ * Invite someone into the firm.
+ *
+ * This used to add an existing user directly — no email, no consent — and, for
+ * an attorney, move their practice into this firm. Being a member means seeing
+ * that the firm's clients' matters exist, so nobody is put inside that boundary
+ * without being asked (PROGRESS.md decisions, 2026-08-16). The person gets an
+ * email link and joins only if they accept, within 14 days.
+ */
+function InviteMemberDialog({
   open, onOpenChange, onAdded,
 }: {
   open: boolean;
@@ -807,7 +923,7 @@ function AddMemberDialog({
     setSubmitting(true);
 
     try {
-      const res = await fetch('/api/firms/me/members', {
+      const res = await fetch('/api/firms/me/invitations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -819,10 +935,10 @@ function AddMemberDialog({
       const data = await res.json();
       if (!res.ok) {
         throw new Error(
-          typeof data.error === 'string' ? data.error : 'Could not add that member.'
+          typeof data.error === 'string' ? data.error : 'Could not send that invitation.'
         );
       }
-      toast.success('Member added to the firm.');
+      toast.success(`Invitation sent to ${fd.get('email')}.`);
       onAdded();
       onOpenChange(false);
     } catch (err: any) {
@@ -836,10 +952,11 @@ function AddMemberDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="rounded-none sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-base">Add someone to the firm</DialogTitle>
+          <DialogTitle className="text-base">Invite someone to the firm</DialogTitle>
           <DialogDescription className="text-xs leading-relaxed">
-            They need an account on the platform already. Adding an attorney moves their
-            practice into this firm.
+            We email them a link. They join only if they accept, within 14 days — nothing about
+            your matters is visible to them until then. They can accept with an existing account
+            or create one.
           </DialogDescription>
         </DialogHeader>
 
@@ -856,7 +973,7 @@ function AddMemberDialog({
               Role in the firm
             </Label>
             <div className="space-y-1.5">
-              {(['ATTORNEY', 'FIRM_ADMIN', 'PARALEGAL'] as const).map((r) => (
+              {(['FIRM_OWNER', 'ATTORNEY', 'FIRM_ADMIN', 'PARALEGAL'] as const).map((r) => (
                 <button
                   key={r} type="button" onClick={() => setRole(r)}
                   className={`w-full border p-2.5 text-left transition-colors ${
@@ -885,7 +1002,7 @@ function AddMemberDialog({
             </Button>
             <Button type="submit" disabled={submitting} className="rounded-none">
               {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Add member
+              Send invitation
             </Button>
           </DialogFooter>
         </form>
@@ -894,12 +1011,169 @@ function AddMemberDialog({
   );
 }
 
-function AddOfficeDialog({
-  open, onOpenChange, onAdded,
+/** PATCH a member. The server decides; its refusal is shown as it is worded. */
+async function updateMember(body: Record<string, unknown>): Promise<void> {
+  const res = await fetch('/api/firms/me/members', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(typeof data.error === 'string' ? data.error : 'Could not change that member.');
+  }
+}
+
+/**
+ * Change what a member can do. The server holds a role change to the same rules
+ * as joining in that role: only a verified attorney can be a principal or an
+ * attorney, and an attorney holding open matters cannot stop being one.
+ */
+function ChangeRoleDialog({
+  member, onClose, onChanged,
+}: {
+  member: FirmMember | null;
+  onClose: () => void;
+  onChanged: () => void;
+}) {
+  const [role, setRole] = useState('ATTORNEY');
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (member) setRole(member.role);
+  }, [member]);
+
+  const submit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!member) return;
+    const fd = new FormData(e.currentTarget);
+    setSubmitting(true);
+    try {
+      await updateMember({ memberId: member.id, role, title: String(fd.get('title') || '') });
+      toast.success('Role changed.');
+      onChanged();
+      onClose();
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Something went wrong.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <Dialog open={!!member} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="rounded-none sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="text-base">Change role</DialogTitle>
+          <DialogDescription className="text-xs leading-relaxed">
+            {member ? memberName(member) : ''}. What they can see changes at once.
+          </DialogDescription>
+        </DialogHeader>
+
+        <form onSubmit={submit} className="space-y-4">
+          <div className="space-y-1.5">
+            {(['FIRM_OWNER', 'ATTORNEY', 'FIRM_ADMIN', 'PARALEGAL'] as const).map((r) => (
+              <button
+                key={r} type="button" onClick={() => setRole(r)}
+                className={`w-full border p-2.5 text-left transition-colors ${
+                  role === r ? 'border-neutral-900 bg-neutral-50' : 'border-neutral-200'
+                }`}
+              >
+                <p className="text-sm font-semibold text-neutral-900">{ROLE_LABELS[r]}</p>
+                <p className="mt-0.5 text-[10px] leading-relaxed text-neutral-500">{ROLE_ACCESS_NOTE[r]}</p>
+              </button>
+            ))}
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="memberTitle" className="text-[11px] font-bold uppercase tracking-widest text-neutral-500">
+              Title <span className="font-normal normal-case tracking-normal text-neutral-400">(optional)</span>
+            </Label>
+            <Input
+              id="memberTitle" name="title" key={member?.id}
+              defaultValue={member?.title ?? ''} className="rounded-none" placeholder="Senior Associate"
+            />
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-2">
+            <Button type="button" variant="outline" className="rounded-none" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={submitting} className="rounded-none">
+              {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Save
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/**
+ * Remove someone from the firm. Members are never deleted — the row is marked
+ * REMOVED so the record of who could have seen a matter survives — but access
+ * ends at once. A firm whose staff member has left had no way to do this.
+ */
+function RemoveMemberDialog({
+  member, onClose, onRemoved,
+}: {
+  member: FirmMember | null;
+  onClose: () => void;
+  onRemoved: () => void;
+}) {
+  const [submitting, setSubmitting] = useState(false);
+
+  const remove = async () => {
+    if (!member) return;
+    setSubmitting(true);
+    try {
+      await updateMember({ memberId: member.id, status: 'REMOVED' });
+      toast.success(`${memberName(member)} removed from the firm.`);
+      onRemoved();
+      onClose();
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Something went wrong.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <Dialog open={!!member} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="rounded-none sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="text-base">Remove {member ? memberName(member) : ''}?</DialogTitle>
+          <DialogDescription className="text-xs leading-relaxed">
+            They lose access to the firm and its matters at once, including conversations with
+            clients. An attorney who still has open matters must have them reassigned first.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter className="gap-2 sm:gap-2">
+          <Button type="button" variant="outline" className="rounded-none" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button
+            type="button" disabled={submitting} onClick={remove}
+            className="rounded-none bg-red-600 text-white hover:bg-red-700"
+          >
+            {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Remove
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/** Add an office, or edit one when `office` is given. */
+function OfficeDialog({
+  open, office, onOpenChange, onSaved,
 }: {
   open: boolean;
+  office: FirmOffice | null;
   onOpenChange: (v: boolean) => void;
-  onAdded: () => void;
+  onSaved: () => void;
 }) {
   const [submitting, setSubmitting] = useState(false);
 
@@ -910,9 +1184,10 @@ function AddOfficeDialog({
 
     try {
       const res = await fetch('/api/firms/me/offices', {
-        method: 'POST',
+        method: office ? 'PATCH' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          ...(office ? { officeId: office.id } : {}),
           label: fd.get('label'),
           address: fd.get('address'),
           district: fd.get('district') || '',
@@ -926,8 +1201,8 @@ function AddOfficeDialog({
           typeof data.error === 'string' ? data.error : 'Some details need correcting.'
         );
       }
-      toast.success('Office added.');
-      onAdded();
+      toast.success(office ? 'Office saved.' : 'Office added.');
+      onSaved();
       onOpenChange(false);
     } catch (err: any) {
       toast.error(err.message);
@@ -940,25 +1215,25 @@ function AddOfficeDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="rounded-none sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-base">Add an office</DialogTitle>
+          <DialogTitle className="text-base">{office ? 'Edit office' : 'Add an office'}</DialogTitle>
           <DialogDescription className="text-xs">
             Where the firm practises from. Attorneys keep their own calendars.
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={submit} className="space-y-4">
+        <form key={office?.id ?? 'new'} onSubmit={submit} className="space-y-4">
           <div className="space-y-1.5">
             <Label htmlFor="label" className="text-[11px] font-bold uppercase tracking-widest text-neutral-500">Name</Label>
-            <Input id="label" name="label" required className="rounded-none" placeholder="Colombo (head office)" />
+            <Input id="label" name="label" required defaultValue={office?.label ?? ''} className="rounded-none" placeholder="Colombo (head office)" />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="address" className="text-[11px] font-bold uppercase tracking-widest text-neutral-500">Address</Label>
-            <Textarea id="address" name="address" required rows={2} className="rounded-none text-sm" />
+            <Textarea id="address" name="address" required rows={2} defaultValue={office?.address ?? ''} className="rounded-none text-sm" />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="office-district" className="text-[11px] font-bold uppercase tracking-widest text-neutral-500">District</Label>
             <select
-              id="office-district" name="district"
+              id="office-district" name="district" defaultValue={office?.district ?? ''}
               className="w-full rounded-none border border-neutral-200 bg-white px-3 py-2 text-sm outline-none focus:border-neutral-900"
             >
               <option value="">Select</option>
@@ -967,10 +1242,10 @@ function AddOfficeDialog({
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="office-phone" className="text-[11px] font-bold uppercase tracking-widest text-neutral-500">Telephone</Label>
-            <Input id="office-phone" name="contactPhone" className="rounded-none" />
+            <Input id="office-phone" name="contactPhone" defaultValue={office?.contactPhone ?? ''} className="rounded-none" />
           </div>
           <label className="flex items-center gap-2 text-xs text-neutral-600">
-            <input type="checkbox" name="isPrimary" className="h-3.5 w-3.5" />
+            <input type="checkbox" name="isPrimary" defaultChecked={office?.isPrimary ?? false} className="h-3.5 w-3.5" />
             This is the firm&apos;s registered office
           </label>
 
@@ -980,10 +1255,70 @@ function AddOfficeDialog({
             </Button>
             <Button type="submit" disabled={submitting} className="rounded-none">
               {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Add office
+              {office ? 'Save' : 'Add office'}
             </Button>
           </DialogFooter>
         </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/**
+ * Retire an office. It is kept, not deleted — an old address may still appear
+ * on an engagement letter issued while the firm sat there — but it no longer
+ * shows on the firm's profile.
+ */
+function RetireOfficeDialog({
+  office, onClose, onRetired,
+}: {
+  office: FirmOffice | null;
+  onClose: () => void;
+  onRetired: () => void;
+}) {
+  const [submitting, setSubmitting] = useState(false);
+
+  const retire = async () => {
+    if (!office) return;
+    setSubmitting(true);
+    try {
+      const res = await fetch('/api/firms/me/offices', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ officeId: office.id, isActive: false }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(typeof data.error === 'string' ? data.error : 'Could not retire that office.');
+      toast.success(`${office.label} retired.`);
+      onRetired();
+      onClose();
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Something went wrong.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <Dialog open={!!office} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="rounded-none sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="text-base">Retire {office?.label}?</DialogTitle>
+          <DialogDescription className="text-xs leading-relaxed">
+            It stops showing on your practice&apos;s profile. The record is kept, because past
+            engagement letters may name this address.
+            {office?.isPrimary && ' This is your registered office — mark another office as registered afterwards.'}
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter className="gap-2 sm:gap-2">
+          <Button type="button" variant="outline" className="rounded-none" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="button" disabled={submitting} onClick={retire} className="rounded-none">
+            {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Retire
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

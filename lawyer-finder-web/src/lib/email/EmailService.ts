@@ -22,6 +22,9 @@ async function getAdminEmails(): Promise<string[]> {
   }
 }
 
+const escapeHtml = (s: string) =>
+  s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
 const template = (title: string, body: string) => {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://thelawyr.lk';
   const currentYear = new Date().getFullYear();
@@ -118,6 +121,160 @@ export const EmailService = {
           <a href="${url}" style="background-color: #bfa37a; color: #ffffff; padding: 14px 28px; text-decoration: none; display: inline-block; font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.15em; border-radius: 0;">View the invitation</a>
         </div>
         <p style="font-size: 13px; color: #737373;">This invitation was sent to ${params.to} and can only be accepted by signing in with that address. It expires in 14 days. If you were not expecting it, ignore this email — no account of yours has been changed.</p>
+      `)
+    );
+  },
+
+  /**
+   * A practice asks a client to confirm a request it opened for them.
+   *
+   * Says nothing about the matter: email is not a privileged channel, and the
+   * address may be wrong. The details are shown only after the client signs in
+   * with this address. See src/lib/firms/clientIntake.ts.
+   */
+  async sendClientIntakeInvitation(params: { to: string; firmName: string; token: string }) {
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://thelawyr.lk';
+    const url = `${appUrl}/client-request?token=${params.token}`;
+    const firm = escapeHtml(params.firmName);
+
+    await sendMailSafe(
+      params.to,
+      `${params.firmName} asks you to confirm your request`,
+      template('Confirm your request', `
+        <p><strong>${firm}</strong> says you asked them to act for you, and has opened a request on TheLawyr, the software the practice uses to manage its matters.</p>
+        <p>Nothing is added to your account unless you confirm it. Sign in — or create an account with this email address — to see the request and accept or decline it.</p>
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${url}" style="background-color: #bfa37a; color: #ffffff; padding: 14px 28px; text-decoration: none; display: inline-block; font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.15em; border-radius: 0;">View the request</a>
+        </div>
+        <p style="font-size: 13px; color: #737373;">Sent to ${escapeHtml(params.to)}. The link expires in 14 days. If you did not contact ${firm}, ignore this email.</p>
+      `)
+    );
+  },
+
+  /**
+   * A practice cannot act for this client. Never says why: the reason is a
+   * conflict with another client, and that is confidential to them.
+   */
+  async sendRequestDeclined(params: { to: string; clientName: string; firmName: string; bookingNumber: string }) {
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://thelawyr.lk';
+    const firm = escapeHtml(params.firmName);
+    await sendMailSafe(
+      params.to,
+      `Your request ${params.bookingNumber} — ${params.firmName} is unable to act`,
+      template('Request not accepted', `
+        <p>Dear ${escapeHtml(params.clientName)},</p>
+        <p><strong>${firm}</strong> has told us it is unable to act for you in request <strong>${params.bookingNumber}</strong>.</p>
+        <p>Practices decline for professional reasons they cannot share, and this is not a judgment on your matter. You are free to approach another practice.</p>
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${appUrl}/firms" style="background-color: #bfa37a; color: #ffffff; padding: 14px 28px; text-decoration: none; display: inline-block; font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.15em; border-radius: 0;">Browse practices</a>
+        </div>
+      `)
+    );
+  },
+
+  // A data-protection request has been passed to a practice for the part that is
+  // its own matter file. It carries a legal deadline, so the people who may answer
+  // it are told. Deliberately nothing about the person or their request — the
+  // practice reads that on the signed-in page, not in an inbox.
+  async sendDataRequestReferred(params: { to: string; firmName: string; dueBy: Date }) {
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://thelawyr.lk';
+    const due = params.dueBy.toLocaleDateString('en-GB', {
+      day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Colombo',
+    });
+    await sendMailSafe(
+      params.to,
+      `A data-protection request is waiting for ${params.firmName}`,
+      template('Data-protection request', `
+        <p>A client has asked for their personal data, and part of it is a matter file held by <strong>${escapeHtml(params.firmName)}</strong>.</p>
+        <p>Your practice decides what happens to its own files. Please answer by <strong>${due}</strong>.</p>
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${appUrl}/en/dashboard/lawyer/firm/requests" style="background-color: #bfa37a; color: #ffffff; padding: 14px 28px; text-decoration: none; display: inline-block; font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.15em; border-radius: 0;">Open data requests</a>
+        </div>
+      `)
+    );
+  },
+
+  /**
+   * Our decision on a registered practice. Without it a practice asked for more
+   * information never learned it was being waited on.
+   */
+  async sendFirmVerificationDecision(params: {
+    to: string[];
+    firmName: string;
+    decision: 'VERIFIED' | 'REJECTED' | 'PENDING';
+    notes: string | null;
+  }) {
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://thelawyr.lk';
+    const firm = escapeHtml(params.firmName);
+    const [subject, lead] = {
+      VERIFIED: [
+        `${params.firmName} is verified`,
+        `<p>We have verified <strong>${firm}</strong>. It can now appear in the public directory.</p>`,
+      ],
+      REJECTED: [
+        `${params.firmName} could not be verified`,
+        `<p>We could not verify <strong>${firm}</strong>, so it is not shown in the public directory.</p>`,
+      ],
+      PENDING: [
+        `We need more information about ${params.firmName}`,
+        `<p>Before we can verify <strong>${firm}</strong>, we need more information from you.</p>`,
+      ],
+    }[params.decision];
+    await sendMailSafe(
+      params.to,
+      subject,
+      template('Practice verification', `
+        ${lead}
+        ${params.notes ? `<p><strong>Our note:</strong> ${escapeHtml(params.notes)}</p>` : ''}
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${appUrl}/en/dashboard/lawyer/firm" style="background-color: #bfa37a; color: #ffffff; padding: 14px 28px; text-decoration: none; display: inline-block; font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.15em; border-radius: 0;">Open your practice</a>
+        </div>
+      `)
+    );
+  },
+
+  /**
+   * Sent to the OLD address when our staff change an account's email. Without
+   * it a change of address — the first step of taking an account over — would
+   * be invisible to the person who owns it.
+   */
+  async sendEmailChangedByAdmin(params: { oldEmail: string; newEmail: string }) {
+    await sendMailSafe(
+      params.oldEmail,
+      'The email address on your TheLawyr account was changed',
+      template('Email address changed', `
+        <p>Our team changed the email address on your account to <strong>${escapeHtml(params.newEmail)}</strong>.</p>
+        <p>From now on you sign in with the new address, and messages about your account go there.</p>
+        <p>If you did not ask for this, reply to this email straight away.</p>
+      `)
+    );
+  },
+
+  /** An admin withdrew an attorney's verification; they are told why. */
+  async sendVerificationRevoked(params: { to: string; fullName: string; reason: string }) {
+    await sendMailSafe(
+      params.to,
+      'Your verification on TheLawyr has been withdrawn',
+      template('Verification withdrawn', `
+        <p>Dear ${escapeHtml(params.fullName)},</p>
+        <p>We have withdrawn the verification on your attorney profile. While it is withdrawn you are not shown in the public directory.</p>
+        <p><strong>Reason:</strong> ${escapeHtml(params.reason)}</p>
+        <p>If you think this is a mistake, reply to this email.</p>
+      `)
+    );
+  },
+
+  /** A one-hour link to choose a new password. */
+  async sendPasswordReset(params: { to: string; resetUrl: string; byAdmin: boolean }) {
+    await sendMailSafe(
+      params.to,
+      'Reset your TheLawyr password',
+      template('Reset your password', `
+        <p>${params.byAdmin ? 'Our team sent you this link at your request.' : 'Someone asked to reset the password for this account.'} Use the button below to choose a new password. The link works once and expires in one hour.</p>
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${params.resetUrl}" style="background-color: #bfa37a; color: #ffffff; padding: 14px 28px; text-decoration: none; display: inline-block; font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.15em; border-radius: 0;">Choose a new password</a>
+        </div>
+        <p>If you did not ask for this, ignore this email. Your password stays the same.</p>
       `)
     );
   },

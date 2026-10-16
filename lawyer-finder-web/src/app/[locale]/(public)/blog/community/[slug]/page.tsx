@@ -7,6 +7,7 @@ import { Users, FileText, Clock, ShieldCheck, PenSquare, Scale, BookOpen } from 
 import Link from 'next/link';
 import PostFeed from '@/components/community/PostFeed';
 import JoinButton from './JoinButton';
+import { CommunityDisclaimer } from '@/components/community/CommunityNotice';
 
 export default async function CommunityPage({
   params,
@@ -109,6 +110,7 @@ export default async function CommunityPage({
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-8">
           {/* Feed */}
           <div>
+            <CommunityDisclaimer className="mb-4" />
             <PostFeed
               locale={locale}
               communitySlug={slug}

@@ -1,47 +1,31 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
-import { useParams, useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import {
   User, Camera, Save, Loader2, Lock,
 } from 'lucide-react';
 
-import { PRACTICE_AREAS, LANGUAGES, DISTRICTS } from '@/schemas/profile.schema';
-
-export default function DashboardProfileSettings() {
-  const { locale } = useParams();
-  const router = useRouter();
+/**
+ * The administrator's own account: name, photo, password.
+ *
+ * This page began as a copy of the attorney profile form; the attorney fields
+ * (bio, NIC, practice areas, "directory card") could never render here, because
+ * an admin account has no attorney profile. They were removed 2026-10-16 — the
+ * attorneys' own page is dashboard/profile, unchanged.
+ */
+export default function AdminAccountSettings() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [uploadingCard, setUploadingCard] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const cardFileInputRef = useRef<HTMLInputElement>(null);
 
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [profileImageUrl, setProfileImageUrl] = useState('');
-  const [role, setRole] = useState('');
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-
-  const [isLawyer, setIsLawyer] = useState(false);
-  const [lFullName, setLFullName] = useState('');
-  const [bio, setBio] = useState('');
-  const [practiceAreas, setPracticeAreas] = useState<string[]>([]);
-  const [languages, setLanguagesState] = useState<string[]>([]);
-  const [district, setDistrict] = useState('');
-  const [contactPhone, setContactPhone] = useState('');
-  const [address, setAddress] = useState('');
-  const [gender, setGender] = useState('');
-  const [yearsOfExperience, setYearsOfExperience] = useState('');
-  const [practiceType, setPracticeType] = useState('');
-  const [courts, setCourts] = useState<string[]>([]);
-  const [isNotary, setIsNotary] = useState(false);
-  const [nic, setNic] = useState('');
-  const [lawyerProfileImageUrl, setLawyerProfileImageUrl] = useState('');
 
   useEffect(() => { fetchProfile(); }, []);
 
@@ -54,26 +38,6 @@ export default function DashboardProfileSettings() {
       setFullName(u.fullName || '');
       setEmail(u.email);
       setProfileImageUrl(u.profileImageUrl || '');
-      setRole(u.role);
-
-      if (u.role === 'LAWYER' && data.lawyerProfile) {
-        setIsLawyer(true);
-        const lp = data.lawyerProfile;
-        setLFullName(lp.fullName || '');
-        setBio(lp.bio || '');
-        setPracticeAreas(lp.practiceAreas || []);
-        setLanguagesState(lp.languages || []);
-        setDistrict(lp.district || '');
-        setContactPhone(lp.contactPhone || '');
-        setAddress(lp.address || '');
-        setGender(lp.gender || '');
-        setYearsOfExperience(lp.yearsOfExperience?.toString() || '');
-        setPracticeType(lp.practiceType || '');
-        setCourts(lp.courts || []);
-        setIsNotary(lp.isNotary || false);
-        setNic(lp.nic || '');
-        setLawyerProfileImageUrl(lp.profileImageUrl || '');
-      }
     } catch {
       toast.error('Failed to load profile.');
     } finally {
@@ -81,22 +45,20 @@ export default function DashboardProfileSettings() {
     }
   };
 
-  const handleUploadImage = async (file: File, isCard: boolean = false) => {
-    if (isCard) setUploadingCard(true);
-    else setUploading(true);
+  const handleUploadImage = async (file: File) => {
+    setUploading(true);
     try {
       const formData = new FormData();
       formData.append('file', file);
       const res = await fetch('/api/upload', { method: 'POST', body: formData });
       if (!res.ok) { const d = await res.json(); throw new Error(d.error); }
       const data = await res.json();
-      if (isCard) { setLawyerProfileImageUrl(data.url); toast.success('Card image uploaded!'); }
-      else { setProfileImageUrl(data.url); toast.success('Profile picture uploaded!'); }
+      setProfileImageUrl(data.url);
+      toast.success('Profile picture uploaded!');
     } catch (err: any) {
       toast.error(err.message || 'Upload failed.');
     } finally {
-      if (isCard) setUploadingCard(false);
-      else setUploading(false);
+      setUploading(false);
     }
   };
 
@@ -106,15 +68,6 @@ export default function DashboardProfileSettings() {
     try {
       const payload: any = { fullName, profileImageUrl: profileImageUrl || null };
       if (newPassword) { payload.currentPassword = currentPassword; payload.newPassword = newPassword; }
-      if (isLawyer) {
-        payload.lawyerProfile = {
-          fullName: lFullName, bio, practiceAreas, languages, district,
-          contactPhone, address, gender,
-          yearsOfExperience: yearsOfExperience ? parseInt(yearsOfExperience) : null,
-          practiceType, courts, isNotary, nic,
-          profileImageUrl: lawyerProfileImageUrl || null,
-        };
-      }
       const res = await fetch('/api/profile', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -129,10 +82,6 @@ export default function DashboardProfileSettings() {
     } finally {
       setSaving(false);
     }
-  };
-
-  const toggleArrayItem = (arr: string[], setter: (a: string[]) => void, item: string) => {
-    setter(arr.includes(item) ? arr.filter(a => a !== item) : [...arr, item]);
   };
 
   if (loading) {
@@ -151,7 +100,7 @@ export default function DashboardProfileSettings() {
           <User className="h-5 w-5" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-neutral-900">Profile Settings</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-neutral-900">My Account</h1>
           <p className="text-sm text-neutral-500 font-medium">Manage your account</p>
         </div>
       </div>
@@ -208,126 +157,12 @@ export default function DashboardProfileSettings() {
           <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Confirm"
             className="bg-neutral-50 border border-neutral-200 text-neutral-900 px-4 py-3 outline-none focus:border-neutral-900 focus:bg-white transition-all text-sm" />
         </div>
+        {/* The rules in src/schemas/auth.schema.ts (newPassword). */}
+        <p className="mt-3 text-xs text-neutral-500">
+          At least 8 characters, with an uppercase letter, a lowercase letter, a number and one
+          of @ $ ! % * ? &amp;
+        </p>
       </div>
-
-      {/* Lawyer Fields */}
-      {isLawyer && (
-        <>
-          <div className="bg-white border border-neutral-200 p-6">
-            <h3 className="text-[11px] font-bold text-neutral-900 uppercase tracking-widest mb-4">Card Image</h3>
-            <div className="flex items-center gap-6">
-              <div className="relative group">
-                <div className="h-24 w-20 bg-neutral-100 overflow-hidden">
-                  <img src={lawyerProfileImageUrl || '/avatar.png'} alt="Card" className="h-full w-full object-cover" />
-                </div>
-                <button onClick={() => cardFileInputRef.current?.click()} disabled={uploadingCard}
-                  className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                  {uploadingCard ? <Loader2 className="h-4 w-4 text-white animate-spin" /> : <Camera className="h-4 w-4 text-white" />}
-                </button>
-                <input ref={cardFileInputRef} type="file" accept="image/*" className="hidden"
-                  onChange={(e) => { const file = e.target.files?.[0]; if (file) handleUploadImage(file, true); }} />
-              </div>
-              <p className="text-xs text-neutral-400">Shown on your lawyer directory card.</p>
-            </div>
-          </div>
-
-          <div className="bg-white border border-neutral-200 p-6">
-            <h3 className="text-[11px] font-bold text-neutral-900 uppercase tracking-widest mb-4">Lawyer Details</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <label className="text-[11px] font-bold text-neutral-600 uppercase tracking-widest">Display Name</label>
-                <input type="text" value={lFullName} onChange={(e) => setLFullName(e.target.value)}
-                  className="w-full bg-neutral-50 border border-neutral-200 text-neutral-900 px-4 py-3 outline-none focus:border-neutral-900 text-sm" />
-              </div>
-              <div className="space-y-1">
-                <label className="text-[11px] font-bold text-neutral-600 uppercase tracking-widest">Phone</label>
-                <input type="tel" value={contactPhone} onChange={(e) => setContactPhone(e.target.value)}
-                  className="w-full bg-neutral-50 border border-neutral-200 text-neutral-900 px-4 py-3 outline-none focus:border-neutral-900 text-sm" />
-              </div>
-              <div className="space-y-1">
-                <label className="text-[11px] font-bold text-neutral-600 uppercase tracking-widest">Gender</label>
-                <select value={gender} onChange={(e) => setGender(e.target.value)}
-                  className="w-full bg-neutral-50 border border-neutral-200 text-neutral-900 px-4 py-3 outline-none focus:border-neutral-900 text-sm">
-                  <option value="">Select</option>
-                  <option value="Male">Male</option>
-                  <option value="Female">Female</option>
-                  <option value="Other">Other</option>
-                </select>
-              </div>
-              <div className="space-y-1">
-                <label className="text-[11px] font-bold text-neutral-600 uppercase tracking-widest">Experience (years)</label>
-                <input type="number" value={yearsOfExperience} onChange={(e) => setYearsOfExperience(e.target.value)}
-                  className="w-full bg-neutral-50 border border-neutral-200 text-neutral-900 px-4 py-3 outline-none focus:border-neutral-900 text-sm" />
-              </div>
-              <div className="space-y-1">
-                <label className="text-[11px] font-bold text-neutral-600 uppercase tracking-widest">District</label>
-                <select value={district} onChange={(e) => setDistrict(e.target.value)}
-                  className="w-full bg-neutral-50 border border-neutral-200 text-neutral-900 px-4 py-3 outline-none focus:border-neutral-900 text-sm">
-                  <option value="">Select</option>
-                  {DISTRICTS.map(d => <option key={d} value={d}>{d}</option>)}
-                </select>
-              </div>
-              <div className="space-y-1">
-                <label className="text-[11px] font-bold text-neutral-600 uppercase tracking-widest">NIC</label>
-                <input type="text" value={nic} onChange={(e) => setNic(e.target.value)}
-                  className="w-full bg-neutral-50 border border-neutral-200 text-neutral-900 px-4 py-3 outline-none focus:border-neutral-900 text-sm" />
-              </div>
-              <div className="space-y-1">
-                <label className="text-[11px] font-bold text-neutral-600 uppercase tracking-widest">Practice Type</label>
-                <select value={practiceType} onChange={(e) => setPracticeType(e.target.value)}
-                  className="w-full bg-neutral-50 border border-neutral-200 text-neutral-900 px-4 py-3 outline-none focus:border-neutral-900 text-sm">
-                  <option value="">Select</option>
-                  <option value="Solo">Solo</option>
-                  <option value="Firm">Law Firm</option>
-                  <option value="Government">Government</option>
-                  <option value="Corporate">Corporate</option>
-                </select>
-              </div>
-              <div className="sm:col-span-2 space-y-1">
-                <label className="text-[11px] font-bold text-neutral-600 uppercase tracking-widest">Address</label>
-                <input type="text" value={address} onChange={(e) => setAddress(e.target.value)}
-                  className="w-full bg-neutral-50 border border-neutral-200 text-neutral-900 px-4 py-3 outline-none focus:border-neutral-900 text-sm" />
-              </div>
-              <div className="sm:col-span-2 space-y-1">
-                <label className="text-[11px] font-bold text-neutral-600 uppercase tracking-widest">Bio</label>
-                <textarea value={bio} onChange={(e) => setBio(e.target.value)} rows={3}
-                  className="w-full bg-neutral-50 border border-neutral-200 text-neutral-900 px-4 py-3 outline-none focus:border-neutral-900 text-sm" />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white border border-neutral-200 p-6">
-            <label className="flex items-center gap-3 cursor-pointer">
-              <input type="checkbox" checked={isNotary} onChange={(e) => setIsNotary(e.target.checked)} className="w-4 h-4 accent-neutral-900" />
-              <span className="text-sm font-medium text-neutral-900">Registered Notary Public</span>
-            </label>
-          </div>
-
-          <div className="bg-white border border-neutral-200 p-6">
-            <h3 className="text-[11px] font-bold text-neutral-900 uppercase tracking-widest mb-4">Practice Areas</h3>
-            <div className="flex flex-wrap gap-2">
-              {PRACTICE_AREAS.map(area => (
-                <button key={area} type="button" onClick={() => toggleArrayItem(practiceAreas, setPracticeAreas, area)}
-                  className={`px-3 py-1.5 text-xs font-semibold transition-colors ${practiceAreas.includes(area) ? 'bg-neutral-900 text-white' : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'}`}>
-                  {area}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="bg-white border border-neutral-200 p-6">
-            <h3 className="text-[11px] font-bold text-neutral-900 uppercase tracking-widest mb-4">Languages</h3>
-            <div className="flex flex-wrap gap-2">
-              {LANGUAGES.map(lang => (
-                <button key={lang} type="button" onClick={() => toggleArrayItem(languages, setLanguagesState, lang)}
-                  className={`px-3 py-1.5 text-xs font-semibold transition-colors ${languages.includes(lang) ? 'bg-neutral-900 text-white' : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'}`}>
-                  {lang}
-                </button>
-              ))}
-            </div>
-          </div>
-        </>
-      )}
 
       {/* Save */}
       <div className="flex justify-end">

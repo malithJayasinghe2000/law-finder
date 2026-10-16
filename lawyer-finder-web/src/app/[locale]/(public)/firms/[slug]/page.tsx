@@ -1,4 +1,7 @@
 import prisma from '@/lib/db';
+import AttorneyPhoto from '@/components/lawyer/AttorneyPhoto';
+import { publishableDescription } from '@/lib/selfPromotion';
+import { inDailyOrder, DIRECTORY_ORDER_NOTICE, isListedFirm } from '@/lib/directory';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -49,6 +52,7 @@ export default async function FirmProfilePage({
       registrationNumber: true,
       verificationStatus: true,
       isActive: true,
+      isRegisteredPractice: true,
       offices: {
         where: { isActive: true },
         orderBy: [{ isPrimary: 'desc' }, { label: 'asc' }],
@@ -70,7 +74,7 @@ export default async function FirmProfilePage({
     },
   });
 
-  if (!firm || !firm.isActive || firm.verificationStatus !== 'VERIFIED') notFound();
+  if (!firm || !isListedFirm(firm)) notFound();
 
   return (
     <div className="py-8 sm:py-10">
@@ -97,9 +101,11 @@ export default async function FirmProfilePage({
             </div>
           </div>
 
-          {firm.description && (
+          {/* Saved text that praises rather than describes is not published
+              (src/lib/selfPromotion.ts — Rules 39 and 49). */}
+          {publishableDescription(firm.description) && (
             <p className="mt-5 max-w-3xl text-sm font-light leading-relaxed text-neutral-600">
-              {firm.description}
+              {publishableDescription(firm.description)}
             </p>
           )}
         </div>
@@ -215,8 +221,8 @@ export default async function FirmProfilePage({
               Attorneys at this firm
             </h2>
             <p className="mb-5 text-xs text-neutral-500">
-              Listed alphabetically. Choosing an attorney is entirely your decision — this
-              ordering is not a recommendation and cannot be paid for.
+              {DIRECTORY_ORDER_NOTICE} Choosing an attorney is entirely your decision — this
+              ordering is not a recommendation.
             </p>
 
             {firm.lawyers.length === 0 ? (
@@ -225,18 +231,14 @@ export default async function FirmProfilePage({
               </p>
             ) : (
               <div className="grid gap-3 sm:grid-cols-2">
-                {firm.lawyers.map((a) => (
+                {inDailyOrder(firm.lawyers).map((a) => (
                   <Link
                     key={a.id}
                     href={`/${locale}/lawyers/${a.id}`}
                     className="group border border-neutral-100 p-4 transition-all hover:border-neutral-300"
                   >
                     <div className="flex items-start gap-3">
-                      <img
-                        src={a.profileImageUrl || 'https://images.unsplash.com/photo-1556157382-97eda2d62296?auto=format&fit=crop&w=200&q=80'}
-                        alt={a.fullName}
-                        className="h-14 w-14 shrink-0 object-cover"
-                      />
+                      <AttorneyPhoto src={a.profileImageUrl} name={a.fullName} className="h-14 w-14 shrink-0" />
                       <div className="min-w-0">
                         <p className="truncate font-serif text-base text-neutral-900 group-hover:text-[#bfa37a]">
                           {a.fullName}

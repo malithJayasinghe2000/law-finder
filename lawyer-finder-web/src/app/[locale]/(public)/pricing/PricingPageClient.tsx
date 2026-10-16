@@ -4,8 +4,8 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Check, ShieldCheck, Zap, Crown, Loader2, Scale, LayoutDashboard,
-  FileText, MessageSquare, Users, Eye, Upload, Megaphone, BarChart3,
-  Trash2, Settings, Send, PenLine, BookOpen, Download, Lock,
+  MessageSquare, Users, Eye, Upload, BarChart3,
+  Settings, Send, Download, Lock,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -41,25 +41,17 @@ interface SubscriptionPlan {
 
 // Map permission categories to icons
 const categoryIcons: Record<string, React.ElementType> = {
-  articles: FileText,
   chat: MessageSquare,
   profile: Settings,
-  promotion: Megaphone,
   analytics: BarChart3,
 };
 
 // Map individual permissions to icons
 const permissionIcons: Record<string, React.ElementType> = {
-  create_article: PenLine,
-  edit_article: FileText,
-  delete_article: Trash2,
-  publish_article: BookOpen,
   access_chat: MessageSquare,
   send_message: Send,
   edit_profile: Settings,
   upload_documents: Upload,
-  access_paid_promo: Megaphone,
-  create_promo: Crown,
   view_analytics: BarChart3,
   export_data: Download,
 };
@@ -86,7 +78,6 @@ function formatFeatureLimit(name: string, limit: number): string {
   const labels: Record<string, { one: string; many: string; unlimited: string }> = {
     firm_seats: { one: '1 user', many: `${limit} users`, unlimited: 'Unlimited users' },
     storage_gb: { one: '1 GB storage', many: `${limit} GB storage`, unlimited: 'Unlimited storage' },
-    articles_per_month: { one: '1 article/mo', many: `${limit} articles/mo`, unlimited: 'Unlimited articles' },
     document_templates: { one: '1 document template', many: `${limit} document templates`, unlimited: 'Unlimited document templates' },
     ai_research_queries_per_month: { one: '1 research query/mo', many: `${limit} research queries/mo`, unlimited: 'Unlimited research queries' },
   };
@@ -236,15 +227,6 @@ export default function PricingPageClient({ locale }: { locale: string }) {
                           </div>
                         </li>
                       ))}
-                      {/* Negative features for visual symmetry if fewer permissions */}
-                      {plan.permissions.length < 5 && (
-                        <li className="flex items-start gap-2.5 text-sm opacity-50">
-                          <span className="text-neutral-400 font-bold text-base mt-[-2px]">✗</span>
-                          <span className={`text-xs ${isFeatured ? 'text-neutral-400' : 'text-neutral-500'}`}>
-                            Priority Ad Placement support
-                          </span>
-                        </li>
-                      )}
                     </ul>
                   </div>
                 </div>

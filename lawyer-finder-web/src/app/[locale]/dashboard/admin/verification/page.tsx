@@ -7,6 +7,7 @@ import {
   User, Scale, Phone, MapPin, Globe, FileText, Camera, Briefcase,
   ChevronDown, ChevronUp, Eye
 } from 'lucide-react';
+import { RejectApplicationSchema } from '@/schemas/application.schema';
 
 interface Application {
   id: string;
@@ -63,23 +64,26 @@ export default function VerificationPage() {
       });
       const result = await res.json();
       if (!res.ok) throw new Error(result.error);
-      toast.success(result.message || 'Lawyer approved successfully.');
+      toast.success(result.message || 'Attorney verified.');
       fetchData();
-    } catch {
-      toast.error('Failed to approve.');
+    } catch (err) {
+      // The server says why: an incomplete application, or a BASL number
+      // already on another profile. "Failed" alone left the admin guessing.
+      toast.error(err instanceof Error && err.message ? err.message : 'Failed to approve.', { duration: 10000 });
     } finally {
       setActionLoading(null);
     }
   };
 
   const handleReject = async (id: string) => {
-    if (!rejectReason.trim()) return toast.error('Rejection reason is mandatory.');
+    const parsed = RejectApplicationSchema.safeParse({ reason: rejectReason });
+    if (!parsed.success) return toast.error(parsed.error.issues[0]?.message ?? 'A reason is required.');
     setActionLoading(`reject-${id}`);
     try {
       const res = await fetch(`/api/applications/${id}/reject`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reason: rejectReason }),
+        body: JSON.stringify(parsed.data),
       });
       const result = await res.json();
       if (!res.ok) throw new Error(result.error);
@@ -87,8 +91,8 @@ export default function VerificationPage() {
       setRejectId(null);
       setRejectReason('');
       fetchData();
-    } catch {
-      toast.error('Failed to reject.');
+    } catch (err) {
+      toast.error(err instanceof Error && err.message ? err.message : 'Failed to reject.');
     } finally {
       setActionLoading(null);
     }
@@ -146,39 +150,37 @@ export default function VerificationPage() {
             <div key={app.id} className="bg-white border border-neutral-200 hover:shadow-sm transition-shadow">
               {/* Summary Row */}
               <div
-                className="flex items-center justify-between p-5 cursor-pointer"
+                className="flex items-center justify-between gap-3 p-4 sm:p-5 cursor-pointer"
                 onClick={() => setExpandedId(expandedId === app.id ? null : app.id)}
               >
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 bg-neutral-100 flex items-center justify-center">
+                <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+                  <div className="w-10 h-10 shrink-0 bg-neutral-100 flex items-center justify-center">
                     <User className="w-5 h-5 text-neutral-500" />
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <p className="text-sm font-bold text-neutral-900">{app.fullName}</p>
-                    <div className="flex flex-wrap items-center gap-3 mt-0.5">
+                    <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-x-3 gap-y-0.5 mt-0.5">
                       <span className="text-xs text-neutral-500">BASL: {app.baslNumber}</span>
-                      <span className="text-xs text-neutral-400">•</span>
-                      <span className="text-xs text-neutral-500">{app.email}</span>
-                      <span className="text-xs text-neutral-400">•</span>
+                      <span className="text-xs text-neutral-500 break-all">{app.email}</span>
                       <span className="text-xs text-neutral-500">{app.district}</span>
                     </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 px-2.5 py-1 uppercase tracking-wider">Pending</span>
+                <div className="flex items-center gap-3 shrink-0">
+                  <span className="hidden sm:inline text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 px-2.5 py-1 uppercase tracking-wider">Pending</span>
                   {expandedId === app.id ? <ChevronUp className="w-4 h-4 text-neutral-400" /> : <ChevronDown className="w-4 h-4 text-neutral-400" />}
                 </div>
               </div>
 
               {/* Expanded Details */}
               {expandedId === app.id && (
-                <div className="border-t border-neutral-200 p-6 space-y-6 animate-in fade-in duration-300">
+                <div className="border-t border-neutral-200 p-4 sm:p-6 space-y-6 animate-in fade-in duration-300">
                   {/* Profile Info */}
                   <div>
                     <h4 className="text-xs font-bold text-neutral-900 uppercase tracking-wide mb-3 flex items-center gap-2">
                       <User className="w-3.5 h-3.5" /> Personal Details
                     </h4>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 bg-neutral-50 border border-neutral-100 p-5">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 bg-neutral-50 border border-neutral-100 p-4 sm:p-5">
                       <div>
                         <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider">Full Name</span>
                         <p className="text-sm font-semibold text-neutral-900 mt-0.5">{app.fullName}</p>
@@ -193,7 +195,7 @@ export default function VerificationPage() {
                       </div>
                       <div>
                         <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider">Email</span>
-                        <p className="text-sm font-semibold text-neutral-900 mt-0.5">{app.email}</p>
+                        <p className="text-sm font-semibold text-neutral-900 mt-0.5 break-all">{app.email}</p>
                       </div>
                       <div>
                         <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider">District</span>
@@ -203,12 +205,12 @@ export default function VerificationPage() {
                         <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider">Languages</span>
                         <p className="text-sm font-semibold text-neutral-900 mt-0.5">{app.languages}</p>
                       </div>
-                      <div className="col-span-2 lg:col-span-3">
+                      <div className="sm:col-span-2 lg:col-span-3">
                         <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider">Address</span>
                         <p className="text-sm font-semibold text-neutral-900 mt-0.5">{app.address}</p>
                       </div>
                       {app.bio && (
-                        <div className="col-span-2 lg:col-span-3">
+                        <div className="sm:col-span-2 lg:col-span-3">
                           <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider">Bio</span>
                           <p className="text-sm text-neutral-700 mt-0.5">{app.bio}</p>
                         </div>
@@ -221,7 +223,7 @@ export default function VerificationPage() {
                     <h4 className="text-xs font-bold text-neutral-900 uppercase tracking-wide mb-3 flex items-center gap-2">
                       <Briefcase className="w-3.5 h-3.5" /> Professional Credentials
                     </h4>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 bg-neutral-50 border border-neutral-100 p-5">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 bg-neutral-50 border border-neutral-100 p-4 sm:p-5">
                       <div>
                         <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider">BASL Number</span>
                         <p className="text-base font-bold text-neutral-900 mt-0.5">{app.baslNumber}</p>
@@ -261,7 +263,7 @@ export default function VerificationPage() {
                         </span>
                         {app.licenseImage ? (
                           <div className="mt-3 relative group cursor-pointer" onClick={() => setPreviewImage(app.licenseImage)}>
-                            <img src={app.licenseImage} alt="License" className="w-full h-40 object-cover border border-neutral-200" />
+                            <img src={app.licenseImage} alt="License" className="w-full h-48 object-contain bg-white border border-neutral-200" />
                             <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                               <Eye className="w-6 h-6 text-white" />
                             </div>
@@ -276,7 +278,7 @@ export default function VerificationPage() {
                         </span>
                         {app.identityImage ? (
                           <div className="mt-3 relative group cursor-pointer" onClick={() => setPreviewImage(app.identityImage)}>
-                            <img src={app.identityImage} alt="Identity" className="w-full h-40 object-cover border border-neutral-200" />
+                            <img src={app.identityImage} alt="Identity" className="w-full h-48 object-contain bg-white border border-neutral-200" />
                             <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                               <Eye className="w-6 h-6 text-white" />
                             </div>
@@ -289,7 +291,7 @@ export default function VerificationPage() {
                   </div>
 
                   {/* Meta Info */}
-                  <div className="flex items-center gap-6 text-[11px] text-neutral-500 border-t border-neutral-100 pt-4">
+                  <div className="flex flex-wrap items-center gap-x-6 gap-y-1 text-[11px] text-neutral-500 border-t border-neutral-100 pt-4">
                     <span>Submitted: {app.submittedAt ? new Date(app.submittedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A'}</span>
                     <span>Account Created: {new Date(app.userCreatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
                   </div>

@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { EmailService } from '@/lib/email/EmailService';
-import { createSoloFirmForAttorney } from '@/lib/firms/provisioning';
 import { fullApplicationSchema, APPROVED_DRAFT_STUB } from '@/schemas/application.schema';
 
 /**
@@ -28,6 +27,13 @@ import { fullApplicationSchema, APPROVED_DRAFT_STUB } from '@/schemas/applicatio
  * the correct behaviour — the fix for a missing BASL number is to ask for it.
  * ─────────────────────────────────────────────────────────────────────────────
  */
+const STEP_NAMES: Record<string, string> = {
+  step1: 'personal details',
+  step2: 'professional credentials',
+  step3: 'practice areas',
+  step4: 'verification documents',
+};
+
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
@@ -49,15 +55,13 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     // Parsed, not cast. Nothing below invents a value.
     const parsed = fullApplicationSchema.safeParse(application.draftData);
     if (!parsed.success) {
-      const first = parsed.error.issues[0];
+      // Named the way the application form names its steps, for the admin.
+      const missing = [...new Set(parsed.error.issues.map((i) => STEP_NAMES[String(i.path[0])] ?? 'other details'))];
       return NextResponse.json(
         {
           error:
-            'This application is incomplete and cannot be approved. ' +
-            (first ? `${first.path.join('.')}: ${first.message}` : '') +
-            ' Ask the applicant to complete it rather than approving around the gap — ' +
-            'an attorney marked verified against a registration number we filled in ' +
-            'ourselves is not verified.',
+            `This application is incomplete (${missing.join(', ')}) and cannot be approved. ` +
+            'Reject it with a note asking the applicant to complete it.',
           details: parsed.error.issues,
         },
         { status: 422 }
@@ -109,6 +113,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
           longitude: step1.longitude ? parseFloat(step1.longitude) : null,
           contactPhone: step1.phone,
           isVerified: true,
+          verifiedById: session.userId,
+          verifiedAt: new Date(),
           practiceAreas: step3.practiceAreas,
           languages: step1.languages,
           district: step1.district,
@@ -121,28 +127,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         },
       });
 
-      // 3. Give the attorney a firm of one, and make them its owner.
-      //
-      // The firm — not this platform — is the provider of legal services, so an
-      // attorney must never exist on the system without one. Created inside the
-      // same transaction as the profile so the two cannot come apart.
-      // See docs/restructure/LEGAL-GUARDRAILS.md (rule 7).
-      await createSoloFirmForAttorney(tx, {
-        userId: application.userId,
-        profileId: profile.id,
-        fullName: profile.fullName,
-        baslNumber: profile.baslNumber,
-        bio: profile.bio,
-        practiceAreas: profile.practiceAreas,
-        languages: profile.languages,
-        courts: profile.courts,
-        district: profile.district,
-        contactPhone: profile.contactPhone,
-        contactEmail: application.user.email,
-        address: profile.address,
-        profileImageUrl: profile.profileImageUrl,
-        isVerified: profile.isVerified,
-      });
+      // 3. No practice is created. Until 2026-10-13 a firm of one was made here
+      // silently; now an approved attorney has none — is not listed and cannot be
+      // engaged — until they register their practice (as a sole practitioner or
+      // a firm) or accept an invitation into one. See src/lib/firms/provisioning.ts.
 
       // 4. Elevate the account role.
       await tx.user.update({
@@ -151,10 +139,17 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       });
     });
 
-    await EmailService.sendApplicationApproved(application.user.email, step1.fullName);
+    // Not awaited: the mail server takes 5-18 s and the admin should not wait
+    // on it. server.js is long-lived, so the send completes after the response;
+    // sendMailSafe logs a failure and never throws.
+    void EmailService.sendApplicationApproved(application.user.email, step1.fullName);
 
     return NextResponse.json(
-      { success: true, message: 'Attorney verified and enrolled, with a practice of one created.' },
+      {
+        success: true,
+        // No practice is created on approval (see step 3 above).
+        message: 'Attorney verified. They are not listed until they register a practice or join one.',
+      },
       { status: 200 }
     );
   } catch (error) {

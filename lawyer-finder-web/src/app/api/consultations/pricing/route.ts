@@ -3,19 +3,19 @@ import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { ConsultationPricingSchema } from '@/schemas/consultation.schema';
 
-// GET: Fetch a lawyer's pricing
-export async function GET(req: Request) {
+// GET: the signed-in attorney's own settings.
+//
+// This used to take any `lawyerId` and answer without a session, returning the
+// whole row — including the attorney's own bank account number — to anyone who
+// had an attorney's id (profile ids appear in public directory URLs). Nothing
+// calls it for another attorney, so it answers only for the person asking.
+export async function GET() {
   try {
-    const { searchParams } = new URL(req.url);
-    const lawyerId = searchParams.get('lawyerId');
-
-    // If no lawyerId provided, get current lawyer's pricing
     const session = await getSession();
-    const targetId = lawyerId || session?.profileId;
-
-    if (!targetId) {
-      return NextResponse.json({ error: 'Lawyer ID required' }, { status: 400 });
+    if (!session || session.role !== 'LAWYER' || !session.profileId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    const targetId = session.profileId;
 
     const pricing = await prisma.consultationPricing.findUnique({
       where: { lawyerId: targetId },

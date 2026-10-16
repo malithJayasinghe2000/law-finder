@@ -1,6 +1,7 @@
 'use client';
 
 import { Card } from '@/components/ui/card';
+import { CommunityIcon } from '@/components/community/CommunityIcon';
 import { Badge } from '@/components/ui/badge';
 import { MessageCircle, Clock, Eye, Pin, Lock, ShieldCheck } from 'lucide-react';
 import Link from 'next/link';
@@ -75,16 +76,16 @@ export default function PostCard({ post, locale, onVote, showCommunity = true }:
             {showCommunity && (
               <Link
                 href={`/${locale}/blog/community/${post.community.name}`}
-                className="font-bold text-neutral-600 hover:text-[#bfa37a] uppercase tracking-wider text-[10px] transition-colors"
+                className="inline-flex items-center gap-1 font-bold text-neutral-600 hover:text-[#bfa37a] uppercase tracking-wider text-[10px] transition-colors"
               >
-                {post.community.icon} {post.community.displayName}
+                <CommunityIcon icon={post.community.icon} className="h-3 w-3" /> {post.community.displayName}
               </Link>
             )}
             <span>•</span>
             <span className="flex items-center gap-1">
               Posted by{' '}
               <span className="font-semibold text-neutral-700">
-                {post.author.profile?.fullName || post.author.fullName || 'Unknown User'}
+                {post.author.profile?.fullName || post.author.fullName || 'Community member'}
               </span>
               {post.author.profile?.isVerified && (
                 <ShieldCheck className="h-3.5 w-3.5 text-[#bfa37a]" />

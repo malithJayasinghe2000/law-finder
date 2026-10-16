@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { useParams, useRouter } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -11,14 +13,27 @@ import {
   CalendarDays, Clock, MapPin, Video, User, CheckCircle, XCircle,
   ChevronLeft, ChevronRight, Eye, FileText,
 } from 'lucide-react';
-import { BOOKING_STATUS_COLORS, BOOKING_STATUS_LABELS } from '@/schemas/consultation.schema';
-import { ShieldCheck, Banknote, UserX, UserCheck, Receipt } from 'lucide-react';
+import { BOOKING_STATUS_COLORS, FIRM_STATUS_LABELS } from '@/schemas/consultation.schema';
+import { ShieldCheck, Banknote, UserX, UserCheck, Receipt, UserPlus, MessageSquare } from 'lucide-react';
+import { firmMayMessageClient } from '@/lib/consultations/bookingStatus';
+import type { BookingStatus } from '@prisma/client';
 import { AssignMatterDialog } from '@/components/firms/AssignMatterDialog';
 import { formatDateOnlyString } from '@/lib/utils';
 import ConflictCheckDialog from '@/components/consultations/ConflictCheckDialog';
 import QuoteComposerDialog from '@/components/consultations/QuoteComposerDialog';
 import FeeNoteDialog from '@/components/consultations/FeeNoteDialog';
 import PaymentReviewDialog from '@/components/consultations/PaymentReviewDialog';
+
+// How a consultation would take place. BOTH used to show as "Online".
+const MODE_LABELS: Record<string, string> = {
+  PHYSICAL: 'In person',
+  ONLINE: 'Online',
+  BOTH: 'In person or online',
+};
+
+// Requests that ended before or without an appointment. "No appointment yet ·
+// Time proposed with the quote" promised a next step that will never come.
+const CLOSED_STATUSES = ['DECLINED', 'QUOTE_EXPIRED', 'CLIENT_DECLINED', 'CANCELLED_BY_CLIENT', 'CANCELLED_BY_FIRM'];
 
 interface Booking {
   id: string;
@@ -44,6 +59,9 @@ interface Booking {
   status: string;
   createdAt: string;
   client: { id: string; fullName: string | null; email: string; profileImageUrl: string | null };
+  lawyer?: { fullName: string } | null;
+  /** Firm side only: the last conflict-check outcome, if one was recorded. */
+  conflictOutcome?: 'CLEAR' | 'CONFLICT_FOUND' | 'NEEDS_REVIEW' | null;
   payment: any;
   /**
    * What this member of the firm may do with this matter, decided server-side in
@@ -76,11 +94,46 @@ export default function LawyerBookingsPage() {
   const [assignTarget, setAssignTarget] = useState<Booking | null>(null);
   const [feeNoteBooking, setFeeNoteBooking] = useState<Booking | null>(null);
 
+  // Principals and practice managers can open a request for a client who came
+  // to the practice directly. From membership, not role — see /api/firms/me.
+  const { locale } = useParams<{ locale: string }>();
+  const router = useRouter();
+  const [canManageFirm, setCanManageFirm] = useState(false);
+  const [openingChat, setOpeningChat] = useState<string | null>(null);
+
+  // The assigned attorney messages the client about THIS request. The server
+  // refuses a thread that is not tied to a live request the client sent.
+  async function messageClient(booking: Booking) {
+    setOpeningChat(booking.id);
+    try {
+      const res = await fetch('/api/chat/conversations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ targetUserId: booking.client.id, bookingId: booking.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Could not open the conversation');
+      router.push(`/${locale}/dashboard/lawyer/chat?conv=${data.id}`);
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Could not open the conversation');
+      setOpeningChat(null);
+    }
+  }
+  useEffect(() => {
+    fetch('/api/firms/me')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => setCanManageFirm(!!d?.membership?.canManageFirm))
+      .catch(() => {});
+  }, []);
+
   // Verify Modal state
 
   // Calendar states
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  // Phones only: the calendar filled a whole screen under the list, mostly
+  // empty because few requests have an appointment. Always shown on desktop.
+  const [showCalendar, setShowCalendar] = useState(false);
   const [calendarBookings, setCalendarBookings] = useState<Booking[]>([]);
   const [loadingCalendar, setLoadingCalendar] = useState(false);
 
@@ -103,18 +156,22 @@ export default function LawyerBookingsPage() {
   useEffect(() => { loadCalendarBookings(); }, [currentMonth]);
   useEffect(() => { loadPricing(); }, []);
 
+  // The quote's payment details come from the PRACTICE's bank details (My Firm →
+  // Practice), not the attorney's own Pricing page. The client engages and pays
+  // the firm; a pre-fill from an attorney's personal settings could send the fee
+  // to a different account from the one on the firm's fee note.
   async function loadPricing() {
     try {
-      const res = await fetch('/api/consultations/pricing');
+      const res = await fetch('/api/firms/me');
       const data = await res.json();
-      if (data.pricing) {
-        setDefaultBankName(data.pricing.bankName || '');
-        setDefaultAccountName(data.pricing.accountName || '');
-        setDefaultAccountNumber(data.pricing.accountNumber || '');
-        setDefaultBankBranch(data.pricing.bankBranch || '');
+      if (data.firm) {
+        setDefaultBankName(data.firm.bankName || '');
+        setDefaultAccountName(data.firm.accountName || '');
+        setDefaultAccountNumber(data.firm.accountNumber || '');
+        setDefaultBankBranch(data.firm.bankBranch || '');
       }
     } catch (e) {
-      console.error('Failed to load pricing', e);
+      console.error('Failed to load the practice bank details', e);
     }
   }
 
@@ -128,7 +185,7 @@ export default function LawyerBookingsPage() {
   async function loadBookings() {
     setLoading(true);
     try {
-      const params = new URLSearchParams({ page: String(page), limit: '10' });
+      const params = new URLSearchParams({ scope: 'firm', page: String(page), limit: '10' });
       if (statusFilter) params.set('status', statusFilter);
       if (selectedDate) {
         const dateStr = getFormattedDateString(selectedDate);
@@ -157,7 +214,7 @@ export default function LawyerBookingsPage() {
       const dateFrom = getFormattedDateString(firstDay);
       const dateTo = getFormattedDateString(lastDay);
       
-      const res = await fetch(`/api/consultations/bookings?dateFrom=${dateFrom}&dateTo=${dateTo}&limit=100`);
+      const res = await fetch(`/api/consultations/bookings?scope=firm&dateFrom=${dateFrom}&dateTo=${dateTo}&limit=100`);
       const data = await res.json();
       setCalendarBookings(data.bookings || []);
     } catch (e) {
@@ -309,24 +366,40 @@ export default function LawyerBookingsPage() {
     { value: 'REQUESTED', label: 'New requests' },
     { value: 'CONFLICT_CHECK', label: 'To quote' },
     { value: 'QUOTED', label: 'Awaiting client' },
-    { value: 'CONFIRMED', label: 'Upcoming' },
+    // Was 'CONFIRMED', which is not a status — the API refused it and the tab
+    // was always empty.
+    { value: 'SCHEDULED', label: 'Upcoming' },
     { value: 'ACCEPTED', label: 'Awaiting payment' },
     { value: 'COMPLETED', label: 'Completed' },
-    { value: 'CANCELLED_BY_CLIENT', label: 'Cancelled by Client' },
-    { value: 'CANCELLED_BY_FIRM', label: 'Cancelled by me' },
+    // Requests the practice declined had no tab of their own.
+    { value: 'DECLINED', label: 'Not accepted' },
+    { value: 'CANCELLED_BY_CLIENT', label: 'Cancelled by client' },
+    // The list is the whole practice's, so not "by me".
+    { value: 'CANCELLED_BY_FIRM', label: 'Cancelled by practice' },
   ];
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-4">
-        <div className="flex h-11 w-11 items-center justify-center bg-[#0a0a0a] text-white">
+      <div className="flex flex-wrap items-center gap-4">
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center bg-[#0a0a0a] text-white">
           <CalendarDays className="h-5 w-5" />
         </div>
-        <div>
-          <h1 className="text-4xl font-normal tracking-tight text-neutral-900">Consultation Bookings</h1>
-          <p className="text-sm text-neutral-500 font-medium">Manage your client consultation appointments</p>
+        <div className="min-w-0">
+          {/* "Bookings" was marketplace language: these are requests to the
+              practice, and most have no appointment yet. */}
+          <h1 className="text-2xl sm:text-4xl font-normal tracking-tight text-neutral-900">Requests</h1>
+          <p className="text-sm text-neutral-500 font-medium">Requests clients have sent your practice</p>
         </div>
+        {canManageFirm && (
+          <Link
+            href={`/${locale}/dashboard/lawyer/consultations/new`}
+            aria-label="New request"
+            className="ml-auto inline-flex items-center gap-2 bg-[#0a0a0a] text-white px-4 py-2.5 text-xs font-bold uppercase tracking-widest hover:bg-neutral-800 transition-colors shrink-0"
+          >
+            <UserPlus className="h-4 w-4" /> <span>New request</span>
+          </Link>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
@@ -367,66 +440,96 @@ export default function LawyerBookingsPage() {
           ) : bookings.length === 0 ? (
             <div className="text-center py-16 border border-dashed border-neutral-200 bg-neutral-50/50">
               <CalendarDays className="h-10 w-10 text-neutral-300 mx-auto mb-3" />
-              <p className="text-sm font-semibold text-neutral-900">No bookings found</p>
-              <p className="text-xs text-neutral-500 mt-1">Bookings from clients will appear here</p>
+              <p className="text-sm font-semibold text-neutral-900">
+                {statusFilter || selectedDate ? 'Nothing in this list' : 'No requests yet'}
+              </p>
+              <p className="text-xs text-neutral-500 mt-1">Requests clients send your practice will appear here</p>
             </div>
           ) : (
             <div className="space-y-3">
               {bookings.map((booking) => (
-                <Card key={booking.id} className="rounded-none shadow-sm hover:shadow-md transition-shadow border-neutral-200">
+                <Card key={booking.id} className="py-0 rounded-none shadow-sm hover:shadow-md transition-shadow border-neutral-200">
                   <CardContent className="p-5">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-3 mb-2">
+                    {/* Details on top, actions in their own row underneath — side by side,
+                        the actions squeezed the details into one-word lines. */}
+                    <div className="flex flex-col gap-3">
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2 mb-2">
                           <span className="text-xs font-mono text-neutral-400">{booking.bookingNumber}</span>
                           <Badge className={`text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-sm ${BOOKING_STATUS_COLORS[booking.status] || 'bg-neutral-100 text-neutral-700'}`}>
-                            {BOOKING_STATUS_LABELS[booking.status] || booking.status}
+                            {FIRM_STATUS_LABELS[booking.status] || booking.status}
                           </Badge>
                           <Badge variant="outline" className="text-[10px] rounded-sm border-neutral-200">
-                            {booking.mode === 'PHYSICAL' ? <><MapPin className="w-3 h-3 mr-1" /> Physical</> : <><Video className="w-3 h-3 mr-1" /> Online</>}
+                            {booking.mode === 'PHYSICAL' ? <MapPin className="w-3 h-3 mr-1" /> : <Video className="w-3 h-3 mr-1" />}
+                            {MODE_LABELS[booking.mode] ?? booking.mode}
                           </Badge>
+                          {!booking.lawyerId && (
+                            <span className="border border-amber-300 bg-amber-50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-widest text-amber-800">
+                              Unassigned
+                            </span>
+                          )}
+                          {booking.status === 'REQUESTED' && booking.conflictOutcome === 'NEEDS_REVIEW' && (
+                            <span className="border border-amber-300 bg-amber-50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-widest text-amber-800">
+                              On hold
+                            </span>
+                          )}
                         </div>
 
                         <h3 className="text-sm font-bold text-neutral-900 truncate">{booking.subject}</h3>
 
-                        <div className="flex items-center gap-4 mt-2 text-xs text-neutral-500">
-                          <span className="flex items-center gap-1">
-                            <User className="w-3 h-3" />
-                            {booking.client?.fullName || booking.client?.fullName || booking.client?.email}
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-xs text-neutral-500">
+                          <span className="flex items-center gap-1 min-w-0">
+                            <User className="w-3 h-3 shrink-0" />
+                            <span className="truncate">{booking.client?.fullName || booking.client?.email}</span>
                           </span>
-                          <span className="flex items-center gap-1">
-                            <CalendarDays className="w-3 h-3" />
-                            {booking.date
-                              ? formatDateOnlyString(booking.date, 'en-US', { weekday: 'short', month: 'short', day: 'numeric' })
-                              : 'No appointment yet'}
-                            {!booking.lawyerId && (
-                              <span className="ml-2 border border-amber-300 bg-amber-50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-widest text-amber-800">
-                                Unassigned
-                              </span>
-                            )}
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <Clock className="w-3 h-3" />
-                            {booking.startTime && booking.endTime
-                              ? `${booking.startTime} – ${booking.endTime}`
-                              : 'Time proposed with the quote'}
-                          </span>
+                          {booking.lawyer?.fullName && (
+                            <span className="flex items-center gap-1 whitespace-nowrap">
+                              <UserCheck className="w-3 h-3" />
+                              {booking.lawyer.fullName}
+                            </span>
+                          )}
+                          {(booking.date || !CLOSED_STATUSES.includes(booking.status)) && (
+                            <span className="flex items-center gap-1 whitespace-nowrap">
+                              <CalendarDays className="w-3 h-3" />
+                              {booking.date
+                                ? formatDateOnlyString(booking.date, 'en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+                                : 'No appointment yet'}
+                            </span>
+                          )}
+                          {(booking.startTime || !CLOSED_STATUSES.includes(booking.status)) && (
+                            <span className="flex items-center gap-1 whitespace-nowrap">
+                              <Clock className="w-3 h-3" />
+                              {booking.startTime && booking.endTime
+                                ? `${booking.startTime} – ${booking.endTime}`
+                                : 'Time proposed with the quote'}
+                            </span>
+                          )}
                         </div>
                       </div>
 
-                      <div className="text-right shrink-0">
-                        <div className="flex gap-1.5 mt-3">
-                          {booking.status === 'REQUESTED' && (
+                      <div className="border-t border-neutral-100 pt-3">
+                        <div className="flex flex-wrap items-center justify-end gap-1.5">
+                          {/* The conflict check and the quote are the assigned attorney's
+                              own professional acts — the server refuses anyone else, so the
+                              buttons are shown only to them. Until someone is assigned, the
+                              principal sees a prompt to assign instead. */}
+                          {!booking.lawyerId && booking.access?.canAssign &&
+                            (booking.status === 'REQUESTED' || booking.status === 'CONFLICT_CHECK') && (
+                            <span className="mr-auto text-[10px] font-semibold text-amber-800">
+                              Assign an attorney first
+                            </span>
+                          )}
+                          {booking.status === 'REQUESTED' && booking.access?.basis === 'ASSIGNED_ATTORNEY' && (
                             <Button
                               size="sm"
                               onClick={() => setConflictTarget(booking)}
                               disabled={actionLoading}
                               className="bg-[#0a0a0a] text-white hover:bg-neutral-800 rounded-none h-7 text-[10px] px-2.5 font-bold"
                             >
-                              <ShieldCheck className="w-3 h-3 mr-1" /> Conflict check
+                              <ShieldCheck className="w-3 h-3 mr-1" /> Review request
                             </Button>
                           )}
-                          {booking.status === 'CONFLICT_CHECK' && (
+                          {booking.status === 'CONFLICT_CHECK' && booking.access?.basis === 'ASSIGNED_ATTORNEY' && (
                             <Button
                               size="sm"
                               onClick={() => setQuoteTarget(booking)}
@@ -518,6 +621,18 @@ export default function LawyerBookingsPage() {
                               <Receipt className="w-3 h-3 mr-1" /> Fee note
                             </Button>
                           )}
+                          {booking.access?.basis === 'ASSIGNED_ATTORNEY' &&
+                            firmMayMessageClient(booking.status as BookingStatus) && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => messageClient(booking)}
+                              disabled={openingChat === booking.id}
+                              className="rounded-none h-7 text-[10px] px-2.5 font-bold border-neutral-300"
+                            >
+                              <MessageSquare className="w-3 h-3 mr-1" /> Message client
+                            </Button>
+                          )}
                           {booking.access?.canAssign && (
                             <Button
                               size="sm"
@@ -561,7 +676,16 @@ export default function LawyerBookingsPage() {
         </div>
 
         {/* Right Column: Calendar & Day Schedule */}
-        <div className="lg:col-span-1 space-y-6">
+        <button
+          type="button"
+          onClick={() => setShowCalendar((v) => !v)}
+          aria-expanded={showCalendar}
+          className="lg:hidden w-full border border-neutral-200 bg-white py-2.5 text-xs font-bold uppercase tracking-widest text-neutral-700"
+        >
+          <CalendarDays className="mr-2 inline h-4 w-4" />
+          {showCalendar ? 'Hide calendar' : 'Show calendar'}
+        </button>
+        <div className={`lg:col-span-1 space-y-6 ${showCalendar ? '' : 'hidden'} lg:block`}>
           <Card className="rounded-none border border-neutral-200 shadow-sm p-5 bg-white">
             {/* Calendar Month Selector */}
             <div className="flex items-center justify-between pb-4 mb-4 border-b border-neutral-100">
@@ -667,7 +791,7 @@ export default function LawyerBookingsPage() {
                           </p>
                         </div>
                         <Badge className={`text-[8px] uppercase tracking-wider px-1.5 py-0.5 rounded-sm shrink-0 ${BOOKING_STATUS_COLORS[booking.status] || 'bg-neutral-100 text-neutral-700'}`}>
-                          {BOOKING_STATUS_LABELS[booking.status] || booking.status}
+                          {FIRM_STATUS_LABELS[booking.status] || booking.status}
                         </Badge>
                       </div>
                     ))
@@ -695,13 +819,23 @@ export default function LawyerBookingsPage() {
             <div className="p-6 space-y-4">
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div><p className="text-neutral-500 text-xs">Client</p><p className="font-semibold">{selectedBooking.client?.fullName || selectedBooking.client?.email}</p></div>
-                <div><p className="text-neutral-500 text-xs">Status</p><Badge className={`text-[10px] ${BOOKING_STATUS_COLORS[selectedBooking.status]}`}>{BOOKING_STATUS_LABELS[selectedBooking.status]}</Badge></div>
+                <div><p className="text-neutral-500 text-xs">Status</p><Badge className={`text-[10px] ${BOOKING_STATUS_COLORS[selectedBooking.status]}`}>{FIRM_STATUS_LABELS[selectedBooking.status]}</Badge></div>
                 <div><p className="text-neutral-500 text-xs">Date</p><p className="font-semibold">{selectedBooking.date ? formatDateOnlyString(selectedBooking.date, 'en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }) : 'Not yet arranged'}</p></div>
                 <div><p className="text-neutral-500 text-xs">Time</p><p className="font-semibold">{selectedBooking.startTime && selectedBooking.endTime ? `${selectedBooking.startTime} – ${selectedBooking.endTime}${selectedBooking.duration ? ` (${selectedBooking.duration} min)` : ''}` : 'Not yet arranged'}</p></div>
-                <div><p className="text-neutral-500 text-xs">Mode</p><p className="font-semibold">{selectedBooking.mode}</p></div>
-                {selectedBooking.status !== 'REQUESTED' && selectedBooking.status !== 'DECLINED' && (
-                  <div><p className="text-neutral-500 text-xs">Your Fee</p><p className="font-semibold">Rs. {selectedBooking.lawyerFee.toLocaleString()}</p></div>
+                <div><p className="text-neutral-500 text-xs">Mode</p><p className="font-semibold">{MODE_LABELS[selectedBooking.mode] ?? selectedBooking.mode}</p></div>
+                {/* "Rs. 0" before any proposal read as a fee of nothing. */}
+                {selectedBooking.status !== 'DECLINED' && (
+                  <div>
+                    <p className="text-neutral-500 text-xs">Fee</p>
+                    <p className="font-semibold">
+                      {selectedBooking.status === 'REQUESTED' || selectedBooking.status === 'CONFLICT_CHECK'
+                        ? 'Not proposed yet'
+                        : `Rs. ${selectedBooking.lawyerFee.toLocaleString()}`}
+                    </p>
+                  </div>
                 )}
+                <div><p className="text-neutral-500 text-xs">Attorney</p><p className="font-semibold">{selectedBooking.lawyer?.fullName ?? 'Not assigned yet'}</p></div>
+                <div><p className="text-neutral-500 text-xs">Received</p><p className="font-semibold">{new Date(selectedBooking.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Colombo' })}</p></div>
               </div>
               {selectedBooking.meetingLink && (
                 <div className="p-3 bg-blue-50 border border-blue-200">
@@ -724,15 +858,15 @@ export default function LawyerBookingsPage() {
 
       <Dialog open={Boolean(cancelBookingTarget)} onOpenChange={(open) => { if (!open) { setCancelBookingTarget(null); setCancelReason(''); } }}>
         <DialogContent>
-          <DialogTitle>Cancel Booking</DialogTitle>
+          <DialogTitle>Cancel request</DialogTitle>
           <DialogDescription>
-            Provide a clear cancellation reason for this booking. The client will be notified and the refund policy will be applied if the booking has already been paid.
+            Give the client a clear reason; they are emailed it. If they have paid, what they paid is recorded as owed back in full under Refunds, where you record what your practice returns.
           </DialogDescription>
 
           {cancelBookingTarget && (
             <div className="space-y-4 mt-4">
               <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-700">
-                <p className="font-semibold">Booking</p>
+                <p className="font-semibold">Request</p>
                 <p>{cancelBookingTarget.bookingNumber} • {cancelBookingTarget.subject}</p>
                 <p>{cancelBookingTarget.date ? `${formatDateOnlyString(cancelBookingTarget.date, 'en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })} • ${cancelBookingTarget.startTime} – ${cancelBookingTarget.endTime}` : 'No appointment arranged yet'}</p>
                 <p className="text-xs text-neutral-500 mt-1">Client: {cancelBookingTarget.client?.fullName || cancelBookingTarget.client?.email}</p>
@@ -783,7 +917,9 @@ export default function LawyerBookingsPage() {
         <ConflictCheckDialog
           bookingId={conflictTarget.id}
           bookingNumber={conflictTarget.bookingNumber}
-          clientName={conflictTarget.client?.fullName || 'Client'}
+          clientName={conflictTarget.client?.fullName || conflictTarget.client?.email || 'Client'}
+          subject={conflictTarget.subject}
+          description={conflictTarget.description}
           open={Boolean(conflictTarget)}
           onOpenChange={(o) => { if (!o) setConflictTarget(null); }}
           onCompleted={() => { loadBookings(); loadCalendarBookings(); }}

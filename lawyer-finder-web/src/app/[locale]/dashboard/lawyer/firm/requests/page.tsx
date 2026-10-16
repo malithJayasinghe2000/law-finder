@@ -27,6 +27,7 @@ import { toast } from 'sonner';
 import {
   Shield, Loader2, AlertTriangle, Clock, Check, Building2, Scale,
 } from 'lucide-react';
+import { outcomeOptions, outcomeLabel, ERASURE_NOT_AVAILABLE_NOTE } from '@/lib/privacy/firmOutcomes';
 
 type Request = {
   id: string;
@@ -39,30 +40,6 @@ type Request = {
   mattersHeldByThisFirm: number;
   ourResponse: { outcome: string; reason: string; respondedAt: string } | null;
 };
-
-const OUTCOMES: { value: string; label: string; help: string }[] = [
-  {
-    value: 'RELEASED',
-    label: 'Released to them',
-    help: 'You gave the person their matter data.',
-  },
-  {
-    value: 'ERASED',
-    label: 'Erased',
-    help: 'You deleted the matter data you hold for them.',
-  },
-  {
-    value: 'REFUSED_RETAINED',
-    label: 'Kept — a duty requires it',
-    help: 'You are keeping the file. Name the duty; the person is shown your reason.',
-  },
-  {
-    value: 'PARTIAL',
-    label: 'Partly done',
-    help: 'Some released or erased, some kept. Say which, and why.',
-  },
-  { value: 'NO_DATA', label: 'We hold nothing', help: 'No matter data for this person.' },
-];
 
 const TYPE_LABEL: Record<string, string> = {
   ACCESS: 'Access — wants a copy of what you hold',
@@ -111,7 +88,15 @@ export default function FirmSubjectRequestsPage() {
 
   const startAnswer = (r: Request) => {
     setAnswering(r.id);
-    setOutcome(r.ourResponse?.outcome ?? (r.mattersHeldByThisFirm === 0 ? 'NO_DATA' : 'REFUSED_RETAINED'));
+    // Start from the firm's earlier answer if it still fits this request, else
+    // "we hold nothing" when no matter is held here, else the first option.
+    const options = outcomeOptions(r.type).map((o) => o.value as string);
+    const previous = r.ourResponse?.outcome;
+    setOutcome(
+      previous && options.includes(previous)
+        ? previous
+        : r.mattersHeldByThisFirm === 0 ? 'NO_DATA' : options[0]
+    );
     setReason(r.ourResponse?.reason ?? '');
   };
 
@@ -152,8 +137,8 @@ export default function FirmSubjectRequestsPage() {
 
   if (forbidden) {
     return (
-      <div className="mx-auto max-w-3xl px-5 py-16">
-        <div className="rounded-2xl border border-neutral-200 bg-white p-6">
+      <div className="max-w-3xl">
+        <div className="rounded-none border border-neutral-200 bg-white p-6">
           <h1 className="font-serif text-xl tracking-tight text-neutral-900">
             Data-protection requests
           </h1>
@@ -166,20 +151,23 @@ export default function FirmSubjectRequestsPage() {
   const open = requests.filter((r) => !r.ourResponse);
   const answered = requests.filter((r) => r.ourResponse);
 
+  // No padding of its own: the dashboard shell already has it, and the double
+  // margin left a narrow column on a phone. Square corners, as on the other
+  // practice pages.
   return (
-    <div className="mx-auto max-w-4xl px-5 py-10">
+    <div className="max-w-4xl">
       <header className="border-b border-neutral-200 pb-6">
         <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.2em] text-[#bfa37a]">
           <Shield className="h-3.5 w-3.5" />
           {firmName}
         </div>
-        <h1 className="mt-2 font-serif text-3xl tracking-tight text-neutral-900">
+        <h1 className="mt-2 font-serif text-2xl tracking-tight text-neutral-900">
           Data-protection requests
         </h1>
         <p className="mt-3 max-w-2xl text-sm leading-relaxed text-neutral-600">{guidance}</p>
       </header>
 
-      <div className="mt-6 flex gap-3 rounded-2xl border border-[#efeae0] bg-[#fbf9f6] p-5">
+      <div className="mt-6 flex gap-3 rounded-none border border-[#efeae0] bg-[#fbf9f6] p-5">
         <Scale className="mt-0.5 h-4 w-4 shrink-0 text-[#bfa37a]" />
         <div className="text-sm leading-relaxed text-neutral-700">
           <p className="font-semibold text-neutral-900">Your decision, not ours.</p>
@@ -192,7 +180,7 @@ export default function FirmSubjectRequestsPage() {
       </div>
 
       {open.length === 0 && answered.length === 0 && (
-        <div className="mt-8 rounded-2xl border border-neutral-200 bg-white p-8 text-center">
+        <div className="mt-8 rounded-none border border-neutral-200 bg-white p-8 text-center">
           <p className="text-sm text-neutral-600">
             No data-protection requests have been referred to this firm.
           </p>
@@ -208,7 +196,7 @@ export default function FirmSubjectRequestsPage() {
             {open.map((r) => {
               const overdue = new Date(r.dueBy) < new Date();
               return (
-                <div key={r.id} className="rounded-2xl border border-neutral-200 bg-white p-5">
+                <div key={r.id} className="rounded-none border border-neutral-200 bg-white p-5">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0">
                       <h3 className="text-sm font-bold text-neutral-900">
@@ -240,7 +228,7 @@ export default function FirmSubjectRequestsPage() {
                     {answering !== r.id && (
                       <button
                         onClick={() => startAnswer(r)}
-                        className="rounded-xl bg-neutral-900 px-4 py-2.5 text-sm font-semibold text-white"
+                        className="rounded-none bg-neutral-900 px-4 py-2.5 text-sm font-semibold text-white"
                       >
                         Record your decision
                       </button>
@@ -252,11 +240,14 @@ export default function FirmSubjectRequestsPage() {
                       <label className="text-xs font-bold uppercase tracking-wider text-neutral-500">
                         What did you decide?
                       </label>
+                      {r.type === 'ERASURE' && (
+                        <p className="mt-2 text-xs leading-relaxed text-amber-800">{ERASURE_NOT_AVAILABLE_NOTE}</p>
+                      )}
                       <div className="mt-2 space-y-2">
-                        {OUTCOMES.map((o) => (
+                        {outcomeOptions(r.type).map((o) => (
                           <label
                             key={o.value}
-                            className={`flex cursor-pointer gap-3 rounded-xl border p-3 ${
+                            className={`flex cursor-pointer gap-3 rounded-none border p-3 ${
                               outcome === o.value
                                 ? 'border-neutral-900 bg-neutral-50'
                                 : 'border-neutral-200'
@@ -289,7 +280,7 @@ export default function FirmSubjectRequestsPage() {
                         onChange={(e) => setReason(e.target.value)}
                         rows={4}
                         placeholder="e.g. We are required to retain the file for six years under our professional record-keeping obligations, so we cannot delete it. Your contact details have been removed from our marketing list."
-                        className="mt-2 w-full rounded-xl border border-neutral-300 px-4 py-3 text-sm leading-relaxed outline-none focus:border-neutral-900"
+                        className="mt-2 w-full rounded-none border border-neutral-300 px-4 py-3 text-sm leading-relaxed outline-none focus:border-neutral-900"
                       />
                       <p className="mt-1.5 text-xs text-neutral-500">
                         {reason.trim().length}/20 characters minimum.{' '}
@@ -304,7 +295,7 @@ export default function FirmSubjectRequestsPage() {
                         <button
                           onClick={() => submit(r.id)}
                           disabled={busy || reason.trim().length < 20}
-                          className="inline-flex items-center gap-2 rounded-xl bg-neutral-900 px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-40"
+                          className="inline-flex items-center gap-2 rounded-none bg-neutral-900 px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-40"
                         >
                           {busy ? (
                             <Loader2 className="h-4 w-4 animate-spin" />
@@ -315,7 +306,7 @@ export default function FirmSubjectRequestsPage() {
                         </button>
                         <button
                           onClick={() => setAnswering(null)}
-                          className="rounded-xl border border-neutral-300 px-5 py-2.5 text-sm font-semibold text-neutral-700"
+                          className="rounded-none border border-neutral-300 px-5 py-2.5 text-sm font-semibold text-neutral-700"
                         >
                           Cancel
                         </button>
@@ -334,7 +325,7 @@ export default function FirmSubjectRequestsPage() {
           <h2 className="font-serif text-lg tracking-tight text-neutral-900">Answered</h2>
           <div className="mt-4 space-y-3">
             {answered.map((r) => (
-              <div key={r.id} className="rounded-2xl border border-neutral-200 bg-white p-5">
+              <div key={r.id} className="rounded-none border border-neutral-200 bg-white p-5">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0">
                     <h3 className="text-sm font-bold text-neutral-900">
@@ -342,12 +333,19 @@ export default function FirmSubjectRequestsPage() {
                     </h3>
                     <p className="mt-1 text-sm text-neutral-600">{TYPE_LABEL[r.type] ?? r.type}</p>
                   </div>
-                  <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-emerald-800">
-                    {OUTCOMES.find((o) => o.value === r.ourResponse?.outcome)?.label ??
-                      r.ourResponse?.outcome}
+                  {/* Amber when the firm kept or held back anything: green read as
+                      "done" on a refusal. */}
+                  <span
+                    className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider ${
+                      r.ourResponse && ['REFUSED_RETAINED', 'PARTIAL'].includes(r.ourResponse.outcome)
+                        ? 'bg-amber-100 text-amber-900'
+                        : 'bg-emerald-100 text-emerald-800'
+                    }`}
+                  >
+                    {r.ourResponse && outcomeLabel(r.type, r.ourResponse.outcome)}
                   </span>
                 </div>
-                <p className="mt-3 rounded-xl bg-neutral-50 p-3 text-sm leading-relaxed text-neutral-700">
+                <p className="mt-3 rounded-none bg-neutral-50 p-3 text-sm leading-relaxed text-neutral-700">
                   {r.ourResponse?.reason}
                 </p>
                 <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
@@ -370,18 +368,21 @@ export default function FirmSubjectRequestsPage() {
 
                 {answering === r.id && (
                   <div className="mt-4 border-t border-neutral-100 pt-4">
-                    <div className="flex gap-2 rounded-xl border border-amber-200 bg-amber-50/60 p-3">
+                    <div className="flex gap-2 rounded-none border border-amber-200 bg-amber-50/60 p-3">
                       <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-600" />
                       <p className="text-xs leading-relaxed text-amber-900">
                         Correcting replaces your firm&apos;s answer. The person sees the corrected
                         version.
                       </p>
                     </div>
+                    {r.type === 'ERASURE' && (
+                      <p className="mt-3 text-xs leading-relaxed text-amber-800">{ERASURE_NOT_AVAILABLE_NOTE}</p>
+                    )}
                     <div className="mt-3 space-y-2">
-                      {OUTCOMES.map((o) => (
+                      {outcomeOptions(r.type).map((o) => (
                         <label
                           key={o.value}
-                          className={`flex cursor-pointer gap-3 rounded-xl border p-3 ${
+                          className={`flex cursor-pointer gap-3 rounded-none border p-3 ${
                             outcome === o.value
                               ? 'border-neutral-900 bg-neutral-50'
                               : 'border-neutral-200'
@@ -402,20 +403,20 @@ export default function FirmSubjectRequestsPage() {
                       value={reason}
                       onChange={(e) => setReason(e.target.value)}
                       rows={4}
-                      className="mt-3 w-full rounded-xl border border-neutral-300 px-4 py-3 text-sm outline-none focus:border-neutral-900"
+                      className="mt-3 w-full rounded-none border border-neutral-300 px-4 py-3 text-sm outline-none focus:border-neutral-900"
                     />
                     <div className="mt-3 flex flex-wrap gap-3">
                       <button
                         onClick={() => submit(r.id)}
                         disabled={busy || reason.trim().length < 20}
-                        className="inline-flex items-center gap-2 rounded-xl bg-neutral-900 px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-40"
+                        className="inline-flex items-center gap-2 rounded-none bg-neutral-900 px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-40"
                       >
                         {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
                         Save correction
                       </button>
                       <button
                         onClick={() => setAnswering(null)}
-                        className="rounded-xl border border-neutral-300 px-5 py-2.5 text-sm font-semibold text-neutral-700"
+                        className="rounded-none border border-neutral-300 px-5 py-2.5 text-sm font-semibold text-neutral-700"
                       >
                         Cancel
                       </button>

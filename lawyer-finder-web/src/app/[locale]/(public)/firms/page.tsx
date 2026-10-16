@@ -1,4 +1,7 @@
 import prisma from '@/lib/db';
+import { PEOPLE_TAB_ENABLED } from '@/lib/directoryLinks';
+import { isPublicDirectoryEnabled, LISTED_FIRM_WHERE, inDailyOrder, DIRECTORY_ORDER_NOTICE } from '@/lib/directory';
+import DirectoryWithdrawn from '@/components/directory/DirectoryWithdrawn';
 import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import Link from 'next/link';
@@ -36,14 +39,18 @@ export default async function FirmDirectory({
   searchParams: Promise<{ [key: string]: string | undefined }>;
 }) {
   const { locale } = await params;
+
+  // Withdrawn by an administrator — see src/lib/directory.ts.
+  if (!(await isPublicDirectoryEnabled())) {
+    return <DirectoryWithdrawn locale={locale} />;
+  }
+
   const filters = await searchParams;
 
-  const where: Record<string, unknown> = {
-    isActive: true,
-    verificationStatus: 'VERIFIED',
-  };
+  const where: Record<string, unknown> = { ...LISTED_FIRM_WHERE };
   if (filters.district) where.district = filters.district;
   if (filters.practiceArea) where.practiceAreas = { has: filters.practiceArea };
+  if (filters.language) where.languages = { has: filters.language };
   if (filters.search) {
     where.name = { contains: filters.search.trim(), mode: 'insensitive' };
   }
@@ -51,15 +58,18 @@ export default async function FirmDirectory({
   const currentPage = Math.max(1, parseInt(filters.page || '1', 10) || 1);
   const skip = (currentPage - 1) * PAGE_SIZE;
 
-  const [firms, totalCount] = await Promise.all([
-    prisma.lawFirm.findMany({
-      where,
+  // Daily order (src/lib/directory.ts): rank every match, then load one page.
+  const orderedIds = inDailyOrder(await prisma.lawFirm.findMany({ where, select: { id: true } }));
+  const totalCount = orderedIds.length;
+  const pageIds = orderedIds.slice(skip, skip + PAGE_SIZE).map((r) => r.id);
+
+  const rows = await prisma.lawFirm.findMany({
+      where: { id: { in: pageIds } },
       select: {
         id: true,
         slug: true,
         name: true,
         firmType: true,
-        description: true,
         practiceAreas: true,
         languages: true,
         district: true,
@@ -68,22 +78,18 @@ export default async function FirmDirectory({
         logoUrl: true,
         _count: { select: { lawyers: true } },
       },
-      // Alphabetical. Nobody can buy a position in this list.
-      orderBy: { name: 'asc' },
-      skip,
-      take: PAGE_SIZE,
-    }),
-    prisma.lawFirm.count({ where }),
-  ]);
+    });
+  const firms = pageIds.flatMap((id) => rows.filter((r) => r.id === id));
 
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
-  const hasFilters = !!(filters.search || filters.district || filters.practiceArea);
+  const hasFilters = !!(filters.search || filters.district || filters.practiceArea || filters.language);
 
   function buildPageUrl(page: number) {
     const params = new URLSearchParams();
     if (filters.search) params.set('search', filters.search);
     if (filters.district) params.set('district', filters.district);
     if (filters.practiceArea) params.set('practiceArea', filters.practiceArea);
+    if (filters.language) params.set('language', filters.language);
     if (page > 1) params.set('page', String(page));
     const qs = params.toString();
     return `/${locale}/firms${qs ? `?${qs}` : ''}`;
@@ -95,9 +101,8 @@ export default async function FirmDirectory({
         <div className="mb-10 max-w-2xl">
           <h1 className="text-3xl font-light tracking-tight sm:text-4xl">Law Firms</h1>
           <p className="mt-3 text-muted-foreground">
-            Browse verified Sri Lankan law firms. Listings are ordered alphabetically
-            and cannot be paid for. Use the filters to narrow the list, then choose for
-            yourself.
+            Browse verified Sri Lankan law firms. {DIRECTORY_ORDER_NOTICE} Use the filters to
+            narrow the list, then choose for yourself.
           </p>
         </div>
 
@@ -106,27 +111,30 @@ export default async function FirmDirectory({
             listing both as separate menu items showed a sole practitioner twice
             — once as a person and once as their own firm. The toggle keeps both
             ways of looking without pretending they are different populations. */}
-        <div
-          className="mb-6 inline-flex border border-neutral-200"
-          role="tablist"
-          aria-label="Browse by"
-        >
-          <span
-            role="tab"
-            aria-selected="true"
-            className="bg-neutral-900 px-5 py-2.5 text-[11px] font-bold uppercase tracking-widest text-white"
+        {/* Hidden while the People tab is off (src/lib/directoryLinks.ts). */}
+        {PEOPLE_TAB_ENABLED && (
+          <div
+            className="mb-6 inline-flex border border-neutral-200"
+            role="tablist"
+            aria-label="Browse by"
           >
-            Practices
-          </span>
-          <Link
-            href={`/${locale}/lawyers`}
-            role="tab"
-            aria-selected="false"
-            className="px-5 py-2.5 text-[11px] font-bold uppercase tracking-widest text-neutral-600 transition-colors hover:bg-neutral-50"
-          >
-            People
-          </Link>
-        </div>
+            <span
+              role="tab"
+              aria-selected="true"
+              className="bg-neutral-900 px-5 py-2.5 text-[11px] font-bold uppercase tracking-widest text-white"
+            >
+              Practices
+            </span>
+            <Link
+              href={`/${locale}/lawyers`}
+              role="tab"
+              aria-selected="false"
+              className="px-5 py-2.5 text-[11px] font-bold uppercase tracking-widest text-neutral-600 transition-colors hover:bg-neutral-50"
+            >
+              People
+            </Link>
+          </div>
+        )}
 
         <FirmFilterForm locale={locale} filters={filters} />
 
@@ -168,7 +176,7 @@ export default async function FirmDirectory({
                     </div>
                   )}
                   <div className="min-w-0">
-                    <h2 className="truncate font-serif text-lg text-neutral-900 transition-colors group-hover:text-[#bfa37a]">
+                    <h2 className="line-clamp-2 font-serif text-lg text-neutral-900 transition-colors group-hover:text-[#bfa37a]">
                       {firm.name}
                     </h2>
                     <p className="text-[11px] uppercase tracking-widest text-[#bfa37a]">
@@ -179,11 +187,8 @@ export default async function FirmDirectory({
                   </div>
                 </div>
 
-                {firm.description && (
-                  <p className="mt-3 line-clamp-2 text-sm font-light leading-relaxed text-neutral-600">
-                    {firm.description}
-                  </p>
-                )}
+                {/* No description on the card: the same rule as attorney bios
+                    (src/components/lawyer/LawyerCard.tsx). It is on the firm's page. */}
 
                 <div className="mt-4 space-y-1.5 text-[11px] text-neutral-500">
                   {firm.district && (

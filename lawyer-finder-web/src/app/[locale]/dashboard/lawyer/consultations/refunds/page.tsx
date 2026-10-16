@@ -71,6 +71,10 @@ export default function LawyerRefundsPage() {
   const [reference, setReference] = useState('');
   const [sentOn, setSentOn] = useState(() => new Date().toISOString().split('T')[0]);
   const [proofUrl, setProofUrl] = useState('');
+  // What the practice actually returned. Starts at what the client paid; less
+  // needs a reason the client is shown (the practice's own terms, not ours).
+  const [amount, setAmount] = useState('');
+  const [refused, setRefused] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
@@ -111,6 +115,7 @@ export default function LawyerRefundsPage() {
     try {
       const res = await fetch(`/api/consultations/refunds?status=${statusFilter}`);
       const data = await res.json();
+      if (res.status === 403) { setRefused(data.error || 'You cannot see refunds.'); return; }
       if (!res.ok) throw new Error(data.error || 'Failed');
       setRefunds(data.refunds || []);
       setStats(data.stats || { pendingCount: 0, processedCount: 0, totalPendingAmount: 0 });
@@ -131,6 +136,13 @@ export default function LawyerRefundsPage() {
       if (method.trim().length < 2) { toast.error('Record how you sent the refund'); return; }
       if (reference.trim().length < 3) { toast.error('Record the transaction reference so the client can match it'); return; }
       if (!sentOn) { toast.error('Record the date you sent it'); return; }
+      const n = Number(amount);
+      if (!Number.isInteger(n) || n < 1 || n > target.totalAmount) {
+        toast.error(`Enter the amount you refunded, up to Rs. ${target.totalAmount.toLocaleString()}`); return;
+      }
+      if (n < target.totalAmount && notes.trim().length < 10) {
+        toast.error('You refunded less than the client paid — say why in the note'); return;
+      }
     }
 
     setSubmitting(true);
@@ -143,7 +155,7 @@ export default function LawyerRefundsPage() {
           action,
           notes: notes.trim() || undefined,
           ...(action === 'process'
-            ? { method: method.trim(), reference: reference.trim(), sentOn, proofUrl: proofUrl || undefined }
+            ? { method: method.trim(), reference: reference.trim(), sentOn, proofUrl: proofUrl || undefined, amount: Number(amount) }
             : {}),
         }),
       });
@@ -172,6 +184,10 @@ export default function LawyerRefundsPage() {
     { value: 'ALL', label: 'All', icon: RefreshCcw },
   ];
 
+  if (refused) {
+    return <div className="max-w-xl border border-neutral-200 bg-white p-6 text-sm text-neutral-600">{refused}</div>;
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
@@ -179,9 +195,9 @@ export default function LawyerRefundsPage() {
           <Banknote className="h-5 w-5" aria-hidden="true" />
         </div>
         <div>
-          <h1 className="text-3xl font-normal tracking-tight text-neutral-900 sm:text-4xl">Refunds</h1>
+          <h1 className="text-2xl font-normal tracking-tight text-neutral-900 sm:text-4xl">Refunds</h1>
           <p className="text-sm font-medium text-neutral-500">
-            Fees you need to return to clients after a cancellation
+            Fees your practice owes back after a paid request is cancelled
           </p>
         </div>
       </div>
@@ -189,11 +205,13 @@ export default function LawyerRefundsPage() {
       <div role="note" className="flex items-start gap-3 border border-blue-200 bg-blue-50 p-4">
         <Info className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" aria-hidden="true" />
         <div className="space-y-1 text-sm">
-          <p className="font-semibold text-blue-900">You hold the fee, so you make the refund</p>
+          <p className="font-semibold text-blue-900">Your practice holds the fee, so it makes the refund</p>
           <p className="text-blue-800">
-            Clients paid you directly, so return the money from your own account and
-            then mark it here. Marking it <strong>records</strong> the refund — it
-            does not transfer anything.
+            Clients paid your practice directly, so return the money from the practice&apos;s
+            account and then record it here. What the client paid is shown as owed in full;
+            if your terms with the client mean you return less, record what you returned and
+            why — the client sees your reason and can dispute it. Recording it does not
+            transfer anything.
           </p>
         </div>
       </div>
@@ -287,11 +305,15 @@ export default function LawyerRefundsPage() {
                 </div>
 
                 <div className="text-right">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-neutral-400">Refund due</p>
-                  <p className="text-2xl font-bold text-red-600">Rs. {r.refundAmount.toLocaleString()}</p>
-                  {r.retainedLawyerFee > 0 && (
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-neutral-400">
+                    {r.refundStatus === 'PENDING' || r.refundStatus === 'DISPUTED' ? 'Client paid' : 'Refunded'}
+                  </p>
+                  <p className="text-2xl font-bold text-red-600">
+                    Rs. {(r.refundStatus === 'PENDING' || r.refundStatus === 'DISPUTED' ? r.totalAmount : r.refundAmount).toLocaleString()}
+                  </p>
+                  {r.retainedLawyerFee > 0 && r.refundStatus !== 'PENDING' && (
                     <p className="text-[10px] text-neutral-500">
-                      You retain Rs. {r.retainedLawyerFee.toLocaleString()} (late cancellation)
+                      Kept by the practice: Rs. {r.retainedLawyerFee.toLocaleString()}
                     </p>
                   )}
 
@@ -307,7 +329,7 @@ export default function LawyerRefundsPage() {
                       </Button>
                       <Button
                         size="sm"
-                        onClick={() => { setTarget(r); setAction('process'); setNotes('Refund sent by bank transfer'); }}
+                        onClick={() => { setTarget(r); setAction('process'); setAmount(String(r.totalAmount)); setNotes(''); }}
                         className="h-7 rounded-none bg-green-600 px-2.5 text-[10px] font-bold text-white hover:bg-green-700"
                       >
                         {r.refundStatus === 'DISPUTED' ? 'Re-record refund' : 'Mark as refunded'}
@@ -336,10 +358,31 @@ export default function LawyerRefundsPage() {
           {action === 'process' && (
             <>
               <p className="border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
-                Only record this once you have actually sent the money from your own
-                account. The client is notified and asked to confirm they received
+                Only record this once the money has actually been sent from your
+                practice&apos;s account. The client is notified and asked to confirm they received
                 it — so the record does not rest on your word alone.
               </p>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="rf-amount" className="text-xs font-bold uppercase tracking-wide">
+                  Amount refunded (Rs.) <span className="text-red-600">*</span>
+                </Label>
+                <input
+                  id="rf-amount"
+                  type="number"
+                  inputMode="numeric"
+                  min={1}
+                  max={target?.totalAmount}
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  className="h-9 w-full border border-neutral-200 bg-white px-2 text-sm"
+                />
+                {target && Number(amount) > 0 && Number(amount) < target.totalAmount && (
+                  <p className="text-xs text-amber-800">
+                    Less than the Rs. {target.totalAmount.toLocaleString()} the client paid — say why in the note below.
+                  </p>
+                )}
+              </div>
 
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="space-y-1.5">

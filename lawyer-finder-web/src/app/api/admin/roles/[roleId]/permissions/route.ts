@@ -5,6 +5,8 @@ import {
   AssignPermissionSchema,
   RemovePermissionSchema,
 } from '@/schemas/subscription.schema'
+import { LICENSING_ENABLED } from '@/lib/licensing';
+import { licensingOffResponse } from '@/lib/licensingOff';
 
 async function isAdmin() {
   const session = await getSession()
@@ -19,6 +21,9 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ roleId: string }> }
 ) {
+  // Hidden while licensing is off (src/lib/licensing.ts).
+  if (!LICENSING_ENABLED) return licensingOffResponse();
+
   try {
     if (!(await isAdmin())) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
@@ -50,6 +55,9 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ roleId: string }> }
 ) {
+  // Hidden while licensing is off (src/lib/licensing.ts).
+  if (!LICENSING_ENABLED) return licensingOffResponse();
+
   try {
     if (!(await isAdmin())) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
@@ -113,6 +121,9 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ roleId: string }> }
 ) {
+  // Hidden while licensing is off (src/lib/licensing.ts).
+  if (!LICENSING_ENABLED) return licensingOffResponse();
+
   try {
     if (!(await isAdmin())) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
@@ -171,6 +182,9 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ roleId: string }> }
 ) {
+  // Hidden while licensing is off (src/lib/licensing.ts).
+  if (!LICENSING_ENABLED) return licensingOffResponse();
+
   try {
     if (!(await isAdmin())) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })

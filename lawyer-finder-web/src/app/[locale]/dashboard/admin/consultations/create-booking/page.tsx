@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
+import { ADMIN_CREATE_BOOKING_ENABLED, ADMIN_CREATE_BOOKING_OFF_REASON } from '@/lib/consultations/adminBooking';
 
 interface Lawyer {
   id: string;
@@ -29,7 +30,7 @@ interface Slot {
   isCallToBook: boolean;
 }
 
-export default function AdminCreateBookingPage() {
+function AdminCreateBookingForm() {
   const params = useParams();
   const locale = params?.locale || 'en';
 
@@ -631,6 +632,25 @@ export default function AdminCreateBookingPage() {
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+/** Off for launch — see src/lib/consultations/adminBooking.ts. */
+export default function AdminCreateBookingPage() {
+  const { locale } = useParams<{ locale: string }>();
+  if (ADMIN_CREATE_BOOKING_ENABLED) return <AdminCreateBookingForm />;
+  return (
+    <div className="max-w-xl space-y-4">
+      <Link href={`/${locale}/dashboard/admin/consultations`} className="inline-flex items-center gap-1 text-xs text-neutral-500 hover:text-neutral-900">
+        <ArrowLeft className="h-3 w-3" /> All consultations
+      </Link>
+      <Card className="rounded-none">
+        <CardContent className="p-6 space-y-2">
+          <h1 className="text-lg font-semibold">Creating bookings is switched off</h1>
+          <p className="text-sm text-muted-foreground">{ADMIN_CREATE_BOOKING_OFF_REASON}</p>
+        </CardContent>
+      </Card>
     </div>
   );
 }

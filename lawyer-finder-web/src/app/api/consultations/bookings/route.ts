@@ -9,7 +9,11 @@ import { expireStaleQuotes } from '@/lib/consultations/expireQuotes';
 import { getFirmMembership, resolveMatterAccess, discloseMatter } from '@/lib/firms/access';
 import { encryptField } from '@/lib/privacy/encryption';
 import { randomUUID } from 'crypto';
-import { ensureAttorneyHasFirm } from '@/lib/firms/provisioning';
+import { findAttorneyFirmId } from '@/lib/firms/provisioning';
+import { isListedFirm } from '@/lib/directory';
+import { ATTORNEY_BOOKING_ENABLED } from '@/lib/directoryLinks';
+import { nextBookingNumber } from '@/lib/consultations/bookingNumber';
+import { staffRequestView } from '@/lib/consultations/staffView';
 
 // GET: List bookings (filtered by role)
 export async function GET(req: Request) {
@@ -46,12 +50,20 @@ export async function GET(req: Request) {
     // is what makes a firm queue possible — a principal has to be able to see a
     // request in order to assign it. What each of them may *read* about those
     // matters is decided per row below, by src/lib/firms/access.ts.
+    //
+    // Membership is loaded for everyone but platform staff: a practice manager
+    // or paralegal is not an admitted attorney, so their account is CLIENT, and
+    // gating this on LAWYER left a manager with an empty queue. The client and
+    // firm dashboards share this endpoint, so a CLIENT account gets the firm's
+    // queue only when the firm dashboard asks for it (`scope=firm`) — otherwise
+    // a manager's own requests as a client would vanish from their client view.
     const membership =
-      session.role === 'LAWYER' ? await getFirmMembership(session.userId) : null;
+      session.role === 'ADMIN' ? null : await getFirmMembership(session.userId);
+    const firmView = session.role === 'LAWYER' || searchParams.get('scope') === 'firm';
 
-    if (session.role === 'CLIENT') {
+    if (session.role === 'CLIENT' && !firmView) {
       where.clientId = session.userId;
-    } else if (session.role === 'LAWYER') {
+    } else if (session.role !== 'ADMIN') {
       if (membership) {
         where.firmId = membership.firmId;
       } else if (session.profileId) {
@@ -72,13 +84,38 @@ export async function GET(req: Request) {
       if (dateTo) where.date.lte = new Date(dateTo);
     }
 
+    // Platform staff get the slim view only (src/lib/consultations/staffView.ts),
+    // and may look a request up by its number.
+    if (session.role === 'ADMIN') {
+      const number = searchParams.get('q')?.trim().slice(0, 40);
+      if (number) where.bookingNumber = { contains: number, mode: 'insensitive' };
+
+      const [rows, total] = await Promise.all([
+        prisma.booking.findMany({
+          where,
+          select: { id: true, bookingNumber: true, status: true, createdAt: true, firm: { select: { name: true } } },
+          orderBy: { createdAt: 'desc' },
+          skip,
+          take: limit,
+        }),
+        prisma.booking.count({ where }),
+      ]);
+
+      return NextResponse.json({
+        bookings: rows.map(staffRequestView),
+        pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+      });
+    }
+
     const [bookings, total] = await Promise.all([
       prisma.booking.findMany({
         where,
         include: {
           client: { select: { id: true, fullName: true, email: true, profileImageUrl: true } },
           lawyer: { select: { id: true, fullName: true, profileImageUrl: true, district: true, address: true, contactPhone: true } },
+          firm: { select: { name: true } },
           payment: true,
+          conflictCheck: { select: { outcome: true } },
         },
         orderBy: { createdAt: 'desc' },
         skip,
@@ -94,7 +131,7 @@ export async function GET(req: Request) {
     // staff never may; inside a firm, only the assigned attorney and the
     // principal do. See docs/restructure/LEGAL-GUARDRAILS.md (rule 5).
     return NextResponse.json({
-      bookings: bookings.map((b) => {
+      bookings: bookings.map(({ conflictCheck, ...b }) => {
         const access = resolveMatterAccess({
           actorUserId: session.userId,
           actorRole: session.role,
@@ -111,6 +148,12 @@ export async function GET(req: Request) {
           canAssign: access.canAssign,
           basis: access.basis,
         },
+        // Firm side only. The client is told whether the firm can act, never
+        // the screening behind it — that concerns another client.
+        conflictOutcome:
+          access.basis === 'CLIENT' || access.basis === 'PLATFORM_STAFF'
+            ? null
+            : conflictCheck?.outcome ?? null,
         date: formatSriLankaDateIsoOrNull(b.date),
         createdAt: b.createdAt.toISOString(),
         updatedAt: b.updatedAt.toISOString(),
@@ -163,6 +206,16 @@ export async function POST(req: Request) {
     // See docs/restructure/LEGAL-GUARDRAILS.md (rules 4 and 7).
     const isFirmFirst = !lawyerId;
 
+    // Attorney-first is switched off for launch: requests go to the practice,
+    // which assigns the attorney. Refused here as well as hidden in the UI, or
+    // a direct POST would still book an attorney. See src/lib/directoryLinks.ts.
+    if (!isFirmFirst && !ATTORNEY_BOOKING_ENABLED) {
+      return NextResponse.json(
+        { error: 'Requests are sent to a practice, which assigns the attorney.' },
+        { status: 400 }
+      );
+    }
+
     const targetDate = date ? parseDateOnlyToUtc(date) : null;
 
     const lawyer = lawyerId
@@ -190,21 +243,24 @@ export async function POST(req: Request) {
     // firm the client named. Either way the FIRM is the provider of legal
     // services, not the individual and certainly not us.
     let firmId: string | null;
-    let firm: { id: string; name: string; contactEmail: string | null; verificationStatus: string } | null = null;
+    let firm: {
+      id: string; name: string; contactEmail: string | null; verificationStatus: string;
+      isActive: boolean; isRegisteredPractice: boolean;
+    } | null = null;
 
     if (isFirmFirst) {
       firm = await prisma.lawFirm.findUnique({
         where: { id: requestedFirmId! },
-        select: { id: true, name: true, contactEmail: true, verificationStatus: true, isActive: true },
+        select: { id: true, name: true, contactEmail: true, verificationStatus: true, isActive: true, isRegisteredPractice: true },
       });
 
-      if (!firm || !(firm as any).isActive) {
+      if (!firm || !firm.isActive) {
         return NextResponse.json({ error: 'Firm not found' }, { status: 404 });
       }
 
-      // Only a verified practice can receive an engagement request. An
-      // unverified firm is one we have not confirmed exists.
-      if (firm.verificationStatus !== 'VERIFIED') {
+      // Only a registered, verified practice can receive an engagement request.
+      // An unverified firm is one we have not confirmed exists.
+      if (!isListedFirm(firm)) {
         return NextResponse.json(
           { error: 'This firm is not currently accepting requests through the platform.' },
           { status: 400 }
@@ -225,7 +281,26 @@ export async function POST(req: Request) {
 
       firmId = firm.id;
     } else {
-      firmId = await ensureAttorneyHasFirm(prisma, lawyerId!);
+      // No practice is created here. An attorney with none — or with a firm of
+      // one that was never registered — cannot be engaged until they register
+      // their practice. See src/lib/directory.ts.
+      firmId = await findAttorneyFirmId(prisma, lawyerId!);
+
+      // The same test as the firm-first path above. Without it, a request sent
+      // from an attorney's page reached a firm an administrator had
+      // deactivated or un-verified, because only the firm-first path checked.
+      if (firmId) {
+        const attorneyFirm = await prisma.lawFirm.findUnique({
+          where: { id: firmId },
+          select: { isActive: true, isRegisteredPractice: true, verificationStatus: true },
+        });
+        if (!isListedFirm(attorneyFirm)) {
+          return NextResponse.json(
+            { error: "This attorney's firm is not currently accepting requests through the platform." },
+            { status: 400 }
+          );
+        }
+      }
     }
 
     if (!firmId) {
@@ -301,24 +376,7 @@ export async function POST(req: Request) {
         });
       }
 
-      // Generate booking number, scoped to the current year.
-      // Previously this used count() + 1 across all bookings, which collided
-      // whenever a booking was deleted and restarted numbering incorrectly at
-      // each year boundary. Deriving from the highest existing number for the
-      // year is stable; the Serializable isolation level below prevents races.
-      const year = new Date().getFullYear();
-      const prefix = `BK-${year}-`;
-
-      const latest = await tx.booking.findFirst({
-        where: { bookingNumber: { startsWith: prefix } },
-        orderBy: { bookingNumber: 'desc' },
-        select: { bookingNumber: true },
-      });
-
-      const lastSequence = latest
-        ? parseInt(latest.bookingNumber.slice(prefix.length), 10) || 0
-        : 0;
-      const bookingNumber = `${prefix}${String(lastSequence + 1).padStart(4, '0')}`;
+      const bookingNumber = await nextBookingNumber(tx);
 
       // Create the engagement request.
       //

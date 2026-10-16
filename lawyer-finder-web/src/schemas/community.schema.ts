@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { COMMUNITY_ICON_KEYS } from '@/lib/community/icons';
 import { sanitizeString, sanitizeHtml } from '@/lib/sanitize';
 
 // ============= Community Schemas =============
@@ -29,10 +30,7 @@ export const createCommunitySchema = z.object({
     (val) => typeof val === 'string' ? sanitizeString(val) : val,
     z.string().max(5000).optional()
   ),
-  icon: z.preprocess(
-    (val) => typeof val === 'string' ? sanitizeString(val) : val,
-    z.string().max(10).optional()
-  ),
+  icon: z.enum(COMMUNITY_ICON_KEYS).optional(),
 });
 
 export const communityRequestSchema = z.object({
@@ -78,10 +76,7 @@ export const updateCommunitySchema = z.object({
     (val) => typeof val === 'string' ? sanitizeString(val) : val,
     z.string().max(5000).optional()
   ),
-  icon: z.preprocess(
-    (val) => typeof val === 'string' ? sanitizeString(val) : val,
-    z.string().max(10).optional()
-  ),
+  icon: z.enum(COMMUNITY_ICON_KEYS).optional(),
   coverImage: z.string().optional().nullable(),
   status: z.enum(['ACTIVE', 'ARCHIVED', 'SUSPENDED']).optional(),
 });

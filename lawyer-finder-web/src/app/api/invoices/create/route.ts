@@ -4,8 +4,15 @@ import { getFirmMembership, canManageFirm } from '@/lib/firms/access';
 import { getSession } from '@/lib/auth';
 import { CreateInvoiceSchema } from '@/schemas/subscription.schema';
 import { EmailService } from '@/lib/email/EmailService';
+import { LICENSING_ENABLED } from '@/lib/licensing';
 
 export async function POST(req: NextRequest) {
+  // Nobody is billed, and nobody pays us, while licensing is off for launch —
+  // not even through an old link (src/lib/licensing.ts).
+  if (!LICENSING_ENABLED) {
+    return NextResponse.json({ error: 'Licences are not sold yet.' }, { status: 410 });
+  }
+
   try {
     const session = await getSession();
 

@@ -1,10 +1,15 @@
+'use client';
+
 import Link from 'next/link';
 import Image from 'next/image';
 import { Scale, Mail, MapPin, Phone, Facebook, Youtube, Instagram, Twitter, Send } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
+import { useDirectoryEnabled } from '@/components/directory/DirectoryProvider';
+import { directoryPath } from '@/lib/directoryLinks';
 
 export default function Footer({ locale }: { locale: string }) {
   const year = new Date().getFullYear();
+  const directoryEnabled = useDirectoryEnabled();
 
   return (
     <footer className="bg-[#141414] text-white pt-16">
@@ -61,36 +66,38 @@ export default function Footer({ locale }: { locale: string }) {
             </div>
           </div>
 
-          {/* Services/Platform */}
-          <div className="space-y-6">
-            <h4 className="text-base font-serif text-white tracking-wider">Services</h4>
-            <ul className="space-y-3">
-              <li>
-                <Link href={`/${locale}/lawyers?practiceArea=Civil`} className="text-sm text-neutral-400 hover:text-[#bfa37a] transition-colors flex items-center gap-2">
-                  <span className="w-1 h-1 bg-[#bfa37a] rounded-full"></span>
-                  Civil Litigation
-                </Link>
-              </li>
-              <li>
-                <Link href={`/${locale}/lawyers?practiceArea=Criminal`} className="text-sm text-neutral-400 hover:text-[#bfa37a] transition-colors flex items-center gap-2">
-                  <span className="w-1 h-1 bg-[#bfa37a] rounded-full"></span>
-                  Criminal Defense
-                </Link>
-              </li>
-              <li>
-                <Link href={`/${locale}/lawyers?practiceArea=Corporate`} className="text-sm text-neutral-400 hover:text-[#bfa37a] transition-colors flex items-center gap-2">
-                  <span className="w-1 h-1 bg-[#bfa37a] rounded-full"></span>
-                  Real Estate & Corporate Law
-                </Link>
-              </li>
-              <li>
-                <Link href={`/${locale}/lawyers?practiceArea=Employment`} className="text-sm text-neutral-400 hover:text-[#bfa37a] transition-colors flex items-center gap-2">
-                  <span className="w-1 h-1 bg-[#bfa37a] rounded-full"></span>
-                  Labor & Workplace Injuries
-                </Link>
-              </li>
-            </ul>
-          </div>
+          {/* Services/Platform — every link is a directory search, so hidden with it */}
+          {directoryEnabled && (
+            <div className="space-y-6">
+              <h4 className="text-base font-serif text-white tracking-wider">Services</h4>
+              <ul className="space-y-3">
+                <li>
+                  <Link href={directoryPath(locale, 'practiceArea=Civil')} className="text-sm text-neutral-400 hover:text-[#bfa37a] transition-colors flex items-center gap-2">
+                    <span className="w-1 h-1 bg-[#bfa37a] rounded-full"></span>
+                    Civil Litigation
+                  </Link>
+                </li>
+                <li>
+                  <Link href={directoryPath(locale, 'practiceArea=Criminal')} className="text-sm text-neutral-400 hover:text-[#bfa37a] transition-colors flex items-center gap-2">
+                    <span className="w-1 h-1 bg-[#bfa37a] rounded-full"></span>
+                    Criminal Defense
+                  </Link>
+                </li>
+                <li>
+                  <Link href={directoryPath(locale, 'practiceArea=Corporate')} className="text-sm text-neutral-400 hover:text-[#bfa37a] transition-colors flex items-center gap-2">
+                    <span className="w-1 h-1 bg-[#bfa37a] rounded-full"></span>
+                    Real Estate & Corporate Law
+                  </Link>
+                </li>
+                <li>
+                  <Link href={directoryPath(locale, 'practiceArea=Employment')} className="text-sm text-neutral-400 hover:text-[#bfa37a] transition-colors flex items-center gap-2">
+                    <span className="w-1 h-1 bg-[#bfa37a] rounded-full"></span>
+                    Labor & Workplace Injuries
+                  </Link>
+                </li>
+              </ul>
+            </div>
+          )}
 
           {/* Location */}
           <div className="space-y-6">

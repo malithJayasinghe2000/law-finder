@@ -1,4 +1,5 @@
 import React from 'react';
+import { directoryPath } from '@/lib/directoryLinks';
 import Link from 'next/link';
 import { Info } from 'lucide-react';
 
@@ -38,7 +39,7 @@ const COPY: Record<Variant, { title: string; body: string }> = {
   directory: {
     title: 'How these results are ordered',
     body:
-      'Listed alphabetically and matched only on practice area and location. Ordering is never influenced by any payment to this platform, and this listing is not a recommendation or endorsement — the choice is yours.',
+      'The order changes every day and is the same for everyone, and results are matched only on practice area, location and language. Ordering is never influenced by any payment to this platform, and this listing is not a recommendation or endorsement — the choice is yours.',
   },
 };
 
@@ -81,7 +82,7 @@ export function LegalDisclaimer({
             <>
               {' '}
               <Link
-                href={`/${locale}/lawyers`}
+                href={directoryPath(locale)}
                 className="font-semibold text-neutral-700 underline underline-offset-2 hover:text-neutral-900"
               >
                 Browse the directory

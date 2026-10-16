@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
+import { staffRequestView } from '@/lib/consultations/staffView';
 import { getSession } from '@/lib/auth';
 import { CancelBookingSchema, CompleteBookingSchema } from '@/schemas/consultation.schema';
 import { formatSriLankaDateIso, formatSriLankaDateIsoOrNull } from '@/lib/utils';
@@ -70,6 +71,18 @@ export async function GET(
 
     if (!access.canRead) {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+    }
+
+    // Platform staff: the slim view only (src/lib/consultations/staffView.ts).
+    if (access.basis === 'PLATFORM_STAFF') {
+      const firm = booking.firmId
+        ? await prisma.lawFirm.findUnique({ where: { id: booking.firmId }, select: { name: true } })
+        : null;
+      return NextResponse.json({
+        booking: staffRequestView({ ...booking, firm }),
+        role: 'ADMIN',
+        matterDetailRedacted: true,
+      });
     }
 
     const isClient = access.basis === 'CLIENT';
@@ -159,9 +172,18 @@ export async function PATCH(
     // `booking.lawyer` is null while the matter sits unassigned in the firm's
     // queue, so nobody is the acting attorney yet.
     const isLawyer = !!booking.lawyer && booking.lawyer.userId === session.userId;
-    const isAdmin = session.role === 'ADMIN';
+    // Platform staff never act on a client's request. Confirming a payment, cancelling,
+    // completing or rescheduling is the practice's business with its client: staff
+    // confirming a payment is us checking client money (rule 2), and a cancel by staff
+    // was recorded as "cancelled by the firm" — speaking for a practice (rule 7).
+    if (session.role === 'ADMIN' && !isClient && !isLawyer) {
+      return NextResponse.json(
+        { error: "Platform staff cannot act on a client's request. Only the practice can." },
+        { status: 403 }
+      );
+    }
 
-    if (!isClient && !isLawyer && !isAdmin) {
+    if (!isClient && !isLawyer) {
       const access = await getMatterAccess({
         actorUserId: session.userId,
         actorRole: session.role,
@@ -262,7 +284,7 @@ export async function PATCH(
         // A matter with no appointment cannot reach this action.
         const noAppointment = requiresAppointment();
         if (noAppointment) return noAppointment;
-        if (!isLawyer && !isAdmin) {
+        if (!isLawyer) {
           return NextResponse.json({ error: 'Only the firm can confirm payment' }, { status: 403 });
         }
 
@@ -327,7 +349,7 @@ export async function PATCH(
        * ACCEPTED so the client can correct and resubmit.
        */
       case 'reject_payment': {
-        if (!isLawyer && !isAdmin) {
+        if (!isLawyer) {
           return NextResponse.json({ error: 'Only the firm can reject a payment' }, { status: 403 });
         }
 
@@ -371,27 +393,15 @@ export async function PATCH(
           return NextResponse.json({ error: validated.error.format() }, { status: 400 });
         }
 
-        // Refund the client is owed under the cancellation policy. The firm holds
-        // the money, so the firm returns it — the platform only records the
-        // amount. See docs/restructure/LEGAL-GUARDRAILS.md (rule 2).
-        let refundAmount = 0;
-        let retainedLawyerFee = 0;
-
-        if (booking.paidAt) {
-          const bookingDateTime = new Date(
-            `${scheduleDate}T${booking.startTime}:00+05:30`
-          );
-          const hoursUntil = (bookingDateTime.getTime() - Date.now()) / (1000 * 60 * 60);
-
-          if (isLawyer || isAdmin || hoursUntil >= 24) {
-            // Firm cancels, or client cancels with 24h+ notice: full refund
-            refundAmount = booking.totalAmount;
-          } else {
-            // Client cancels inside 24h: firm retains half
-            refundAmount = Math.round(booking.totalAmount * 0.5);
-            retainedLawyerFee = booking.totalAmount - refundAmount;
-          }
-        }
+        // What the client paid is recorded as owed back, in full. The platform
+        // used to apply its own policy here — a client cancelling inside 24 hours
+        // forfeited half — a term no practice had set and no fee proposal or
+        // engagement letter mentioned. We are not a party to the retainer (rule 7):
+        // the practice decides any refund under its own terms with the client, and
+        // records what it returned, with a reason if it is less, which the client
+        // can dispute. The firm holds the money, so the firm returns it (rule 2).
+        const refundAmount = booking.paidAt ? booking.totalAmount : 0;
+        const retainedLawyerFee = 0;
 
         const updated = await prisma.booking.update({
           where: { id },
@@ -435,7 +445,7 @@ export async function PATCH(
         // A matter with no appointment cannot reach this action.
         const noAppointment = requiresAppointment();
         if (noAppointment) return noAppointment;
-        if (!isLawyer && !isAdmin) {
+        if (!isLawyer) {
           return NextResponse.json({ error: 'Only the firm can mark a consultation complete' }, { status: 403 });
         }
 
@@ -492,7 +502,7 @@ export async function PATCH(
         // A matter with no appointment cannot reach this action.
         const noAppointment = requiresAppointment();
         if (noAppointment) return noAppointment;
-        if (!isLawyer && !isAdmin) {
+        if (!isLawyer) {
           return NextResponse.json({ error: 'Only the firm can record a no-show' }, { status: 403 });
         }
 
@@ -527,7 +537,7 @@ export async function PATCH(
         // A matter with no appointment cannot reach this action.
         const noAppointment = requiresAppointment();
         if (noAppointment) return noAppointment;
-        if (!isLawyer && !isAdmin) {
+        if (!isLawyer) {
           return NextResponse.json({ error: 'Only the firm can propose a new time' }, { status: 403 });
         }
 

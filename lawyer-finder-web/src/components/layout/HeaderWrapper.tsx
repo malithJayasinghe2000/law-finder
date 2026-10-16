@@ -16,11 +16,12 @@ export default async function HeaderWrapper({ locale }: { locale: string }) {
   // Get live user data from DB (not JWT) so role changes work without re-login
   const user = await prisma.user.findUnique({
     where: { id: session.userId },
-    select: { fullName: true, profileImageUrl: true, role: true }
+    select: { fullName: true, profileImageUrl: true, role: true, profile: { select: { fullName: true } } }
   });
 
   const liveRole = user?.role || session.role;
-  userProfile = user ? { fullName: user.fullName, profileImageUrl: user.profileImageUrl } : null;
+  // An attorney by their registered name, not the account name (which can be "None").
+  userProfile = user ? { fullName: user.profile?.fullName || user.fullName, profileImageUrl: user.profileImageUrl } : null;
 
   if (liveRole === 'CLIENT') {
     const application = await prisma.lawyerApplication.findUnique({

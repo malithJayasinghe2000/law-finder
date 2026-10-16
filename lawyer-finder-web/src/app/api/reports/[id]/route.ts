@@ -26,6 +26,12 @@ export async function PATCH(
       return NextResponse.json({ error: 'Report not found.' }, { status: 404 });
     }
 
+    // A decision stands: a report already upheld could later be dismissed,
+    // quietly overturning the removal.
+    if (report.status !== 'PENDING') {
+      return NextResponse.json({ error: 'This report has already been decided.' }, { status: 409 });
+    }
+
     await prisma.report.update({
       where: { id },
       data: {
@@ -39,25 +45,35 @@ export async function PATCH(
       if (report.postId) {
         await prisma.post.update({
           where: { id: report.postId },
-          data: { status: 'REMOVED' },
+          data: { status: 'REMOVED', removedBy: 'MODERATOR' },
         });
       }
       if (report.commentId) {
+        // Hidden, not overwritten: the text is kept as the record of what was
+        // removed and why. Readers never get it — GET /api/comments sends no
+        // content for a deleted comment, and the thread shows it as removed.
         await prisma.comment.update({
           where: { id: report.commentId },
-          data: { isDeleted: true, content: '[removed by moderator]' },
+          data: { isDeleted: true },
         });
       }
     }
 
-    // If dismissed, restore content if it was auto-hidden
-    if (parsed.data.status === 'DISMISSED') {
-      if (report.postId) {
-        const post = await prisma.post.findUnique({ where: { id: report.postId } });
-        if (post?.status === 'REMOVED') {
+    // If dismissed, restore a post only if reports hid it automatically — never
+    // one its author or a moderator removed, and not while another report on it
+    // was upheld or enough others are still waiting to keep it hidden. This used
+    // to republish any REMOVED post, including one removed through another report.
+    if (parsed.data.status === 'DISMISSED' && report.postId) {
+      const post = await prisma.post.findUnique({ where: { id: report.postId } });
+      if (post?.status === 'REMOVED' && post.removedBy === 'AUTO_REPORTS') {
+        const [upheld, stillPending] = await Promise.all([
+          prisma.report.count({ where: { postId: report.postId, status: 'ACTION_TAKEN' } }),
+          prisma.report.count({ where: { postId: report.postId, status: 'PENDING' } }),
+        ]);
+        if (upheld === 0 && stillPending < 3) {
           await prisma.post.update({
             where: { id: report.postId },
-            data: { status: 'PUBLISHED' },
+            data: { status: 'PUBLISHED', removedBy: null },
           });
         }
       }

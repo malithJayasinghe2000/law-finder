@@ -76,7 +76,17 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    return NextResponse.json({ user, lawyerProfile, subscription }, { status: 200 });
+    // Whether the account has a password at all — someone who signed up with
+    // Google has none, and cannot "change" it. Only the yes/no leaves the server.
+    const credentials = await prisma.user.findUnique({
+      where: { id: session.userId },
+      select: { passwordHash: true },
+    });
+
+    return NextResponse.json(
+      { user: { ...user, hasPassword: Boolean(credentials?.passwordHash) }, lawyerProfile, subscription },
+      { status: 200 }
+    );
   } catch (error) {
     console.error('[PROFILE_GET_ERROR]', error);
     return NextResponse.json({ error: 'Internal server error.' }, { status: 500 });
@@ -86,6 +96,7 @@ export async function GET(req: NextRequest) {
 import { z } from 'zod';
 import { sanitizeString } from '@/lib/sanitize';
 import { DISTRICTS, PRACTICE_AREAS, LANGUAGES } from '@/schemas/profile.schema';
+import { rejectSelfPromotion } from '@/lib/selfPromotion';
 
 const updateBasicProfileSchema = z.object({
   fullName: z.preprocess(
@@ -113,7 +124,7 @@ const updateLawyerProfileSchema = z.object({
   ),
   bio: z.preprocess(
     (val) => typeof val === 'string' ? sanitizeString(val) : val,
-    z.string().max(2000).optional().nullable()
+    z.string().max(2000).superRefine(rejectSelfPromotion).optional().nullable()
   ),
   practiceAreas: z.preprocess(
     (val) => Array.isArray(val) ? val.filter(v => PRACTICE_AREAS.includes(v as any)) : val,
@@ -217,7 +228,9 @@ export async function PUT(req: NextRequest) {
 
     // Update user record
     if (Object.keys(updateData).length > 0) {
-      console.log(`[PROFILE_PUT] Updating User ${session.userId}:`, updateData);
+      // Field names only, never values: this logged the new password's hash on
+      // every password change. Logs are kept and read outside our privacy controls.
+      console.log(`[PROFILE_PUT] Updating User ${session.userId}: ${Object.keys(updateData).join(', ')}`);
       await prisma.user.update({
         where: { id: session.userId },
         data: updateData,
@@ -236,10 +249,29 @@ export async function PUT(req: NextRequest) {
           return NextResponse.json({ error: lawyerParsed.error.issues[0]?.message || 'Invalid lawyer profile data.' }, { status: 400 });
         }
 
+        // Once verified, the name and NIC are the ones we checked against the BASL
+        // roll and the attorney's identity documents. Changing them here put a name
+        // we never checked under our "Verified" badge on the public page. A
+        // correction goes through us, so it can be re-checked.
+        if (existingProfile.isVerified) {
+          const d = lawyerParsed.data as { fullName?: string; nic?: string | null };
+          const changesName = d.fullName !== undefined && d.fullName.trim() !== existingProfile.fullName;
+          const changesNic = d.nic !== undefined && (d.nic || null) !== (existingProfile.nic || null);
+          if (changesName || changesNic) {
+            return NextResponse.json(
+              { error: 'Your registered name and NIC were verified and cannot be changed here. Contact us to correct them.' },
+              { status: 400 }
+            );
+          }
+        }
+
         const lawyerUpdateData: Record<string, unknown> = {};
 
         for (const [key, value] of Object.entries(lawyerParsed.data)) {
           if (value === undefined) continue;
+          // Locked once verified (checked above): never rewritten, not even with
+          // the same value, so a save cannot turn a missing NIC into "".
+          if (existingProfile.isVerified && (key === 'fullName' || key === 'nic')) continue;
 
           if (key === 'onlineMeetingLink') {
             const link = value as string | null;
@@ -263,7 +295,8 @@ export async function PUT(req: NextRequest) {
         }
 
         if (Object.keys(lawyerUpdateData).length > 0) {
-          console.log(`[PROFILE_PUT] Updating LawyerProfile for User ${session.userId}:`, lawyerUpdateData);
+          // Field names only — this logged the attorney's NIC and address.
+          console.log(`[PROFILE_PUT] Updating LawyerProfile for User ${session.userId}: ${Object.keys(lawyerUpdateData).join(', ')}`);
           await prisma.lawyerProfile.update({
             where: { id: existingProfile.id },
             data: lawyerUpdateData,

@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import { Clock, Plus, Trash2, Save, CalendarDays, Ban, CheckCircle } from 'lucide-react';
 import { DAY_ORDER, DAY_LABELS } from '@/schemas/consultation.schema';
 import { formatDateOnlyString } from '@/lib/utils';
+import { ATTORNEY_BOOKING_ENABLED } from '@/lib/directoryLinks';
 
 interface AvailabilitySlot {
   id?: string;
@@ -30,7 +31,7 @@ interface Override {
   reason: string | null;
 }
 
-export default function AvailabilityPage() {
+function AvailabilityEditor() {
   const [schedule, setSchedule] = useState<AvailabilitySlot[]>([]);
   const [overrides, setOverrides] = useState<Override[]>([]);
   const [loading, setLoading] = useState(true);
@@ -394,4 +395,26 @@ export default function AvailabilityPage() {
       </div>
     </div>
   );
+}
+
+/**
+ * Weekly slots and days off only ever fed attorney-first booking, where a client
+ * picked a named attorney's time slot. That is off for launch (src/lib/directoryLinks.ts):
+ * requests go to the practice and the time is agreed with the fee proposal, so a
+ * schedule set here would be shown to nobody. Hidden from the menu; this notice is
+ * for anyone with the old link. Returns with the switch.
+ */
+export default function AvailabilityPage() {
+  if (!ATTORNEY_BOOKING_ENABLED) {
+    return (
+      <div className="max-w-xl border border-neutral-200 bg-white p-6">
+        <h1 className="text-xl font-bold tracking-tight text-neutral-900">Availability is not used at the moment</h1>
+        <p className="mt-2 text-sm leading-relaxed text-neutral-600">
+          Clients send requests to your practice, and you agree a time with them when you send
+          your fee proposal. There is no schedule to set.
+        </p>
+      </div>
+    );
+  }
+  return <AvailabilityEditor />;
 }

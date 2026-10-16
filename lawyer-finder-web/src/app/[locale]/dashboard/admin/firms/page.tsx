@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import { useParams } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -35,7 +36,7 @@ interface FirmMemberRow {
   user: {
     fullName: string | null;
     email: string;
-    profile: { baslNumber: string; isVerified: boolean } | null;
+    profile: { fullName: string; baslNumber: string; isVerified: boolean } | null;
   };
 }
 
@@ -52,6 +53,7 @@ interface FirmRow {
   contactPhone: string | null;
   establishedYear: number | null;
   verificationStatus: string;
+  listing: Listing;
   verificationNotes: string | null;
   createdAt: string;
   attorneyCount: number;
@@ -60,11 +62,15 @@ interface FirmRow {
   members: FirmMemberRow[];
 }
 
-const STATUS_STYLE: Record<string, string> = {
-  VERIFIED: 'bg-green-100 text-green-800',
-  PENDING: 'bg-amber-100 text-amber-800',
-  UNVERIFIED: 'bg-neutral-200 text-neutral-700',
-  REJECTED: 'bg-red-100 text-red-800',
+type Listing = 'LISTED' | 'WAITING' | 'NOT_VERIFIED' | 'NOT_REGISTERED' | 'INACTIVE';
+
+/** Whether a client can find the practice, and if not, why. Worked out on the server. */
+const LISTING: Record<Listing, { badge: string; style: string; line: string }> = {
+  LISTED: { badge: 'Listed', style: 'bg-green-100 text-green-800', line: 'Registered and verified. Shown in the public directory.' },
+  WAITING: { badge: 'Waiting for check', style: 'bg-amber-100 text-amber-800', line: 'Registered. Not listed until you verify it.' },
+  NOT_VERIFIED: { badge: 'Not verified', style: 'bg-red-100 text-red-800', line: 'Registered, but verification was not granted. Not listed.' },
+  NOT_REGISTERED: { badge: 'Not registered', style: 'bg-neutral-200 text-neutral-700', line: 'Never registered as a practice, so there is nothing to verify. Not listed.' },
+  INACTIVE: { badge: 'Inactive', style: 'bg-neutral-200 text-neutral-700', line: 'Deactivated. Not listed.' },
 };
 
 const ROLE_LABELS: Record<string, string> = {
@@ -74,12 +80,22 @@ const ROLE_LABELS: Record<string, string> = {
   PARALEGAL: 'Support staff',
 };
 
-const FILTERS = ['PENDING', 'UNVERIFIED', 'VERIFIED', 'REJECTED'] as const;
+const VIEWS = [
+  ['waiting', 'Waiting for check'],
+  ['listed', 'Listed'],
+  ['not-verified', 'Not verified'],
+  ['not-registered', 'Not registered'],
+  ['all', 'All'],
+] as const;
+
+const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
 export default function AdminFirmsPage() {
   const [firms, setFirms] = useState<FirmRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [status, setStatus] = useState<string>('PENDING');
+  const { locale } = useParams();
+  const [view, setView] = useState<string>('waiting');
+  const [directoryOn, setDirectoryOn] = useState(true);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -88,7 +104,7 @@ export default function AdminFirmsPage() {
   const load = useCallback(() => {
     setLoading(true);
     const qs = new URLSearchParams();
-    if (status) qs.set('status', status);
+    qs.set('view', view);
     if (search) qs.set('search', search);
     qs.set('page', String(page));
 
@@ -96,11 +112,12 @@ export default function AdminFirmsPage() {
       .then((r) => r.json())
       .then((d) => {
         setFirms(d.firms || []);
+        setDirectoryOn(d.directoryOn !== false);
         setTotalPages(d.pagination?.totalPages || 1);
       })
       .catch(() => toast.error('Could not load firms.'))
       .finally(() => setLoading(false));
-  }, [status, search, page]);
+  }, [view, search, page]);
 
   useEffect(load, [load]);
 
@@ -126,17 +143,17 @@ export default function AdminFirmsPage() {
       {/* Filters */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <div className="flex flex-wrap gap-1.5">
-          {FILTERS.map((f) => (
+          {VIEWS.map(([v, label]) => (
             <button
-              key={f}
-              onClick={() => { setStatus(f); setPage(1); }}
+              key={v}
+              onClick={() => { setView(v); setPage(1); }}
               className={`border px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest transition-colors ${
-                status === f
+                view === v
                   ? 'border-neutral-900 bg-neutral-900 text-white'
                   : 'border-neutral-200 text-neutral-600 hover:border-neutral-400'
               }`}
             >
-              {f}
+              {label}
             </button>
           ))}
         </div>
@@ -160,7 +177,7 @@ export default function AdminFirmsPage() {
         <Card className="rounded-none">
           <CardContent className="p-10 text-center">
             <Building2 className="mx-auto h-8 w-8 text-neutral-300" />
-            <p className="mt-3 text-sm text-neutral-500">No firms with this status.</p>
+            <p className="mt-3 text-sm text-neutral-500">No practices here.</p>
           </CardContent>
         </Card>
       ) : (
@@ -177,10 +194,14 @@ export default function AdminFirmsPage() {
                       {f.establishedYear && ` · est. ${f.establishedYear}`}
                     </p>
                   </div>
-                  <Badge className={`w-fit shrink-0 rounded-none text-[10px] uppercase tracking-widest ${STATUS_STYLE[f.verificationStatus] ?? ''}`}>
-                    {f.verificationStatus}
+                  <Badge className={`w-fit shrink-0 rounded-none text-[10px] uppercase tracking-widest ${LISTING[f.listing].style}`}>
+                    {LISTING[f.listing].badge}
                   </Badge>
                 </div>
+                <p className="mt-2 text-xs text-neutral-700">
+                  {LISTING[f.listing].line}
+                  {f.listing === 'LISTED' && !directoryOn && ' The directory is switched off for everyone at the moment.'}
+                </p>
 
                 <div className="mt-4 grid gap-4 text-[11px] sm:grid-cols-2">
                   <div className="space-y-1">
@@ -213,11 +234,12 @@ export default function AdminFirmsPage() {
 
                 <div className="mt-4 space-y-1 text-[11px]">
                   <p className="flex items-center gap-1.5 font-bold uppercase tracking-widest text-neutral-400">
-                    <Users className="h-3 w-3" /> Members ({f.attorneyCount} attorneys · {f.matterCount} matters on record)
+                    <Users className="h-3 w-3" /> Members ({plural(f.attorneyCount, 'attorney', 'attorneys')} · {plural(f.matterCount, 'matter', 'matters')} on record)
                   </p>
                   {f.members.map((m, i) => (
                     <p key={i} className="text-neutral-700">
-                      {m.user.fullName || m.user.email} — {ROLE_LABELS[m.role] ?? m.role}
+                      {/* An attorney by their registered name: an account name can be anything (Kavindu's is "None"). */}
+                      {m.user.profile?.fullName || m.user.fullName || m.user.email} — {ROLE_LABELS[m.role] ?? m.role}
                       {m.user.profile?.baslNumber && ` · ${m.user.profile.baslNumber}`}
                       {m.user.profile && !m.user.profile.isVerified && (
                         <span className="text-amber-700"> · attorney not yet verified</span>
@@ -233,15 +255,19 @@ export default function AdminFirmsPage() {
                 )}
 
                 <div className="mt-4 flex flex-wrap gap-2">
-                  <Button
-                    size="sm" className="rounded-none"
-                    onClick={() => setDecisionFor(f)}
-                  >
-                    Record a decision
-                  </Button>
-                  {f.verificationStatus === 'VERIFIED' && (
+                  {/* The server refuses a decision on a practice that never registered. */}
+                  {f.listing !== 'NOT_REGISTERED' && (
+                    <Button
+                      size="sm" className="rounded-none"
+                      onClick={() => setDecisionFor(f)}
+                    >
+                      Record a decision
+                    </Button>
+                  )}
+                  {/* Any other firm's public page is a 404. */}
+                  {f.listing === 'LISTED' && directoryOn && (
                     <a
-                      href={`/en/firms/${f.slug}`}
+                      href={`/${locale}/firms/${f.slug}`}
                       target="_blank"
                       rel="noreferrer"
                       className="inline-flex items-center border border-neutral-200 px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-neutral-600 hover:border-neutral-400"
@@ -316,7 +342,7 @@ function VerificationDialog({
       if (!res.ok) {
         throw new Error(typeof data.error === 'string' ? data.error : 'Could not record that.');
       }
-      toast.success('Decision recorded.');
+      toast.success('Decision recorded. The principal and practice manager will be emailed.');
       onDecided();
     } catch (e: any) {
       toast.error(e.message);
@@ -366,7 +392,7 @@ function VerificationDialog({
               id="verify-notes" value={notes} rows={3}
               onChange={(e) => setNotes(e.target.value)}
               className="rounded-none text-sm"
-              placeholder="What you checked, or what is missing. The firm sees this."
+              placeholder="What you checked, or what is missing. The practice is emailed this note."
             />
           </div>
         </div>

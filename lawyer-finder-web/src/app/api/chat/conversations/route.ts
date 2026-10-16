@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { isValidUUID } from '@/lib/security';
+import type { BookingStatus } from '@prisma/client';
+import { firmMayMessageClient } from '@/lib/consultations/bookingStatus';
 import {
   getFirmMembership,
   resolveConversationAccess,
@@ -56,12 +58,16 @@ export async function GET() {
                 profileImageUrl: true,
                 email: true,
                 role: true,
+                profile: { select: { fullName: true } },
               },
             },
           },
         },
         messages: { orderBy: { createdAt: 'desc' }, take: 1 },
         _count: { select: { messages: true } },
+        // The request number only — never the subject, which is privileged and
+        // would need its own disclosure decision. Enough to tell threads apart.
+        booking: { select: { bookingNumber: true } },
       },
       orderBy: { updatedAt: 'desc' },
     });
@@ -91,9 +97,17 @@ export async function GET() {
 
         return {
           id: c.id,
-          otherUser: otherParticipant?.user,
+          // An attorney is shown by their professional name (the profile), not
+          // the account name — seeded accounts carry the literal "None" there.
+          otherUser: otherParticipant
+            ? (({ profile, ...u }) => ({
+                ...u,
+                fullName: profile?.fullName || u.fullName || u.email,
+              }))(otherParticipant.user)
+            : undefined,
           firmId: c.firmId,
           bookingId: c.bookingId,
+          requestNumber: c.booking?.bookingNumber ?? null,
           lastMessage: lastMessage ? discloseMessage(lastMessage, access) : null,
           unreadCount:
             lastMessage &&
@@ -209,13 +223,40 @@ export async function POST(request: Request) {
     // firm. A thread pointed at somebody else's matter would put the wrong
     // file's reference on privileged correspondence.
     let linkedBookingId: string | null = null;
+    let linkedBooking: { id: string; clientId: string; firmId: string; lawyerId: string | null; status: BookingStatus } | null = null;
     if (bookingId && isValidUUID(bookingId)) {
       const booking = await prisma.booking.findUnique({
         where: { id: bookingId },
-        select: { id: true, clientId: true, firmId: true },
+        select: { id: true, clientId: true, firmId: true, lawyerId: true, status: true },
       });
       if (booking && booking.clientId === clientId && booking.firmId === firmMembership.firmId) {
         linkedBookingId = booking.id;
+        linkedBooking = booking;
+      }
+    }
+
+    // The firm side may only open a thread about a request the CLIENT sent to
+    // this firm, as the attorney assigned to it, while it is still live.
+    // Without this an attorney could message any client on the platform — a
+    // stranger who never contacted them — which is soliciting (touting).
+    if (session.role === 'LAWYER') {
+      if (!linkedBooking) {
+        return NextResponse.json(
+          { error: 'You can message a client only about a request they sent to your practice.' },
+          { status: 403 }
+        );
+      }
+      if (!session.profileId || linkedBooking.lawyerId !== session.profileId) {
+        return NextResponse.json(
+          { error: 'Only the attorney assigned to this request can message the client about it.' },
+          { status: 403 }
+        );
+      }
+      if (!firmMayMessageClient(linkedBooking.status)) {
+        return NextResponse.json(
+          { error: 'This request is closed, so your practice cannot open a new conversation about it.' },
+          { status: 403 }
+        );
       }
     }
 

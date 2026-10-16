@@ -1,73 +1,77 @@
 import Link from 'next/link';
-import { Star } from 'lucide-react';
+import AttorneyPhoto from '@/components/lawyer/AttorneyPhoto';
 
+/**
+ * One attorney in the public directory.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Rule 45 of the 1988 Rules lets an attorney appear in a Legal Directory with
+ * "name, address and description". This card shows that and nothing more:
+ *
+ *   - No bio. Attorneys' own text read "Expert in…", "Specialist in…", "Senior
+ *     attorney with 15 years…" — self-promotion, and Rule 49 bars publishing
+ *     particulars of one's practice. The bio stays on the attorney's own page.
+ *   - A small photo, the same size for everyone. A large portrait card is an
+ *     advertisement; a passport-sized one identifies the person.
+ *   - No stock photo. Every attorney without a photo used to show the SAME
+ *     stranger's face; initials instead.
+ *   - The firm. The client engages the firm, not the individual (rule 7), so
+ *     the card says which practice the attorney belongs to.
+ * ─────────────────────────────────────────────────────────────────────────────
+ */
 interface LawyerCardProps {
   id: string;
   fullName: string;
   profileImageUrl: string | null;
-  bio: string | null;
   practiceAreas: string[];
   languages: string[];
   district: string | null;
+  firm?: { name: string; firmType: string } | null;
   locale: string;
-  imageHeight?: string; // e.g. "h-[280px]" or "h-[360px]"
 }
 
 export default function LawyerCard({
   id,
   fullName,
   profileImageUrl,
-  bio,
   practiceAreas,
   languages,
   district,
-
+  firm,
   locale,
-  imageHeight = 'h-[280px]'
 }: LawyerCardProps) {
-  const primaryArea = practiceAreas[0] || 'Legal Counsel';
-
   return (
     <Link href={`/${locale}/lawyers/${id}`} className="w-full">
-      <div className="group flex flex-col items-start bg-white border border-neutral-100 p-4 hover:shadow-2xl transition-all duration-500 hover:-translate-y-1">
-        {/* Image Frame */}
-        <div className={`relative w-full ${imageHeight} overflow-hidden bg-neutral-100`}>
-          <img
-            src={profileImageUrl || 'https://images.unsplash.com/photo-1556157382-97eda2d62296?auto=format&fit=crop&w=800&q=80'}
-            alt={fullName}
-            className="h-full w-full object-cover transition-all duration-750 "
-          />
-          {/* Languages - Always Visible */}
-          <div className="absolute top-4 left-4 z-10 flex flex-wrap items-center gap-1.5">
+      <div className="group flex h-full items-start gap-4 border border-neutral-200 bg-white p-4 transition-colors hover:border-neutral-400">
+        <AttorneyPhoto src={profileImageUrl} name={fullName} className="h-16 w-16 shrink-0" />
+
+        <div className="min-w-0 flex-1 space-y-1.5 text-left">
+          <h4 className="font-serif text-base font-bold text-neutral-900 group-hover:underline">
+            {fullName}
+          </h4>
+          {firm && (
+            <p className="text-xs text-neutral-500">
+              {firm.firmType === 'SOLE_PRACTITIONER' ? 'Sole practitioner' : firm.name}
+            </p>
+          )}
+          {practiceAreas.length > 0 && (
+            <p className="text-xs text-neutral-600">{practiceAreas.join(', ')}</p>
+          )}
+          <div className="flex flex-wrap items-center gap-1.5 pt-1">
+            {district && (
+              <span className="bg-neutral-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-neutral-500">
+                {district}
+              </span>
+            )}
             {languages.map((lang) => (
-              <span key={lang} className="text-[8px] bg-black/45 backdrop-blur-md text-white font-bold uppercase tracking-widest px-2 py-0.5 border border-white/10 rounded-none">
+              <span
+                key={lang}
+                className="border border-neutral-200 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-neutral-500"
+              >
                 {lang}
               </span>
             ))}
           </div>
-          {/* Hover Overlay - Soft darkening shadow */}
-          <div className="absolute inset-0 bg-black/25 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-          </div>
-        </div>
-
-        {/* Display Info below card */}
-        <div className="w-full pt-4 space-y-2 text-left">
-          <span className="text-[10px] font-bold uppercase tracking-widest text-[#bfa37a]">
-            {primaryArea}
-          </span>
-          <h4 className="text-neutral-900 font-serif font-bold text-base transition-colors group-hover:text-[#bfa37a]">
-            {fullName}
-          </h4>
-          <p className="text-neutral-450 text-xs font-light line-clamp-1">
-            {bio || 'Vetted legal counsel ready for guidance.'}
-          </p>
-          {district && (
-            <div className="flex items-center gap-3 pt-2">
-              <div className="text-[9px] font-bold uppercase tracking-widest text-neutral-400 bg-neutral-100 px-2 py-1">
-                {district}
-              </div>
-            </div>
-          )}
         </div>
       </div>
     </Link>

@@ -132,8 +132,16 @@ export async function PATCH(
       
       // Authors can transition statuses
       if (parsed.data.status && parsed.data.status !== post.status) {
+        // A post a moderator rejected or took down (or that reports hid) goes
+        // back to a moderator, never straight to PUBLISHED: a verified attorney
+        // could republish a removed post themselves.
+        const heldByModeration =
+          post.status === 'REJECTED' || (post.status === 'REMOVED' && post.removedBy !== 'AUTHOR');
         if (parsed.data.status === 'REMOVED' && post.status === 'PUBLISHED') {
           updateData.status = 'REMOVED';
+          updateData.removedBy = 'AUTHOR';
+        } else if (heldByModeration && (parsed.data.status === 'PENDING_REVIEW' || parsed.data.status === 'PUBLISHED')) {
+          updateData.status = 'PENDING_REVIEW';
         } else if (parsed.data.status === 'DRAFT') {
            updateData.status = 'DRAFT';
         } else if (parsed.data.status === 'PENDING_REVIEW' || parsed.data.status === 'PUBLISHED') {
@@ -165,6 +173,7 @@ export async function PATCH(
     if (isAdmin || isMod) {
       if (parsed.data.status) {
         updateData.status = parsed.data.status;
+        updateData.removedBy = parsed.data.status === 'REMOVED' ? 'MODERATOR' : null;
       }
       if (parsed.data.isPinned !== undefined) updateData.isPinned = parsed.data.isPinned;
       if (parsed.data.isLocked !== undefined) updateData.isLocked = parsed.data.isLocked;
@@ -217,10 +226,10 @@ export async function DELETE(
       return NextResponse.json({ error: 'Insufficient permissions.' }, { status: 403 });
     }
 
-    // Soft delete by setting status to REMOVED
+    // Soft delete by setting status to REMOVED, recording who did it.
     await prisma.post.update({
       where: { id },
-      data: { status: 'REMOVED' },
+      data: { status: 'REMOVED', removedBy: session.userId === post.authorId ? 'AUTHOR' : 'MODERATOR' },
     });
 
     // Decrement community count if was published

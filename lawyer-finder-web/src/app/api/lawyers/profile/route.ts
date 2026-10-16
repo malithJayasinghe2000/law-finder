@@ -13,9 +13,6 @@ export async function GET() {
 
     const profile = await prisma.lawyerProfile.findFirst({
       where: { userId: session.userId },
-      include: {
-        articles: { orderBy: { createdAt: 'desc' } },
-      },
     });
 
     if (!profile) {

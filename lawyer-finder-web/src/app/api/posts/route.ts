@@ -74,21 +74,13 @@ export async function GET(req: Request) {
       }
     }
 
-    // Sort options
-    let orderBy: Record<string, string>[];
-    switch (sort) {
-      case 'new':
-        orderBy = [{ createdAt: 'desc' }];
-        break;
-      case 'top':
-        orderBy = [{ score: 'desc' }, { createdAt: 'desc' }];
-        break;
-      case 'hot':
-      default:
-        // Hot = combination of score and recency
-        orderBy = [{ score: 'desc' }, { createdAt: 'desc' }];
-        break;
-    }
+    // Newest first, always. Ordering by votes ("hot", "top") put the most
+    // up-voted posts first — and an attorney's post at the top of a legal forum
+    // is the platform promoting that attorney (guardrail rules 3 and 4). Votes
+    // are still counted and shown; they just do not decide the order. `sort` is
+    // still accepted so old links do not break.
+    void sort;
+    const orderBy: Record<string, string>[] = [{ createdAt: 'desc' }];
 
     const [posts, total] = await Promise.all([
       prisma.post.findMany({
