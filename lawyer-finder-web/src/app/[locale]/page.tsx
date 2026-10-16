@@ -6,15 +6,12 @@ import { Button } from '@/components/ui/button';
 import {
   ArrowRight,
   ArrowUpRight,
-  Star,
-  Scale,
   Building2,
   Gavel,
-  ShieldCheck,
   FileText,
-  PhoneCall,
-  Facebook,
-  Linkedin,
+  Home,
+  MapPin,
+  Briefcase,
 } from 'lucide-react';
 import HeroChatInput from '@/components/home/HeroChatInput';
 import { isPublicDirectoryEnabled } from '@/lib/directory';
@@ -149,7 +146,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
                   Find an Attorney-at-Law
                 </h2>
                 <p className="text-neutral-500 text-sm max-w-md font-light leading-relaxed">
-                  Verified law firms and attorneys, in an order that changes daily. Filter by practice area, district and language.
+                  Verified law firms, in an order that changes daily. Filter by practice area, district and language.
                 </p>
               </div>
               <Link href={`/${locale}/firms`}>
@@ -161,8 +158,12 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
           </section>
         )}
 
-        {/* 4. My Legal Practice Area section (Watermarked with specified bg asset).
-            Every card is a directory search, so the section goes with the directory. */}
+        {/* 4. Browse by practice area (watermarked with the bg asset).
+            Every card is a directory search, so the section goes with the directory.
+            The cards used to be marketing titles ("Trusted Lawyer", "Legal Champion",
+            "Dedicated Legalist") with short area names ("Civil", "Corporate") that
+            never matched a firm's practice areas - every card showed 0 firms. They are
+            now real areas from PRACTICE_AREAS, passed exactly as firms store them. */}
         {directoryEnabled && (
           <section 
             className="relative bg-white py-24 px-6 lg:px-12 xl:px-24 overflow-hidden -mt-10 pt-32"
@@ -177,39 +178,38 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
               {/* Title / Info on Left */}
               <div className="lg:col-span-4 flex flex-col justify-center space-y-8">
                 <h2 className="text-3xl sm:text-4xl font-serif text-neutral-900">
-                  My Legal Practice <br /> Area
+                  Browse by <br /> Practice Area
                 </h2>
                 <p className="text-neutral-500 text-sm font-light max-w-xs leading-relaxed">
-                  Browse our directory segmented by active areas of expertise to get the perfect representation.
+                  See the law firms that list each area. You choose the firm.
                 </p>
                 <Link href={directoryPath(locale)}>
                   <Button className="bg-[#bfa37a] text-white hover:bg-[#a68d67] rounded-none px-8 py-6 text-xs font-bold uppercase tracking-widest transition-all self-start">
-                    All Practices Areas
+                    All Practice Areas
                   </Button>
                 </Link>
               </div>
 
               {/* Grid on Right */}
-              <div className="lg:col-span-8 grid grid-cols-1 sm:grid-cols-2 gap-6">
+              <div className="lg:col-span-8 grid grid-cols-2 gap-3 sm:gap-6">
                 {[
-                  { title: 'Trusted Lawyer', desc: 'Expert assistance on criminal, civil litigation and family disputes.', icon: Scale, area: 'Civil' },
-                  { title: 'Business Consulting', desc: 'Corporate advice, commercial contracts, IP registration, and audits.', icon: Building2, area: 'Corporate' },
-                  { title: 'Legal Champion', desc: 'Accidents, injuries representation and insurance claim collection.', icon: Gavel, area: 'Employment' },
-                  { title: 'Dedicated Legalist', desc: 'Administrative tribunals, banking and labor law assistance.', icon: ShieldCheck, area: 'Administrative' },
-                  { title: 'Case Analysis', desc: 'Deep analytics and automated templates check for business audits.', icon: FileText, area: 'Civil' },
-                  { title: 'Discovery Caller', desc: 'Direct secure communication lines and scheduling options.', icon: PhoneCall, area: 'Corporate' }
-                ].map((item, idx) => {
+                  { area: 'Criminal Law', icon: Gavel },
+                  { area: 'Family Law', icon: Home },
+                  { area: 'Property Law', icon: MapPin },
+                  { area: 'Labor Law', icon: Briefcase },
+                  { area: 'Corporate Law', icon: Building2 },
+                  { area: 'Commercial Law', icon: FileText },
+                ].map((item) => {
                   const Icon = item.icon;
                   return (
-                    <Link key={idx} href={directoryPath(locale, `practiceArea=${item.area}`)}>
-                      <div className="bg-white border border-neutral-100 p-8 hover:shadow-2xl transition-all duration-500 hover:-translate-y-1 group flex flex-col items-start space-y-5">
+                    <Link key={item.area} href={directoryPath(locale, `practiceArea=${encodeURIComponent(item.area)}`)}>
+                      <div className="h-full bg-white border border-neutral-100 p-5 sm:p-8 hover:shadow-2xl transition-all duration-500 hover:-translate-y-1 group flex flex-col items-start space-y-4 sm:space-y-5">
                         <div className="p-3 bg-[#faf6f0] text-[#bfa37a] group-hover:bg-[#bfa37a] group-hover:text-white transition-all duration-300">
                           <Icon className="w-6 h-6 stroke-[1.5]" />
                         </div>
-                        <h3 className="text-sm font-serif font-bold text-neutral-900 uppercase tracking-wider">{item.title}</h3>
-                        <p className="text-neutral-500 text-xs font-light leading-relaxed">{item.desc}</p>
+                        <h3 className="text-sm font-serif font-bold text-neutral-900 uppercase tracking-wider">{item.area}</h3>
                         <span className="text-[10px] font-bold uppercase tracking-widest text-neutral-400 group-hover:text-[#bfa37a] transition-colors flex items-center gap-1.5 pt-2">
-                          Read More <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
+                          See law firms <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
                         </span>
                       </div>
                     </Link>
