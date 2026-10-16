@@ -51,8 +51,8 @@ recommendation, and wait for my "ok" before changing anything.
 CLIENT and LAWYER sides are finished. ADMIN side done so far: Dashboard,
 Verification, Law Firms, Invoices, Ad Campaigns, User Management, Communities,
 Content Moderation, Legal Documents, Privacy Notice, Public Directory,
-Consultations, Financial Reports.
-START WITH: continue the admin review at Settings (§E item 2).
+Consultations, Financial Reports, Settings (now My Account).
+START WITH: continue the admin review at Subscription Config (§E item 2).
 ```
 
 ---
@@ -220,6 +220,7 @@ Pushed up to `66212a8`. **Commits after it (Privacy Notice → Consultations, an
   Refunds hidden by switch.
 - **Financial Reports** — hidden by switch; ad income counted campaign budgets as revenue
   (now paid invoices only); per-attorney client-fee totals removed.
+- **Settings → My Account** — dead attorney form removed; password rules shown.
 
 **Migrations added this session (8 — all must run on production):**
 `lawyer_profile_verified_by`, `ads_drop_profile_card_from_placements`, `ads_cta_learn_more`,
@@ -313,14 +314,16 @@ data-only; none drops anything.
    verified attorneys' names locked, advertisers' contact details. Write it as a draft;
    the owner publishes it **on the live site** after deploy (a local publish does not
    carry over; 2026-08-03 reaches production by migration).
-2. **Continue the admin review** (same method), in menu order: **Settings**,
-   Subscription Config. Already known:
+2. **Continue the admin review** (same method): **Subscription Config** (the last section). Already known:
    - Subscription Config is licensing — probably hide with `LICENSING_ENABLED`.
    - `src/components/layout/DashboardSidebar.tsx` is unused dead code.
 3. **Deploy checklist (owner + code):** push; run the 8 migrations of §B4 (and earlier ones)
    with `prisma migrate deploy`; keep `storage/` on the web server across deploys; schedule
    `npm run jobs:daily`; **back up `MATTER_ENCRYPTION_KEYS`** (losing it destroys every
    matter file); restart the server after migrating; then item 4.
+3b. **Two-step sign-in for admin accounts (before launch, owner 2026-10-16: later).** Admins sign
+   in with a password only, and can withdraw verification, moderate and switch the directory off.
+   Note: a seeded admin with no name cannot save My Account (name required) until they add one.
 4. **For the owner, on the live site (not code):** purge server logs of `[PROFILE_PUT]` lines
    holding password hashes / NICs (logged before `1510d2c`) **and of the whole user list
    that every Admin → User Management load printed (emails, BASL numbers, map locations;

@@ -3372,3 +3372,11 @@ was the larger of paid ad invoices and campaign *budgets*.
   page and API (410). Rebuild per firm (the licence belongs to the firm) when billing returns.
 
 Checks: privilege 42, firm 15, billing 21, pdpa 72, ai 124; build and tsc clean.
+
+### 2026-10-16 — Settings → My Account
+
+The admin's own account page (name, photo, password). Password change tested: wrong current
+password refused, real change works (admin password restored to the seed value by hash).
+`My Account` commit: unreachable copy of the attorney profile form removed; password rules
+shown under the fields; menu and title "My Account". **Launch list:** two-step sign-in for
+admin accounts (brief §E 3b).
