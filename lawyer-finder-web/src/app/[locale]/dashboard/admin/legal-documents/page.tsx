@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import {
-  BookOpen, Upload, FileText, Search, Trash2, Eye, AlertCircle,
+  BookOpen, Upload, FileText, Search, Trash2, Eye, AlertCircle, Archive, RotateCcw,
   CheckCircle2, Clock, XCircle, Filter, RefreshCw, Database, GitBranch
 } from 'lucide-react';
 
@@ -88,21 +88,45 @@ export default function AdminLegalDocumentsPage() {
     fetchDocuments();
   };
 
-  const handleDelete = async (id: string, title: string) => {
-    if (!confirm(`Delete "${title}"? This will also remove it from the RAG vector store and knowledge graph.`)) return;
-
+  // Archive hides a document from the library and leaves the AI alone.
+  const setStatus = async (id: string, status: 'ARCHIVED' | 'ACTIVE') => {
     setDeleting(id);
     try {
-      const res = await fetch(`/api/admin/legal-documents/${id}`, { method: 'DELETE' });
-      if (res.ok) {
-        toast.success('Document deleted');
-        fetchDocuments();
-      } else {
-        const data = await res.json();
-        toast.error(data.error || 'Failed to delete');
-      }
-    } catch {
-      toast.error('Failed to delete document');
+      const res = await fetch(`/api/admin/legal-documents/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      toast.success(status === 'ARCHIVED' ? 'Archived. Hidden from the library; the AI still has it.' : 'Restored to the library.');
+      fetchDocuments();
+    } catch (e) {
+      toast.error(e instanceof Error && e.message ? e.message : 'Could not change that.');
+    } finally {
+      setDeleting(null);
+    }
+  };
+
+  // Removing from the AI cannot be undone here; the title must be typed.
+  const [removeFor, setRemoveFor] = useState<LegalDocument | null>(null);
+  const [confirmTitle, setConfirmTitle] = useState('');
+  const handleRemoveFromAi = async () => {
+    if (!removeFor) return;
+    setDeleting(removeFor.id);
+    try {
+      const res = await fetch(`/api/admin/legal-documents/${removeFor.id}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirmTitle }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      toast.success(data.message || 'Removed from the AI.');
+      setRemoveFor(null);
+      fetchDocuments();
+    } catch (e) {
+      toast.error(e instanceof Error && e.message ? e.message : 'Could not remove it.');
     } finally {
       setDeleting(null);
     }
@@ -313,14 +337,36 @@ export default function AdminLegalDocumentsPage() {
                       <td className="px-5 py-4 text-right text-sm text-neutral-700 font-mono">{doc.graphEntities}</td>
                       <td className="px-5 py-4">
                         <div className="flex items-center justify-end gap-2">
-                          <button
-                            onClick={() => handleDelete(doc.id, doc.title)}
-                            disabled={deleting === doc.id}
-                            className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-none transition disabled:opacity-50"
-                            title="Delete document"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          {doc.status === 'ACTIVE' && (
+                            <button
+                              onClick={() => setStatus(doc.id, 'ARCHIVED')}
+                              disabled={deleting === doc.id}
+                              className="p-2 text-neutral-500 hover:text-neutral-900 hover:bg-neutral-100 rounded-none transition disabled:opacity-50"
+                              title="Archive (hide from the library; the AI keeps it)"
+                            >
+                              <Archive className="w-4 h-4" />
+                            </button>
+                          )}
+                          {doc.status === 'ARCHIVED' && doc.chunksCount > 0 && (
+                            <button
+                              onClick={() => setStatus(doc.id, 'ACTIVE')}
+                              disabled={deleting === doc.id}
+                              className="p-2 text-neutral-500 hover:text-neutral-900 hover:bg-neutral-100 rounded-none transition disabled:opacity-50"
+                              title="Restore to the library"
+                            >
+                              <RotateCcw className="w-4 h-4" />
+                            </button>
+                          )}
+                          {doc.status === 'ARCHIVED' && doc.chunksCount > 0 && (
+                            <button
+                              onClick={() => { setRemoveFor(doc); setConfirmTitle(''); }}
+                              disabled={deleting === doc.id}
+                              className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-none transition disabled:opacity-50"
+                              title="Remove from the AI"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -356,6 +402,35 @@ export default function AdminLegalDocumentsPage() {
           </div>
         )}
       </div>
+      {removeFor && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setRemoveFor(null)}>
+          <div className="w-full max-w-md border border-neutral-200 bg-white p-5 space-y-4" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-sm font-bold uppercase tracking-wide text-neutral-900">Remove from the AI</h3>
+            <p className="text-xs text-neutral-600">
+              The AI will stop knowing <span className="font-semibold text-neutral-900">{removeFor.title}</span> and can no longer
+              quote it. This cannot be undone from here: the document has to be uploaded and indexed again. The library keeps it
+              archived as a record.
+            </p>
+            <div>
+              <label htmlFor="confirm-title" className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-neutral-500">Type the title to confirm</label>
+              <input
+                id="confirm-title" value={confirmTitle} onChange={(e) => setConfirmTitle(e.target.value)}
+                className="w-full border border-neutral-200 bg-neutral-50 px-3 py-2.5 text-sm outline-none focus:border-neutral-900"
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setRemoveFor(null)} className="px-4 py-2 text-xs font-bold text-neutral-600 hover:text-neutral-900">Cancel</button>
+              <button
+                onClick={handleRemoveFromAi}
+                disabled={confirmTitle.trim() !== removeFor.title.trim() || deleting === removeFor.id}
+                className="bg-red-600 px-4 py-2 text-xs font-bold uppercase tracking-wide text-white hover:bg-red-700 disabled:opacity-50"
+              >
+                Remove from the AI
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
