@@ -55,12 +55,15 @@ export default async function FirmDirectory({
     where.name = { contains: filters.search.trim(), mode: 'insensitive' };
   }
 
-  const currentPage = Math.max(1, parseInt(filters.page || '1', 10) || 1);
-  const skip = (currentPage - 1) * PAGE_SIZE;
-
   // Daily order (src/lib/directory.ts): rank every match, then load one page.
   const orderedIds = inDailyOrder(await prisma.lawFirm.findMany({ where, select: { id: true } }));
   const totalCount = orderedIds.length;
+
+  // A page past the end shows the last real page; it used to say "1 firm found"
+  // and "No firms found" at once.
+  const lastPage = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+  const currentPage = Math.min(lastPage, Math.max(1, parseInt(filters.page || '1', 10) || 1));
+  const skip = (currentPage - 1) * PAGE_SIZE;
   const pageIds = orderedIds.slice(skip, skip + PAGE_SIZE).map((r) => r.id);
 
   const rows = await prisma.lawFirm.findMany({
@@ -81,7 +84,7 @@ export default async function FirmDirectory({
     });
   const firms = pageIds.flatMap((id) => rows.filter((r) => r.id === id));
 
-  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+  const totalPages = lastPage;
   const hasFilters = !!(filters.search || filters.district || filters.practiceArea || filters.language);
 
   function buildPageUrl(page: number) {
@@ -180,9 +183,7 @@ export default async function FirmDirectory({
                       {firm.name}
                     </h2>
                     <p className="text-[11px] uppercase tracking-widest text-[#bfa37a]">
-                      {firm.firmType === 'SOLE_PRACTITIONER'
-                        ? 'Sole practitioner'
-                        : 'Attorneys-at-Law'}
+                      {firm.firmType === 'SOLE_PRACTITIONER' ? 'Sole practitioner' : 'Law firm'}
                     </p>
                   </div>
                 </div>
