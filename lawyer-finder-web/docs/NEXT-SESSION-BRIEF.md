@@ -48,18 +48,18 @@ WHAT WE ARE DOING: a section-by-section review of every dashboard, one section a
 time — what it is for, keep / change / hide, and mobile layout. For each section:
 look at it on a phone, say what it does, list problems in a small table with a
 recommendation, and wait for my "ok" before changing anything.
-CLIENT, LAWYER and ADMIN sides are all finished (admin review completed
-2026-10-16 with Subscription Config hidden).
-START WITH: §E — the launch blockers (privacy notice §E1, deploy checklist §E3,
-two-step sign-in for admins §E3b), then the remaining items.
+CLIENT, LAWYER and ADMIN dashboards are all finished. NOW: the PUBLIC WEBSITE,
+section by section (Header done 2026-10-16; next Footer, then the home page
+sections, then each public page). Deployment comes after (§E3, §E3b).
+WORK ON BRANCH main (owner, 2026-10-16) — ask before pushing.
 ```
 
 ---
 
 ## B. Where things stand
 
-**Branch `restructure-booking-flow`.** Run `git log origin/restructure-booking-flow..HEAD`
-to see what is unpushed — ask before pushing.
+**Work on `main`** (owner, 2026-10-16; `restructure-booking-flow` was merged into it). Run
+`git log origin/main..HEAD` to see what is unpushed — ask before pushing.
 
 **Running it locally:** Postgres `lawfinder` on localhost:5432 (`DATABASE_URL` in
 `lawyer-finder-web/.env`; note the spaces around `=`); `cd lawyer-finder-web && PORT=3001
@@ -222,7 +222,7 @@ Pushed up to `66212a8`. **Commits after it (Privacy Notice → Consultations, an
 - **Settings → My Account** — dead attorney form removed; password rules shown.
 - **Subscription Config** — hidden by `LICENSING_ENABLED` (owner's choice). **Admin review complete.**
 
-**Migrations added this session (8 — all must run on production):**
+**Migrations added (9 — all must run on production; + `ad_placement_names_plain_dash`):**
 `lawyer_profile_verified_by`, `ads_drop_profile_card_from_placements`, `ads_cta_learn_more`,
 `ads_legal_library_slot_off`, `lawyer_profile_verification_revoked`, `password_reset_token`,
 `community_icons_not_emoji`, `post_removed_by_and_moderation_note`. All additive or
@@ -351,7 +351,12 @@ data-only; none drops anything.
 15. **Admin page for data requests** — none exists; OBJECTION/RECTIFICATION sit IN_PROGRESS
     unseen. The admin dashboard counts them (`22c2aaf`).
 16. ~~User Management can toggle `isVerified` directly~~ — fixed `38a7e10` (withdraw-only).
-17. Public `<title>` is "Find the Right Lawyer in Sri Lanka" — add to item 5.
+17. Public `<title>` is "Find the Right Lawyer in Sri Lanka" — add to item 5 (it is `HomePage.title`
+    in messages/en.json; also "Featured Legal Experts", "Book consultations instantly").
+20. **No language switcher** (si/ta exist only by URL; most text is English-only in code).
+    Owner: not now. si/ta Navigation still says "Lawyer directory".
+21. **No long dash "—" in visible text** (owner, 2026-10-16; `e6e054e`). The next privacy-notice
+    version must follow suit; saved AI history left alone.
 18. **Withdrawn verification has no way back in the app** (`38a7e10`): re-applying creates a
     new application, but approval tries to create a profile that already exists.
 19. **A listed firm stays listed when its only principal's verification is withdrawn** —

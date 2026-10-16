@@ -3391,3 +3391,17 @@ admin on each method. Nothing deleted.
 **All three dashboards have now been reviewed section by section.** What remains before
 launch is in the brief §E: the privacy-notice version (waits on hosting), the deploy
 checklist, two-step sign-in for admins, and the owner's live-site log purge.
+
+### 2026-10-16 — Long dash removed from visible text; public website review begins (Header)
+
+- `e6e054e`: 184 "—" in user-visible strings (string literals, template text, JSX text; found
+  with the TypeScript parser so comments were untouched) → " - ". Markers
+  `WITHHELD_MARKER`/`UNDECRYPTABLE_MARKER` changed too — only ever used via the constant.
+  `cd0cd90`: data-only migration for ad placement names; seed updated. Not changed: the
+  published privacy notice (never edited) and saved AI history.
+- Owner: work on `main` from now on; `restructure-booking-flow` merged into it.
+- **Header** (`53841a0`, `aab4b1b`): "Find a Law Firm" (it opens the firms list), "Apply as an
+  Attorney" (was "Become a Lawyer"), photo-or-initials avatar (header and dashboard menu; was
+  one stock drawing for everyone), one icon on Messages, "Open menu" label, Log out red, full
+  link bar from 1024px (the longer label overlapped the logo at 768). Checked 412/768/1023/
+  1024/1440, signed in and out.
