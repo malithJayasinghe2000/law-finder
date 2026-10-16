@@ -3439,3 +3439,10 @@ a verified law firm." Owner: no disclaimer in the preview. si/ta still old — n
 In good shape (verified only, daily order disclosed, Rule 40 fields only, fits 412px). Fixed: a
 page number past the end now shows the last page (was "1 firm found" + "No firms found"); card
 label "Law firm" / "Sole practitioner" (was "Attorneys-at-Law" under names ending with it).
+
+### 2026-10-16 — Firm page
+
+Rule 40 content only; fine on a phone. Fixed: the closing line invited requesting an attorney
+"directly" — the attorney page's Request button goes to the firm (decision 8), so it now says the
+firm assigns; tab title/description name the firm; "BASL BASL-…" once; label "Law firm". Local
+data note: Perera & Associates has an office "test / test testtest testtest test" (owner to delete).
