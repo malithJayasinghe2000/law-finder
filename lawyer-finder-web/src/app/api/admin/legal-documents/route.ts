@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import prisma from '@/lib/db';
 import { ragFetch } from '@/lib/ai/ragService';
+import { mkdir, writeFile } from 'fs/promises';
+import { LEGAL_DOCUMENT_STORAGE, legalDocumentStoragePath } from '@/lib/legalDocuments';
 
 // Category mapping for display ↔ enum
 const CATEGORY_MAP: Record<string, string> = {
@@ -201,6 +203,11 @@ export async function POST(req: Request) {
         uploadedById: session.userId,
       },
     });
+
+    // The website's own copy, so the library can serve the file wherever the
+    // AI service runs (src/lib/legalDocuments.ts).
+    await mkdir(LEGAL_DOCUMENT_STORAGE, { recursive: true });
+    await writeFile(legalDocumentStoragePath(doc.id, sanitizedName), Buffer.from(await file.arrayBuffer()));
 
     // Forward the file to the RAG backend for ingestion
     try {
