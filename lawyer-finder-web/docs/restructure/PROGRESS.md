@@ -3455,3 +3455,22 @@ send a request" (login/register, both return) instead of the form, verified thro
 login form; the readers note now includes the practice manager (FIRM_ADMIN may read, per
 access.ts); two run-together phrases ("in writing.Perera", "Attorneys-at-Lawwho"); tab title.
 A rendered-text scan of 16 public/client pages found no other run-together words.
+
+### 2026-10-16 — Sign-up flow (owner asked to do it first)
+
+Ran it end to end as a visitor coming from a firm's "Create an account" (temporary @example.com
+accounts, deleted by id, scan clean). Found and fixed:
+- `7db69fc` sign-up took **16.8 s** (awaited the mail server) → 1.9 s, email after the response;
+  verification token stored as sent → SHA-256 only (`src/lib/emailVerification.ts`); after
+  verifying + signing in the person landed on the home page → the link carries language and a
+  safe `redirect`, and they land back on the firm's request form (proven); bad/used/expired links
+  keep language + redirect; resend lower-cases the email; sign-up limit 3 → 10/hour/IP.
+- `ab643f7` sign-in shows why a verification link failed (it showed nothing).
+- `22b1e76` form: live password checklist (rules came one per failed attempt), show-password,
+  autocomplete name/email/new-password, labels tied to inputs, lighter examples, "Create a free
+  account", a line for attorneys, clearer "Check your email".
+Correction to my first report: sendMailSafe never throws, so a failed email never showed
+"failed" — the account was created and the person could resend.
+**Deploy note:** verification links issued before `7db69fc` stop working (stored unhashed) —
+people press Resend. **Local config:** `.env` NEXT_PUBLIC_APP_URL is :3000 (another project) so
+local emails link there; owner to decide (dev runs on :3001).

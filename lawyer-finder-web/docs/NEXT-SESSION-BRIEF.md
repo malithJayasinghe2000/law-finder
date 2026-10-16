@@ -48,7 +48,7 @@ WHAT WE ARE DOING: a section-by-section review of every dashboard, one section a
 time — what it is for, keep / change / hide, and mobile layout. For each section:
 look at it on a phone, say what it does, list problems in a small table with a
 recommendation, and wait for my "ok" before changing anything.
-CLIENT, LAWYER and ADMIN dashboards are all finished. NOW: the PUBLIC WEBSITE,
+CLIENT, LAWYER and ADMIN dashboards are all finished; SIGN-UP flow done. NOW: the PUBLIC WEBSITE,
 section by section (Header, Footer and the whole home page done 2026-10-16; next each
 public page in menu order: AI Chat, Legal Library, Community Hub, About, then the attorney
 page (/lawyers/[id]); the firms list, firm page and request form are done). Deployment comes after (§E3, §E3b).
@@ -325,6 +325,9 @@ data-only; none drops anything.
    with `prisma migrate deploy`; keep `storage/` on the web server across deploys; schedule
    `npm run jobs:daily`; **back up `MATTER_ENCRYPTION_KEYS`** (losing it destroys every
    matter file); restart the server after migrating; then item 4.
+3e. **Production settings must set `NEXT_PUBLIC_APP_URL`** to the real https address — every email
+   link (verification, reset, invitations) is built from it. Locally it says :3000 (another
+   project); dev runs on :3001.
 3c. **Terms of Use page (blocks launch).** None exists; a public site with accounts needs one
    (not legal advice, not a law firm, community rules, attorneys' own conduct). Draft it for an
    attorney to check. Then link it from the footer and sign-up.
