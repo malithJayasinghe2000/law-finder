@@ -176,11 +176,12 @@ export async function POST(req: Request) {
 
     if (!file) return NextResponse.json({ error: 'No file provided' }, { status: 400 });
     
-    // Validate file extension/type (Only PDF/DOCX/TXT/log documents are allowed)
-    const allowedExtensions = ['pdf', 'docx', 'txt', 'log'];
+    // PDF only, as the upload page says — it accepted Word, text and .log too.
+    // Checked by content as well as name: a PDF starts with "%PDF-".
     const fileExt = file.name.split('.').pop()?.toLowerCase();
-    if (!fileExt || !allowedExtensions.includes(fileExt)) {
-      return NextResponse.json({ error: 'Unsupported file type. Only PDF, DOCX, and TXT files are allowed.' }, { status: 400 });
+    const head = Buffer.from(await file.slice(0, 5).arrayBuffer()).toString('latin1');
+    if (fileExt !== 'pdf' || head !== '%PDF-') {
+      return NextResponse.json({ error: 'Only PDF files can be uploaded.' }, { status: 400 });
     }
 
     const sanitizedName = sanitizeFilename(file.name);
