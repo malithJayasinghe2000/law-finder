@@ -3215,3 +3215,23 @@ the dialog on a phone, verified → Listed. Deleted by id; no leftovers.
 
 **Noticed:** every public page's `<title>` is "Find the Right Lawyer in Sri Lanka" —
 marketplace wording; belongs to the landing-page wording item.
+
+### 2026-10-16 — Admin Invoices hidden; Ad Campaigns kept, attorney-era leftovers removed
+
+- **Invoices** (`f932d94`): licence billing is off but the admin menu, list, review page and
+  PUT (marks an invoice PAID, starts a licence) were live. Hidden by `LICENSING_ENABLED`;
+  APIs 410.
+- **Ads — kept** (owner, 2026-10-16: non-legal advertisers are permitted revenue; my "hide
+  for launch" was withdrawn — the BASL note concerns attorneys advising, not adverts).
+  Removed leftovers from when attorneys bought ads: the "Profile Card" type (`ec989c8`),
+  the "View Profile" default button → "Learn more" (`5888dc3`), practice-area targeting
+  (`d6bf6e2`), and the legal-library slot priced but rendered nowhere (`f236b82`). Three
+  data-only migrations; enum values and columns kept.
+- **Billing advertisers is offline for now**: a campaign runs with no linked invoice (the
+  licence Invoice is hidden). Not client money, not a legal fee.
+
+End to end with a temporary bank advertiser: approval refused without the "not legal"
+confirmation; a profile-card campaign refused; a banner campaign posted with
+`['Criminal Law']` stored with `[]`, went ACTIVE with no invoice, and showed on the home page
+labelled ADVERTISEMENT, linking out with `rel="sponsored"`. Deleted by id (campaign,
+4 slot bookings, 1 analytics row, 2 advertisers); scan clean.
