@@ -56,6 +56,29 @@ export default function AdminLegalDocumentsPage() {
   const [selectedCategory, setSelectedCategory] = useState('');
   const [deleting, setDeleting] = useState<string | null>(null);
 
+  // The library compared with what the AI holds (api/admin/legal-documents/sync).
+  const [sync, setSync] = useState<{ aiCount: number; missing: string[] } | { error: string } | null>(null);
+  const [syncing, setSyncing] = useState(false);
+  const fetchSync = () =>
+    fetch('/api/admin/legal-documents/sync')
+      .then(async (r) => setSync(await r.json()))
+      .catch(() => setSync({ error: 'Could not reach the AI service.' }));
+  const runSync = async () => {
+    setSyncing(true);
+    try {
+      const res = await fetch('/api/admin/legal-documents/sync', { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      toast.success(`Added ${data.added} document${data.added === 1 ? '' : 's'} from the AI to the library.`);
+      fetchDocuments();
+      fetchSync();
+    } catch (e) {
+      toast.error(e instanceof Error && e.message ? e.message : 'Could not sync.');
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   const fetchDocuments = async () => {
     try {
       setLoading(true);
@@ -81,6 +104,10 @@ export default function AdminLegalDocumentsPage() {
   useEffect(() => {
     fetchDocuments();
   }, [page, selectedCategory]);
+
+  useEffect(() => {
+    fetchSync();
+  }, []);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -222,6 +249,28 @@ export default function AdminLegalDocumentsPage() {
           </div>
         </div>
       </div>
+
+      {/* What the AI holds against what the library lists */}
+      {sync && (
+        <div className="flex flex-col gap-3 border border-neutral-200 bg-white p-4 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-neutral-700">
+            {'error' in sync
+              ? sync.error
+              : sync.missing.length === 0
+                ? `The library lists every document the AI holds (${sync.aiCount}).`
+                : `The AI holds ${sync.aiCount} document${sync.aiCount === 1 ? '' : 's'}; ${sync.missing.length} ${sync.missing.length === 1 ? 'is' : 'are'} not in the library, so people cannot see what the AI quotes.`}
+          </p>
+          {!('error' in sync) && sync.missing.length > 0 && (
+            <button
+              onClick={runSync}
+              disabled={syncing}
+              className="inline-flex shrink-0 items-center justify-center gap-2 bg-[#0a0a0a] px-4 py-2.5 text-xs font-bold uppercase tracking-widest text-white hover:bg-neutral-800 disabled:opacity-50"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${syncing ? 'animate-spin' : ''}`} /> Add them to the library
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Filters */}
       <div className="bg-white border border-neutral-200 p-5 rounded-none">
