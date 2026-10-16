@@ -49,8 +49,8 @@ time — what it is for, keep / change / hide, and mobile layout. For each secti
 look at it on a phone, say what it does, list problems in a small table with a
 recommendation, and wait for my "ok" before changing anything.
 CLIENT, LAWYER and ADMIN dashboards are all finished. NOW: the PUBLIC WEBSITE,
-section by section (Header, Footer done 2026-10-16; next the home page
-sections, then each public page). Deployment comes after (§E3, §E3b).
+section by section (Header, Footer, home Hero done 2026-10-16; next home "Legal Guidance"
+section, then the rest of the home page, then each public page). Deployment comes after (§E3, §E3b).
 WORK ON BRANCH main (owner, 2026-10-16) — ask before pushing.
 ```
 
@@ -300,6 +300,9 @@ data-only; none drops anything.
     already goes; §E 14).
 22. **Legal Documents table stays a table on phones** — no cards (owner, 2026-10-16, asked
     about the cut-off Status/actions at 412px and said no).
+24. **Public website wording (owner, 2026-10-16):** the hero button stays **"Find Lawyers"** and
+    the **"Chat With AI"** link stays; the site title/preview text carries **no** "not legal advice"
+    line (it is for search traffic) — the disclaimer stays on the AI surfaces themselves.
 23. **The company behind TheLawyr is FiveNeurals.** Hosting (website + database) is not
     decided yet (owner, 2026-10-16).
 
@@ -356,7 +359,7 @@ data-only; none drops anything.
 15. **Admin page for data requests** — none exists; OBJECTION/RECTIFICATION sit IN_PROGRESS
     unseen. The admin dashboard counts them (`22c2aaf`).
 16. ~~User Management can toggle `isVerified` directly~~ — fixed `38a7e10` (withdraw-only).
-17. Public `<title>` is "Find the Right Lawyer in Sri Lanka" — add to item 5 (it is `HomePage.title`
+17. ~~Public `<title>`~~ fixed in English (2026-10-16); **si/ta `HomePage.title/subtitle` still say "find the right lawyer"** — need a native speaker. Was "Find the Right Lawyer in Sri Lanka" — add to item 5 (it is `HomePage.title`
     in messages/en.json; also "Featured Legal Experts", "Book consultations instantly").
 20. **No language switcher** (si/ta exist only by URL; most text is English-only in code).
     Owner: not now. si/ta Navigation still says "Lawyer directory".

@@ -3414,3 +3414,12 @@ and the two invented offices are gone, social icons appear only with a real addr
 (Criminal Defense…) → "Explore" — the old practice-area links used short names that never matched
 (proven: `practiceArea=Family` 0 firms, `Family Law` 1). About text: what the product is, not a
 law firm. "Company: TheLawyr is a product of FiveNeurals." **Found: no Terms of Use page** (brief §E 3c).
+
+### 2026-10-16 — Home hero; site title and link preview
+
+Hero headline "Defending Your Rights, Delivering Justice" → "Know What the Law Says" (read as a
+law firm speaking; rule 7). Owner kept the "Find Lawyers" button and the "Chat With AI" link.
+Site title/description (Google, WhatsApp previews) was "Find the Right Lawyer in Sri Lanka /
+Expert legal assistance. Verified attorneys. Book consultations instantly." → "TheLawyr - Sri
+Lankan law, explained / Read what Sri Lankan law says, with the source for every answer, and find
+a verified law firm." Owner: no disclaimer in the preview. si/ta still old — native speaker needed.
