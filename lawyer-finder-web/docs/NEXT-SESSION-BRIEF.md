@@ -398,6 +398,9 @@ Each is its own commit (on `main`); reasoning and tests are in PROGRESS.md (2026
 3f. **`storage/identity-documents/` must persist on the web server** (attorneys' ID card + face
    photo; like `storage/legal-documents/`). Cloudinary keys are still needed for profile photos.
    **Confirm the Attorney-at-Law ID card shows a photo and number** (ask a practising attorney).
+3g. **Google sign-in redirect URIs** (Google Cloud Console → Credentials → OAuth client): must
+   list `<NEXT_PUBLIC_APP_URL>/api/auth/google/callback` for every environment — locally
+   `http://localhost:3001/...` (changed from :3000 on 2026-10-16), and the live https address.
 3e. **Production settings must set `NEXT_PUBLIC_APP_URL`** to the real https address — every email
    link (verification, reset, invitations) is built from it. Locally it says :3000 (another
    project); dev runs on :3001.
