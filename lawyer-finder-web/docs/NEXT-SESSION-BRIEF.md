@@ -226,7 +226,9 @@ Each is its own commit; reasoning and how it was verified are in PROGRESS.md (20
 1. **Admin-side section-by-section review** (same method). Start with the admin Dashboard;
    §B3 lists what is already known.
 2. **For the owner, on the live site (not code):** purge server logs of `[PROFILE_PUT]` lines
-   holding password hashes / NICs (logged before `1510d2c`); check whether any attorney saved
+   holding password hashes / NICs (logged before `1510d2c`) **and of the whole user list
+   that every Admin → User Management load printed (emails, BASL numbers, map locations;
+   before `408283a`)**; check whether any attorney saved
    bank details on the old Pricing page (readable by anyone before `91c7e9a`); push soon.
 3. **Landing-page and footer wording** — "Trusted Lawyer", "Legal Champion", "perfect
    representation", "vetted advocates"; footer *Services* list ("Civil Litigation, Criminal
@@ -252,6 +254,10 @@ Each is its own commit; reasoning and how it was verified are in PROGRESS.md (20
 14. **User Management can toggle `isVerified` directly** — no application, no BASL check, no
     `verifiedById`. Review with that section.
 15. Public `<title>` is "Find the Right Lawyer in Sri Lanka" — add to item 3.
+16. **Withdrawn verification has no way back in the app** (`38a7e10`): re-applying creates a
+    new application, but approval tries to create a profile that already exists.
+17. **A listed firm stays listed when its only principal's verification is withdrawn** —
+    `LISTED_FIRM_WHERE` does not check the principal.
 
 ## F. Things that will bite you
 

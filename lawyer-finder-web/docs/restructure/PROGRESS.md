@@ -3235,3 +3235,34 @@ confirmation; a profile-card campaign refused; a banner campaign posted with
 `['Criminal Law']` stored with `[]`, went ACTIVE with no invoice, and showed on the home page
 labelled ADVERTISEMENT, linking out with `rel="sponsored"`. Deleted by id (campaign,
 4 slot bookings, 1 analytics row, 2 advertisers); scan clean.
+
+### 2026-10-16 — User Management: staff cannot sign in as anyone; people reset their own passwords
+
+All proven first with temporary accounts (deleted by id; scan clean).
+
+- **Log leak** (`408283a`): every page load printed every user's email, BASL number and map
+  location to the server log. Removed. The live logs need the same purge as §E2.
+- **Roles** (`378b5d2`): one request made a client an ADMIN; an unknown role → 500.
+  `ADMIN_ROLE_EDIT_ENABLED = false` (`src/lib/admin/userTools.ts`); validated by
+  `AdminUpdateUserSchema`.
+- **Email** (`73224c2`): saved "not-an-email"; a taken address → 500. Now validated,
+  duplicates refused (409, case-insensitive), and the **old** address is emailed.
+- **Verification** (`38a7e10`): the shield toggled `isVerified` both ways — granting with no
+  application, no BASL check, no record. Now withdraw-only, with a reason, recorded
+  (`verificationRevoked*`, additive migration), and the attorney is emailed. Granting is
+  only on the Verification page. *No in-app way back after a withdrawal yet* — re-applying
+  hits the existing profile; a developer must restore it.
+- **Forgot password** (`65c7434`): there was none — the only recovery was an admin typing a
+  password, which let staff sign in as any attorney (rule 5). New `/forgot-password` and
+  `/reset-password`; `PasswordResetToken` stores a SHA-256 hash only; one use, one hour;
+  same answer for unknown addresses; rate-limited; in `RETENTION_SCHEDULE` and erasure.
+  Sessions are 24 h signed cookies, so a reset does not sign out other devices.
+- **Send reset link** (`2a3e9e3`): `ADMIN_SET_PASSWORD_ENABLED = false`; the key button
+  emails the person a link (`requestedById` = the admin).
+- **Phone and status** (`7d97735`): the table cut off every action at 412px → cards. Real
+  names (not "No Profile") and real `UserStatus` (the API hard-coded `isActive: true`).
+
+Checks: privilege 42, firm 15, billing 21, pdpa 72, ai 124 — all pass.
+
+**Found, not fixed:** a listed firm stays listed when its only principal's verification is
+withdrawn (`LISTED_FIRM_WHERE` does not look at the principal).
