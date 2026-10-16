@@ -2,25 +2,53 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { Scale, Mail, MapPin, Phone, Facebook, Youtube, Instagram, Twitter, Send } from 'lucide-react';
-import { Separator } from '@/components/ui/separator';
+import { Facebook, Youtube, Instagram, Twitter } from 'lucide-react';
 import { useDirectoryEnabled } from '@/components/directory/DirectoryProvider';
 import { directoryPath } from '@/lib/directoryLinks';
+import { SITE_CONTACT } from '@/lib/siteContact';
+
+const SOCIAL_ICONS = [
+  { key: 'facebook', label: 'Facebook', Icon: Facebook },
+  { key: 'youtube', label: 'YouTube', Icon: Youtube },
+  { key: 'instagram', label: 'Instagram', Icon: Instagram },
+  { key: 'x', label: 'X', Icon: Twitter },
+] as const;
+
+const LINK_CLASS = 'text-sm text-neutral-400 hover:text-[#bfa37a] transition-colors flex items-center gap-2';
 
 export default function Footer({ locale }: { locale: string }) {
   const year = new Date().getFullYear();
   const directoryEnabled = useDirectoryEnabled();
+  const { email, phone, company, social } = SITE_CONTACT;
+  const socials = SOCIAL_ICONS.filter((s) => social[s.key]);
+
+  // Plain links to what the site has. This column used to be "Services" (Civil
+  // Litigation, Criminal Defense…), which read as legal services offered by us
+  // (rule 7), and its practice-area links never matched a firm: every one showed
+  // "0 firms found".
+  const explore = [
+    ...(directoryEnabled ? [{ href: directoryPath(locale), label: 'Find a Law Firm' }] : []),
+    { href: `/${locale}/legal-library`, label: 'Legal Library' },
+    { href: `/${locale}/chat`, label: 'AI Chat' },
+    { href: `/${locale}/blog`, label: 'Community Hub' },
+    { href: `/${locale}/about`, label: 'About' },
+  ];
 
   return (
     <footer className="bg-[#141414] text-white pt-16">
       <div className="mx-auto max-w-[1400px] px-6 lg:px-12 xl:px-24">
         {/* Top Info Bar */}
         <div className="flex flex-col md:flex-row items-center justify-between gap-8 pb-12 border-b border-white/10">
-          <div className="flex flex-col items-center md:items-start text-center md:text-left">
-            <span className="text-[10px] uppercase tracking-[0.2em] text-[#bfa37a] font-bold mb-2">Send Email</span>
-            <a href="mailto:hello@thelawyr.lk" className="text-lg font-serif text-white hover:text-[#bfa37a] transition-colors">
-              hello@thelawyr.lk
-            </a>
+          {/* Contact details live in src/lib/siteContact.ts; an empty one is not shown. */}
+          <div className="flex flex-col items-center md:items-start text-center md:text-left md:w-56">
+            {email && (
+              <>
+                <span className="text-[10px] uppercase tracking-[0.2em] text-[#bfa37a] font-bold mb-2">Send Email</span>
+                <a href={`mailto:${email}`} className="text-lg font-serif text-white hover:text-[#bfa37a] transition-colors">
+                  {email}
+                </a>
+              </>
+            )}
           </div>
 
           <div className="flex items-center gap-2">
@@ -33,11 +61,15 @@ export default function Footer({ locale }: { locale: string }) {
             />
           </div>
 
-          <div className="flex flex-col items-center md:items-end text-center md:text-right">
-            <span className="text-[10px] uppercase tracking-[0.2em] text-[#bfa37a] font-bold mb-2">Call Now</span>
-            <a href="tel:+94112345678" className="text-lg font-serif text-white hover:text-[#bfa37a] transition-colors">
-              +94 11 234 5678
-            </a>
+          <div className="flex flex-col items-center md:items-end text-center md:text-right md:w-56">
+            {phone && (
+              <>
+                <span className="text-[10px] uppercase tracking-[0.2em] text-[#bfa37a] font-bold mb-2">Call Now</span>
+                <a href={`tel:${phone.replace(/[^+\d]/g, '')}`} className="text-lg font-serif text-white hover:text-[#bfa37a] transition-colors">
+                  {phone}
+                </a>
+              </>
+            )}
           </div>
         </div>
 
@@ -47,70 +79,58 @@ export default function Footer({ locale }: { locale: string }) {
           <div className="space-y-6">
             <h4 className="text-base font-serif text-white tracking-wider">About Us</h4>
             <p className="text-sm text-neutral-400 leading-relaxed font-light">
-              Sri Lanka&apos;s trusted SaaS platform connecting citizens with verified legal professionals across all districts, delivering instant AI-assisted legal intelligence.
+              TheLawyr is software for law practices in Sri Lanka, with a library of Sri Lankan
+              legislation and an assistant that explains the law. We are not a law firm and do
+              not give legal advice.
             </p>
-            {/* Social Icons */}
-            <div className="flex items-center gap-3">
-              <a href="#" className="flex h-9 w-9 items-center justify-center rounded-full bg-[#bfa37a]/10 hover:bg-[#bfa37a] text-[#bfa37a] hover:text-white transition-all">
-                <Facebook className="h-4 w-4" />
-              </a>
-              <a href="#" className="flex h-9 w-9 items-center justify-center rounded-full bg-[#bfa37a]/10 hover:bg-[#bfa37a] text-[#bfa37a] hover:text-white transition-all">
-                <Youtube className="h-4 w-4" />
-              </a>
-              <a href="#" className="flex h-9 w-9 items-center justify-center rounded-full bg-[#bfa37a]/10 hover:bg-[#bfa37a] text-[#bfa37a] hover:text-white transition-all">
-                <Instagram className="h-4 w-4" />
-              </a>
-              <a href="#" className="flex h-9 w-9 items-center justify-center rounded-full bg-[#bfa37a]/10 hover:bg-[#bfa37a] text-[#bfa37a] hover:text-white transition-all">
-                <Twitter className="h-4 w-4" />
-              </a>
-            </div>
+            {socials.length > 0 && (
+              <div className="flex items-center gap-3">
+                {socials.map(({ key, label, Icon }) => (
+                  <a
+                    key={key}
+                    href={social[key]!}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={label}
+                    className="flex h-9 w-9 items-center justify-center rounded-full bg-[#bfa37a]/10 hover:bg-[#bfa37a] text-[#bfa37a] hover:text-white transition-all"
+                  >
+                    <Icon className="h-4 w-4" />
+                  </a>
+                ))}
+              </div>
+            )}
           </div>
 
-          {/* Services/Platform — every link is a directory search, so hidden with it */}
-          {directoryEnabled && (
-            <div className="space-y-6">
-              <h4 className="text-base font-serif text-white tracking-wider">Services</h4>
-              <ul className="space-y-3">
-                <li>
-                  <Link href={directoryPath(locale, 'practiceArea=Civil')} className="text-sm text-neutral-400 hover:text-[#bfa37a] transition-colors flex items-center gap-2">
-                    <span className="w-1 h-1 bg-[#bfa37a] rounded-full"></span>
-                    Civil Litigation
-                  </Link>
-                </li>
-                <li>
-                  <Link href={directoryPath(locale, 'practiceArea=Criminal')} className="text-sm text-neutral-400 hover:text-[#bfa37a] transition-colors flex items-center gap-2">
-                    <span className="w-1 h-1 bg-[#bfa37a] rounded-full"></span>
-                    Criminal Defense
-                  </Link>
-                </li>
-                <li>
-                  <Link href={directoryPath(locale, 'practiceArea=Corporate')} className="text-sm text-neutral-400 hover:text-[#bfa37a] transition-colors flex items-center gap-2">
-                    <span className="w-1 h-1 bg-[#bfa37a] rounded-full"></span>
-                    Real Estate & Corporate Law
-                  </Link>
-                </li>
-                <li>
-                  <Link href={directoryPath(locale, 'practiceArea=Employment')} className="text-sm text-neutral-400 hover:text-[#bfa37a] transition-colors flex items-center gap-2">
-                    <span className="w-1 h-1 bg-[#bfa37a] rounded-full"></span>
-                    Labor & Workplace Injuries
-                  </Link>
-                </li>
-              </ul>
-            </div>
-          )}
-
-          {/* Location */}
           <div className="space-y-6">
-            <h4 className="text-base font-serif text-white tracking-wider">Location</h4>
-            <div className="space-y-4 text-sm text-neutral-400">
-              <div>
-                <p className="font-bold text-white mb-1">Colombo Office</p>
-                <p className="font-light">Address: 123 Galle Road, Colombo 03, Sri Lanka</p>
-              </div>
-              <div>
-                <p className="font-bold text-white mb-1">Kandy Branch</p>
-                <p className="font-light">Address: 456 Peradeniya Road, Kandy, Sri Lanka</p>
-              </div>
+            <h4 className="text-base font-serif text-white tracking-wider">Explore</h4>
+            <ul className="space-y-3">
+              {explore.map((l) => (
+                <li key={l.href}>
+                  <Link href={l.href} className={LINK_CLASS}>
+                    <span className="w-1 h-1 bg-[#bfa37a] rounded-full"></span>
+                    {l.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* The company behind the product (two invented offices used to stand here). */}
+          <div className="space-y-6">
+            <h4 className="text-base font-serif text-white tracking-wider">Company</h4>
+            <div className="space-y-2 text-sm text-neutral-400 font-light leading-relaxed">
+              <p>
+                TheLawyr is a product of{' '}
+                {company.url ? (
+                  <a href={company.url} target="_blank" rel="noopener noreferrer" className="font-bold text-white hover:text-[#bfa37a] transition-colors">
+                    {company.name}
+                  </a>
+                ) : (
+                  <span className="font-bold text-white">{company.name}</span>
+                )}
+                .
+              </p>
+              {company.address && <p>{company.address}</p>}
             </div>
           </div>
 
@@ -143,7 +163,7 @@ export default function Footer({ locale }: { locale: string }) {
               <li>
                 <Link
                   href={`/${locale}/privacy`}
-                  className="text-sm text-neutral-400 hover:text-[#bfa37a] transition-colors flex items-center gap-2"
+                  className={LINK_CLASS}
                 >
                   <span className="w-1 h-1 bg-[#bfa37a] rounded-full"></span>
                   Privacy Notice
@@ -152,7 +172,7 @@ export default function Footer({ locale }: { locale: string }) {
               <li>
                 <Link
                   href={`/${locale}/dashboard/profile/privacy`}
-                  className="text-sm text-neutral-400 hover:text-[#bfa37a] transition-colors flex items-center gap-2"
+                  className={LINK_CLASS}
                 >
                   <span className="w-1 h-1 bg-[#bfa37a] rounded-full"></span>
                   Your data: consents, export, deletion
@@ -165,7 +185,7 @@ export default function Footer({ locale }: { locale: string }) {
 
       {/* Gold bottom banner */}
       <div className="bg-[#bfa37a] py-6 text-center text-xs tracking-wider uppercase font-bold text-neutral-900">
-        Copyright © TheLawyr {year}. All Rights Reserved. Powered by FiveNeurals.
+        © {year} {company.name}. All rights reserved.
       </div>
     </footer>
   );
