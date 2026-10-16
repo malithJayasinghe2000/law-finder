@@ -3321,3 +3321,40 @@ One additive migration (`removedBy`, `moderationNote`).
 
 **Not fixed — the phone table:** with documents listed, Status and the action buttons are cut
 off at 412px (same pattern as User Management). Raised with the owner.
+
+### 2026-10-16 — Privacy Notice: screen fine; the notice needs a new version before launch
+
+No code change. The admin register (drafts, publish creates a new version, published
+versions locked) and the public notice both fit 412px and 1440px; version 2026-08-03
+reaches production by its migration. **The text is the problem:** §8 "Where your data is
+held" is still unfinished and promises to be completed before a real client's matter;
+§2 names no operator and no data protection officer. Owner: the company is
+**FiveNeurals**; hosting is not decided. A new version waits for that (brief §E1).
+Legal Documents phone table: owner chose to keep the table (no cards).
+
+### 2026-10-16 — Public Directory: wording matches Rule 45; dates readable
+
+- `4439b71`: the warning said lawfulness was unconfirmed — now says Rule 45 permits a legal
+  directory and a written opinion is still owed; "list of attorneys and firms" → "list of
+  law firms" (People tab hidden).
+- `6724fe8`: history dates in Sri Lanka time, day-month-year.
+Switch tested off → `/firms` "not available" → on; test rows deleted by id.
+
+### 2026-10-16 — Consultations: staff cannot act on a request, and see only that it exists
+
+Proven first with a temporary client, request and bank-transfer payment (deleted by id,
+scan clean): an **admin confirmed the client's payment as received (PAID, verifiedBy =
+the admin) and cancelled the request, recorded as CANCELLED_BY_FIRM.**
+
+- `8a95621`: PATCH refuses platform staff (403) — confirm/reject payment, cancel,
+  complete, no-show, reschedule are the practice's (rules 2, 7). Assigned attorney still can.
+- `32f9384`: sidebar badge counting clients' bank transfers removed (rule 2).
+- `4ca6b63`: "Manage Payments" button removed (it 404'd).
+- `cd3e82e`: staff get `staffRequestView()` only — number, practice, status, received
+  date — from the list and the single-request API (they got the whole row: client name and
+  email, fee, payment, cancel/refund reasons). Search by request number (`q`).
+- `a54e8ae`: page "All Requests": those four columns, cards on phones (table was cut off).
+- `ed4f18c`: `ADMIN_REFUNDS_VIEW_ENABLED = false` (`src/lib/consultations/adminRefunds.ts`)
+  hides admin Refunds — menu, page, API 410 for staff. Practices keep their Refunds page.
+
+Checks: privilege 42, firm 15, billing 21, pdpa 72, ai 124; build and tsc clean.

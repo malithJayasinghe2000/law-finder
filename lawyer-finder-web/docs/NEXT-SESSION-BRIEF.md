@@ -1,6 +1,6 @@
 # Next Session Brief
 
-> Updated 2026-10-16 (end of session), part-way through the **section-by-section review of the
+> Updated 2026-10-16 (second session, end), part-way through the **section-by-section review of the
 > admin dashboard** (client side 2026-10-14, lawyer side 2026-10-15). PROGRESS.md has an entry
 > per section.
 > **Copy §A into a new chat as your first message.** The older brief (2026-09-21, the RAG
@@ -50,9 +50,9 @@ look at it on a phone, say what it does, list problems in a small table with a
 recommendation, and wait for my "ok" before changing anything.
 CLIENT and LAWYER sides are finished. ADMIN side done so far: Dashboard,
 Verification, Law Firms, Invoices, Ad Campaigns, User Management, Communities,
-Content Moderation, Legal Documents.
-START WITH: §E item 1 (an open question to me about the Legal Documents phone
-table), then continue the admin review at Privacy Notice (§E item 2).
+Content Moderation, Legal Documents, Privacy Notice, Public Directory,
+Consultations.
+START WITH: continue the admin review at Financial Reports (§E item 2).
 ```
 
 ---
@@ -169,7 +169,7 @@ Each is its own commit; reasoning and how it was verified are in PROGRESS.md (20
 ## B4. What the 2026-10-16 admin-side review changed (so far)
 
 Each is its own commit; reasoning and how it was verified are in PROGRESS.md (2026-10-16).
-**18 commits after `f680f52` are not pushed** (Communities onward, and this brief) — ask before pushing.
+Pushed up to `66212a8`. **Commits after it (Privacy Notice → Consultations, and this brief) are not pushed** — ask before pushing.
 
 **New switches (one line each; nothing deleted)**
 | Switch | File | Off hides / refuses |
@@ -177,6 +177,7 @@ Each is its own commit; reasoning and how it was verified are in PROGRESS.md (20
 | `ADMIN_ROLE_EDIT_ENABLED = false` | `src/lib/admin/userTools.ts` | Changing an account's role by hand (403) |
 | `ADMIN_SET_PASSWORD_ENABLED = false` | `src/lib/admin/userTools.ts` | Staff typing someone's password (410); replaced by "Send reset link" |
 | `LICENSING_ENABLED` (existing) | `src/lib/licensing.ts` | Now also hides admin **Invoices** (menu, pages, API 410) |
+| `ADMIN_REFUNDS_VIEW_ENABLED = false` | `src/lib/consultations/adminRefunds.ts` | Admin **Refunds** (menu, page, API 410 for staff); practices keep theirs |
 
 **By section**
 - **Dashboard** — server page: "Needs your attention" (practices to verify, applications,
@@ -208,6 +209,14 @@ Each is its own commit; reasoning and how it was verified are in PROGRESS.md (20
   `storage/legal-documents/` (gitignored); edits validated; PDF only; **Archive** by default,
   "Remove from the AI" only when archived + title typed + AI confirms; **Sync from AI**
   (the 14 Acts the AI holds are now in the local library); background indexing.
+  Phone table kept as a table (owner, decision 22).
+- **Privacy Notice** — screen unchanged; the notice needs a new version (§E1).
+- **Public Directory** — warning now cites Rule 45; "list of law firms"; readable dates.
+- **Consultations** — staff can no longer confirm a client's payment, cancel, complete or
+  reschedule (403, proven first); payments badge and 404 "Manage Payments" removed; staff
+  see only number / practice / status / received date (`src/lib/consultations/staffView.ts`,
+  list and single-request API), search by number, cards on phones; menu "All Requests";
+  Refunds hidden by switch.
 
 **Migrations added this session (8 — all must run on production):**
 `lawyer_profile_verified_by`, `ads_drop_profile_card_from_placements`, `ads_cta_learn_more`,
@@ -301,14 +310,8 @@ data-only; none drops anything.
    verified attorneys' names locked, advertisers' contact details. Write it as a draft;
    the owner publishes it **on the live site** after deploy (a local publish does not
    carry over; 2026-08-03 reaches production by migration).
-2. **Continue the admin review** (same method), in menu order: **Privacy Notice**, Public
-   Directory, Consultations (All Bookings, Refunds), Financial Reports, Settings,
-   Subscription Config. Already known:
-   - Sidebar badge on Consultations counts clients' *bank transfers awaiting confirmation*
-     (`api/dashboard/sidebar-counts`) — rule 2, the platform must not check client payments.
-   - Admin can still **cancel** a client's request (`api/consultations/bookings/[id]`
-     'cancel' allows isAdmin).
-   - Admin Refunds is view-only since `300642e`; check the rest of the page.
+2. **Continue the admin review** (same method), in menu order: **Financial Reports**,
+   Settings, Subscription Config. Already known:
    - Subscription Config is licensing — probably hide with `LICENSING_ENABLED`.
    - `src/components/layout/DashboardSidebar.tsx` is unused dead code.
 3. **Deploy checklist (owner + code):** push; run the 8 migrations of §B4 (and earlier ones)
