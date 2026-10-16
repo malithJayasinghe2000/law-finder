@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import prisma from '@/lib/db';
 import { ragFetch } from '@/lib/ai/ragService';
+import { LegalDocumentUpdateSchema } from '@/schemas/legalDocument.schema';
 
 // GET: Get single document details
 export async function GET(
@@ -98,20 +99,29 @@ export async function PATCH(
     }
 
     const { id } = await params;
-    const body = await req.json();
+    const parsed = LegalDocumentUpdateSchema.safeParse(await req.json().catch(() => ({})));
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error.issues[0]?.message ?? 'Invalid details.' }, { status: 400 });
+    }
 
-    const allowedFields = ['title', 'description', 'actNumber', 'year', 'courtName', 'caseNumber', 'gazetteNumber', 'status'];
-    const updateData: any = {};
+    const doc = await prisma.legalDocument.findUnique({
+      where: { id },
+      select: { status: true, ragDocumentName: true, chunksCount: true },
+    });
+    if (!doc) return NextResponse.json({ error: 'Document not found' }, { status: 404 });
 
-    for (const field of allowedFields) {
-      if (body[field] !== undefined) {
-        updateData[field] = body[field];
-      }
+    // "Active" means the AI has read it. A failed or unfinished upload shown in
+    // the library would be a document the AI cannot cite.
+    if (parsed.data.status === 'ACTIVE' && (!doc.ragDocumentName || doc.chunksCount === 0)) {
+      return NextResponse.json(
+        { error: 'This document was never indexed by the AI, so it cannot be shown in the library. Upload it again.' },
+        { status: 409 }
+      );
     }
 
     const updated = await prisma.legalDocument.update({
       where: { id },
-      data: updateData,
+      data: parsed.data,
     });
 
     return NextResponse.json({ success: true, document: updated });
