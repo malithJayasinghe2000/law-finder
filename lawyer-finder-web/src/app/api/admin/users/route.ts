@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import bcrypt from 'bcryptjs';
+import { ADMIN_ROLE_EDIT_ENABLED } from '@/lib/admin/userTools';
+import { AdminUpdateUserSchema } from '@/schemas/adminUser.schema';
 
 export async function GET(req: Request) {
   try {
@@ -90,33 +92,48 @@ export async function PATCH(req: Request) {
     }
 
     const body = await req.json();
-    const { userId, action, email, role, password, latitude, longitude } = body;
+    const { userId, action, password } = body;
 
     if (!userId || !action) {
       return NextResponse.json({ error: 'Missing required fields.' }, { status: 400 });
     }
 
     if (action === 'update-details') {
-      const updateData: any = {};
-      if (email) updateData.email = email;
-      if (role) updateData.role = role;
+      const parsed = AdminUpdateUserSchema.safeParse(body);
+      if (!parsed.success) {
+        return NextResponse.json({ error: parsed.error.issues[0]?.message ?? 'Invalid details.' }, { status: 400 });
+      }
+      const d = parsed.data;
+
+      const user = await prisma.user.findUnique({ where: { id: d.userId }, select: { role: true } });
+      if (!user) {
+        return NextResponse.json({ error: 'User not found.' }, { status: 404 });
+      }
+
+      // A role follows from what a person did — see src/lib/admin/userTools.ts.
+      if (d.role && d.role !== user.role && !ADMIN_ROLE_EDIT_ENABLED) {
+        return NextResponse.json({ error: 'Roles cannot be changed here.' }, { status: 403 });
+      }
+
+      const updateData: { email?: string; role?: typeof d.role } = {};
+      if (d.email) updateData.email = d.email;
+      if (d.role && ADMIN_ROLE_EDIT_ENABLED) updateData.role = d.role;
 
       await prisma.user.update({
-        where: { id: userId },
+        where: { id: d.userId },
         data: updateData,
       });
 
       // Also update lawyer profile if applicable
-      if (latitude !== undefined || longitude !== undefined) {
-        const profile = await prisma.lawyerProfile.findFirst({ where: { userId } });
+      if (d.latitude !== undefined || d.longitude !== undefined) {
+        const profile = await prisma.lawyerProfile.findFirst({ where: { userId: d.userId } });
         if (profile) {
-          const profileUpdate: any = {};
-          if (latitude !== undefined) profileUpdate.latitude = latitude === '' ? null : parseFloat(latitude);
-          if (longitude !== undefined) profileUpdate.longitude = longitude === '' ? null : parseFloat(longitude);
-          
           await prisma.lawyerProfile.update({
             where: { id: profile.id },
-            data: profileUpdate,
+            data: {
+              ...(d.latitude !== undefined ? { latitude: d.latitude } : {}),
+              ...(d.longitude !== undefined ? { longitude: d.longitude } : {}),
+            },
           });
         }
       }

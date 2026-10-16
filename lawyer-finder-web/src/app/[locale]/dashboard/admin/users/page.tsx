@@ -6,6 +6,7 @@ import {
   Users, Search, Edit3, Key, ShieldCheck, ShieldOff,
   Loader2, X, CheckCircle2, User, Mail, MapPin, ChevronLeft, ChevronRight
 } from 'lucide-react';
+import { ADMIN_ROLE_EDIT_ENABLED } from '@/lib/admin/userTools';
 
 interface PlatformUser {
   id: string;
@@ -72,7 +73,7 @@ export default function UserManagementPage() {
           userId: editUser.id, 
           action: 'update-details', 
           email: editEmail, 
-          role: editRole,
+          ...(ADMIN_ROLE_EDIT_ENABLED ? { role: editRole } : {}),
           latitude: editUser.role === 'LAWYER' ? editLatitude : undefined,
           longitude: editUser.role === 'LAWYER' ? editLongitude : undefined
         }),
@@ -366,6 +367,8 @@ export default function UserManagementPage() {
                   className="w-full py-2.5 px-3 bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-900 outline-none focus:border-[#0a0a0a]"
                 />
               </div>
+              {/* Off: see src/lib/admin/userTools.ts. */}
+              {ADMIN_ROLE_EDIT_ENABLED && (
               <div>
                 <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5">Role</label>
                 <select
@@ -378,6 +381,7 @@ export default function UserManagementPage() {
                   <option value="ADMIN">Admin</option>
                 </select>
               </div>
+              )}
               {editUser.role === 'LAWYER' && (
                 <>
                   <div>
