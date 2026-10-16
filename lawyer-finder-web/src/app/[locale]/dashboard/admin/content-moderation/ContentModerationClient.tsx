@@ -178,9 +178,9 @@ export default function ContentModerationClient({
           posts.map((post) => (
             <Card key={post.id} className="border-amber-200/50">
               <CardContent className="p-4">
-                <div className="flex items-start justify-between gap-4">
+                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 sm:gap-4">
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1 text-xs text-muted-foreground">
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mb-1 text-xs text-muted-foreground">
                       <span>{post.community.displayName}</span>
                       <span>•</span>
                       <span>by {post.author.fullName} ({post.author.role})</span>
@@ -200,7 +200,7 @@ export default function ContentModerationClient({
                       </p>
                     )}
                     
-                    <div className="flex items-center gap-3 mt-1">
+                    <div className="flex flex-wrap items-center gap-3 mt-1">
                       <button
                         onClick={() => setExpandedPost(expandedPost === post.id ? null : post.id)}
                         className="text-xs text-primary hover:underline"
@@ -256,14 +256,14 @@ export default function ContentModerationClient({
           reports.map((report) => (
             <Card key={report.id} className="border-red-200/50">
               <CardContent className="p-4">
-                <div className="flex items-start justify-between gap-4">
+                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 sm:gap-4">
                   <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
+                    <div className="flex flex-wrap items-center gap-2 mb-1">
                       <Badge variant="outline" className="text-xs text-red-500 border-red-200">
                         {report.reason}
                       </Badge>
                       <span className="text-xs text-muted-foreground">
-                        Reported by {report.reporter.fullName}
+                        Reported by {report.reporter.fullName || 'a user with no name set'}
                       </span>
                     </div>
                     {report.post && (
@@ -339,7 +339,7 @@ export default function ContentModerationClient({
             {filteredAllPosts.map((post) => (
               <Card key={post.id}>
                 <CardContent className="p-4">
-                  <div className="flex items-start justify-between gap-4">
+                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 sm:gap-4">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1 text-xs text-muted-foreground flex-wrap">
                         <Badge className={`text-[10px] px-1.5 py-0 ${STATUS_COLORS[post.status as any]}`}>
