@@ -48,6 +48,9 @@ export default function ContentModerationClient({
   const [searchQuery, setSearchQuery] = useState('');
   const [processing, setProcessing] = useState<string | null>(null);
   const [expandedPost, setExpandedPost] = useState<string | null>(null);
+  // Reject and Remove need a reason the author will see; asked for inline.
+  const [noteFor, setNoteFor] = useState<{ postId: string; status: 'REJECTED' | 'REMOVED' } | null>(null);
+  const [note, setNote] = useState('');
 
   const stripHtml = (html: string) => {
     return html.replace(/<[^>]*>?/gm, '');
@@ -77,19 +80,23 @@ export default function ContentModerationClient({
     p.author.fullName?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const handleModeratePost = async (postId: string, status: 'PUBLISHED' | 'REJECTED') => {
+  const handleModeratePost = async (postId: string, status: 'PUBLISHED' | 'REJECTED' | 'REMOVED', adminNotes?: string) => {
     setProcessing(postId);
     try {
       const res = await fetch('/api/admin/posts', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ postId, status }),
+        body: JSON.stringify({ postId, status, adminNotes }),
       });
       if (res.ok) {
         setPosts((prev) => prev.filter((p) => p.id !== postId));
+        setAllPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, status } : p)));
+        setNoteFor(null);
+        setNote('');
         toast.success(`Post ${status.toLowerCase()}.`);
       } else {
-        toast.error('Failed to moderate post.');
+        const result = await res.json().catch(() => ({}));
+        toast.error(typeof result.error === 'string' ? result.error : 'Failed to moderate post.');
       }
     } catch {
       toast.error('Error moderating post.');
@@ -119,6 +126,28 @@ export default function ContentModerationClient({
       setProcessing(null);
     }
   };
+
+  const renderNoteBox = () => noteFor && (
+    <div className="mt-3 border border-red-200 bg-red-50/40 p-3 space-y-2">
+      <label htmlFor="mod-note" className="block text-xs font-semibold text-neutral-800">
+        {noteFor.status === 'REJECTED' ? 'Why is it rejected?' : 'Why is it removed?'} The author sees this in My Posts.
+      </label>
+      <textarea
+        id="mod-note" rows={2} value={note} onChange={(e) => setNote(e.target.value)}
+        className="w-full border border-neutral-200 bg-white p-2 text-sm outline-none focus:border-neutral-900"
+      />
+      <div className="flex justify-end gap-2">
+        <Button size="sm" variant="ghost" onClick={() => setNoteFor(null)}>Cancel</Button>
+        <Button
+          size="sm" className="bg-red-600 hover:bg-red-700 text-white"
+          disabled={processing === noteFor.postId}
+          onClick={() => handleModeratePost(noteFor.postId, noteFor.status, note)}
+        >
+          {noteFor.status === 'REJECTED' ? 'Reject' : 'Remove'}
+        </Button>
+      </div>
+    </div>
+  );
 
   return (
     <Tabs defaultValue="posts" className="space-y-4">
@@ -198,7 +227,7 @@ export default function ContentModerationClient({
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => handleModeratePost(post.id, 'REJECTED')}
+                      onClick={() => { setNoteFor({ postId: post.id, status: 'REJECTED' }); setNote(''); }}
                       disabled={processing === post.id}
                       className="gap-1 text-red-500 border-red-200"
                     >
@@ -206,6 +235,7 @@ export default function ContentModerationClient({
                     </Button>
                   </div>
                 </div>
+                {noteFor?.postId === post.id && renderNoteBox()}
               </CardContent>
             </Card>
           ))

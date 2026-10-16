@@ -79,11 +79,26 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: 'Post not found.' }, { status: 404 });
     }
 
+    // The author is told why: the note is shown to them in My Posts.
+    const note = parsed.data.adminNotes?.trim() || null;
+    if (parsed.data.status !== 'PUBLISHED' && (!note || note.length < 10)) {
+      return NextResponse.json(
+        { error: 'Give the author a reason (at least 10 characters). They see it in My Posts.' },
+        { status: 400 }
+      );
+    }
+
+    // A post its author deleted is theirs to bring back, not ours.
+    if (parsed.data.status === 'PUBLISHED' && post.status === 'REMOVED' && post.removedBy === 'AUTHOR') {
+      return NextResponse.json({ error: 'The author deleted this post. Only they can bring it back.' }, { status: 409 });
+    }
+
     await prisma.post.update({
       where: { id: postId },
       data: {
         status: parsed.data.status,
         removedBy: parsed.data.status === 'REMOVED' ? 'MODERATOR' : null,
+        moderationNote: parsed.data.status === 'PUBLISHED' ? null : note,
       },
     });
 

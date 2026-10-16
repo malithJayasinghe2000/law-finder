@@ -115,6 +115,12 @@ export default async function MyPostsPage({
                           {post.title}
                         </h3>
                       </Link>
+                      {/* Why a moderator rejected or removed it — the author is entitled to know. */}
+                      {post.moderationNote && (post.status === 'REJECTED' || (post.status === 'REMOVED' && post.removedBy === 'MODERATOR')) && (
+                        <p className="mt-2 border-l-2 border-red-200 pl-3 text-xs text-neutral-600">
+                          <span className="font-semibold text-neutral-800">From the moderators:</span> {post.moderationNote}
+                        </p>
+                      )}
                       <div className="flex items-center gap-4 mt-2.5 text-xs text-neutral-400 font-medium">
                         <span className="flex items-center gap-1">
                           <Clock className="h-3.5 w-3.5" />
