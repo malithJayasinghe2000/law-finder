@@ -109,6 +109,14 @@ export default function AdminLegalDocumentsPage() {
     fetchSync();
   }, []);
 
+  // Indexing runs in the background after an upload; refresh until it ends.
+  const anyProcessing = documents.some((d) => d.status === 'PROCESSING');
+  useEffect(() => {
+    if (!anyProcessing) return;
+    const t = setTimeout(fetchDocuments, 5000);
+    return () => clearTimeout(t);
+  }, [anyProcessing, documents]);
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     setPage(1);
@@ -368,6 +376,9 @@ export default function AdminLegalDocumentsPage() {
                             {doc.fileName} · {formatFileSize(doc.fileSize)}
                             {doc.pageCount ? ` · ${doc.pageCount} pages` : ''}
                           </p>
+                          {doc.status === 'FAILED' && doc.errorMessage && (
+                            <p className="mt-1 text-xs text-red-700">{doc.errorMessage}</p>
+                          )}
                         </div>
                       </td>
                       <td className="px-5 py-4">
