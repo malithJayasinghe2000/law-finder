@@ -12,8 +12,10 @@ export const SITE_CONTACT = {
   phone: null as string | null,
   company: {
     name: 'FiveNeurals',
-    /** The company's own website, e.g. 'https://fiveneurals.com'. Hidden while null. */
-    url: null as string | null,
+    /** One sentence, in the company's own words (from fiveneurals.com). Hidden while null. */
+    description: 'An AI and software engineering studio based in Sri Lanka.' as string | null,
+    /** The company's own website. Hidden while null. */
+    url: 'https://www.fiveneurals.com/' as string | null,
     /** One line, e.g. '12 Main Street, Colombo 03'. Hidden while null. */
     address: null as string | null,
   },

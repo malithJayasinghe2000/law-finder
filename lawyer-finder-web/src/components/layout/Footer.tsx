@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { Facebook, Youtube, Instagram, Twitter } from 'lucide-react';
+import { Facebook, Youtube, Instagram, Twitter, ArrowUpRight } from 'lucide-react';
 import { useDirectoryEnabled } from '@/components/directory/DirectoryProvider';
 import { directoryPath } from '@/lib/directoryLinks';
 import { SITE_CONTACT } from '@/lib/siteContact';
@@ -130,7 +130,19 @@ export default function Footer({ locale }: { locale: string }) {
                 )}
                 .
               </p>
+              {company.description && <p>{company.description}</p>}
               {company.address && <p>{company.address}</p>}
+              {company.url && (
+                <a
+                  href={company.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 pt-2 text-sm text-[#bfa37a] hover:text-white transition-colors"
+                >
+                  Visit {company.url.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '')}
+                  <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
+                </a>
+              )}
             </div>
           </div>
 
