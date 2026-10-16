@@ -3,6 +3,17 @@ import { isListedFirm } from '@/lib/directory';
 import { notFound } from 'next/navigation';
 import { getSession } from '@/lib/auth';
 import EngageFirmClient from './EngageFirmClient';
+import type { Metadata } from 'next';
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string; slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  const firm = await prisma.lawFirm.findUnique({ where: { slug }, select: { name: true } });
+  return firm ? { title: `Request an engagement - ${firm.name}` } : {};
+}
 
 /**
  * Request an engagement from a firm.

@@ -51,11 +51,6 @@ export default function EngageFirmClient({
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    if (!isLoggedIn) {
-      router.push(`/${locale}/login?redirect=/${locale}/firms/${firm.slug}/engage`);
-      return;
-    }
-
     const fd = new FormData(e.currentTarget);
     setSubmitting(true);
 
@@ -147,13 +142,41 @@ export default function EngageFirmClient({
             <p>
               <strong>Sending this creates no lawyer-client relationship and costs
               nothing.</strong>{' '}
-              No fee is payable unless and until you accept a quote in writing.
+              No fee is payable unless and until you accept a quote in writing.{' '}
               {firm.name} - not this platform - provides the legal services, and any
               fee you agree is paid directly to the firm.
             </p>
           </div>
         </div>
 
+        {/* Signed out: no form. Whatever a visitor typed was lost on the way to
+            sign-in and back (proven 2026-10-16), so they sign in first. */}
+        {!isLoggedIn ? (
+          <div className="mt-8 border border-neutral-200 p-6 text-center">
+            <Lock className="mx-auto h-5 w-5 text-neutral-400" />
+            <h2 className="mt-3 font-serif text-xl text-neutral-900">
+              Sign in to send a request
+            </h2>
+            <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-neutral-600">
+              Your request and the firm&apos;s reply are kept in your account, so you need one
+              before you write to the firm. You will come straight back here.
+            </p>
+            <div className="mt-5 flex flex-col justify-center gap-2 sm:flex-row">
+              <Link
+                href={`/${locale}/login?redirect=/${locale}/firms/${firm.slug}/engage`}
+                className="inline-flex items-center justify-center bg-[#1a1a1a] px-8 py-3.5 text-xs font-bold uppercase tracking-widest text-white hover:bg-neutral-800"
+              >
+                Sign in
+              </Link>
+              <Link
+                href={`/${locale}/register?redirect=/${locale}/firms/${firm.slug}/engage`}
+                className="inline-flex items-center justify-center border border-neutral-300 px-8 py-3.5 text-xs font-bold uppercase tracking-widest text-neutral-800 hover:bg-neutral-50"
+              >
+                Create an account
+              </Link>
+            </div>
+          </div>
+        ) : (
         <form onSubmit={handleSubmit} className="mt-8 space-y-6">
           <div className="space-y-1.5">
             <Label htmlFor="subject" className="text-[11px] font-bold uppercase tracking-widest text-neutral-500">
@@ -227,8 +250,9 @@ export default function EngageFirmClient({
             />
             <p className="flex items-start gap-1.5 text-[10px] leading-relaxed text-neutral-500">
               <Lock className="mt-0.5 h-3 w-3 shrink-0" />
-              This is read by the attorney at {firm.name} who takes your matter, and by
-              the firm&apos;s principal. It is not readable by this platform&apos;s staff.
+              {/* Must name every reader access.ts allows: the assigned attorney, the
+                  principal (FIRM_OWNER) and the practice manager (FIRM_ADMIN). */}
+              {`This is read by the attorney at ${firm.name} who takes your matter, and by the firm's principal or practice manager. It is not readable by this platform's staff.`}
             </p>
           </div>
 
@@ -265,13 +289,14 @@ export default function EngageFirmClient({
           <div className="flex flex-col gap-3 border-t border-neutral-100 pt-6 sm:flex-row sm:items-center">
             <Button type="submit" disabled={submitting} className="rounded-none px-8 py-6 text-xs font-bold uppercase tracking-widest">
               {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {isLoggedIn ? 'Send request to the firm' : 'Sign in to send this request'}
+              Send request to the firm
             </Button>
             <p className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest text-neutral-400">
               <ShieldCheck className="h-3.5 w-3.5" /> No fee · No obligation
             </p>
           </div>
         </form>
+        )}
       </div>
     </div>
   );
