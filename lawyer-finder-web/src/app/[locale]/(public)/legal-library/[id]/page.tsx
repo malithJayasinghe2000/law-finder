@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import {
-  ArrowLeft, Download, FileText, ExternalLink, BookOpen, Compass
+  ArrowLeft, Download, FileText, ExternalLink, Compass
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { LegalDisclaimer } from '@/components/shared/LegalDisclaimer';
@@ -17,6 +17,9 @@ interface DocumentDetail {
   description: string | null;
   fileName: string;
   fileSize: number;
+  year: number | null;
+  actNumber: string | null;
+  fileAvailable: boolean;
   outline?: OutlineItem[] | null;
 }
 
@@ -25,139 +28,6 @@ interface OutlineItem {
   page: number;
   summary: string;
 }
-
-// Outlines generator based on document metadata
-const getDocumentOutline = (title: string, fileName: string): OutlineItem[] => {
-  const normTitle = (title || '').toLowerCase() + ' ' + (fileName || '').toLowerCase();
-  
-  if (normTitle.includes('criminal') || normTitle.includes('procedure')) {
-    return [
-      {
-        title: 'Part I: Preliminary & Definitions',
-        page: 1,
-        summary: 'Defines fundamental legal terminology, court structures, jurisdiction, and general directives for criminal procedure in Sri Lanka.'
-      },
-      {
-        title: 'Part II: Constitution and Powers of Criminal Courts',
-        page: 12,
-        summary: 'Details the classification of criminal courts, their geographical jurisdictions, and the sentencing limits of magistrates and high court judges.'
-      },
-      {
-        title: 'Part III: Public Assistance and Information',
-        page: 28,
-        summary: 'Outlines the legal duties of the public to assist Magistrates and Police Officers, and the requirements for reporting crimes.'
-      },
-      {
-        title: 'Part IV: Rules of Arrest, Escape, and Bail',
-        page: 45,
-        summary: 'Regulates circumstances of arrest without warrant, searches of private premises, custody rules, escape recovery, and bail conditions.'
-      },
-      {
-        title: 'Part V: Processes to Compel Appearance',
-        page: 68,
-        summary: 'Covers summons, warrants of arrest, service protocols, proclamation of absconding persons, and attachment of property.'
-      },
-      {
-        title: 'Part VI: Police Inquiries and Investigations',
-        page: 92,
-        summary: 'Defines the legal procedures for registering complaints (FIRS), conducting searches, recording statements, and filing charge sheets.'
-      },
-      {
-        title: 'Part VII: Jurisdiction of Courts in Inquiries and Trials',
-        page: 115,
-        summary: 'Lays down rules regarding the proper place of inquiry or trial, and conditions required to initiate prosecution.'
-      },
-      {
-        title: 'Part VIII: Charges and Joinder of Offences',
-        page: 135,
-        summary: 'Explains form requirements for criminal charges, joinder of charges against a single accused, or trials involving multiple accused.'
-      },
-      {
-        title: 'Part IX: General Provisions as to Inquiries and Trials',
-        page: 160,
-        summary: 'Includes rights of accused persons to defense, tender of pardon to accomplices, and procedures in case of unsound mind.'
-      }
-    ];
-  }
-
-  if (normTitle.includes('companies') || normTitle.includes('company')) {
-    return [
-      {
-        title: 'Part I: Incorporation and Name Registration',
-        page: 1,
-        summary: 'Procedures for incorporating a company in Sri Lanka, name approval, reservation, and articles of association guidelines.'
-      },
-      {
-        title: 'Part II: Share Capital, Dividends, and Debentures',
-        page: 18,
-        summary: 'Rules governing shares issuance, transfer of shares, reduction of capital, dividend declarations, and debenture registries.'
-      },
-      {
-        title: 'Part III: Company Management and Administration',
-        page: 48,
-        summary: 'Establishes guidelines for registered offices, keeping statutory books, annual returns filing, and general meetings.'
-      },
-      {
-        title: 'Part IV: Directors: Appointment, Duties, and Liabilities',
-        page: 85,
-        summary: 'Defines qualification of directors, fiduciary duties, conflicts of interest disclosures, and rules on loans to directors.'
-      },
-      {
-        title: 'Part V: Secretarial Administration and Registrars',
-        page: 120,
-        summary: 'Mandates qualifications of company secretaries, duties, registration filings, and the powers of the Registrar of Companies.'
-      },
-      {
-        title: 'Part VI: Accounts, Audits, and Disclosures',
-        page: 155,
-        summary: 'Requirements for maintaining proper accounting records, financial statements presentation, audit reports, and inspectors.'
-      },
-      {
-        title: 'Part VII: Charges, Mortgages, and Registrations',
-        page: 190,
-        summary: 'Regulates the creation and registration of charges, mortgages on company assets, and consequences of non-registration.'
-      },
-      {
-        title: 'Part VIII: Amalgamations, Arrangements, and Mergers',
-        page: 220,
-        summary: 'Procedures for corporate restructures, mergers (amalgamation), compromises with creditors, and minority shareholder rights.'
-      },
-      {
-        title: 'Part IX: Winding Up and Insolvency Proceedings',
-        page: 260,
-        summary: 'Covers voluntary winding up, court-ordered liquidation, liquidators appointment, priority of claims, and dissolution.'
-      }
-    ];
-  }
-
-  return [
-    {
-      title: 'Chapter 1: Preliminary & Introductions',
-      page: 1,
-      summary: 'Introduction to the document, basic definitions, scope of applicability, and foundational concepts.'
-    },
-    {
-      title: 'Chapter 2: Main Directives and Regulations',
-      page: 10,
-      summary: 'Details the primary sections, core regulations, mandatory legal provisions, and legal obligations.'
-    },
-    {
-      title: 'Chapter 3: Administrative and Execution Guidelines',
-      page: 30,
-      summary: 'Procedures for enforcement, administrative setups, dispute resolutions, and operational rules.'
-    },
-    {
-      title: 'Chapter 4: Special Provisions and Exemptions',
-      page: 60,
-      summary: 'Outlines exclusions, exceptions, special privileges, and supplementary rules.'
-    },
-    {
-      title: 'Chapter 5: Enforcement, Penalties and General Clauses',
-      page: 90,
-      summary: 'Details offenses, corresponding fines/penalties, transitional arrangements, and final clauses.'
-    }
-  ];
-};
 
 export default function DocumentDetailPage() {
   const params = useParams();
@@ -182,14 +52,10 @@ export default function DocumentDetailPage() {
         const data = await res.json();
         setDocumentDetail(data.document);
         
-        // Set outline from database if present, otherwise fall back to hardcoded generator
-        if (data.document) {
-          if (data.document.outline && Array.isArray(data.document.outline) && data.document.outline.length > 0) {
-            setOutline(data.document.outline);
-          } else {
-            const generatedOutline = getDocumentOutline(data.document.title, data.document.fileName);
-            setOutline(generatedOutline);
-          }
+        // An outline is shown only when the document has a real one. There
+        // used to be a made-up fallback (invented chapters and page numbers).
+        if (Array.isArray(data.document?.outline) && data.document.outline.length > 0) {
+          setOutline(data.document.outline);
         }
       } catch {
         setError('Failed to load document');
@@ -254,83 +120,95 @@ export default function DocumentDetailPage() {
               {documentDetail.title}
             </h1>
             <p className="text-xs text-neutral-500 font-medium uppercase tracking-wider">
-              {documentDetail.categoryDisplay} • {fileSizeMb} MB
+              {documentDetail.categoryDisplay}
+              {documentDetail.year ? ` • Consolidated to ${documentDetail.year}` : ''}
+              {documentDetail.fileAvailable ? ` • ${fileSizeMb} MB` : ''}
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
-            <a href={fileUrl} download={documentDetail.fileName} className="block">
-              <Button className="bg-[#1a1a1a] text-white hover:bg-neutral-800 rounded-none px-6 py-6 text-xs font-bold uppercase tracking-widest transition-all flex items-center gap-2">
-                <Download className="w-4 h-4" />
-                Download PDF
-              </Button>
-            </a>
-            <a href={fileUrl} target="_blank" rel="noopener noreferrer" className="block">
-              <Button variant="outline" className="border border-neutral-300 text-neutral-700 hover:bg-neutral-50 rounded-none px-5 py-6 text-xs font-bold uppercase tracking-widest transition-all flex items-center gap-2">
-                <ExternalLink className="w-4 h-4" />
-                Open in New Tab
-              </Button>
-            </a>
-          </div>
+          {documentDetail.fileAvailable && (
+            <div className="flex flex-wrap items-center gap-3">
+              <a href={fileUrl} download={documentDetail.fileName} className="block">
+                <Button className="bg-[#1a1a1a] text-white hover:bg-neutral-800 rounded-none px-6 py-6 text-xs font-bold uppercase tracking-widest transition-all flex items-center gap-2">
+                  <Download className="w-4 h-4" />
+                  Download PDF
+                </Button>
+              </a>
+              <a href={fileUrl} target="_blank" rel="noopener noreferrer" className="block">
+                <Button variant="outline" className="border border-neutral-300 text-neutral-700 hover:bg-neutral-50 rounded-none px-5 py-6 text-xs font-bold uppercase tracking-widest transition-all flex items-center gap-2">
+                  <ExternalLink className="w-4 h-4" />
+                  Open in New Tab
+                </Button>
+              </a>
+            </div>
+          )}
         </div>
 
-        {/* 2-Column Split View Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          
-          {/* LEFT COLUMN: Outline, Chapter Start Pages & Summaries (1/3 Width) */}
-          <div className="lg:col-span-4 space-y-6">
-            <div className="bg-white border border-neutral-200/80 shadow-sm p-6 relative">
-              <div className="absolute top-0 right-0 w-3 h-3 bg-[#bfa37a]" />
-              <div className="flex items-center gap-2 mb-6 pb-4 border-b border-neutral-100">
-                <Compass className="w-5 h-5 text-[#bfa37a]" />
-                <h3 className="text-xs font-bold uppercase tracking-wider text-neutral-800">
-                  Document Structure & Summary
-                </h3>
-              </div>
+        {!documentDetail.fileAvailable ? (
+          <div className="bg-white border border-neutral-200/80 p-8 flex flex-col items-center text-center gap-3">
+            <FileText className="w-10 h-10 text-[#bfa37a] stroke-[1]" />
+            <p className="font-serif text-lg text-neutral-800">The PDF is not available.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
 
-              <div className="space-y-4 max-h-[680px] overflow-y-auto pr-1 scrollbar-thin">
-                {outline.map((item, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => setActivePage(item.page)}
-                    className={`w-full text-left p-4 transition-all duration-300 border border-neutral-100 hover:border-[#bfa37a]/30 group block relative rounded-none ${
-                      activePage === item.page
-                        ? 'bg-[#faf6f0] border-l-4 border-l-[#bfa37a] border-neutral-200/80'
-                        : 'bg-white hover:bg-neutral-50/50'
-                    }`}
-                  >
-                    <div className="flex justify-between items-start gap-2 mb-1.5">
-                      <h4 className="text-xs font-serif font-bold text-neutral-900 group-hover:text-[#bfa37a] transition-colors line-clamp-1">
-                        {item.title}
-                      </h4>
-                      <span className="text-[10px] bg-neutral-100 group-hover:bg-[#bfa37a]/10 text-neutral-500 group-hover:text-[#bfa37a] font-bold px-2 py-0.5 rounded-none shrink-0 transition-colors">
-                        Page {item.page}
-                      </span>
-                    </div>
-                    <p className="text-neutral-550 text-[11px] font-light leading-relaxed line-clamp-2">
-                      {item.summary}
-                    </p>
-                  </button>
-                ))}
+            {/* Contents: only when the document has a real outline */}
+            {outline.length > 0 && (
+              <div className="lg:col-span-4 space-y-6">
+                <div className="bg-white border border-neutral-200/80 shadow-sm p-6 relative">
+                  <div className="absolute top-0 right-0 w-3 h-3 bg-[#bfa37a]" />
+                  <div className="flex items-center gap-2 mb-6 pb-4 border-b border-neutral-100">
+                    <Compass className="w-5 h-5 text-[#bfa37a]" />
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-neutral-800">
+                      Contents
+                    </h3>
+                  </div>
+
+                  <div className="space-y-4 max-h-[680px] overflow-y-auto pr-1 scrollbar-thin">
+                    {outline.map((item, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => setActivePage(item.page)}
+                        className={`w-full text-left p-4 transition-all duration-300 border border-neutral-100 hover:border-[#bfa37a]/30 group block relative rounded-none ${
+                          activePage === item.page
+                            ? 'bg-[#faf6f0] border-l-4 border-l-[#bfa37a] border-neutral-200/80'
+                            : 'bg-white hover:bg-neutral-50/50'
+                        }`}
+                      >
+                        <div className="flex justify-between items-start gap-2 mb-1.5">
+                          <h4 className="text-xs font-serif font-bold text-neutral-900 group-hover:text-[#bfa37a] transition-colors line-clamp-1">
+                            {item.title}
+                          </h4>
+                          <span className="text-[10px] bg-neutral-100 group-hover:bg-[#bfa37a]/10 text-neutral-500 group-hover:text-[#bfa37a] font-bold px-2 py-0.5 rounded-none shrink-0 transition-colors">
+                            Page {item.page}
+                          </span>
+                        </div>
+                        <p className="text-neutral-550 text-[11px] font-light leading-relaxed line-clamp-2">
+                          {item.summary}
+                        </p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* The PDF, in the browser's own viewer */}
+            <div className={outline.length > 0 ? 'lg:col-span-8' : 'lg:col-span-12'}>
+              <div className="bg-white border border-neutral-200/80 shadow-md p-2 relative">
+                <div className="absolute top-0 right-0 w-3 h-3 bg-[#bfa37a]" />
+
+                <iframe
+                  key={activePage}
+                  src={`${fileUrl}#page=${activePage}`}
+                  className="w-full h-[750px] border-0"
+                  title={documentDetail.title}
+                />
               </div>
             </div>
-          </div>
 
-          {/* RIGHT COLUMN: Normal Native PDF Viewer (2/3 Width) */}
-          <div className="lg:col-span-8">
-            <div className="bg-white border border-neutral-200/80 shadow-md p-2 relative">
-              <div className="absolute top-0 right-0 w-3 h-3 bg-[#bfa37a]" />
-              
-              <iframe
-                key={activePage}
-                src={`${fileUrl}#page=${activePage}`}
-                className="w-full h-[750px] border-0"
-                title={documentDetail.title}
-              />
-            </div>
           </div>
-
-        </div>
+        )}
 
         {documentDetail.description && (
           <div className="mt-8 bg-white border border-neutral-200/80 p-6 max-w-7xl">

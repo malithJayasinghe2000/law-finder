@@ -121,7 +121,7 @@ export default function LegalLibraryPage() {
             </h1>
 
             <p className="text-neutral-500 text-sm sm:text-base max-w-xl font-light leading-relaxed">
-              Explore Sri Lankan Acts, Ordinances, Case Law, and Gazette Notifications - cataloged and structured by our AI knowledge graph for high-precision semantic search.
+              Sri Lankan Acts and Ordinances, as the AI assistant uses them. Open the full text of each.
             </p>
 
             <LegalDisclaimer variant="library" className="max-w-xl" />
@@ -129,22 +129,23 @@ export default function LegalLibraryPage() {
             {/* Embedded Search styled to match home page */}
             <form onSubmit={handleSearch} className="pt-2 w-full max-w-[580px]">
               <div className="w-full relative shadow-sm border border-neutral-200 focus-within:border-[#bfa37a] focus-within:shadow-[0_0_15px_rgba(191,163,122,0.15)] transition-all p-1.5 flex items-center bg-white">
-                <div className="pl-4 pr-1 text-neutral-400 shrink-0">
+                <div className="pl-3 sm:pl-4 pr-1 text-neutral-400 shrink-0">
                   <Search className="w-4 h-4 text-[#bfa37a]" />
                 </div>
                 <input
                   type="text"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search acts, ordinances, court decisions..."
+                  placeholder="Search by title, e.g. Penal Code"
+                  aria-label="Search the library by title"
                   className="w-full bg-transparent text-neutral-800 text-sm outline-none px-3 font-light"
                 />
                 <button
                   type="submit"
-                  className="group bg-[#bfa37a] text-white hover:bg-[#a68d67] text-xs font-bold uppercase tracking-widest px-6 py-3.5 rounded-none transition-all shrink-0 flex items-center gap-1.5"
+                  className="group bg-[#bfa37a] text-white hover:bg-[#a68d67] text-xs font-bold uppercase tracking-widest px-4 sm:px-6 py-3.5 rounded-none transition-all shrink-0 flex items-center gap-1.5"
                 >
                   Search
-                  <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+                  <ArrowRight className="hidden sm:block w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
                 </button>
               </div>
             </form>
@@ -216,7 +217,7 @@ export default function LegalLibraryPage() {
                       <Link
                         key={doc.id}
                         href={`/${locale}/legal-library/${doc.id}`}
-                        className="group relative bg-white border border-neutral-200/60 p-6 hover:shadow-xl hover:border-[#bfa37a]/30 transition-all duration-300 hover:-translate-y-1 flex flex-col justify-between h-full min-h-[16rem] text-neutral-950 overflow-hidden"
+                        className="group relative bg-white border border-neutral-200/60 p-6 hover:shadow-xl hover:border-[#bfa37a]/30 transition-all duration-300 hover:-translate-y-1 flex flex-col justify-between h-full text-neutral-950 overflow-hidden"
                       >
                         {/* Decorative Top Accent */}
                         <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-[#bfa37a]/20 via-[#bfa37a] to-[#bfa37a]/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
@@ -231,7 +232,7 @@ export default function LegalLibraryPage() {
                             {doc.year && (
                               <span className="flex items-center gap-1.5 text-[10px] text-neutral-400 font-bold uppercase tracking-wider bg-neutral-50 px-2 py-1 rounded-sm">
                                 <Calendar className="w-3 h-3 text-neutral-400" />
-                                {doc.year}
+                                Consolidated to {doc.year}
                               </span>
                             )}
                           </div>
@@ -241,9 +242,11 @@ export default function LegalLibraryPage() {
                             <h3 className="font-serif text-lg font-bold text-neutral-900 group-hover:text-[#bfa37a] transition-colors leading-snug line-clamp-3">
                               {doc.title}
                             </h3>
-                            <p className="text-neutral-500 text-xs font-light line-clamp-2 leading-relaxed">
-                              {doc.description || 'Click to read the full document and view its details.'}
-                            </p>
+                            {doc.description && (
+                              <p className="text-neutral-500 text-xs font-light line-clamp-2 leading-relaxed">
+                                {doc.description}
+                              </p>
+                            )}
                           </div>
                         </div>
 

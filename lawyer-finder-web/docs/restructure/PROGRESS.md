@@ -3513,3 +3513,19 @@ Crimes Act (not held) and missed 10 held Acts → read from the Legal Library, b
 first (tested cancel + confirm); notice compact on phones (`compactOnPhone`, 57 px, "More"
 expands; full on desktop); touting reply "every verified law firm" (check:ai 124); tab title; icon
 button names. Ollama was not started (heat) — a real answer was not exercised this session.
+
+### 2026-10-16 — Legal Library (owner approved the seven fixes)
+
+Each Act's page showed a **made-up "Document Structure & Summary"** (invented chapters and page
+numbers; a fake Companies Act outline) — removed; a "Contents" panel appears only when
+`LegalDocument.outline` holds a real one (none do), and the PDF then takes the full width.
+Cards and the Act page say "Consolidated to 2024" (`year` is the consolidation year; the admin
+upload field is relabelled to match). "Act No. 24 of 2025" has no PDF: the detail API now returns
+`fileAvailable` (`findLegalDocumentFile` in `src/lib/legalDocuments.ts`, shared with the file
+route) and the page says "The PDF is not available." with no Download/Open buttons. Top text no
+longer claims case law, gazettes or a "knowledge graph"; card filler gone (and the fixed card
+height it filled); search placeholder says it searches titles (fits at 412px); tab titles
+"Legal Library" and each Act's own. Tested 412/1440 (no overflow), 13/14 files still served, the
+14th 404s and its page hides the buttons, search "penal" finds the Penal Code.
+**Open:** the category sidebar lists six categories with four empty ("Supreme Court Decisions -
+0 documents") and "Categories 6" in the stats box.

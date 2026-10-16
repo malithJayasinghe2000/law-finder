@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { ragFetch } from '@/lib/ai/ragService';
+import { findLegalDocumentFile } from '@/lib/legalDocuments';
 
 const CATEGORY_MAP: Record<string, string> = {
   'SRI_LANKA_LAW_REPORTS': 'Sri Lanka Law Reports',
@@ -69,6 +70,8 @@ export async function GET(
       document: {
         ...doc,
         categoryDisplay: CATEGORY_MAP[doc.category] || doc.category,
+        // The page offers Download / Open only when there is a file to serve.
+        fileAvailable: findLegalDocumentFile(doc) !== null,
       },
       relatedDocuments: relatedDocs.map((d: any) => ({
         ...d,

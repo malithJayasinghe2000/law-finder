@@ -1,26 +1,14 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
-import { promises as fs, existsSync } from 'fs';
-import path from 'path';
-import { legalDocumentStoragePath } from '@/lib/legalDocuments';
+import { promises as fs } from 'fs';
+import { findLegalDocumentFile } from '@/lib/legalDocuments';
 
 /**
  * GET: the file of a library document — only one that is ACTIVE in the library.
  *
  * It used to serve any document, including a failed upload or an archived one.
- * The file is read from the website's own copy (kept at upload), or, for
- * documents that came from the AI service, from its folders when they are on
- * the same disk. Every candidate is resolved and must stay inside its folder.
- * Never public/uploads: nothing stores library files there, and it holds the
- * files people upload about themselves.
+ * Where the file is looked for: `findLegalDocumentFile`.
  */
-const RAG_DATA = path.join(process.cwd(), '..', 'lawyer-rag', 'data');
-
-function inside(base: string, name: string): string | null {
-  const resolved = path.resolve(base, name);
-  return resolved.startsWith(path.resolve(base) + path.sep) ? resolved : null;
-}
-
 export async function GET(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -37,14 +25,7 @@ export async function GET(
       return NextResponse.json({ error: 'Document not found' }, { status: 404 });
     }
 
-    const candidates = [
-      legalDocumentStoragePath(doc.id, doc.fileName),
-      inside(path.join(RAG_DATA, 'uploads'), doc.fileName),
-      inside(path.join(RAG_DATA, 'acts'), doc.fileName),
-      doc.ragDocumentName ? inside(path.join(RAG_DATA, 'uploads'), `${doc.ragDocumentName}.pdf`) : null,
-    ].filter((p): p is string => !!p);
-
-    const filePath = candidates.find((p) => existsSync(p));
+    const filePath = findLegalDocumentFile(doc);
     if (!filePath) {
       return NextResponse.json({ error: 'The file for this document is not available.' }, { status: 404 });
     }

@@ -272,7 +272,7 @@ export default function UploadLegalDocumentPage() {
           {/* Year */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-neutral-700 mb-1.5">Year</label>
+              <label className="block text-sm font-medium text-neutral-700 mb-1.5">Consolidated to (year)</label>
               <input
                 type="number"
                 value={year}
