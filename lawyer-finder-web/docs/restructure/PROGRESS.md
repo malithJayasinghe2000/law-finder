@@ -3405,3 +3405,12 @@ checklist, two-step sign-in for admins, and the owner's live-site log purge.
   one stock drawing for everyone), one icon on Messages, "Open menu" label, Log out red, full
   link bar from 1024px (the longer label overlapped the logo at 768). Checked 412/768/1023/
   1024/1440, signed in and out.
+
+### 2026-10-16 — Footer: the company, no invented contact details
+
+Owner: show the company instead of "Location"; phone/email to be filled in later. Footer now
+reads its contact details from `src/lib/siteContact.ts` (null = hidden): the placeholder phone
+and the two invented offices are gone, social icons appear only with a real address. "Services"
+(Criminal Defense…) → "Explore" — the old practice-area links used short names that never matched
+(proven: `practiceArea=Family` 0 firms, `Family Law` 1). About text: what the product is, not a
+law firm. "Company: TheLawyr is a product of FiveNeurals." **Found: no Terms of Use page** (brief §E 3c).

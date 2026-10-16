@@ -49,7 +49,7 @@ time — what it is for, keep / change / hide, and mobile layout. For each secti
 look at it on a phone, say what it does, list problems in a small table with a
 recommendation, and wait for my "ok" before changing anything.
 CLIENT, LAWYER and ADMIN dashboards are all finished. NOW: the PUBLIC WEBSITE,
-section by section (Header done 2026-10-16; next Footer, then the home page
+section by section (Header, Footer done 2026-10-16; next the home page
 sections, then each public page). Deployment comes after (§E3, §E3b).
 WORK ON BRANCH main (owner, 2026-10-16) — ask before pushing.
 ```
@@ -321,6 +321,11 @@ data-only; none drops anything.
    with `prisma migrate deploy`; keep `storage/` on the web server across deploys; schedule
    `npm run jobs:daily`; **back up `MATTER_ENCRYPTION_KEYS`** (losing it destroys every
    matter file); restart the server after migrating; then item 4.
+3c. **Terms of Use page (blocks launch).** None exists; a public site with accounts needs one
+   (not legal advice, not a law firm, community rules, attorneys' own conduct). Draft it for an
+   attorney to check. Then link it from the footer and sign-up.
+3d. **Contact details** — owner fills `src/lib/siteContact.ts` (phone, company address/URL,
+   social links; null = hidden). Confirm hello@thelawyr.lk is a monitored inbox.
 3b. **Two-step sign-in for admin accounts (before launch, owner 2026-10-16: later).** Admins sign
    in with a password only, and can withdraw verification, moderate and switch the directory off.
    Note: a seeded admin with no name cannot save My Account (name required) until they add one.
