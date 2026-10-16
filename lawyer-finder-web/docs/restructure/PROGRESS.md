@@ -3300,3 +3300,24 @@ Proven first with a temporary post, comment and reports (deleted by id; scan cle
 - **Phone** (`3010af6`): buttons below the text.
 
 One additive migration (`removedBy`, `moderationNote`).
+
+### 2026-10-16 — Legal Documents: the library matches the AI; deleting from the AI is deliberate
+
+- **File route** (`935d724`): served any document (failed, archived) and looked first in
+  `public/uploads` (people's own uploads). Now ACTIVE only, path-contained, never
+  public/uploads; uploads keep the site's own copy in `storage/legal-documents/` (gitignored)
+  so files do not depend on the AI service sharing the web server's disk. **Deploy:** that
+  folder must persist on the web server.
+- **Edits validated** (`ba30d29`): a FAILED upload could be set ACTIVE; bad year → 500.
+- **PDF only** (`6984b3b`): name and `%PDF-` header; Word/text/.log were accepted.
+- **Archive, then remove from the AI** (`27cb96d`): Delete removed the document from the AI
+  index (only backup: git) and hard-deleted the row even when the AI service failed. Now
+  Archive/Restore; "Remove from the AI" only when archived, title typed, and nothing changes
+  unless the AI confirms. Tested with a non-existent AI name only — the AI data folder was
+  byte-identical before and after.
+- **Sync from AI** (`a727059`): the AI held 14 Acts (3,401 sections), the library 0. The admin
+  page compares and adds the missing ones; **the 14 are now in the local library**.
+- **Background indexing** (`84dae81`): upload answers 202; status updates when indexing ends.
+
+**Not fixed — the phone table:** with documents listed, Status and the action buttons are cut
+off at 412px (same pattern as User Management). Raised with the owner.
