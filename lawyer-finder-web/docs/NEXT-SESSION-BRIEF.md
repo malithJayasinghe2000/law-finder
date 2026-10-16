@@ -243,6 +243,15 @@ Each is its own commit; reasoning and how it was verified are in PROGRESS.md (20
 10. Pre-engagement Chat button on attorney pages, and read-only threads after a decline —
     owner said later.
 11. Before switching licensing on: the plan cards' Permissions list renders empty.
+12. **Practice verification note in the app (later, owner 2026-10-16).** "Needs more
+    information" emails the principal/manager (`502cc0f`) but the practice page shows the
+    note only for REJECTED, and the firm home says "our team is checking". Show the note
+    for PENDING too.
+13. **Admin page for data requests** — none exists; OBJECTION/RECTIFICATION sit IN_PROGRESS
+    unseen. The admin dashboard counts them (`22c2aaf`).
+14. **User Management can toggle `isVerified` directly** — no application, no BASL check, no
+    `verifiedById`. Review with that section.
+15. Public `<title>` is "Find the Right Lawyer in Sri Lanka" — add to item 3.
 
 ## F. Things that will bite you
 
