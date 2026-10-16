@@ -3503,3 +3503,13 @@ authProvider to GOOGLE and silently broke forgot-password → kept, and forgot-p
 passwordHash (tested); closed accounts refused; returns to redirect + language. Login inputs as
 sign-up; titles. **Known, later:** sessions are 24 h signed cookies, so a deactivation or a
 password reset does not sign out a session already open elsewhere.
+
+### 2026-10-16 — AI Chat
+
+Guardrails behave (own-case, touting, Sinhala refused; with Ollama down the reply is "The legal
+database is not responding", not a statement about the law). Fixed: greeting named the Computer
+Crimes Act (not held) and missed 10 held Acts → read from the Legal Library, best-known first;
+"Source" menu / Attach / Voice did nothing → `CHAT_EXTRA_CONTROLS_ENABLED = false`; delete asks
+first (tested cancel + confirm); notice compact on phones (`compactOnPhone`, 57 px, "More"
+expands; full on desktop); touting reply "every verified law firm" (check:ai 124); tab title; icon
+button names. Ollama was not started (heat) — a real answer was not exercised this session.
