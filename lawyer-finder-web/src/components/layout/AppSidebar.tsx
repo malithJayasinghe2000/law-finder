@@ -107,7 +107,7 @@ export function AppSidebar({
       : { href: `/${locale}/dashboard/admin/consultations`, icon: CalendarDays, label: 'All Requests' },
     // Off: see src/lib/admin/financeReports.ts.
     ...(ADMIN_FINANCE_REPORTS_ENABLED ? [{ href: `/${locale}/dashboard/admin/finances`, icon: DollarSign, label: 'Financial Reports' }] : []),
-    { href: `/${locale}/dashboard/admin/settings`, icon: Settings, label: 'Settings' },
+    { href: `/${locale}/dashboard/admin/settings`, icon: Settings, label: 'My Account' },
     { href: `/${locale}/dashboard/admin/subscriptions`, icon: ShieldPlus, label: 'Subscription Config' },
   ];
 
