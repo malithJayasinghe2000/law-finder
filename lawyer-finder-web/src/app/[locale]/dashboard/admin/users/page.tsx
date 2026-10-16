@@ -80,7 +80,7 @@ export default function UserManagementPage() {
       });
       const result = await res.json();
       if (!res.ok) throw new Error(result.error);
-      toast.success('User details updated.');
+      toast.success(result.message || 'User details updated.');
       setEditUser(null);
       fetchUsers();
     } catch (e: any) {

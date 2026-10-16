@@ -233,6 +233,23 @@ export const EmailService = {
     );
   },
 
+  /**
+   * Sent to the OLD address when our staff change an account's email. Without
+   * it a change of address — the first step of taking an account over — would
+   * be invisible to the person who owns it.
+   */
+  async sendEmailChangedByAdmin(params: { oldEmail: string; newEmail: string }) {
+    await sendMailSafe(
+      params.oldEmail,
+      'The email address on your TheLawyr account was changed',
+      template('Email address changed', `
+        <p>Our team changed the email address on your account to <strong>${escapeHtml(params.newEmail)}</strong>.</p>
+        <p>From now on you sign in with the new address, and messages about your account go there.</p>
+        <p>If you did not ask for this, reply to this email straight away.</p>
+      `)
+    );
+  },
+
   async sendApplicationSubmitted(email: string, fullName: string) {
     await sendMailSafe(email, 'Lawyer Application Received', template('Application Received', `
       <p>Dear ${fullName},</p>

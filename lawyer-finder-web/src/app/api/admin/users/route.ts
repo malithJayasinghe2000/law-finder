@@ -4,6 +4,7 @@ import { getSession } from '@/lib/auth';
 import bcrypt from 'bcryptjs';
 import { ADMIN_ROLE_EDIT_ENABLED } from '@/lib/admin/userTools';
 import { AdminUpdateUserSchema } from '@/schemas/adminUser.schema';
+import { EmailService } from '@/lib/email/EmailService';
 
 export async function GET(req: Request) {
   try {
@@ -105,7 +106,7 @@ export async function PATCH(req: Request) {
       }
       const d = parsed.data;
 
-      const user = await prisma.user.findUnique({ where: { id: d.userId }, select: { role: true } });
+      const user = await prisma.user.findUnique({ where: { id: d.userId }, select: { role: true, email: true } });
       if (!user) {
         return NextResponse.json({ error: 'User not found.' }, { status: 404 });
       }
@@ -115,8 +116,16 @@ export async function PATCH(req: Request) {
         return NextResponse.json({ error: 'Roles cannot be changed here.' }, { status: 403 });
       }
 
+      const emailChanged = !!d.email && d.email !== user.email;
+      if (emailChanged) {
+        const taken = await prisma.user.findUnique({ where: { email: d.email }, select: { id: true } });
+        if (taken) {
+          return NextResponse.json({ error: 'Another account already uses that email address.' }, { status: 409 });
+        }
+      }
+
       const updateData: { email?: string; role?: typeof d.role } = {};
-      if (d.email) updateData.email = d.email;
+      if (emailChanged) updateData.email = d.email;
       if (d.role && ADMIN_ROLE_EDIT_ENABLED) updateData.role = d.role;
 
       await prisma.user.update({
@@ -138,7 +147,15 @@ export async function PATCH(req: Request) {
         }
       }
 
-      return NextResponse.json({ message: 'User details updated.' }, { status: 200 });
+      // The owner of the old address is told. Not awaited: the mail server is
+      // slow; sendMailSafe logs a failure and never throws.
+      if (emailChanged) {
+        void EmailService.sendEmailChangedByAdmin({ oldEmail: user.email, newEmail: d.email! });
+      }
+
+      return NextResponse.json({
+        message: emailChanged ? 'Details updated. The old address has been told about the change.' : 'User details updated.',
+      }, { status: 200 });
     }
 
     if (action === 'update-password') {
