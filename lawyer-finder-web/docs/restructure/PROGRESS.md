@@ -3490,3 +3490,16 @@ resuming works; signed-out → back to /apply; "being reviewed" page after sendi
 end). `b37caa0`: approval email says to register the practice, with a button.
 **Open:** confirm with a practising attorney that the Attorney-at-Law ID card shows a photo and
 number; if not, switch to the practising certificate and drop the face photo.
+
+### 2026-10-16 — Sign in, Google sign-in, forgot password
+
+Forgot/reset already right (same answer for unknown addresses, one-use link, old password dead,
+rules shown — tested). Fixed: a **DEACTIVATED account signed in** (proven) → 403 after the right
+password; wrong-try limit 5/IP → 5/account + 50/IP (rate limits are off locally,
+RATE_LIMIT_ENABLED=false — not exercised). Google (code-read; cannot run Google OAuth here):
+no `state` (login CSRF) → state + httpOnly cookie, forged/missing refused (tested); joined to an
+existing account on an **unverified** Google email (takeover) → verified only; joining flipped
+authProvider to GOOGLE and silently broke forgot-password → kept, and forgot-password keys on
+passwordHash (tested); closed accounts refused; returns to redirect + language. Login inputs as
+sign-up; titles. **Known, later:** sessions are 24 h signed cookies, so a deactivation or a
+password reset does not sign out a session already open elsewhere.
