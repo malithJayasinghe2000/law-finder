@@ -35,7 +35,6 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const placement = searchParams.get('placement');
     const district = searchParams.get('district');
-    const practiceArea = searchParams.get('practiceArea');
     const limit = parseInt(searchParams.get('limit') || '5');
 
     if (!placement) {
@@ -78,7 +77,6 @@ export async function GET(req: Request) {
         targetUrl: true,
         ctaText: true,
         targetDistricts: true,
-        targetPracticeAreas: true,
         advertiser: {
           select: {
             id: true,
@@ -93,20 +91,14 @@ export async function GET(req: Request) {
       take: limit,
     });
 
-    // Page-level targeting. `district` and `practiceArea` describe the page
-    // being viewed — a blog post's subject, say — and must never be derived
-    // from a client's matter.
+    // Page-level targeting by district only. There is no practice-area
+    // targeting: an advert targets the page, never a legal subject, and
+    // nothing here may be derived from a client's matter.
     let filtered = campaigns;
 
     if (district) {
       filtered = filtered.filter(
         (c) => c.targetDistricts.length === 0 || c.targetDistricts.includes(district)
-      );
-    }
-
-    if (practiceArea) {
-      filtered = filtered.filter(
-        (c) => c.targetPracticeAreas.length === 0 || c.targetPracticeAreas.includes(practiceArea)
       );
     }
 

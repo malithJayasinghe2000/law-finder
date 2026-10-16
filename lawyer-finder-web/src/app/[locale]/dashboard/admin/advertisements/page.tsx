@@ -40,7 +40,6 @@ interface Campaign {
   targetUrl: string | null;
   ctaText: string | null;
   targetDistricts: string[];
-  targetPracticeAreas: string[];
   startDate: string;
   endDate: string;
   totalBudget: number | null;
@@ -127,7 +126,6 @@ export default function AdvertisementsPage() {
     targetUrl: '',
     ctaText: 'Learn more',
     targetDistricts: [] as string[],
-    targetPracticeAreas: [] as string[],
     startDate: '',
     endDate: '',
     totalBudget: '',
@@ -296,7 +294,7 @@ export default function AdvertisementsPage() {
       setForm({
         advertiserId: '', name: '', type: 'BANNER_IMAGE', placement: 'HOMEPAGE_BELOW_HERO',
         title: '', description: '', imageUrl: '', targetUrl: '', ctaText: 'Learn more',
-        targetDistricts: [], targetPracticeAreas: [], startDate: '', endDate: '',
+        targetDistricts: [], startDate: '', endDate: '',
         totalBudget: '', pricePerDay: String(selectedConfig?.pricePerDay || 2000), status: 'DRAFT',
       });
       fetchCampaigns();
@@ -715,8 +713,6 @@ export default function AdvertisementsPage() {
                         <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1">Targeting</p>
                         <p className="text-neutral-700">
                           {campaign.targetDistricts.length > 0 ? campaign.targetDistricts.join(', ') : 'All Districts'}
-                          {' • '}
-                          {campaign.targetPracticeAreas.length > 0 ? campaign.targetPracticeAreas.join(', ') : 'All Areas'}
                         </p>
                       </div>
 

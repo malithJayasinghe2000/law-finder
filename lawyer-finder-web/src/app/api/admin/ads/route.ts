@@ -19,7 +19,6 @@ const AdminUpdateAdSchema = z.object({
   targetUrl: z.string().trim().max(500).optional().nullable(),
   ctaText: z.string().trim().max(50).optional(),
   targetDistricts: z.array(z.string().max(50)).max(25).optional(),
-  targetPracticeAreas: z.array(z.string().max(100)).max(12).optional(),
   startDate: z.string().optional(),
   endDate: z.string().optional(),
   totalBudget: z.coerce.number().int().positive().optional().nullable(),
@@ -180,7 +179,6 @@ export async function POST(req: Request) {
       targetUrl,
       ctaText,
       targetDistricts,
-      targetPracticeAreas,
       startDate,
       endDate,
       pricePerDay,
@@ -235,7 +233,7 @@ export async function POST(req: Request) {
         targetUrl: targetUrl || null,
         ctaText: ctaText || 'Learn more',
         targetDistricts: targetDistricts || [],
-        targetPracticeAreas: targetPracticeAreas || [],
+        targetPracticeAreas: [],
         startDate: start,
         endDate: end,
         totalBudget: computedTotal,
@@ -297,7 +295,6 @@ export async function PATCH(req: Request) {
     if (validatedData.targetUrl !== undefined) updateData.targetUrl = validatedData.targetUrl;
     if (validatedData.ctaText !== undefined) updateData.ctaText = validatedData.ctaText;
     if (validatedData.targetDistricts !== undefined) updateData.targetDistricts = validatedData.targetDistricts;
-    if (validatedData.targetPracticeAreas !== undefined) updateData.targetPracticeAreas = validatedData.targetPracticeAreas;
     
     let start = existing.startDate;
     let end = existing.endDate;

@@ -201,7 +201,8 @@ export const AdCampaignBaseSchema = z.object({
   targetUrl: optionalText,
   ctaText: z.string().trim().default('Learn more').transform((val) => sanitizeString(val)),
   targetDistricts: z.array(z.string()).default([]),
-  targetPracticeAreas: z.array(z.string()).default([]),
+  // No practice-area targeting: an advert targets the page, never a legal
+  // subject (2026-10-16). The database column stays, always empty.
   startDate: z.string().min(1, 'Start date is required'),
   endDate: z.string().min(1, 'End date is required'),
 });
