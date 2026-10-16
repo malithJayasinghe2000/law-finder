@@ -57,7 +57,7 @@ export async function POST(req: Request) {
         {
           error:
             'Only an admitted Attorney-at-Law can register a practice. If you are an ' +
-            'attorney, complete your own verification first — a law firm is a group of ' +
+            'attorney, complete your own verification first - a law firm is a group of ' +
             'attorneys practising together, so the practice cannot exist before its ' +
             'principal does.',
         },
@@ -361,7 +361,7 @@ export async function POST(req: Request) {
         note:
           'Your practice is registered and waiting to be verified. It will appear in the ' +
           'public directory once an administrator has confirmed it. Your existing matters, ' +
-          'licence and invoices are unchanged — this renamed and completed the practice you ' +
+          'licence and invoices are unchanged - this renamed and completed the practice you ' +
           'were already working in rather than creating a second one.',
       },
       { status: 201 }

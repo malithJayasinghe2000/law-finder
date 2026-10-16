@@ -82,7 +82,7 @@ export async function POST(req: Request) {
       return NextResponse.json(
         {
           error:
-            'No account exists with that email address. Send them an invitation instead — ' +
+            'No account exists with that email address. Send them an invitation instead - ' +
             'they will find the firm waiting when they register.',
           suggestInvitation: true,
         },
@@ -193,7 +193,7 @@ export async function PATCH(req: Request) {
           {
             error:
               'That attorney practises at another firm. They can take this role once they ' +
-              'have left it — invite them as an attorney then.',
+              'have left it - invite them as an attorney then.',
           },
           { status: 409 }
         );

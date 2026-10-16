@@ -537,7 +537,7 @@ async function main() {
   const placements = [
     {
       placement: 'HOMEPAGE_BELOW_HERO',
-      displayName: 'Homepage — Below Hero Section',
+      displayName: 'Homepage - Below Hero Section',
       description: 'Slider banner below the hero, above "The Legal Advisory Is" section',
       pricePerDay: 2000,
       isSlider: true,
@@ -549,7 +549,7 @@ async function main() {
     },
     {
       placement: 'CHAT_RIGHT_SIDEBAR',
-      displayName: 'AI Chat — Right Sidebar',
+      displayName: 'AI Chat - Right Sidebar',
       description: 'Right sidebar ads alongside the AI chat interface',
       pricePerDay: 1500,
       isSlider: true,
@@ -561,7 +561,7 @@ async function main() {
     },
     {
       placement: 'BLOG_TOP_BANNER',
-      displayName: 'Blog — Top Banner',
+      displayName: 'Blog - Top Banner',
       description: 'Slider banner above category cards on the blog listing page',
       pricePerDay: 1500,
       isSlider: true,
@@ -573,7 +573,7 @@ async function main() {
     },
     {
       placement: 'BLOG_RIGHT_SIDEBAR',
-      displayName: 'Blog — Right Sidebar (Sticky)',
+      displayName: 'Blog - Right Sidebar (Sticky)',
       description: 'Sticky sidebar ads that stay visible while scrolling blog posts',
       pricePerDay: 1200,
       isSlider: true,
@@ -585,7 +585,7 @@ async function main() {
     },
     {
       placement: 'BLOG_BOTTOM_STICKY',
-      displayName: 'Blog — Bottom Sticky Bar',
+      displayName: 'Blog - Bottom Sticky Bar',
       description: 'Fixed bar at the bottom of the blog page, stays visible while scrolling',
       pricePerDay: 1000,
       isSlider: false,
@@ -597,7 +597,7 @@ async function main() {
     },
     {
       placement: 'BLOG_POST_SIDEBAR',
-      displayName: 'Blog Post — Right Sidebar',
+      displayName: 'Blog Post - Right Sidebar',
       description: 'Sidebar ads alongside individual blog post content',
       pricePerDay: 1000,
       isSlider: true,
@@ -609,7 +609,7 @@ async function main() {
     },
     {
       placement: 'BLOG_POST_BOTTOM',
-      displayName: 'Blog Post — Below Article',
+      displayName: 'Blog Post - Below Article',
       description: 'Banner below the blog article content',
       pricePerDay: 800,
       isSlider: false,
@@ -625,7 +625,7 @@ async function main() {
     // See docs/restructure/LEGAL-GUARDRAILS.md (rules 3 and 4).
     {
       placement: 'LEGAL_LIBRARY_SIDEBAR',
-      displayName: 'Legal Library — Right Sidebar',
+      displayName: 'Legal Library - Right Sidebar',
       description: 'Sidebar of the legal library. Non-legal advertisers only.',
       pricePerDay: 2500,
       isSlider: true,

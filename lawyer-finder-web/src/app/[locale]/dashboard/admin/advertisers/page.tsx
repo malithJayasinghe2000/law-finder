@@ -103,7 +103,7 @@ export default function AdvertisersPage() {
       <div className="flex items-start gap-2 border border-neutral-200 bg-neutral-50 p-3 text-[11px] leading-relaxed text-neutral-600">
         <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
         <span>
-          No attorney, law firm or seller of legal services may advertise here — that
+          No attorney, law firm or seller of legal services may advertise here - that
           includes legal consultancies, claims-management companies, document-drafting
           services and legal-expenses insurers. Adverts appear only on editorial pages;
           the directory and profile pages cannot be sold at any price.
@@ -188,7 +188,7 @@ export default function AdvertisersPage() {
                   ) : (
                     <span className="flex items-center gap-1.5 text-amber-700">
                       <ShieldAlert className="h-3.5 w-3.5" />
-                      Not yet confirmed — campaigns cannot run
+                      Not yet confirmed - campaigns cannot run
                     </span>
                   )}
                 </div>
@@ -198,7 +198,7 @@ export default function AdvertisersPage() {
                     <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                     <span>
                       Their own details mention: <strong>{a.flaggedTerms.join(', ')}</strong>.
-                      Check carefully before approving — this is what a legal-services
+                      Check carefully before approving - this is what a legal-services
                       provider looks like.
                     </span>
                   </p>
@@ -471,7 +471,7 @@ function ReviewDialog({
               rows={3}
               onChange={(e) => setNotes(e.target.value)}
               className="rounded-none text-sm"
-              placeholder="What you checked — registration, website, what they actually sell."
+              placeholder="What you checked - registration, website, what they actually sell."
             />
           </div>
         </div>

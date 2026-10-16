@@ -275,7 +275,7 @@ export async function getMatterAccess(params: {
  * says. Deliberately a sentence and not an empty string: a blank field reads as
  * "the client wrote nothing", which is a different and misleading claim.
  */
-export const WITHHELD_MARKER = '[Withheld — privileged]';
+export const WITHHELD_MARKER = '[Withheld - privileged]';
 
 /**
  * Turn one stored privileged field into something a caller may have.

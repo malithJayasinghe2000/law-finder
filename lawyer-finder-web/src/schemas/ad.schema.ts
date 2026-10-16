@@ -39,14 +39,14 @@ export const AD_PLACEMENTS = [
 export type AdPlacementValue = (typeof AD_PLACEMENTS)[number];
 
 export const AD_PLACEMENT_LABELS: Record<AdPlacementValue, string> = {
-  HOMEPAGE_BELOW_HERO: 'Homepage — Below Hero Section',
-  CHAT_RIGHT_SIDEBAR: 'AI Chat — Right Sidebar',
-  BLOG_TOP_BANNER: 'Blog — Top Banner',
-  BLOG_RIGHT_SIDEBAR: 'Blog — Right Sidebar (Sticky)',
-  BLOG_BOTTOM_STICKY: 'Blog — Bottom Sticky Bar',
-  BLOG_POST_SIDEBAR: 'Blog Post — Right Sidebar',
-  BLOG_POST_BOTTOM: 'Blog Post — Below Article',
-  LEGAL_LIBRARY_SIDEBAR: 'Legal Library — Right Sidebar',
+  HOMEPAGE_BELOW_HERO: 'Homepage - Below Hero Section',
+  CHAT_RIGHT_SIDEBAR: 'AI Chat - Right Sidebar',
+  BLOG_TOP_BANNER: 'Blog - Top Banner',
+  BLOG_RIGHT_SIDEBAR: 'Blog - Right Sidebar (Sticky)',
+  BLOG_BOTTOM_STICKY: 'Blog - Bottom Sticky Bar',
+  BLOG_POST_SIDEBAR: 'Blog Post - Right Sidebar',
+  BLOG_POST_BOTTOM: 'Blog Post - Below Article',
+  LEGAL_LIBRARY_SIDEBAR: 'Legal Library - Right Sidebar',
 };
 
 export const PLACEMENT_DETAILS: Record<AdPlacementValue, {
@@ -131,7 +131,7 @@ export const PLACEMENT_PREVIEW: Record<AdPlacementValue, {
   skeletonLayout: 'full-width' | 'sidebar' | 'sticky-bottom' | 'card-grid';
 }> = {
   HOMEPAGE_BELOW_HERO: {
-    previewLabel: 'Your ad appears here — below the hero, above "The Legal Advisory Is" section',
+    previewLabel: 'Your ad appears here - below the hero, above "The Legal Advisory Is" section',
     previewColor: 'bg-blue-100 border-blue-400',
     skeletonLayout: 'full-width',
   },

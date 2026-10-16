@@ -54,7 +54,7 @@ export function LawyerWritingReminder({ role, className = '' }: { role?: string 
       <Scale className="h-3.5 w-3.5 mt-0.5 shrink-0" aria-hidden="true" />
       <p>
         <strong>You are posting as an attorney.</strong> Share general information only. Do not advise anyone on their
-        own case here, and do not promote your practice — see the BASL cautionary note (June 2021) and Rules 39 and 49
+        own case here, and do not promote your practice - see the BASL cautionary note (June 2021) and Rules 39 and 49
         of the Supreme Court (Conduct of and Etiquette for Attorneys-at-Law) Rules 1988.
       </p>
     </div>

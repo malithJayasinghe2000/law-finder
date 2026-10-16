@@ -164,8 +164,8 @@ export default function ClientRequestPage() {
       <>
         {header}
         <p className="text-sm leading-relaxed text-center">
-          {request.firmName} has opened a request for you. Sign in with <strong>{request.email}</strong> — or
-          create an account with that address — to see it and accept or decline.
+          {request.firmName} has opened a request for you. Sign in with <strong>{request.email}</strong> - or
+          create an account with that address - to see it and accept or decline.
         </p>
         <div className="flex flex-col sm:flex-row gap-3">
           <Link
@@ -209,11 +209,11 @@ export default function ClientRequestPage() {
       <dl className="border p-4 bg-neutral-50 text-sm space-y-3">
         <div>
           <dt className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Subject</dt>
-          <dd className="mt-1 wrap-break-word">{d?.subject ?? '—'}</dd>
+          <dd className="mt-1 wrap-break-word">{d?.subject ?? ' - '}</dd>
         </div>
         <div>
           <dt className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Details</dt>
-          <dd className="mt-1 whitespace-pre-line wrap-break-word">{d?.description ?? '—'}</dd>
+          <dd className="mt-1 whitespace-pre-line wrap-break-word">{d?.description ?? ' - '}</dd>
         </div>
         {d?.practiceArea && (
           <div>

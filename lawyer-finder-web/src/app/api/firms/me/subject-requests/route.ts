@@ -103,7 +103,7 @@ export async function GET() {
     })),
     guidance:
       'You are the controller of your own matter files. Decide what may be released or ' +
-      'erased in light of your professional retention duties — an attorney may be required ' +
+      'erased in light of your professional retention duties - an attorney may be required ' +
       'to keep a file regardless of the request. The platform has already dealt with the ' +
       'data it controls.',
   });

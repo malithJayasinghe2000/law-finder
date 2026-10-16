@@ -386,7 +386,7 @@ export default function AdminLegalDocumentsPage() {
                           {doc.categoryDisplay}
                         </span>
                       </td>
-                      <td className="px-5 py-4 text-sm text-neutral-700">{doc.year || '—'}</td>
+                      <td className="px-5 py-4 text-sm text-neutral-700">{doc.year || ' - '}</td>
                       <td className="px-5 py-4">
                         <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider border ${statusConfig.bg}`}>
                           <StatusIcon className={`w-3.5 h-3.5 ${statusConfig.color}`} />

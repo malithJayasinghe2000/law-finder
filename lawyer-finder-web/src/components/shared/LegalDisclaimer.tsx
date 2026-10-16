@@ -27,19 +27,19 @@ type Variant = 'ai' | 'library' | 'directory';
 
 const COPY: Record<Variant, { title: string; body: string }> = {
   ai: {
-    title: 'Information only — not legal advice',
+    title: 'Information only - not legal advice',
     body:
-      'This assistant explains what Sri Lankan law says, citing documents you can open. It cannot advise you on your own situation, predict how a case would end, or tell you what to do — and it will decline if you ask. Using it creates no attorney-client relationship. For advice on your own matter, consult an attorney-at-law.',
+      'This assistant explains what Sri Lankan law says, citing documents you can open. It cannot advise you on your own situation, predict how a case would end, or tell you what to do - and it will decline if you ask. Using it creates no attorney-client relationship. For advice on your own matter, consult an attorney-at-law.',
   },
   library: {
-    title: 'Reference material — not legal advice',
+    title: 'Reference material - not legal advice',
     body:
       'These documents are published for reference. They may not reflect subsequent amendments or judicial interpretation, and nothing here is legal advice or a substitute for consulting a qualified attorney-at-law.',
   },
   directory: {
     title: 'How these results are ordered',
     body:
-      'The order changes every day and is the same for everyone, and results are matched only on practice area, location and language. Ordering is never influenced by any payment to this platform, and this listing is not a recommendation or endorsement — the choice is yours.',
+      'The order changes every day and is the same for everyone, and results are matched only on practice area, location and language. Ordering is never influenced by any payment to this platform, and this listing is not a recommendation or endorsement - the choice is yours.',
   },
 };
 

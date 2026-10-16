@@ -46,7 +46,7 @@ export default async function PrivacyNoticePage({
         <h1 className="font-serif text-3xl tracking-tight text-neutral-900">Privacy Notice</h1>
         <p className="mt-4 text-sm leading-relaxed text-neutral-600">
           No version of this notice is published yet. Until one is, we are not recording any
-          new consents — a record of agreement to a document that cannot be produced is not
+          new consents - a record of agreement to a document that cannot be produced is not
           worth anything to you or to us.
         </p>
         <p className="mt-4 text-sm leading-relaxed text-neutral-600">

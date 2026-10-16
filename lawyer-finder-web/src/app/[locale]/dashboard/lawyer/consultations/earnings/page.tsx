@@ -105,7 +105,7 @@ export default function LawyerIncomePage() {
           <p className="text-blue-800">
             The platform does not hold fees and takes no share of them. Your fee proposal
             carries your practice&apos;s bank details, and the client pays the practice into
-            that account. This page is a record for your bookkeeping — there is no balance
+            that account. This page is a record for your bookkeeping - there is no balance
             here to withdraw.
           </p>
         </div>

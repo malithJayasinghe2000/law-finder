@@ -150,7 +150,7 @@ export async function POST(req: NextRequest) {
         outcomeNote:
           'Account anonymised and platform-held data deleted. ' +
           (firmIds.length > 0
-            ? `Matter files held for ${firmIds.length} law firm(s) were referred to them — ` +
+            ? `Matter files held for ${firmIds.length} law firm(s) were referred to them - ` +
               'the firm decides, and may be professionally required to retain them.'
             : 'No law firm holds a matter for you.'),
       },
@@ -161,7 +161,7 @@ export async function POST(req: NextRequest) {
         request: updated,
         result,
         message:
-          'Your account has been anonymised. Some records are kept — see `retained` for ' +
+          'Your account has been anonymised. Some records are kept - see `retained` for ' +
           'each one and the reason.',
       },
       { status: 201 }

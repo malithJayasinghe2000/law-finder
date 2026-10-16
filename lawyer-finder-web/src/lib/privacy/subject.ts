@@ -166,7 +166,7 @@ export async function buildSubjectExport(userId: string): Promise<SubjectExport 
       firmName: name,
       matterCount: count,
       note:
-        'This firm holds your matter file. It decides what is released from it, not us — ' +
+        'This firm holds your matter file. It decides what is released from it, not us - ' +
         'we host it on the firm\'s behalf. Your request has been passed to them.',
     })),
     notIncluded: [

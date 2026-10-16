@@ -84,7 +84,7 @@ export async function POST(req: NextRequest) {
       {
         error:
           `Version ${parsed.data.version} already exists (${clash.status}). Version labels are ` +
-          'never reused — add a suffix, e.g. ' +
+          'never reused - add a suffix, e.g. ' +
           `${parsed.data.version}-b.`,
       },
       { status: 409 }

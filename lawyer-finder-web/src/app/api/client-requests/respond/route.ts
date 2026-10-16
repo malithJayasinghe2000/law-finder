@@ -78,7 +78,7 @@ export async function POST(req: Request) {
     const { session, email, fullName } = await signedInEmail();
     if (!session || !email) {
       return NextResponse.json(
-        { error: 'Sign in — or create an account with the address this was sent to — to answer it.' },
+        { error: 'Sign in - or create an account with the address this was sent to - to answer it.' },
         { status: 401 }
       );
     }
@@ -125,9 +125,9 @@ export async function POST(req: Request) {
     }
 
     const clientName = fullName || 'Client';
-    EmailService.sendBookingCreatedClient(email, clientName, result.firmName, 'To be arranged', '—', result.bookingNumber);
+    EmailService.sendBookingCreatedClient(email, clientName, result.firmName, 'To be arranged', ' - ', result.bookingNumber);
     if (result.firmEmail) {
-      EmailService.sendBookingCreatedLawyer(result.firmEmail, result.firmName, clientName, 'To be arranged', '—');
+      EmailService.sendBookingCreatedLawyer(result.firmEmail, result.firmName, clientName, 'To be arranged', ' - ');
     }
 
     return NextResponse.json({

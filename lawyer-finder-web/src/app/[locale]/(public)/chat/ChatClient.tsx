@@ -72,7 +72,7 @@ const GUEST_QUERY_LIMIT = 5;
  * less likely to act on it as though it had.
  */
 const GREETING =
-  'Hello. I answer questions **about Sri Lankan law**, using legislation I can cite and you can check — ' +
+  'Hello. I answer questions **about Sri Lankan law**, using legislation I can cite and you can check - ' +
   'currently the **Civil Procedure Code**, the **Companies Act**, the **Motor Traffic Act** and the ' +
   '**Computer Crimes Act**.\n\n' +
   'I am not a lawyer, and I cannot advise you on your own situation or tell you what to do about it. ' +
@@ -592,7 +592,7 @@ export default function ChatClient({
                 </h1>
                 <p className="text-neutral-500 text-sm max-w-md mx-auto font-light leading-relaxed">
                   Questions about legislation and procedure, answered from documents you can open and check.
-                  This is information, not legal advice — it cannot advise you on your own case.
+                  This is information, not legal advice - it cannot advise you on your own case.
                 </p>
               </div>
             )}
@@ -862,7 +862,7 @@ export default function ChatClient({
               </div>
             </form>
             <div className="mt-2 flex flex-col xs:flex-row items-center justify-between gap-2 text-center text-[8px] text-neutral-400 font-bold uppercase tracking-[0.18em]">
-              <span>Answers cite Sri Lankan legislation — information only, not legal advice</span>
+              <span>Answers cite Sri Lankan legislation - information only, not legal advice</span>
               {!isAuthenticated && (
                 <span className="text-[#bfa37a]">
                   {Math.max(0, GUEST_QUERY_LIMIT - guestQueryCount)} queries left •{' '}

@@ -185,7 +185,7 @@ export function QuoteReviewDialog({
             >
               <CalendarClock className="h-3.5 w-3.5" aria-hidden="true" />
               {expired
-                ? 'This proposal has expired — ask the firm to send a new one.'
+                ? 'This proposal has expired - ask the firm to send a new one.'
                 : `Valid until ${new Date(quote.validUntil).toLocaleDateString('en-GB', {
                     day: 'numeric', month: 'long', year: 'numeric',
                   })}`}

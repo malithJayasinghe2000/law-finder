@@ -136,7 +136,7 @@ export default function Footer({ locale }: { locale: string }) {
           <div className="space-y-6">
             <h4 className="text-base font-serif text-white tracking-wider">Your data</h4>
             <p className="text-sm text-neutral-400 leading-relaxed font-light">
-              What we collect, why, who can reach it, and how long we keep it — including
+              What we collect, why, who can reach it, and how long we keep it - including
               why our own staff cannot read what you tell your attorney.
             </p>
             <ul className="space-y-3">

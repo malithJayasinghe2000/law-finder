@@ -219,7 +219,7 @@ function AvailabilityEditor() {
                 </div>
 
                 {daySlots.length === 0 ? (
-                  <p className="text-xs text-neutral-400 italic">No availability set — Day off</p>
+                  <p className="text-xs text-neutral-400 italic">No availability set - Day off</p>
                 ) : (
                   <div className="space-y-3">
                     {daySlots.map((slot) => (
@@ -380,7 +380,7 @@ function AvailabilityEditor() {
                       {formatDateOnlyString(o.date, 'en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
                     </p>
                     <p className="text-xs text-neutral-500">
-                      {o.isBlocked ? 'Blocked — Day off' : `Custom hours: ${o.startTime} – ${o.endTime}`}
+                      {o.isBlocked ? 'Blocked - Day off' : `Custom hours: ${o.startTime} – ${o.endTime}`}
                       {o.reason && ` · ${o.reason}`}
                     </p>
                   </div>

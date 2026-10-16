@@ -159,7 +159,7 @@ export default function FirmInvitationPage() {
                   <li>
                     You will be able to see that the firm&apos;s matters exist.{' '}
                     <strong>What you can read about any one of them depends on your role</strong>{' '}
-                    — a client&apos;s own account of their legal problem is not visible to
+                    - a client&apos;s own account of their legal problem is not visible to
                     everyone in a practice.
                   </li>
                   <li>
@@ -168,7 +168,7 @@ export default function FirmInvitationPage() {
                   </li>
                   <li>
                     You take up a seat on the firm&apos;s software licence. Seats count people who
-                    can sign in — never clients or matters.
+                    can sign in - never clients or matters.
                   </li>
                   <li>You can be removed, and you can leave.</li>
                 </ul>

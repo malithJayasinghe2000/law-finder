@@ -166,7 +166,7 @@ export const CreateBookingSchema = z.object({
   )
   .refine((d) => !(!d.lawyerId && (d.date || d.startTime || d.endTime)), {
     message:
-      'A request to a firm cannot carry an appointment — the firm proposes a time once it has accepted the matter.',
+      'A request to a firm cannot carry an appointment - the firm proposes a time once it has accepted the matter.',
     path: ['date'],
   });
 
@@ -364,7 +364,7 @@ export const RecordConflictCheckSchema = z.object({
   // Declining is final and the client is never told why, so the practice keeps
   // its own reason.
   .refine((d) => d.outcome !== 'CONFLICT_FOUND' || !!d.notes, {
-    message: 'Note why your practice cannot act — it stays private to your practice.',
+    message: 'Note why your practice cannot act - it stays private to your practice.',
     path: ['notes'],
   });
 
@@ -385,7 +385,7 @@ export const IssueQuoteSchema = z
       .number()
       .int('Fee must be a whole number of rupees')
       .min(0, 'Fee cannot be negative')
-      .max(100_000_000, 'Fee looks implausibly large — please check'),
+      .max(100_000_000, 'Fee looks implausibly large - please check'),
     hourlyRate: z.number().int().min(0).optional(),
     estimatedHours: z.number().min(0).max(10_000).optional(),
     scopeOfWork: z

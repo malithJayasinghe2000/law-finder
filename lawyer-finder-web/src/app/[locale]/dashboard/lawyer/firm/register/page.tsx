@@ -165,7 +165,7 @@ export default function RegisterFirmPage({ params }: { params: Promise<{ locale:
             <p className="text-muted-foreground leading-relaxed">
               When your own registration was approved, a practice was created for you
               automatically so that your matters had a firm to belong to. This form gives that
-              practice its real name and details and invites your partners into it — it does not
+              practice its real name and details and invites your partners into it - it does not
               create a second firm. <strong>Your existing matters, licence and invoices are
               unaffected.</strong>
             </p>
@@ -327,7 +327,7 @@ export default function RegisterFirmPage({ params }: { params: Promise<{ locale:
             <h2 className="text-lg font-semibold">What the practice does</h2>
 
             <div className="text-xs text-muted-foreground bg-neutral-50 border p-3 leading-relaxed">
-              Everything on this step is <strong>factual practice information</strong> — the sort
+              Everything on this step is <strong>factual practice information</strong> - the sort
               of thing a client needs in order to make their own choice. There is deliberately
               nowhere to put a fee range, a rating, an award or a promotional claim: what an
               attorney may display is limited by Supreme Court Rule 40, and anything beyond that
@@ -441,7 +441,7 @@ export default function RegisterFirmPage({ params }: { params: Promise<{ locale:
             <div className="text-xs text-muted-foreground bg-neutral-50 border p-3 leading-relaxed space-y-2">
               <p>
                 These are <strong>invitations</strong>, not additions. Each person gets an email
-                and decides for themselves — joining a practice means being able to see that its
+                and decides for themselves - joining a practice means being able to see that its
                 matters exist, so it is not something we do to someone without asking.
               </p>
               <p>
@@ -451,13 +451,13 @@ export default function RegisterFirmPage({ params }: { params: Promise<{ locale:
               <p>
                 A partner or attorney must be a <strong>verified Attorney-at-Law</strong>, and an
                 attorney who still holds open matters at another practice has to close or hand
-                those over before moving — the client engaged <em>that</em> firm.
+                those over before moving - the client engaged <em>that</em> firm.
               </p>
             </div>
 
             {invitations.length === 0 && (
               <p className="text-sm text-muted-foreground py-4 text-center border border-dashed">
-                No one invited yet. A practice of one is perfectly valid — you can invite people
+                No one invited yet. A practice of one is perfectly valid - you can invite people
                 later from the firm console.
               </p>
             )}

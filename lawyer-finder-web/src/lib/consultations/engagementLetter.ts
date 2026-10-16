@@ -184,7 +184,7 @@ the firm's behalf as a data processor, under the firm's instructions.
 ## 8. Ending the engagement
 
 You may end this engagement at any time by notifying the firm in writing. The firm
-may decline to continue where it is professionally obliged to do so — for example
+may decline to continue where it is professionally obliged to do so - for example
 where a conflict of interest emerges. Fees for work properly carried out before
 that point remain payable, and any cancellation terms notified to you at the time
 of booking will apply.

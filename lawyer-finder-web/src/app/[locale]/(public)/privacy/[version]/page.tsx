@@ -25,7 +25,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { version } = await params;
   return {
-    title: `Privacy Notice — version ${version}`,
+    title: `Privacy Notice - version ${version}`,
     // Past versions are kept for evidence, not for search traffic. The current
     // notice at /privacy is the one a reader should land on.
     robots: { index: false, follow: true },

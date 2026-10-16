@@ -182,7 +182,7 @@ export async function PATCH(req: Request) {
 
     if (decision === 'REJECTED' && !notes) {
       return NextResponse.json(
-        { error: 'Give a reason when rejecting a firm — they are entitled to know it.' },
+        { error: 'Give a reason when rejecting a firm - they are entitled to know it.' },
         { status: 400 }
       );
     }

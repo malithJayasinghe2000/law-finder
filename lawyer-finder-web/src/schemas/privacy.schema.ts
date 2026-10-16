@@ -59,7 +59,7 @@ export const PrivacyNoticeCreateSchema = z.object({
     .trim()
     .regex(
       /^\d{4}-\d{2}-\d{2}(-[a-z0-9]{1,8})?$/,
-      'Use a date, e.g. 2026-08-03 — with a short suffix (2026-08-03-b) if you publish twice in one day.'
+      'Use a date, e.g. 2026-08-03 - with a short suffix (2026-08-03-b) if you publish twice in one day.'
     ),
   title: z.string().trim().min(3).max(200).optional(),
   body: z.string().min(200, 'A privacy notice this short is a placeholder, not a notice.'),

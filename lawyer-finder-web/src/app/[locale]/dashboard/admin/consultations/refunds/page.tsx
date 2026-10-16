@@ -106,7 +106,7 @@ export default function AdminRefundsPage() {
           <p className="font-semibold text-blue-900">The platform does not issue these refunds</p>
           <p className="text-blue-800">
             Clients pay the practice directly, so the practice holds the fee, returns it
-            and records it. This page is <strong>view only</strong> — platform staff cannot
+            and records it. This page is <strong>view only</strong> - platform staff cannot
             mark a practice&apos;s refund as sent or declined.
           </p>
         </div>

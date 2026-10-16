@@ -166,7 +166,7 @@ export function FeeNoteDialog({
           <DialogDescription>
             {canManage
               ? 'Your firm bills the client directly, under your own TIN and VAT number, into your own account. This platform is not part of the transaction and takes no share of the fee.'
-              : 'Fee notes issued to you by the firm. Payment goes to the firm directly — this platform does not handle it.'}
+              : 'Fee notes issued to you by the firm. Payment goes to the firm directly - this platform does not handle it.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -272,7 +272,7 @@ export function FeeNoteDialog({
                     // in the whole billing flow.
                     <p className="mt-2 text-[11px] leading-relaxed text-neutral-500">
                       &ldquo;Record as paid&rdquo; notes that <em>you</em> received the money. It
-                      does not verify a payment — the client pays your account directly and we
+                      does not verify a payment - the client pays your account directly and we
                       never see it.
                     </p>
                   )}
@@ -297,7 +297,7 @@ export function FeeNoteDialog({
                         next[i] = { ...next[i], description: e.target.value };
                         setLines(next);
                       }}
-                      placeholder="Professional fees — advice on land dispute"
+                      placeholder="Professional fees - advice on land dispute"
                       className="flex-1 border border-neutral-300 bg-white px-3 py-2 text-sm outline-none focus:border-neutral-900"
                     />
                     <input
@@ -340,7 +340,7 @@ export function FeeNoteDialog({
               </p>
               <p className="mt-1 text-[11px] text-neutral-500">
                 VAT is added automatically only if your firm is registered for it. Set your TIN,
-                VAT number and rate in firm settings — they are printed on the note.
+                VAT number and rate in firm settings - they are printed on the note.
               </p>
             </div>
           )}

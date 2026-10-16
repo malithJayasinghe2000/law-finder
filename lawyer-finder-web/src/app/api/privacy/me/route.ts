@@ -133,7 +133,7 @@ export async function GET() {
       category: 'Your account',
       whatItIs:
         'Your email address, your name and photograph if you gave them, and how you sign ' +
-        'in. Your password is stored only as a one-way hash — we cannot read it.',
+        'in. Your password is stored only as a one-way hash - we cannot read it.',
       count: 1,
       retention: 'While your account is open, plus a short grace period',
       controller: 'PLATFORM',
@@ -154,7 +154,7 @@ export async function GET() {
       category: 'Community posts and comments',
       whatItIs:
         'What you wrote in the community, and your votes. Posting "anonymously" hides your ' +
-        'name from other readers — it does not hide it from us, because moderation would ' +
+        'name from other readers - it does not hide it from us, because moderation would ' +
         'be impossible otherwise.',
       count: posts + comments,
       retention: 'Until you delete it, or your account is erased',
@@ -176,7 +176,7 @@ export async function GET() {
       whatItIs:
         'Every time you granted or withdrew one of the three consents, with the version of ' +
         'the privacy notice in force at that moment. This is the evidence that we asked ' +
-        'you properly — it is kept even after erasure, for that reason.',
+        'you properly - it is kept even after erasure, for that reason.',
       count: consentRecords,
       retention: 'Kept as evidence of what you agreed to',
       controller: 'PLATFORM',
@@ -185,7 +185,7 @@ export async function GET() {
       tier: 4,
       category: 'Records of who read your matter',
       whatItIs:
-        'When somebody at a law firm opened your matter file, we recorded that it happened — ' +
+        'When somebody at a law firm opened your matter file, we recorded that it happened - ' +
         'who, when, and which record. We did not record what it said. There is no column ' +
         'anywhere in that log for the contents, not even a truncated one.',
       count: accessLogEntries,
@@ -226,7 +226,7 @@ export async function GET() {
         'What you told your attorney about your problem, the firm’s conflict-of-interest ' +
         'check, quotes, the engagement letter, fee notes and your messages with your ' +
         'attorney. This is privileged, it is encrypted, and our own staff cannot read it. ' +
-        'It belongs to the firm, not to us — so the firm decides what may be released or ' +
+        'It belongs to the firm, not to us - so the firm decides what may be released or ' +
         'deleted, and we refer your request to them.',
       count: matterCount,
       retention: 'The firm decides. Nothing here is on any automatic deletion schedule of ours',
