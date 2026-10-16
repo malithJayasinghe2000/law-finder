@@ -55,7 +55,7 @@ export default async function CommunityHubPage({
               Sri Lanka&apos;s Legal <br />Knowledge Community
             </h1>
             <p className="text-neutral-550 text-sm sm:text-base font-light leading-relaxed max-w-xl">
-              Connect with verified lawyers, share legal experiences, and discover expert insights across all areas of Sri Lankan law.
+              Discuss Sri Lankan law and how it works, area by area. General discussion, not legal advice.
             </p>
             <div className="flex flex-wrap items-center gap-4 pt-2">
               {session ? (
