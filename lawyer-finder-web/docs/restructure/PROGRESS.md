@@ -3423,3 +3423,13 @@ Site title/description (Google, WhatsApp previews) was "Find the Right Lawyer in
 Expert legal assistance. Verified attorneys. Book consultations instantly." → "TheLawyr - Sri
 Lankan law, explained / Read what Sri Lankan law says, with the source for every answer, and find
 a verified law firm." Owner: no disclaimer in the preview. si/ta still old — native speaker needed.
+
+### 2026-10-16 — Home: "What You Can Do Here"; "Browse by Practice Area"
+
+- "Legal Guidance & Professional Counsel … connecting client requirements with dedicated
+  Attorneys-at-Law … vetted advocates" → "What You Can Do Here": the AI explains the law with its
+  source, the Legal Library holds the Acts, the client browses verified law firms and chooses.
+- Practice-area cards: marketing titles ("Trusted Lawyer", "Legal Champion", "Dedicated
+  Legalist", "Case Analysis", "Discovery Caller") with short area names that matched nothing
+  (every card 0 firms, proven) → six real `PRACTICE_AREAS`; Family/Property Law now find Perera &
+  Associates. Two per row on phones. Directory strip: "Verified law firms" (no attorneys).

@@ -49,8 +49,8 @@ time — what it is for, keep / change / hide, and mobile layout. For each secti
 look at it on a phone, say what it does, list problems in a small table with a
 recommendation, and wait for my "ok" before changing anything.
 CLIENT, LAWYER and ADMIN dashboards are all finished. NOW: the PUBLIC WEBSITE,
-section by section (Header, Footer, home Hero done 2026-10-16; next home "Legal Guidance"
-section, then the rest of the home page, then each public page). Deployment comes after (§E3, §E3b).
+section by section (Header, Footer and the whole home page done 2026-10-16; next each
+public page in menu order: Find a Law Firm, AI Chat, Legal Library, Community Hub, About). Deployment comes after (§E3, §E3b).
 WORK ON BRANCH main (owner, 2026-10-16) — ask before pushing.
 ```
 
