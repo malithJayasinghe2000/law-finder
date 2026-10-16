@@ -3358,3 +3358,17 @@ the admin) and cancelled the request, recorded as CANCELLED_BY_FIRM.**
   hides admin Refunds — menu, page, API 410 for staff. Practices keep their Refunds page.
 
 Checks: privilege 42, firm 15, billing 21, pdpa 72, ai 124; build and tsc clean.
+
+### 2026-10-16 — Financial Reports: hidden for launch; income means money received
+
+Proven with a temporary advertiser and an APPROVED, unpaid, not-yet-started campaign
+(deleted by id, scan clean): **"Total Platform Revenue" showed LKR 250,000** — ad income
+was the larger of paid ad invoices and campaign *budgets*.
+
+- `c7aa92a`: ad income = paid invoices only (re-tested: 0); per-attorney client-fee totals
+  removed from API and page (the practice's business; rule 1); a 500 no longer returns the
+  stack trace.
+- `ADMIN_FINANCE_REPORTS_ENABLED = false` (`src/lib/admin/financeReports.ts`): menu item,
+  page and API (410). Rebuild per firm (the licence belongs to the firm) when billing returns.
+
+Checks: privilege 42, firm 15, billing 21, pdpa 72, ai 124; build and tsc clean.

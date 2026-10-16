@@ -51,8 +51,8 @@ recommendation, and wait for my "ok" before changing anything.
 CLIENT and LAWYER sides are finished. ADMIN side done so far: Dashboard,
 Verification, Law Firms, Invoices, Ad Campaigns, User Management, Communities,
 Content Moderation, Legal Documents, Privacy Notice, Public Directory,
-Consultations.
-START WITH: continue the admin review at Financial Reports (§E item 2).
+Consultations, Financial Reports.
+START WITH: continue the admin review at Settings (§E item 2).
 ```
 
 ---
@@ -178,6 +178,7 @@ Pushed up to `66212a8`. **Commits after it (Privacy Notice → Consultations, an
 | `ADMIN_SET_PASSWORD_ENABLED = false` | `src/lib/admin/userTools.ts` | Staff typing someone's password (410); replaced by "Send reset link" |
 | `LICENSING_ENABLED` (existing) | `src/lib/licensing.ts` | Now also hides admin **Invoices** (menu, pages, API 410) |
 | `ADMIN_REFUNDS_VIEW_ENABLED = false` | `src/lib/consultations/adminRefunds.ts` | Admin **Refunds** (menu, page, API 410 for staff); practices keep theirs |
+| `ADMIN_FINANCE_REPORTS_ENABLED = false` | `src/lib/admin/financeReports.ts` | Admin **Financial Reports** (menu, page, API 410) |
 
 **By section**
 - **Dashboard** — server page: "Needs your attention" (practices to verify, applications,
@@ -217,6 +218,8 @@ Pushed up to `66212a8`. **Commits after it (Privacy Notice → Consultations, an
   see only number / practice / status / received date (`src/lib/consultations/staffView.ts`,
   list and single-request API), search by number, cards on phones; menu "All Requests";
   Refunds hidden by switch.
+- **Financial Reports** — hidden by switch; ad income counted campaign budgets as revenue
+  (now paid invoices only); per-attorney client-fee totals removed.
 
 **Migrations added this session (8 — all must run on production):**
 `lawyer_profile_verified_by`, `ads_drop_profile_card_from_placements`, `ads_cta_learn_more`,
@@ -310,8 +313,8 @@ data-only; none drops anything.
    verified attorneys' names locked, advertisers' contact details. Write it as a draft;
    the owner publishes it **on the live site** after deploy (a local publish does not
    carry over; 2026-08-03 reaches production by migration).
-2. **Continue the admin review** (same method), in menu order: **Financial Reports**,
-   Settings, Subscription Config. Already known:
+2. **Continue the admin review** (same method), in menu order: **Settings**,
+   Subscription Config. Already known:
    - Subscription Config is licensing — probably hide with `LICENSING_ENABLED`.
    - `src/components/layout/DashboardSidebar.tsx` is unused dead code.
 3. **Deploy checklist (owner + code):** push; run the 8 migrations of §B4 (and earlier ones)
