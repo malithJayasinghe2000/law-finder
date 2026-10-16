@@ -13,6 +13,7 @@ const DEFAULT_CONFIGS: Record<AdPlacementValue, {
   recommendedWidth: number | null;
   recommendedHeight: number | null;
   allowedAdTypes: AdTypeValue[];
+  isActive?: boolean;
 }> = {
   HOMEPAGE_BELOW_HERO: {
     pricePerDay: 2000,
@@ -77,6 +78,8 @@ const DEFAULT_CONFIGS: Record<AdPlacementValue, {
     recommendedHeight: 90,
     allowedAdTypes: ['BANNER_IMAGE'],
   },
+  // No legal-library page renders this slot, and no ad type may use it
+  // (AD_TYPE_PLACEMENTS), so it starts off rather than priced for sale.
   LEGAL_LIBRARY_SIDEBAR: {
     pricePerDay: 2500,
     isSlider: true,
@@ -84,7 +87,8 @@ const DEFAULT_CONFIGS: Record<AdPlacementValue, {
     maxAdsPerSlot: 1,
     recommendedWidth: 300,
     recommendedHeight: 250,
-    allowedAdTypes: ['SIDEBAR_CARD'],
+    allowedAdTypes: [],
+    isActive: false,
   },
 };
 
