@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
 import prisma from '@/lib/db'
 import { AssignPermissionSchema, RemovePermissionSchema } from '@/schemas/subscription.schema'
+import { LICENSING_ENABLED } from '@/lib/licensing';
+import { licensingOffResponse } from '@/lib/licensingOff';
 
 // Only admins can access these endpoints
 async function isAdmin() {
@@ -14,6 +16,9 @@ async function isAdmin() {
  * Get all permissions
  */
 export async function GET(request: NextRequest) {
+  // Hidden while licensing is off (src/lib/licensing.ts).
+  if (!LICENSING_ENABLED) return licensingOffResponse();
+
   try {
     if (!(await isAdmin())) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
@@ -35,6 +40,9 @@ export async function GET(request: NextRequest) {
  * Create a new permission
  */
 export async function POST(request: NextRequest) {
+  // Hidden while licensing is off (src/lib/licensing.ts).
+  if (!LICENSING_ENABLED) return licensingOffResponse();
+
   try {
     if (!(await isAdmin())) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })

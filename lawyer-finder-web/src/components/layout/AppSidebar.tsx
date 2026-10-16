@@ -108,7 +108,7 @@ export function AppSidebar({
     // Off: see src/lib/admin/financeReports.ts.
     ...(ADMIN_FINANCE_REPORTS_ENABLED ? [{ href: `/${locale}/dashboard/admin/finances`, icon: DollarSign, label: 'Financial Reports' }] : []),
     { href: `/${locale}/dashboard/admin/settings`, icon: Settings, label: 'My Account' },
-    { href: `/${locale}/dashboard/admin/subscriptions`, icon: ShieldPlus, label: 'Subscription Config' },
+    ...(LICENSING_ENABLED ? [{ href: `/${locale}/dashboard/admin/subscriptions`, icon: ShieldPlus, label: 'Subscription Config' }] : []),
   ];
 
   // Daily work first (requests, messages), set-up after (the practice itself).

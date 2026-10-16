@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { LICENSING_ENABLED } from '@/lib/licensing';
+import { licensingOffResponse } from '@/lib/licensingOff';
 
 export async function GET(request: NextRequest) {
+  // Hidden while licensing is off (src/lib/licensing.ts).
+  if (!LICENSING_ENABLED) return licensingOffResponse();
+
   try {
     const session = await getSession();
     if (!session || session.role !== 'ADMIN') {
@@ -39,6 +44,9 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  // Hidden while licensing is off (src/lib/licensing.ts).
+  if (!LICENSING_ENABLED) return licensingOffResponse();
+
   try {
     const session = await getSession();
     if (!session || session.role !== 'ADMIN') {
@@ -103,6 +111,9 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
+  // Hidden while licensing is off (src/lib/licensing.ts).
+  if (!LICENSING_ENABLED) return licensingOffResponse();
+
   try {
     const session = await getSession();
     if (!session || session.role !== 'ADMIN') {
@@ -169,6 +180,9 @@ export async function PATCH(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
+  // Hidden while licensing is off (src/lib/licensing.ts).
+  if (!LICENSING_ENABLED) return licensingOffResponse();
+
   try {
     const session = await getSession();
     if (!session || session.role !== 'ADMIN') {

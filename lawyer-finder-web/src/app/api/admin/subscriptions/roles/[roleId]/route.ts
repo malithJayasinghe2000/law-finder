@@ -1,11 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { LICENSING_ENABLED } from '@/lib/licensing';
+import { licensingOffResponse } from '@/lib/licensingOff';
 
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ roleId: string }> }
 ) {
+  // Hidden while licensing is off (src/lib/licensing.ts).
+  if (!LICENSING_ENABLED) return licensingOffResponse();
+
   try {
     const session = await getSession();
     if (!session || session.role !== 'ADMIN') {
@@ -76,6 +81,9 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ roleId: string }> }
 ) {
+  // Hidden while licensing is off (src/lib/licensing.ts).
+  if (!LICENSING_ENABLED) return licensingOffResponse();
+
   try {
     const session = await getSession();
     if (!session || session.role !== 'ADMIN') {

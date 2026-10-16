@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
 import prisma from '@/lib/db'
+import { LICENSING_ENABLED } from '@/lib/licensing';
+import { licensingOffResponse } from '@/lib/licensingOff';
 
 async function isAdmin() {
   const session = await getSession()
@@ -12,6 +14,9 @@ async function isAdmin() {
  * Get all subscription roles with their permissions and feature limits
  */
 export async function GET(request: NextRequest) {
+  // Hidden while licensing is off (src/lib/licensing.ts).
+  if (!LICENSING_ENABLED) return licensingOffResponse();
+
   try {
     if (!(await isAdmin())) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
