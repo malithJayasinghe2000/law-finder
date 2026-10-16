@@ -4,6 +4,7 @@ import { getSession } from '@/lib/auth';
 import { formatSriLankaDateIso, formatSriLankaDateIsoOrNull } from '@/lib/utils';
 import { EmailService } from '@/lib/email/EmailService';
 import { getFirmMembership, canManageFirm } from '@/lib/firms/access';
+import { ADMIN_REFUNDS_VIEW_ENABLED, ADMIN_REFUNDS_VIEW_OFF_REASON } from '@/lib/consultations/adminRefunds';
 
 // GET: List bookings with pending refunds (Admin only)
 export async function GET(req: Request) {
@@ -11,6 +12,11 @@ export async function GET(req: Request) {
     const session = await getSession();
     if (!session) {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+    }
+
+    // Off: see src/lib/consultations/adminRefunds.ts.
+    if (session.role === 'ADMIN' && !ADMIN_REFUNDS_VIEW_ENABLED) {
+      return NextResponse.json({ error: ADMIN_REFUNDS_VIEW_OFF_REASON }, { status: 410 });
     }
 
     const { searchParams } = new URL(req.url);

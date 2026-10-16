@@ -7,6 +7,7 @@ import { LayoutDashboard, Users, FileText, Settings, Star, ShieldCheck, LogOut, 
 import ChatBadge from '@/components/chat/ChatBadge';
 import { ATTORNEY_BOOKING_ENABLED } from '@/lib/directoryLinks';
 import { LICENSING_ENABLED } from '@/lib/licensing';
+import { ADMIN_REFUNDS_VIEW_ENABLED } from '@/lib/consultations/adminRefunds';
 import { toast } from 'sonner';
 import React, { useState } from 'react';
 
@@ -91,15 +92,18 @@ export function AppSidebar({
     { href: `/${locale}/dashboard/admin/legal-documents`, icon: BookOpen, label: 'Legal Documents' },
     { href: `/${locale}/dashboard/admin/privacy-notices`, icon: Shield, label: 'Privacy Notice' },
     { href: `/${locale}/dashboard/admin/directory`, icon: Power, label: 'Public Directory' },
-    {
-      href: `/${locale}/dashboard/admin/consultations`,
-      icon: CalendarDays,
-      label: 'Consultations',
-      subLinks: [
-        { href: `/${locale}/dashboard/admin/consultations`, icon: CalendarDays, label: 'All Requests' },
-        { href: `/${locale}/dashboard/admin/consultations/refunds`, icon: Banknote, label: 'Refunds' },
-      ]
-    },
+    // Refunds off: see src/lib/consultations/adminRefunds.ts.
+    ADMIN_REFUNDS_VIEW_ENABLED
+      ? {
+          href: `/${locale}/dashboard/admin/consultations`,
+          icon: CalendarDays,
+          label: 'Consultations',
+          subLinks: [
+            { href: `/${locale}/dashboard/admin/consultations`, icon: CalendarDays, label: 'All Requests' },
+            { href: `/${locale}/dashboard/admin/consultations/refunds`, icon: Banknote, label: 'Refunds' },
+          ]
+        }
+      : { href: `/${locale}/dashboard/admin/consultations`, icon: CalendarDays, label: 'All Requests' },
     { href: `/${locale}/dashboard/admin/finances`, icon: DollarSign, label: 'Financial Reports' },
     { href: `/${locale}/dashboard/admin/settings`, icon: Settings, label: 'Settings' },
     { href: `/${locale}/dashboard/admin/subscriptions`, icon: ShieldPlus, label: 'Subscription Config' },
