@@ -259,11 +259,11 @@ export default function VerificationPage() {
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                       <div className="bg-neutral-50 border border-neutral-100 p-5">
                         <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider flex items-center gap-1">
-                          <Scale className="w-3 h-3" /> Attorney License
+                          <Scale className="w-3 h-3" /> Attorney-at-Law ID card
                         </span>
                         {app.licenseImage ? (
                           <div className="mt-3 relative group cursor-pointer" onClick={() => setPreviewImage(app.licenseImage)}>
-                            <img src={app.licenseImage} alt="License" className="w-full h-48 object-contain bg-white border border-neutral-200" />
+                            <img src={app.licenseImage} alt="Attorney-at-Law ID card" className="w-full h-48 object-contain bg-white border border-neutral-200" />
                             <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                               <Eye className="w-6 h-6 text-white" />
                             </div>
@@ -274,11 +274,11 @@ export default function VerificationPage() {
                       </div>
                       <div className="bg-neutral-50 border border-neutral-100 p-5">
                         <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider flex items-center gap-1">
-                          <Camera className="w-3 h-3" /> Face Identity
+                          <Camera className="w-3 h-3" /> Photo taken during the application
                         </span>
                         {app.identityImage ? (
                           <div className="mt-3 relative group cursor-pointer" onClick={() => setPreviewImage(app.identityImage)}>
-                            <img src={app.identityImage} alt="Identity" className="w-full h-48 object-contain bg-white border border-neutral-200" />
+                            <img src={app.identityImage} alt="Photo of the applicant" className="w-full h-48 object-contain bg-white border border-neutral-200" />
                             <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                               <Eye className="w-6 h-6 text-white" />
                             </div>

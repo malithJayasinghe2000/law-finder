@@ -40,11 +40,17 @@ export default function ApplicationClientForm({ locale, initialStep, initialData
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
 
   // Local JSON state syncing with Postgres `draftData` JSON blob
-  const [formData, setFormData] = useState<any>(initialData?.step1 ? initialData : {
-    step1: { fullName: '', gender: '', languages: [], bio: '', phone: '', address: '', district: '', latitude: '', longitude: '' },
-    step2: { baslNumber: '', yearsOfExperience: '', practiceType: 'Independent', courts: '', isNotary: false },
-    step3: { practiceAreas: [] },
-    step4: { licenseImage: '', identityImage: '' }
+  // A saved draft holds only what was filled in (empty boxes are not stored), so
+  // it is laid over the blank form rather than replacing it.
+  const [formData, setFormData] = useState<any>(() => {
+    const blank: any = {
+      step1: { fullName: '', gender: '', languages: [], bio: '', phone: '', address: '', district: '', latitude: '', longitude: '' },
+      step2: { baslNumber: '', yearsOfExperience: '', practiceType: 'Independent', courts: '', isNotary: false },
+      step3: { practiceAreas: [] },
+      step4: { licenseImage: '', identityImage: '' },
+    };
+    for (const k of Object.keys(blank)) blank[k] = { ...blank[k], ...(initialData?.[k] ?? {}) };
+    return blank;
   });
 
   const [stream, setStream] = useState<MediaStream | null>(null);
@@ -106,7 +112,7 @@ export default function ApplicationClientForm({ locale, initialStep, initialData
       const url = await uploadDocument(blob, 'identity.jpg');
       setFormData((prev: any) => ({ ...prev, step4: { ...prev.step4, identityImage: url } }));
       clearFieldError('identityImage');
-      toast.success('Face snapshot captured successfully!');
+      toast.success('Photo taken.');
     } catch (err: any) {
       toast.error(err.message || 'Could not upload the snapshot.');
     } finally {
@@ -127,7 +133,7 @@ export default function ApplicationClientForm({ locale, initialStep, initialData
       // Validate file size (max 5MB). The server checks this too — this is only
       // so the applicant hears about it before waiting for an upload.
       if (file.size > 5 * 1024 * 1024) {
-        toast.error('License file must be under 5 MB.');
+        toast.error('The photo must be under 5 MB.');
         return;
       }
 
@@ -136,7 +142,7 @@ export default function ApplicationClientForm({ locale, initialStep, initialData
         const url = await uploadDocument(file, file.name);
         setFormData((prev: any) => ({ ...prev, step4: { ...prev.step4, licenseImage: url } }));
         clearFieldError('licenseImage');
-        toast.success('Practising certificate uploaded.');
+        toast.success('ID card photo uploaded.');
       } catch (err: any) {
         toast.error(err.message || 'Could not upload the document.');
       } finally {
@@ -192,7 +198,10 @@ export default function ApplicationClientForm({ locale, initialStep, initialData
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ currentStep: nextStep, draftData: formData })
       });
-      if (!res.ok) throw new Error('Failed to synchronize draft state to Cloud.');
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(typeof data.error === 'string' ? data.error : 'Could not save your progress. Please try again.');
+      }
       setStep(nextStep);
       toast.success('Progress saved securely.');
     } catch (e: any) {
@@ -236,10 +245,13 @@ export default function ApplicationClientForm({ locale, initialStep, initialData
       });
 
       const res = await fetch('/api/applications/submit', { method: 'POST' });
-      if (!res.ok) throw new Error('Application verification failure.');
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(typeof data.error === 'string' ? data.error : 'Could not send your application. Please try again.');
+      }
 
-      toast.success('Your application is under review! Await email confirmation.');
-      setTimeout(() => window.location.href = `/${locale}`, 2000);
+      // The /apply page shows "being reviewed" once submitted.
+      window.location.href = `/${locale}/apply`;
     } catch (e: any) {
       toast.error(e.message);
       setLoading(false);
@@ -274,13 +286,18 @@ export default function ApplicationClientForm({ locale, initialStep, initialData
           Attorney Application
         </h1>
         <p className="text-xs uppercase font-normal tracking-widest text-[#bfa37a] mt-2">BASL Verified professionals only</p>
+        {/* Decision 1: a verified attorney is listed only through a verified practice. */}
+        <p className="mx-auto mt-5 max-w-md text-sm font-light leading-relaxed text-neutral-600">
+          This verifies <strong className="font-semibold">you</strong> as an Attorney-at-Law. Your
+          practice (a firm or a sole practice) is set up separately, after you are approved.
+        </p>
       </div>
 
       {/* Progress visualizer block */}
       <div className="flex items-center justify-between mb-12 relative before:absolute before:inset-0 before:top-1/2 before:-translate-y-1/2 before:h-[1px] before:bg-[#efeae0] before:z-0">
         {[{ s: 1, label: 'Profile' },
         { s: 2, label: 'Credentials' },
-        { s: 3, label: 'Specializations' },
+        { s: 3, label: 'Areas of law' },
         { s: 4, label: 'Verification' }].map(i => (
           <div key={i.s} className={`relative z-10 flex flex-col items-center gap-3 transition-colors ${step >= i.s ? 'text-[#bfa37a]' : 'text-neutral-400'}`}>
             <div className={`w-10 h-10 rounded-none flex items-center justify-center font-normal border-2 transition-all duration-300 ${step >= i.s ? 'bg-[#bfa37a] text-white border-[#bfa37a] scale-110 shadow-sm' : 'bg-white text-neutral-400 border-[#efeae0]'}`}>
@@ -552,7 +569,7 @@ export default function ApplicationClientForm({ locale, initialStep, initialData
 
         {step === 3 && (
           <div className="animate-in fade-in zoom-in-95 duration-500 flex flex-col gap-6">
-            <h2 className="text-lg font-serif font-normal tracking-tight text-neutral-900 uppercase">3. Specializations Data</h2>
+            <h2 className="text-lg font-serif font-normal tracking-tight text-neutral-900 uppercase">3. Areas of Law</h2>
 
             {/* Practice Areas */}
             <div>
@@ -597,21 +614,21 @@ export default function ApplicationClientForm({ locale, initialStep, initialData
 
             <div className="flex gap-4 mt-6">
               <button type="button" onClick={() => handleSaveDraft(2)} disabled={loading} className="w-1/3 h-14 border border-[#efeae0] text-neutral-500 hover:bg-[#faf8f6] rounded-none font-normal uppercase tracking-widest text-xs transition-colors disabled:opacity-75">Back</button>
-              <button type="button" onClick={() => handleSaveDraft(4)} disabled={loading} className="w-2/3 h-14 bg-[#bfa37a] text-white hover:bg-[#a68d67] rounded-none font-normal uppercase tracking-widest text-xs transition-colors disabled:opacity-75">Save Securely</button>
+              <button type="button" onClick={() => handleSaveDraft(4)} disabled={loading} className="w-2/3 h-14 bg-[#bfa37a] text-white hover:bg-[#a68d67] rounded-none font-normal uppercase tracking-widest text-xs transition-colors disabled:opacity-75">Save &amp; Continue</button>
             </div>
           </div>
         )}
 
         {step === 4 && (
           <div className="animate-in fade-in zoom-in-95 duration-500 flex flex-col gap-6">
-            <h2 className="text-lg font-serif font-normal tracking-tight text-neutral-900 uppercase">4. Final Verification</h2>
+            <h2 className="text-lg font-serif font-normal tracking-tight text-neutral-900 uppercase">4. Verification</h2>
 
             {/* License Upload */}
             <div className={`p-6 border bg-white flex flex-col gap-4 ${fieldErrors.licenseImage ? 'border-red-300' : 'border-[#efeae0]'}`}>
               <div>
-                <h3 className="font-normal text-[11px] tracking-widest text-neutral-455 uppercase mb-2 flex items-center gap-2"><Scale className="w-4 h-4 text-[#bfa37a]" /> Attorney License Document <span className="text-[#bfa37a]">*</span></h3>
-                <p className="text-xs text-neutral-500 mb-4 font-light">Upload a clean image or PDF scan of your verified License certificate. Max 5 MB.</p>
-                <input type="file" accept="image/*,application/pdf" onChange={handleLicenseUpload} className="text-xs file:mr-4 file:py-2.5 file:px-5 file:rounded-none file:border-0 file:text-xs file:font-normal file:uppercase file:tracking-wider file:bg-[#bfa37a] file:text-white hover:file:bg-[#a68d67] transition-all cursor-pointer" />
+                <h3 className="font-normal text-[11px] tracking-widest text-neutral-455 uppercase mb-2 flex items-center gap-2"><Scale className="w-4 h-4 text-[#bfa37a]" /> Attorney-at-Law ID card <span className="text-[#bfa37a]">*</span></h3>
+                <p className="text-xs text-neutral-500 mb-4 font-light">A clear photo of the front of your card (JPG, PNG or WebP, up to 5 MB). Only our administrators can see it.</p>
+                <input type="file" accept="image/jpeg,image/png,image/webp" aria-label="Photo of your Attorney-at-Law ID card" onChange={handleLicenseUpload} className="text-xs file:mr-4 file:py-2.5 file:px-5 file:rounded-none file:border-0 file:text-xs file:font-normal file:uppercase file:tracking-wider file:bg-[#bfa37a] file:text-white hover:file:bg-[#a68d67] transition-all cursor-pointer" />
                 {formData.step4?.licenseImage && <span className="ml-3 text-xs font-normal text-[#bfa37a]">✓ Attached</span>}
               </div>
               <ErrorMessage field="licenseImage" />
@@ -620,13 +637,13 @@ export default function ApplicationClientForm({ locale, initialStep, initialData
             {/* Face Capture */}
             <div className={`p-6 border bg-white flex flex-col items-center gap-4 text-center ${fieldErrors.identityImage ? 'border-red-300' : 'border-[#efeae0]'}`}>
               <div>
-                <h3 className="font-normal text-[11px] tracking-widest text-neutral-455 uppercase mb-2 flex items-center justify-center gap-2"><CameraIcon className="w-4 h-4 text-[#bfa37a]" /> Live Identity Verification <span className="text-[#bfa37a]">*</span></h3>
-                <p className="text-xs text-neutral-500 mb-4 font-light">Please grant camera access to match your ID with a live face image.</p>
+                <h3 className="font-normal text-[11px] tracking-widest text-neutral-455 uppercase mb-2 flex items-center justify-center gap-2"><CameraIcon className="w-4 h-4 text-[#bfa37a]" /> A photo of you <span className="text-[#bfa37a]">*</span></h3>
+                <p className="text-xs text-neutral-500 mb-4 font-light">Take a photo of yourself now, so we can check it matches the photo on your ID card. Only our administrators can see it.</p>
               </div>
 
               {!stream && !formData.step4?.identityImage && (
                 <button type="button" onClick={startCamera} className="rounded-none border border-[#bfa37a] text-[#bfa37a] hover:bg-[#bfa37a]/5 font-normal uppercase tracking-widest text-xs h-12 px-6 transition-all">
-                  Launch Secure Camera
+                  Take a photo
                 </button>
               )}
 
@@ -634,16 +651,16 @@ export default function ApplicationClientForm({ locale, initialStep, initialData
                 <div className="flex flex-col items-center gap-4">
                   <video ref={videoRef} autoPlay playsInline muted className="w-64 h-48 bg-black object-cover border-4 border-white shadow-xl" />
                   <div className="flex gap-2">
-                    <button type="button" onClick={captureFace} className="rounded-none bg-[#bfa37a] hover:bg-[#a68d67] text-white font-normal uppercase tracking-widest text-xs px-6 py-3 transition-colors">Capture Match</button>
-                    <button type="button" onClick={stopCamera} className="rounded-none border border-[#efeae0] text-neutral-500 hover:bg-[#faf8f6] font-normal uppercase tracking-widest text-xs px-6 py-3 transition-colors">Discard</button>
+                    <button type="button" onClick={captureFace} className="rounded-none bg-[#bfa37a] hover:bg-[#a68d67] text-white font-normal uppercase tracking-widest text-xs px-6 py-3 transition-colors">Take photo</button>
+                    <button type="button" onClick={stopCamera} className="rounded-none border border-[#efeae0] text-neutral-500 hover:bg-[#faf8f6] font-normal uppercase tracking-widest text-xs px-6 py-3 transition-colors">Cancel</button>
                   </div>
                 </div>
               )}
 
               {formData.step4?.identityImage && !stream && (
                 <div className="flex flex-col items-center gap-3">
-                  <img src={formData.step4.identityImage} alt="Identity Secure Match" className="w-32 h-32 object-cover border-4 border-white shadow-sm" />
-                  <span className="text-xs font-normal text-[#bfa37a] uppercase tracking-wider">✓ Authorized Face Match</span>
+                  <img src={formData.step4.identityImage} alt="Your photo" className="w-32 h-32 object-cover border-4 border-white shadow-sm" />
+                  <span className="text-xs font-normal text-[#bfa37a] uppercase tracking-wider">✓ Photo taken</span>
                   <button type="button" onClick={() => setFormData((p: any) => ({ ...p, step4: { ...p.step4, identityImage: '' } }))} className="text-xs font-semibold underline text-red-500">Retake</button>
                 </div>
               )}
@@ -652,7 +669,7 @@ export default function ApplicationClientForm({ locale, initialStep, initialData
 
             <div className="flex gap-4 mt-6">
               <button type="button" onClick={() => handleSaveDraft(3)} disabled={loading} className="w-1/3 h-14 border border-[#efeae0] text-neutral-500 hover:bg-[#faf8f6] rounded-none font-normal uppercase tracking-widest text-xs transition-colors disabled:opacity-75">Back</button>
-              <button type="button" onClick={handleSubmitFinal} disabled={loading} className="w-2/3 h-14 bg-[#bfa37a] text-white hover:bg-[#a68d67] rounded-none font-normal uppercase tracking-widest text-xs transition-colors disabled:opacity-75">Submit Verification</button>
+              <button type="button" onClick={handleSubmitFinal} disabled={loading} className="w-2/3 h-14 bg-[#bfa37a] text-white hover:bg-[#a68d67] rounded-none font-normal uppercase tracking-widest text-xs transition-colors disabled:opacity-75">Send application</button>
             </div>
           </div>
         )}
