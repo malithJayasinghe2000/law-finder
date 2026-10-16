@@ -60,11 +60,6 @@ export default function AdminConsultationsPage() {
               </Button>
             </Link>
           )}
-          <Link href={`/${locale}/dashboard/admin/consultations/payments`}>
-            <Button className="bg-amber-500 text-white hover:bg-amber-600 rounded-none h-10 px-6 text-xs font-bold uppercase tracking-wide">
-              Manage Payments
-            </Button>
-          </Link>
         </div>
       </div>
 
