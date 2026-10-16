@@ -33,7 +33,7 @@ export function AppSidebar({
   // 'Data Requests' entirely — a link nobody can see is the sidebar problem
   // Phase 7 fixed, in a different costume.
   const [openSubmenus, setOpenSubmenus] = useState<string[]>(['Payments', 'Requests', 'My Practice']);
-  const [counts, setCounts] = useState({ pendingInvoicesCount: 0, pendingAdCampaignsCount: 0, pendingBankPaymentsCount: 0 });
+  const [counts, setCounts] = useState({ pendingInvoicesCount: 0, pendingAdCampaignsCount: 0 });
 
   React.useEffect(() => {
     const fetchCounts = async () => {
@@ -229,11 +229,6 @@ export function AppSidebar({
                           {link.label === 'Ad Campaigns' && role === 'ADMIN' && counts.pendingAdCampaignsCount > 0 && (
                             <span className="ml-2 bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full flex items-center justify-center min-w-[16px] h-[16px]">
                               {counts.pendingAdCampaignsCount}
-                            </span>
-                          )}
-                          {link.label === 'Consultations' && role === 'ADMIN' && counts.pendingBankPaymentsCount > 0 && (
-                            <span className="ml-2 bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full flex items-center justify-center min-w-[16px] h-[16px]">
-                              {counts.pendingBankPaymentsCount}
                             </span>
                           )}
                           <ChevronDown className={`w-4 h-4 ml-auto transition-transform ${openSubmenus.includes(link.label) ? 'rotate-180' : ''}`} />
