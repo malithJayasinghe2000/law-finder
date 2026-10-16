@@ -7,7 +7,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Scale, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Loader2, CheckCircle2, AlertCircle, Eye, EyeOff, Check, Circle } from 'lucide-react';
 import { FieldError } from '@/components/ui/FieldError';
 import { currentRedirect, withRedirect } from '@/lib/safeRedirect';
 import {
@@ -18,6 +18,19 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
+
+/** The same rules as `newPassword` in src/schemas/auth.schema.ts, shown as a checklist. */
+const PASSWORD_RULES = [
+  { label: 'At least 8 characters', test: (p: string) => p.length >= 8 },
+  { label: 'An uppercase letter (A-Z)', test: (p: string) => /[A-Z]/.test(p) },
+  { label: 'A lowercase letter (a-z)', test: (p: string) => /[a-z]/.test(p) },
+  { label: 'A number (0-9)', test: (p: string) => /[0-9]/.test(p) },
+  { label: 'One of @ $ ! % * ? &', test: (p: string) => /[@$!%*?&]/.test(p) },
+];
+
+const INPUT_CLASS =
+  'w-full bg-transparent border-b border-neutral-200 text-[#0a0a0a] px-0 py-2.5 rounded-none outline-none focus:border-[#bfa37a] transition-all font-light placeholder:text-neutral-400';
+const LABEL_CLASS = 'text-[11px] font-bold text-neutral-500 uppercase tracking-widest block';
 
 interface ModalState {
   isOpen: boolean;
@@ -50,9 +63,12 @@ export default function RegisterPage() {
         }
       });
   }, [locale]);
-  const { register, handleSubmit, formState: { errors } } = useForm<RegisterFormValues>({
+  const { register, handleSubmit, watch, formState: { errors, isSubmitted } } = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema)
   });
+  const password = watch('password') ?? '';
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   const showModal = (type: 'success' | 'error', title: string, message: string, details?: string) => {
     setModal({ isOpen: true, type, title, message, details });
@@ -74,7 +90,9 @@ export default function RegisterPage() {
     try {
       const res = await fetch('/api/auth/register', {
         method: 'POST',
-        body: JSON.stringify(data)
+        // Where they were going and their language go into the email link, so
+        // after verifying they come back here (src/lib/emailVerification.ts).
+        body: JSON.stringify({ ...data, redirect: redirectTo, locale })
       });
       const result = await res.json();
 
@@ -87,8 +105,9 @@ export default function RegisterPage() {
 
       showModal(
         'success',
-        'Account Created Successfully',
-        `A verification email has been sent to ${data.email}. Please verify your account before logging in.`
+        'Check your email',
+        `We have sent a link to ${data.email}. Open it to activate your account, then sign in. ` +
+          'It can take a few minutes - check your spam folder if you cannot see it.'
       );
     } catch (err: any) {
       showModal(
@@ -110,51 +129,99 @@ export default function RegisterPage() {
         <div className="bg-[#faf8f6]/50 p-10 rounded-none border border-[#efeae0]">
           <div className="mb-8 text-center">
             <h1 className="text-3xl font-serif font-normal tracking-tight text-neutral-900 mb-2">Create Account</h1>
-            <p className="text-xs uppercase font-bold tracking-widest text-neutral-400">Join the digital legal network</p>
+            <p className="text-xs uppercase font-bold tracking-widest text-neutral-400">Create a free account</p>
           </div>
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+            {/* Labels are tied to their inputs (screen readers, tap-to-focus), and each
+                input says what it holds so phones and password managers can fill it. */}
             <div className="space-y-2 text-left">
-              <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-widest block">Full Name</label>
+              <label htmlFor="reg-name" className={LABEL_CLASS}>Full Name</label>
               <input
+                id="reg-name"
                 type="text"
-                placeholder="John Doe"
+                autoComplete="name"
+                placeholder="e.g. Nimal Perera"
                 {...register('fullName')}
-                className="w-full bg-transparent border-b border-neutral-200 text-[#0a0a0a] px-0 py-2.5 rounded-none outline-none focus:border-[#bfa37a] transition-all font-light placeholder:text-neutral-350"
+                className={INPUT_CLASS}
               />
               <FieldError message={errors.fullName?.message} />
             </div>
 
             <div className="space-y-2 text-left">
-              <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-widest block">Email</label>
+              <label htmlFor="reg-email" className={LABEL_CLASS}>Email</label>
               <input
+                id="reg-email"
                 type="email"
-                placeholder="hello@example.com"
+                autoComplete="email"
+                inputMode="email"
+                placeholder="name@example.com"
                 {...register('email')}
-                className="w-full bg-transparent border-b border-neutral-200 text-[#0a0a0a] px-0 py-2.5 rounded-none outline-none focus:border-[#bfa37a] transition-all font-light placeholder:text-neutral-350"
+                className={INPUT_CLASS}
               />
               <FieldError message={errors.email?.message} />
             </div>
 
             <div className="space-y-2 text-left">
-              <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-widest block">Password</label>
-              <input
-                type="password"
-                placeholder="••••••••"
-                {...register('password')}
-                className="w-full bg-transparent border-b border-neutral-200 text-[#0a0a0a] px-0 py-2.5 rounded-none outline-none focus:border-[#bfa37a] transition-all font-light placeholder:text-neutral-350"
-              />
-              <FieldError message={errors.password?.message} />
+              <label htmlFor="reg-password" className={LABEL_CLASS}>Password</label>
+              <div className="relative">
+                <input
+                  id="reg-password"
+                  type={showPassword ? 'text' : 'password'}
+                  autoComplete="new-password"
+                  aria-describedby="reg-password-rules"
+                  {...register('password')}
+                  className={`${INPUT_CLASS} pr-10`}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  className="absolute right-0 top-1/2 -translate-y-1/2 p-2 text-neutral-400 hover:text-neutral-700"
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+              {/* Every rule at once, ticked as it is met. They used to arrive one per
+                  failed attempt. Unmet rules turn red only after a submit. */}
+              <ul id="reg-password-rules" className="space-y-1 pt-1">
+                {PASSWORD_RULES.map((r) => {
+                  const met = r.test(password);
+                  return (
+                    <li
+                      key={r.label}
+                      className={`flex items-center gap-2 text-[11px] ${
+                        met ? 'text-emerald-700' : isSubmitted ? 'text-red-600' : 'text-neutral-500'
+                      }`}
+                    >
+                      {met ? <Check className="h-3 w-3 shrink-0" /> : <Circle className="h-3 w-3 shrink-0" />}
+                      {r.label}
+                      <span className="sr-only">{met ? ' - done' : ' - not yet'}</span>
+                    </li>
+                  );
+                })}
+              </ul>
             </div>
 
             <div className="space-y-2 text-left">
-              <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-widest block">Confirm Password</label>
-              <input
-                type="password"
-                placeholder="••••••••"
-                {...register('confirmPassword')}
-                className="w-full bg-transparent border-b border-neutral-200 text-[#0a0a0a] px-0 py-2.5 rounded-none outline-none focus:border-[#bfa37a] transition-all font-light placeholder:text-neutral-350"
-              />
+              <label htmlFor="reg-confirm" className={LABEL_CLASS}>Confirm Password</label>
+              <div className="relative">
+                <input
+                  id="reg-confirm"
+                  type={showConfirm ? 'text' : 'password'}
+                  autoComplete="new-password"
+                  {...register('confirmPassword')}
+                  className={`${INPUT_CLASS} pr-10`}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirm((v) => !v)}
+                  aria-label={showConfirm ? 'Hide password' : 'Show password'}
+                  className="absolute right-0 top-1/2 -translate-y-1/2 p-2 text-neutral-400 hover:text-neutral-700"
+                >
+                  {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
               <FieldError message={errors.confirmPassword?.message} />
             </div>
 
@@ -204,7 +271,12 @@ export default function RegisterPage() {
             </a>
           </div>
 
-          <p className="text-center text-sm text-neutral-500 mt-6 font-light">
+          <p className="mt-6 border-t border-[#efeae0] pt-5 text-center text-xs font-light leading-relaxed text-neutral-500">
+            <span className="font-semibold text-neutral-700">Attorney-at-Law?</span> Create an account
+            here, then apply to be verified from your account menu.
+          </p>
+
+          <p className="text-center text-sm text-neutral-500 mt-4 font-light">
             Already have an account?{' '}
             <Link href={withRedirect(`/${locale}/login`, redirectTo)} className="font-bold text-[#bfa37a] hover:text-[#a68d67] hover:underline transition-colors">
               Sign in
@@ -239,7 +311,7 @@ export default function RegisterPage() {
               onClick={handleModalClose}
               className="w-full sm:w-auto bg-[#bfa37a] text-white py-3.5 px-8 rounded-none font-bold uppercase tracking-widest text-xs hover:bg-[#a68d67] transition-colors"
             >
-              Go to Login
+              Go to sign in
             </button>
           </DialogFooter>
         </DialogContent>
