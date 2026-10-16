@@ -13,8 +13,6 @@ export default function AdminFinancesPage() {
     totalSubscriptionIncome: 0,
     totalAdIncome: 0,
     platformTotalIncome: 0,
-    totalConsultationFeesToLawyers: 0,
-    consultationCount: 0,
   });
   const [lawyerBreakdowns, setLawyerBreakdowns] = useState<any[]>([]);
 
@@ -49,7 +47,7 @@ export default function AdminFinancesPage() {
         </div>
         <div>
           <h1 className="text-4xl font-normal tracking-tight text-neutral-900">Financial Reports</h1>
-          <p className="text-sm text-neutral-500 font-medium">Platform revenue from subscriptions and advertising. Consultation fees are paid client-to-lawyer and are not platform income.</p>
+          <p className="text-sm text-neutral-500 font-medium">Money the platform has received: paid licence and advertising invoices.</p>
         </div>
       </div>
 
@@ -76,38 +74,12 @@ export default function AdminFinancesPage() {
         </Card>
       </div>
 
-      {/* Consultation activity — explicitly NOT platform revenue */}
-      <Card className="rounded-none border-blue-200 bg-blue-50 shadow-sm">
-        <CardContent className="p-6">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div className="max-w-xl">
-              <p className="text-xs font-bold uppercase tracking-widest text-blue-900 mb-1">
-                Consultation Activity — not platform revenue
-              </p>
-              <p className="text-xs text-blue-800">
-                Clients pay lawyers directly and the platform takes no share of any
-                legal fee. These figures are shown for visibility only and are
-                deliberately excluded from platform revenue above.
-              </p>
-            </div>
-            <div className="text-right">
-              <p className="text-2xl font-bold text-blue-900">
-                LKR {summary.totalConsultationFeesToLawyers.toLocaleString()}
-              </p>
-              <p className="text-[10px] text-blue-700 mt-0.5">
-                across {summary.consultationCount.toLocaleString()} consultations
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
       {/* Lawyer Breakdown Table */}
       <Card className="rounded-none border-neutral-200 shadow-sm">
         <CardHeader className="border-b border-neutral-100 p-6 flex flex-row items-center justify-between">
           <div>
             <CardTitle className="text-lg font-bold uppercase tracking-wider">Per-Lawyer Breakdown</CardTitle>
-            <CardDescription className="text-xs">What each lawyer paid the platform, and their consultation activity</CardDescription>
+            <CardDescription className="text-xs">What each lawyer paid the platform</CardDescription>
           </div>
         </CardHeader>
         <CardContent className="p-0">
@@ -124,9 +96,7 @@ export default function AdminFinancesPage() {
                   <TableRow>
                     <TableHead className="text-xs font-bold uppercase tracking-wider py-4 pl-6 text-[#0a0a0a]">Lawyer</TableHead>
                     <TableHead className="text-xs font-bold uppercase tracking-wider text-right text-[#0a0a0a]">Subscriptions</TableHead>
-                    <TableHead className="text-xs font-bold uppercase tracking-wider text-right text-[#0a0a0a]">Ads</TableHead>
-                    <TableHead className="text-xs font-bold uppercase tracking-wider text-right text-[#0a0a0a]">Consultations</TableHead>
-                    <TableHead className="text-xs font-bold uppercase tracking-wider text-right pr-6 text-[#0a0a0a]">Fees Collected Directly</TableHead>
+                    <TableHead className="text-xs font-bold uppercase tracking-wider text-right pr-6 text-[#0a0a0a]">Ads</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -137,9 +107,7 @@ export default function AdminFinancesPage() {
                         <div className="text-[10px] text-neutral-400 font-mono mt-0.5">{lb.baslNumber}</div>
                       </TableCell>
                       <TableCell className="text-right">LKR {lb.subscriptionsPaid.toLocaleString()}</TableCell>
-                      <TableCell className="text-right">LKR {lb.adsPaid.toLocaleString()}</TableCell>
-                      <TableCell className="text-right">{lb.consultationCount.toLocaleString()}</TableCell>
-                      <TableCell className="text-right pr-6 text-neutral-600">LKR {lb.consultationFeesCollected.toLocaleString()}</TableCell>
+                      <TableCell className="text-right pr-6">LKR {lb.adsPaid.toLocaleString()}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
