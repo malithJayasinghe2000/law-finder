@@ -250,6 +250,20 @@ export const EmailService = {
     );
   },
 
+  /** An admin withdrew an attorney's verification; they are told why. */
+  async sendVerificationRevoked(params: { to: string; fullName: string; reason: string }) {
+    await sendMailSafe(
+      params.to,
+      'Your verification on TheLawyr has been withdrawn',
+      template('Verification withdrawn', `
+        <p>Dear ${escapeHtml(params.fullName)},</p>
+        <p>We have withdrawn the verification on your attorney profile. While it is withdrawn you are not shown in the public directory.</p>
+        <p><strong>Reason:</strong> ${escapeHtml(params.reason)}</p>
+        <p>If you think this is a mistake, reply to this email.</p>
+      `)
+    );
+  },
+
   async sendApplicationSubmitted(email: string, fullName: string) {
     await sendMailSafe(email, 'Lawyer Application Received', template('Application Received', `
       <p>Dear ${fullName},</p>

@@ -3,7 +3,7 @@ import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import bcrypt from 'bcryptjs';
 import { ADMIN_ROLE_EDIT_ENABLED } from '@/lib/admin/userTools';
-import { AdminUpdateUserSchema } from '@/schemas/adminUser.schema';
+import { AdminUpdateUserSchema, AdminRevokeVerificationSchema } from '@/schemas/adminUser.schema';
 import { EmailService } from '@/lib/email/EmailService';
 
 export async function GET(req: Request) {
@@ -172,18 +172,48 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ message: 'Password updated.' }, { status: 200 });
     }
 
+    // Granting verification here is gone: it marked an attorney "Verified" with
+    // no application, no BASL check and no record. Verification is granted only
+    // on the Verification page, from an application.
     if (action === 'toggle-verification') {
-      const profile = await prisma.lawyerProfile.findFirst({ where: { userId } });
+      return NextResponse.json(
+        { error: 'Verification is granted from an application on the Verification page. Here it can only be withdrawn.' },
+        { status: 410 }
+      );
+    }
+
+    if (action === 'revoke-verification') {
+      const parsed = AdminRevokeVerificationSchema.safeParse(body);
+      if (!parsed.success) {
+        return NextResponse.json({ error: parsed.error.issues[0]?.message ?? 'A reason is required.' }, { status: 400 });
+      }
+      const { reason } = parsed.data;
+
+      const profile = await prisma.lawyerProfile.findFirst({
+        where: { userId },
+        select: { id: true, isVerified: true, fullName: true, user: { select: { email: true } } },
+      });
       if (!profile) {
         return NextResponse.json({ error: 'No lawyer profile found.' }, { status: 404 });
+      }
+      if (!profile.isVerified) {
+        return NextResponse.json({ error: 'This attorney is not verified.' }, { status: 409 });
       }
 
       await prisma.lawyerProfile.update({
         where: { id: profile.id },
-        data: { isVerified: !profile.isVerified },
+        data: {
+          isVerified: false,
+          verificationRevokedById: session.userId,
+          verificationRevokedAt: new Date(),
+          verificationRevokedReason: reason,
+        },
       });
 
-      return NextResponse.json({ message: `Verification ${profile.isVerified ? 'revoked' : 'granted'}.` }, { status: 200 });
+      // They are entitled to know why. Not awaited: the mail server is slow.
+      void EmailService.sendVerificationRevoked({ to: profile.user.email, fullName: profile.fullName, reason });
+
+      return NextResponse.json({ message: 'Verification withdrawn. The attorney has been emailed the reason.' }, { status: 200 });
     }
 
     return NextResponse.json({ error: 'Invalid action.' }, { status: 400 });

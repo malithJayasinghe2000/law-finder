@@ -297,6 +297,11 @@ model LawyerProfile {
   /// A plain id, like `DataSubjectRequest.handledById`: a log, not a relation.
   verifiedById      String?
   verifiedAt        DateTime?
+  /// Withdrawn by an admin (User Management → Revoke), with the reason the
+  /// attorney is told. Verification is granted only through an application.
+  verificationRevokedById     String?
+  verificationRevokedAt       DateTime?
+  verificationRevokedReason   String?
   /// `Subscription` moved to `LawFirm` in Phase 3. An attorney does not buy a
   /// licence; the practice they work in does, and their access follows from
   /// their membership of it. Resolve through `src/lib/firms/billing.ts`.

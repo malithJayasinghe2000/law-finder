@@ -7,6 +7,7 @@ import {
   Loader2, X, CheckCircle2, User, Mail, MapPin, ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { ADMIN_ROLE_EDIT_ENABLED } from '@/lib/admin/userTools';
+import { AdminRevokeVerificationSchema } from '@/schemas/adminUser.schema';
 
 interface PlatformUser {
   id: string;
@@ -38,6 +39,10 @@ export default function UserManagementPage() {
   const [editRole, setEditRole] = useState('');
   const [editLatitude, setEditLatitude] = useState('');
   const [editLongitude, setEditLongitude] = useState('');
+
+  // Withdraw-verification modal state
+  const [revokeUser, setRevokeUser] = useState<PlatformUser | null>(null);
+  const [revokeReason, setRevokeReason] = useState('');
 
   // Password modal state
   const [passwordUser, setPasswordUser] = useState<PlatformUser | null>(null);
@@ -112,20 +117,27 @@ export default function UserManagementPage() {
     }
   };
 
-  const handleToggleVerification = async (userId: string) => {
-    setActionLoading(`verify-${userId}`);
+  // Withdraw only. Verification is granted from an application on the
+  // Verification page, never here.
+  const handleRevokeVerification = async () => {
+    if (!revokeUser) return;
+    const parsed = AdminRevokeVerificationSchema.safeParse({ userId: revokeUser.id, action: 'revoke-verification', reason: revokeReason });
+    if (!parsed.success) return toast.error(parsed.error.issues[0]?.message ?? 'A reason is required.');
+    setActionLoading('revoke');
     try {
       const res = await fetch('/api/admin/users', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, action: 'toggle-verification' }),
+        body: JSON.stringify(parsed.data),
       });
       const result = await res.json();
       if (!res.ok) throw new Error(result.error);
       toast.success(result.message);
+      setRevokeUser(null);
+      setRevokeReason('');
       fetchUsers();
     } catch (e: any) {
-      toast.error(e.message || 'Failed to toggle verification.');
+      toast.error(e.message || 'Could not withdraw verification.');
     } finally {
       setActionLoading(null);
     }
@@ -301,20 +313,13 @@ export default function UserManagementPage() {
                       >
                         <Key className="w-3.5 h-3.5" />
                       </button>
-                      {user.role === 'LAWYER' && (
+                      {user.role === 'LAWYER' && user.isVerified && (
                         <button
-                          onClick={() => handleToggleVerification(user.id)}
-                          disabled={actionLoading === `verify-${user.id}`}
-                          title={user.isVerified ? 'Revoke Verification' : 'Grant Verification'}
-                          className={`p-2 transition-colors ${user.isVerified ? 'text-emerald-600 hover:bg-emerald-50' : 'text-amber-600 hover:bg-amber-50'}`}
+                          onClick={() => { setRevokeUser(user); setRevokeReason(''); }}
+                          title="Withdraw verification"
+                          className="p-2 transition-colors text-red-600 hover:bg-red-50"
                         >
-                          {actionLoading === `verify-${user.id}` ? (
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                          ) : user.isVerified ? (
-                            <ShieldCheck className="w-3.5 h-3.5" />
-                          ) : (
-                            <ShieldOff className="w-3.5 h-3.5" />
-                          )}
+                          <ShieldOff className="w-3.5 h-3.5" />
                         </button>
                       )}
                     </div>
@@ -418,6 +423,49 @@ export default function UserManagementPage() {
               >
                 {actionLoading === 'edit' ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle2 className="w-3 h-3" />}
                 Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Withdraw Verification Modal */}
+      {revokeUser && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 sm:p-6" onClick={() => setRevokeUser(null)}>
+          <div className="bg-white w-full max-w-md border border-neutral-200 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-5 border-b border-neutral-200">
+              <h3 className="text-sm font-bold text-neutral-900 uppercase tracking-wide">Withdraw verification</h3>
+              <button onClick={() => setRevokeUser(null)} className="text-neutral-400 hover:text-neutral-900">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="p-5 space-y-4">
+              <p className="text-xs text-neutral-600">
+                <span className="font-bold text-neutral-900">{revokeUser.fullName || revokeUser.email}</span> will no longer be
+                shown as verified or listed. They are emailed the reason. Verification can only be granted again from an application.
+              </p>
+              <div>
+                <label htmlFor="revoke-reason" className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5">Reason (sent to the attorney)</label>
+                <textarea
+                  id="revoke-reason"
+                  value={revokeReason}
+                  onChange={(e) => setRevokeReason(e.target.value)}
+                  rows={3}
+                  className="w-full py-2.5 px-3 bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-900 outline-none focus:border-[#0a0a0a] resize-none"
+                />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 p-5 border-t border-neutral-200">
+              <button onClick={() => setRevokeUser(null)} className="px-5 py-2.5 text-xs font-bold text-neutral-600 hover:text-neutral-900">
+                Cancel
+              </button>
+              <button
+                onClick={handleRevokeVerification}
+                disabled={actionLoading === 'revoke'}
+                className="px-5 py-2.5 bg-red-600 text-white text-xs font-bold uppercase tracking-wide hover:bg-red-700 disabled:opacity-50 flex items-center gap-1.5"
+              >
+                {actionLoading === 'revoke' ? <Loader2 className="w-3 h-3 animate-spin" /> : <ShieldOff className="w-3 h-3" />}
+                Withdraw
               </button>
             </div>
           </div>
