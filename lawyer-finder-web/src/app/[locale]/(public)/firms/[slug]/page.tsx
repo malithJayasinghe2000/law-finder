@@ -8,6 +8,35 @@ import {
   Building2, MapPin, Phone, Mail, Globe, Clock, ShieldCheck, Scale, Languages, Gavel,
 } from 'lucide-react';
 import LegalDisclaimer from '@/components/shared/LegalDisclaimer';
+import type { Metadata } from 'next';
+
+/** The firm's name in the tab and in search results (it used to be the site title). */
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string; slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  const firm = await prisma.lawFirm.findUnique({
+    where: { slug },
+    select: {
+      name: true, district: true, practiceAreas: true, firmType: true,
+      isActive: true, isRegisteredPractice: true, verificationStatus: true,
+    },
+  });
+  if (!firm || !isListedFirm(firm)) return {};
+  const kind = firm.firmType === 'SOLE_PRACTITIONER' ? 'Sole practitioner' : 'Law firm';
+  const areas = firm.practiceAreas.length ? ` Practice areas: ${firm.practiceAreas.join(', ')}.` : '';
+  return {
+    title: firm.name,
+    description: `${kind}${firm.district ? ` in ${firm.district}` : ''}, Sri Lanka.${areas}`,
+  };
+}
+
+/** A BASL number is sometimes stored with its own "BASL-" prefix; say "BASL" once. */
+function baslLabel(n: string): string {
+  return /^BASL/i.test(n) ? n : `BASL ${n}`;
+}
 
 /**
  * Public firm profile.
@@ -84,7 +113,7 @@ export default async function FirmProfilePage({
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <p className="text-[10px] font-bold uppercase tracking-widest text-[#bfa37a]">
-                {firm.firmType === 'SOLE_PRACTITIONER' ? 'Sole practitioner' : 'Attorneys-at-Law'}
+                {firm.firmType === 'SOLE_PRACTITIONER' ? 'Sole practitioner' : 'Law firm'}
               </p>
               <h1 className="mt-2 font-serif text-3xl tracking-tight text-neutral-900 sm:text-4xl">
                 {firm.name}
@@ -248,7 +277,7 @@ export default async function FirmProfilePage({
                           {a.isNotary && ' · Notary Public'}
                         </p>
                         <p className="text-[11px] text-neutral-400">
-                          BASL {a.baslNumber}
+                          {baslLabel(a.baslNumber)}
                           {a.yearsOfExperience ? ` · ${a.yearsOfExperience} yrs` : ''}
                         </p>
                         {a.practiceAreas.length > 0 && (
@@ -288,9 +317,11 @@ export default async function FirmProfilePage({
                 </span>
               </div>
 
+              {/* Requests go to the practice, which assigns the attorney (decision 8,
+                  ATTORNEY_BOOKING_ENABLED off). This used to invite requesting an
+                  attorney directly, which the attorney's page no longer offers. */}
               <p className="mt-3 text-[11px] leading-relaxed text-neutral-500">
-                Prefer a particular attorney? Open their profile above and request from
-                them directly - the choice is entirely yours either way.
+                Requests go to the firm, which assigns one of its attorneys.
               </p>
             </div>
 
