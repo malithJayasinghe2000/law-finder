@@ -13,10 +13,13 @@ export async function POST(req: Request) {
     // a ReferenceError and every bad password returned 500 instead of 401.
     const clientIp = getClientIp(req);
 
-    // Rate limiting: max 5 login attempts per 15 minutes per IP
+    // Rate limiting, per network: generous, because mobile networks put many
+    // phones behind one address - at 5 per IP one person's typos locked out
+    // everyone on it. The tight limit is per account, below.
     // Can be disabled via env var (e.g., RATE_LIMIT_ENABLED=false)
-    if (process.env.RATE_LIMIT_ENABLED !== 'false') {
-      const rateCheck = checkRateLimit(`login:${clientIp}`, 5, 15 * 60 * 1000);
+    const limitsOn = process.env.RATE_LIMIT_ENABLED !== 'false';
+    if (limitsOn) {
+      const rateCheck = checkRateLimit(`login:${clientIp}`, 50, 15 * 60 * 1000);
       if (!rateCheck.allowed) {
         const retryAfterSec = Math.ceil(rateCheck.retryAfterMs / 1000);
         return NextResponse.json(
@@ -35,6 +38,18 @@ export async function POST(req: Request) {
 
     const { email, password } = validated.data;
     const normalizedEmail = email.toLowerCase().trim();
+
+    // 5 tries per account per 15 minutes: guessing one person's password is
+    // what this limit is for.
+    if (limitsOn) {
+      const perAccount = checkRateLimit(`login-account:${normalizedEmail}`, 5, 15 * 60 * 1000);
+      if (!perAccount.allowed) {
+        return NextResponse.json(
+          { error: `Too many attempts for this account. Please try again in ${Math.ceil(perAccount.retryAfterMs / 60000)} minutes, or reset your password.` },
+          { status: 429 }
+        );
+      }
+    }
     const user = await prisma.user.findUnique({ where: { email: normalizedEmail } });
 
     // Constant-time pattern: always compare against a dummy hash when user not found
@@ -45,6 +60,14 @@ export async function POST(req: Request) {
     if (!user || !user.passwordHash || !passwordValid) {
       console.warn(`[AUTH] Failed login attempt for email: ${normalizedEmail.substring(0, 3)}*** from IP: ${clientIp}`);
       return NextResponse.json({ error: 'Invalid email or password.' }, { status: 401 });
+    }
+
+    // A deactivated or erased account cannot sign in (it could, until 2026-10-16).
+    if (user.status !== 'ACTIVE') {
+      return NextResponse.json(
+        { error: 'This account is closed. If you think this is a mistake, write to hello@thelawyr.lk.' },
+        { status: 403 }
+      );
     }
 
     if (user.authProvider === 'LOCAL' && !user.isEmailVerified) {
