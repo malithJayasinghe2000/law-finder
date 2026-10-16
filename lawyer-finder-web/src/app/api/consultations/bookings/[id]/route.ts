@@ -159,9 +159,18 @@ export async function PATCH(
     // `booking.lawyer` is null while the matter sits unassigned in the firm's
     // queue, so nobody is the acting attorney yet.
     const isLawyer = !!booking.lawyer && booking.lawyer.userId === session.userId;
-    const isAdmin = session.role === 'ADMIN';
+    // Platform staff never act on a client's request. Confirming a payment, cancelling,
+    // completing or rescheduling is the practice's business with its client: staff
+    // confirming a payment is us checking client money (rule 2), and a cancel by staff
+    // was recorded as "cancelled by the firm" — speaking for a practice (rule 7).
+    if (session.role === 'ADMIN' && !isClient && !isLawyer) {
+      return NextResponse.json(
+        { error: "Platform staff cannot act on a client's request. Only the practice can." },
+        { status: 403 }
+      );
+    }
 
-    if (!isClient && !isLawyer && !isAdmin) {
+    if (!isClient && !isLawyer) {
       const access = await getMatterAccess({
         actorUserId: session.userId,
         actorRole: session.role,
@@ -262,7 +271,7 @@ export async function PATCH(
         // A matter with no appointment cannot reach this action.
         const noAppointment = requiresAppointment();
         if (noAppointment) return noAppointment;
-        if (!isLawyer && !isAdmin) {
+        if (!isLawyer) {
           return NextResponse.json({ error: 'Only the firm can confirm payment' }, { status: 403 });
         }
 
@@ -327,7 +336,7 @@ export async function PATCH(
        * ACCEPTED so the client can correct and resubmit.
        */
       case 'reject_payment': {
-        if (!isLawyer && !isAdmin) {
+        if (!isLawyer) {
           return NextResponse.json({ error: 'Only the firm can reject a payment' }, { status: 403 });
         }
 
@@ -423,7 +432,7 @@ export async function PATCH(
         // A matter with no appointment cannot reach this action.
         const noAppointment = requiresAppointment();
         if (noAppointment) return noAppointment;
-        if (!isLawyer && !isAdmin) {
+        if (!isLawyer) {
           return NextResponse.json({ error: 'Only the firm can mark a consultation complete' }, { status: 403 });
         }
 
@@ -480,7 +489,7 @@ export async function PATCH(
         // A matter with no appointment cannot reach this action.
         const noAppointment = requiresAppointment();
         if (noAppointment) return noAppointment;
-        if (!isLawyer && !isAdmin) {
+        if (!isLawyer) {
           return NextResponse.json({ error: 'Only the firm can record a no-show' }, { status: 403 });
         }
 
@@ -515,7 +524,7 @@ export async function PATCH(
         // A matter with no appointment cannot reach this action.
         const noAppointment = requiresAppointment();
         if (noAppointment) return noAppointment;
-        if (!isLawyer && !isAdmin) {
+        if (!isLawyer) {
           return NextResponse.json({ error: 'Only the firm can propose a new time' }, { status: 403 });
         }
 
