@@ -39,7 +39,7 @@ export async function PATCH(
       if (report.postId) {
         await prisma.post.update({
           where: { id: report.postId },
-          data: { status: 'REMOVED' },
+          data: { status: 'REMOVED', removedBy: 'MODERATOR' },
         });
       }
       if (report.commentId) {
@@ -50,14 +50,21 @@ export async function PATCH(
       }
     }
 
-    // If dismissed, restore content if it was auto-hidden
-    if (parsed.data.status === 'DISMISSED') {
-      if (report.postId) {
-        const post = await prisma.post.findUnique({ where: { id: report.postId } });
-        if (post?.status === 'REMOVED') {
+    // If dismissed, restore a post only if reports hid it automatically — never
+    // one its author or a moderator removed, and not while another report on it
+    // was upheld or enough others are still waiting to keep it hidden. This used
+    // to republish any REMOVED post, including one removed through another report.
+    if (parsed.data.status === 'DISMISSED' && report.postId) {
+      const post = await prisma.post.findUnique({ where: { id: report.postId } });
+      if (post?.status === 'REMOVED' && post.removedBy === 'AUTO_REPORTS') {
+        const [upheld, stillPending] = await Promise.all([
+          prisma.report.count({ where: { postId: report.postId, status: 'ACTION_TAKEN' } }),
+          prisma.report.count({ where: { postId: report.postId, status: 'PENDING' } }),
+        ]);
+        if (upheld === 0 && stillPending < 3) {
           await prisma.post.update({
             where: { id: report.postId },
-            data: { status: 'PUBLISHED' },
+            data: { status: 'PUBLISHED', removedBy: null },
           });
         }
       }

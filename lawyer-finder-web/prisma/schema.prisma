@@ -1430,6 +1430,13 @@ model Post {
   language   String   @default("en")
 
   status      PostStatus @default(PENDING_REVIEW)
+  /// Who took a REMOVED post down: AUTHOR, MODERATOR, or AUTO_REPORTS (hidden at
+  /// three pending reports). Dismissing a report restores only an AUTO_REPORTS
+  /// removal — it used to republish a post its author or a moderator had removed.
+  removedBy      String?
+  /// The moderator's reason when a post is rejected or removed; shown to the
+  /// author in My Posts (2026-10-16).
+  moderationNote String?
   isPinned    Boolean    @default(false)
   isLocked    Boolean    @default(false)
   isAnonymous Boolean    @default(false)

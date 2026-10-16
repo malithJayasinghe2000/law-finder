@@ -81,7 +81,10 @@ export async function PATCH(req: Request) {
 
     await prisma.post.update({
       where: { id: postId },
-      data: { status: parsed.data.status },
+      data: {
+        status: parsed.data.status,
+        removedBy: parsed.data.status === 'REMOVED' ? 'MODERATOR' : null,
+      },
     });
 
     // Update community counters
