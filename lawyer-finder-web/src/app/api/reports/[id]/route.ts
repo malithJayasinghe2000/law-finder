@@ -49,9 +49,12 @@ export async function PATCH(
         });
       }
       if (report.commentId) {
+        // Hidden, not overwritten: the text is kept as the record of what was
+        // removed and why. Readers never get it — GET /api/comments sends no
+        // content for a deleted comment, and the thread shows it as removed.
         await prisma.comment.update({
           where: { id: report.commentId },
-          data: { isDeleted: true, content: '[removed by moderator]' },
+          data: { isDeleted: true },
         });
       }
     }
