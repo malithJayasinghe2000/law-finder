@@ -1,8 +1,8 @@
 # Next Session Brief
 
-> Updated 2026-10-16 (second session, end), part-way through the **section-by-section review of the
-> admin dashboard** (client side 2026-10-14, lawyer side 2026-10-15). PROGRESS.md has an entry
-> per section.
+> Updated 2026-10-16 (third session, end). Dashboards (client, lawyer, admin) are reviewed;
+> the **public website** review is under way, and sign-up, sign-in and Apply-as-Attorney flows
+> are done. PROGRESS.md has an entry per section.
 > **Copy §A into a new chat as your first message.** The older brief (2026-09-21, the RAG
 > service) follows from §0 and is still accurate for the AI service.
 >
@@ -11,48 +11,48 @@
 
 ---
 
-## A. Prompt to start the new chat (2026-10-16)
+## A. Prompt to start the new chat (2026-10-16, third session)
 
 ```
 I'm working on law-finder, a Sri Lankan legal platform under a legal restructure
 (Next.js 16 + Prisma 7 + Postgres in lawyer-finder-web/, a Python RAG service in
 lawyer-rag/). It is being turned from a lawyer marketplace into software that law
-firms ("practices") run on. Pick up where the 2026-10-16 session left off.
+firms ("practices") run on. The company behind it is FiveNeurals.
+Pick up where the 2026-10-16 (third) session left off.
 
 READ FIRST, IN THIS ORDER:
   1. lawyer-finder-web/docs/NEXT-SESSION-BRIEF.md §A-§F   state, decisions, next steps
-     — §B4 lists everything the admin-side review changed so far; §D the owner's
-       decisions (do not reverse them without asking); §E what is next; §F the traps
+     — §B5 = what the public-website/sign-up work changed; §D the owner's decisions
+       (do not reverse them without asking); §E what is next; §F the traps
   2. lawyer-finder-web/CLAUDE.md / AGENTS.md               rules, checks, conventions
-  3. lawyer-finder-web/docs/restructure/PROGRESS.md        the 2026-10-14/15/16 entries
-                                                           at the end
+  3. lawyer-finder-web/docs/restructure/PROGRESS.md        the 2026-10-16 entries at the end
   4. lawyer-finder-web/docs/restructure/LEGAL-GUARDRAILS.md  the seven hard rules
 
 HOW I WORK (important):
   - I'm an engineer, not a lawyer. Make the conservative legal call yourself and
-    explain it in plain language. If I push back, weigh my point honestly — say
-    what the research actually supports, and what is your own judgement.
-  - Keep explanations SHORT and simple: direct answer first, a few bullets or a
-    small table. I often reply "ok" — that means go ahead. If I ask "explain
-    simply", give a tiny example, not more words.
-  - Verify by running the app (build, dev server on :3001, headless browser at
-    412px and 1440px), not by reading code. Prove a suspected bug by running it
-    before reporting it. Check the phone layout WITH data in the list, not empty.
-    Clean up test data BY EXACT ID (never by email pattern).
+    explain it in plain language. If I push back, weigh my point honestly.
+  - Keep explanations SHORT and simple: direct answer first, a small table. I often
+    reply "ok" — that means go ahead. If I ask "explain simply", give a tiny example.
+  - Verify by running the app (build, dev server on :3001, headless browser at 412px
+    and 1440px), not by reading code. Prove a suspected bug by running it before
+    reporting it. Check phone layouts WITH data. Clean up test data BY EXACT ID.
   - Commit each change separately once verified. Ask before pushing, before any
     destructive git command, and before dropping a table.
-  - Hide features with a switch, never delete them (we may want them back).
+  - Hide features with a switch, never delete them.
+  - No long dash "—" in anything users see; use "-".
   - I want to DEPLOY soon: flag anything that blocks launch.
 
-WHAT WE ARE DOING: a section-by-section review of every dashboard, one section at a
-time — what it is for, keep / change / hide, and mobile layout. For each section:
-look at it on a phone, say what it does, list problems in a small table with a
-recommendation, and wait for my "ok" before changing anything.
-CLIENT, LAWYER and ADMIN dashboards are all finished; SIGN-UP and APPLY-AS-ATTORNEY flows done. NOW: the PUBLIC WEBSITE,
-section by section (Header, Footer and the whole home page done 2026-10-16; next each
-public page in menu order: AI Chat, Legal Library, Community Hub, About, then the attorney
-page (/lawyers/[id]); the firms list, firm page and request form are done). Deployment comes after (§E3, §E3b).
-WORK ON BRANCH main (owner, 2026-10-16) — ask before pushing.
+WHAT WE ARE DOING: a section-by-section review of the PUBLIC WEBSITE — for each
+section: look at it on a phone, say what it does, list problems in a small table with
+a recommendation, and wait for my "ok" before changing anything.
+Done: header, footer, home page, firms list, firm page, request form, sign-up,
+sign-in/forgot password, Apply as an Attorney, AI Chat.
+WORK ON BRANCH main — ask before pushing.
+
+START WITH: §E item 0 — the Legal Library fixes I have ALREADY APPROVED ("ok" given):
+make them, verify on a phone, commit. Then continue the review: Community Hub, About,
+the attorney page (/lawyers/[id]), the public Privacy page. After that: deployment
+(§E3 onward).
 ```
 
 ---
@@ -60,7 +60,8 @@ WORK ON BRANCH main (owner, 2026-10-16) — ask before pushing.
 ## B. Where things stand
 
 **Work on `main`** (owner, 2026-10-16; `restructure-booking-flow` was merged into it). Run
-`git log origin/main..HEAD` to see what is unpushed — ask before pushing.
+`git log origin/main..HEAD` to see what is unpushed — ask before pushing (35+ commits were
+unpushed at the end of the third session).
 
 **Running it locally:** Postgres `lawfinder` on localhost:5432 (`DATABASE_URL` in
 `lawyer-finder-web/.env`; note the spaces around `=`); `cd lawyer-finder-web && PORT=3001
@@ -231,6 +232,49 @@ data-only; none drops anything.
 
 ---
 
+## B5. What the 2026-10-16 public-website and account-flow work changed
+
+Each is its own commit (on `main`); reasoning and tests are in PROGRESS.md (2026-10-16).
+
+**New switches / settings files (nothing deleted)**
+| Switch / file | Where | What |
+|---|---|---|
+| `ADMIN_REFUNDS_VIEW_ENABLED = false` | `src/lib/consultations/adminRefunds.ts` | Admin Refunds hidden |
+| `ADMIN_FINANCE_REPORTS_ENABLED = false` | `src/lib/admin/financeReports.ts` | Admin Financial Reports hidden |
+| `CHAT_EXTRA_CONTROLS_ENABLED = false` | `src/app/[locale]/(public)/chat/ChatClient.tsx` | AI chat "Source" menu, Attach, Voice (they did nothing) |
+| `SITE_CONTACT` | `src/lib/siteContact.ts` | Footer email/phone/company/social — `null` = hidden. Owner fills in |
+
+**Security / legal fixes**
+- Admin could confirm a client's payment and cancel/complete/reschedule requests → 403
+  (`8a95621`); staff see only number/practice/status/date (`staffView.ts`).
+- A **deactivated account could sign in** → refused. Google sign-in: `state` check, verified
+  Google email only, closed accounts refused, no authProvider flip.
+- Email verification token now hashed; sign-up no longer waits 17 s for the mail server; email
+  links return the person to where they started (`src/lib/emailVerification.ts`).
+- **Attorney ID card + face photo** are no longer at Cloudinary/public addresses: stored in
+  `storage/identity-documents/`, served by `/api/identity-documents/<name>` to admin/uploader
+  only (`src/lib/identityDocuments.ts`); orphans swept by the daily purge and on erasure.
+- **Nobody could get past step 1 of Apply as an Attorney** (draft schema rejected empty later
+  steps) → fixed.
+- All 184 visible long dashes → "-" (+ data migration `ad_placement_names_plain_dash`).
+
+**Public site as it now is**
+- Header "Find a Law Firm" / "Apply as an Attorney"; avatars are photo-or-initials; tablet uses
+  the phone menu (links overlapped below 1024px).
+- Footer: Explore / Company ("TheLawyr is a product of FiveNeurals", link to fiveneurals.com) /
+  Your data; no invented offices or phone.
+- Home: "Know What the Law Says"; "What You Can Do Here"; "Browse by Practice Area" with six real
+  `PRACTICE_AREAS` that actually find firms. Site title/preview: "TheLawyr - Sri Lankan law,
+  explained". Hero keeps "Find Lawyers" + "Chat With AI" (owner).
+- Firm page / request form: requests go to the firm, which assigns; signed-out visitors are
+  asked to sign in before typing; readers note includes the practice manager.
+- Sign-up/sign-in: password checklist, show-password, autofill, labels, link-error messages.
+- Apply as an Attorney: asks for the **Attorney-at-Law ID card** + a live photo; says the
+  practice is set up after approval; "being reviewed" page; approval email says to register
+  the practice.
+- AI Chat: greeting lists the Acts actually held (from the Legal Library); delete asks first;
+  notice compact on phones.
+
 ## C. Law research (primary texts) — and how it was applied
 
 - **Rule 45**, Supreme Court (Conduct of and Etiquette for Attorneys-at-Law) Rules 1988:
@@ -309,6 +353,32 @@ data-only; none drops anything.
 
 ## E. Next up
 
+0. **Legal Library — APPROVED by the owner ("ok", 2026-10-16), not yet made. Do first.**
+   Files: `src/app/[locale]/(public)/legal-library/page.tsx` and `.../legal-library/[id]/page.tsx`.
+   1. **Remove the invented "Document Structure & Summary"** on each Act's page: a hardcoded
+      fallback (`[id]/page.tsx` ~line 100-160) lists made-up chapters and page numbers ("Chapter 1:
+      Preliminary & Introductions - Page 1"…, and a fake Companies Act outline) for every law.
+      Show an outline only when `LegalDocument.outline` holds a real one (none do today).
+   2. Cards show "2024" for every Act (the Penal Code looks like a 2024 law). `year` is the
+      consolidation year (`last_updated_year` from the AI) → show "Consolidated to 2024".
+   3. "Act No. 24 of 2025" has **no PDF** anywhere (known: in the AI store only) → its Download
+      /Open buttons 404 as JSON. When the file is missing, hide the buttons and say "The PDF is
+      not available." (Check file existence server-side, e.g. the detail API.)
+   4. Top text claims "Case Law, and Gazette Notifications - cataloged and structured by our AI
+      knowledge graph for high-precision semantic search" → "Sri Lankan Acts and Ordinances, as
+      the AI assistant uses them. Open the full text of each."
+   5. Remove the card filler "Click to read the full document and view its details."
+   6. Search matches titles only ("theft" finds nothing) → placeholder "Search by title, e.g.
+      Penal Code" (it says "acts, ordinances, court decisions…").
+   7. Tab titles: "Legal Library", and each Act's own title.
+   Tested already (before the fixes): fits 412/1440; 13 of 14 PDFs open; search by title works.
+   Not code: two Acts are titled only by number — the owner can rename them in Admin → Legal
+   Documents.
+0b. **Then continue the public review:** Community Hub (/blog), About, attorney page
+   (/lawyers/[id] — Request button goes to the firm; check bio text and Chat button, decision 12),
+   public Privacy page. Earlier found, still open: login page `<title>`s in si/ta; si/ta
+   `HomePage.title/subtitle` still "find the right lawyer" (native speaker).
+
 1. **Privacy Notice — new version needed before launch (blocks launch).** The admin screen
    is fine (no change). The published notice (2026-08-03) must get a new version that:
    §2 names **FiveNeurals** as the operator, a monitored contact address and a data
@@ -378,6 +448,22 @@ data-only; none drops anything.
     `LISTED_FIRM_WHERE` does not check the principal.
 
 ## F. Things that will bite you
+
+- **New this session:**
+  - `.env` `NEXT_PUBLIC_APP_URL` is now `http://localhost:3001` (was :3000, another project). The
+    dev server reads it at start — restart after changing.
+  - `RATE_LIMIT_ENABLED=false` locally, so login/sign-up limits cannot be exercised here.
+  - The AI model (Ollama) was not running; the RAG service reports `degraded`. Do not start long
+    inference without asking (heat); a single question is fine.
+  - Puppeteer: **never remove toast DOM nodes** in a test (`[data-sonner-toast]`) — React then
+    crashes with an `insertBefore` error that looks like a site bug. Track seen toasts instead.
+  - Puppeteer `--use-fake-device-for-media-stream --use-fake-ui-for-media-stream` gives a camera
+    for the Apply-as-Attorney face photo.
+  - Identity uploads work locally now (private `storage/identity-documents/`); delete test files
+    by owner id, or run `sweepOrphanIdentityDocuments({ ownerId })`.
+  - Throwaway DB helpers lived in the session scratchpad (`q.js` = query with `^DATABASE_URL` +
+    localhost assert; `scan2.js <values…>` = scan every text column for leftovers). Recreate them.
+  - Untracked `public/uploads/1791995174751-WhatsApp-Image-…jpeg` predates these sessions — leave it.
 
 - **Local `.env` has live SMTP.** Every request, invitation, quote or decline you create
   sends a real email. Create test clients at `@example.com` (a throwaway script under
