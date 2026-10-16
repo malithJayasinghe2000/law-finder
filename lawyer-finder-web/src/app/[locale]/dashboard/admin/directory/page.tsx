@@ -101,8 +101,8 @@ export default function DirectorySwitchPage() {
             Public Directory
           </h1>
           <p className="mt-2 max-w-2xl text-sm leading-relaxed text-neutral-600">
-            Shows or hides the public list of attorneys and firms. Each firm&apos;s and
-            attorney&apos;s own page still works by direct link when the directory is off.
+            Shows or hides the public list of law firms. Each firm&apos;s own page still works
+            by direct link when the directory is off.
           </p>
         </div>
 
@@ -119,8 +119,9 @@ export default function DirectorySwitchPage() {
       <div className="mt-6 flex gap-3 rounded-2xl border border-amber-200 bg-amber-50/60 p-5">
         <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" />
         <p className="text-sm leading-relaxed text-amber-900/90">
-          Whether a public directory of attorneys is lawful in Sri Lanka is not yet confirmed
-          (counsel questions 16–18). If counsel advises against it, turn it off here.
+          Rule 45 of the Supreme Court Rules permits attorneys and firms to appear in a legal
+          directory. A written opinion from a Sri Lankan attorney is still owed (counsel
+          questions 16–18). If counsel advises against it, turn it off here.
         </p>
       </div>
 
@@ -156,7 +157,7 @@ export default function DirectorySwitchPage() {
             rows={3}
             placeholder={
               enabled
-                ? 'e.g. Counsel advised on 2026-10-20 that the directory may breach Rule 40.'
+                ? 'e.g. Counsel advised on 2026-10-20 to take the directory down.'
                 : 'e.g. Counsel confirmed on 2026-10-20 that a neutral directory is permissible.'
             }
             className="mt-2 w-full rounded-xl border border-neutral-300 px-4 py-2.5 text-sm outline-none focus:border-neutral-900"
