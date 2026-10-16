@@ -66,7 +66,8 @@ export function AppSidebar({
     { href: `/${locale}/dashboard/admin`, icon: LayoutDashboard, label: 'Dashboard', exact: true },
     { href: `/${locale}/dashboard/admin/verification`, icon: ShieldCheck, label: 'Verification' },
     { href: `/${locale}/dashboard/admin/firms`, icon: Building2, label: 'Law Firms' },
-    { href: `/${locale}/dashboard/admin/invoices`, icon: FileText, label: 'Invoices' },
+    // Licence invoices: hidden while licensing is off (src/lib/licensing.ts).
+    ...(LICENSING_ENABLED ? [{ href: `/${locale}/dashboard/admin/invoices`, icon: FileText, label: 'Invoices' }] : []),
     // 'Payment Templates' was removed in Phase 6. The page was an orphan — this
     // link had been commented out — but it was still routable, and it rendered a
     // hardcoded invoice billing an attorney for "Premium Lawyer Profile

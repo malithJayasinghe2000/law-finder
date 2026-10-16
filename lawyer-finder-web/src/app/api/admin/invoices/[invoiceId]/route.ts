@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { isValidUUID, sanitizeString } from '@/lib/security';
 import { EmailService } from '@/lib/email/EmailService';
+import { LICENSING_ENABLED } from '@/lib/licensing';
 
 // ── Invoice Update Schema ─────────────────────────────────────────────────
 const AdminUpdateInvoiceSchema = z.object({
@@ -18,6 +19,12 @@ export async function PUT(
   req: NextRequest,
   { params }: { params: Promise<{ invoiceId: string }> }
 ) {
+  // Hidden while licensing is off (src/lib/licensing.ts): there is nothing to
+  // review, and marking an invoice paid would start a licence nobody can buy.
+  if (!LICENSING_ENABLED) {
+    return NextResponse.json({ error: 'Licences are not sold yet.' }, { status: 410 });
+  }
+
   const { invoiceId } = await params;
   const session = await getSession();
 

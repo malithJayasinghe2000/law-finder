@@ -14,6 +14,8 @@
  *     "Licences are not sold yet"; the top bar has no Pricing link and the user menu
  *     no subscription line
  *   - creating an invoice, submitting a payment and renewing are refused (410)
+ *   - admin Invoices (menu link, pages, list and review API) is hidden; the
+ *     review API answers 410 (2026-10-16)
  *
  * BEFORE SWITCHING THIS ON: check what each plan offers. Paid promotion and
  * "receive client inquiries" were removed on 2026-10-15 (rules 1 and 3); plans
