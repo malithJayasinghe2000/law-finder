@@ -100,16 +100,19 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
 
         
 
-        {/* 3. The Legal Advisory section (Charcoal background with round-br wave curve) */}
+        {/* 3. What the site offers (charcoal background with round-br wave curve).
+            Was "Legal Guidance & Professional Counsel … we connect client requirements
+            with dedicated Attorneys-at-Law … vetted advocates": the platform presented
+            as giving advice and placing clients with lawyers (rules 4, 6, 7). */}
         <section className="relative bg-[#161616] text-white pt-24 pb-32 px-6 lg:px-12 xl:px-24 rounded-br-[120px] md:rounded-br-[220px] z-10">
           <div className="max-w-[1200px] mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12">
             {/* Left */}
             <div className="space-y-8">
               <h2 className="text-3xl sm:text-4xl md:text-5xl font-serif text-white tracking-tight leading-snug">
-                Legal Guidance & <br /> Professional Counsel
+                What You Can <br /> Do Here
               </h2>
               <p className="text-neutral-400 text-sm font-light max-w-md leading-relaxed">
-                We facilitate a broad spectrum of legal matters by connecting client requirements with dedicated Attorneys-at-Law across the island.
+                TheLawyr is software for Sri Lankan law practices. Around it, {directoryEnabled ? 'three things are' : 'two things are'} open to everyone.
               </p>
               
 
@@ -118,7 +121,9 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
             {/* Right */}
             <div className="flex flex-col justify-between items-start space-y-8 lg:space-y-0">
               <p className="text-neutral-400 text-sm font-light max-w-lg leading-relaxed">
-                From simple consultations to complex litigation support, TheLawyr delivers accessibility. Start your conversation with our AI tool, download documents or coordinate directly with our active directory of vetted advocates.
+                Ask the AI what the law says and see the section it comes from. Read the Acts
+                themselves in the Legal Library.
+                {directoryEnabled && ' And when you need an attorney, browse verified law firms and choose one yourself.'}
               </p>
               <Link href={`/${locale}/about`}>
                 <Button className="bg-[#bfa37a] text-white hover:bg-[#a68d67] rounded-none px-8 py-6 text-xs font-bold uppercase tracking-widest transition-all">
