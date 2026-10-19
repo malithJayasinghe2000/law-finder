@@ -3626,3 +3626,16 @@ says own-case questions are "refused before they are sent anywhere" — no longe
 sends them to the AI provider). Add to the parked new version. Still open: answers say "the
 provided legal context" (prompt wording); a domestic-violence question gets no pointer to urgent
 help.
+
+### 2026-10-19 — "my husband hit me": the owner's chat, fixed; a hang found
+
+Owner's chat got "nothing in the legislation I hold" twice, with the Penal Code's hurt and assault
+sections in the corpus. Fixed (`4b59030`, `33f65b2`): own-situation statements go to the general
+rewrite; rewrites and follow-ups use statutory words (hit → "voluntarily causing hurt"); emergency
+numbers stay for the whole chat; kinder not-found text; never name an un-held Act (the model wrote
+"…do not include the Domestic Violence Act" and the whole answer was withheld); agent 12 steps,
+website waits 90 s. Signed in, 2 of 3 runs answered both turns from Penal Code ss.310-316 with the
+numbers; follow-ups took 50-85 s. **Found, not fixed (blocks launch):** one Gemini call hung and
+the request ran **16 minutes**; the AI service has 1 worker × 1 thread, so every user waited
+behind it, and gunicorn's 120 s timeout did not stop it. Needs an overall time budget per request
+and more than one worker. Also: Gemini returned "503 UNAVAILABLE" once (Google overloaded).
