@@ -1,8 +1,9 @@
 # Next Session Brief
 
-> Updated 2026-10-16 (third session, end). Dashboards (client, lawyer, admin) are reviewed;
-> the **public website** review is under way, and sign-up, sign-in and Apply-as-Attorney flows
-> are done. PROGRESS.md has an entry per section.
+> Updated 2026-10-19 (fourth session). Dashboards (client, lawyer, admin) and the **public
+> website** are reviewed, section by section; PROGRESS.md has an entry per section. **Next:
+> deployment (§E3 onward).** The privacy notice update (§E1) is parked by the owner until
+> launch, and must be published before real users sign up.
 > **Copy §A into a new chat as your first message.** The older brief (2026-09-21, the RAG
 > service) follows from §0 and is still accurate for the AI service.
 >
@@ -18,7 +19,7 @@ I'm working on law-finder, a Sri Lankan legal platform under a legal restructure
 (Next.js 16 + Prisma 7 + Postgres in lawyer-finder-web/, a Python RAG service in
 lawyer-rag/). It is being turned from a lawyer marketplace into software that law
 firms ("practices") run on. The company behind it is FiveNeurals.
-Pick up where the 2026-10-16 (third) session left off.
+Pick up where the 2026-10-19 (fourth) session left off.
 
 READ FIRST, IN THIS ORDER:
   1. lawyer-finder-web/docs/NEXT-SESSION-BRIEF.md §A-§F   state, decisions, next steps
@@ -45,14 +46,13 @@ HOW I WORK (important):
 WHAT WE ARE DOING: a section-by-section review of the PUBLIC WEBSITE — for each
 section: look at it on a phone, say what it does, list problems in a small table with
 a recommendation, and wait for my "ok" before changing anything.
-Done: header, footer, home page, firms list, firm page, request form, sign-up,
-sign-in/forgot password, Apply as an Attorney, AI Chat.
+Done: the whole public website (header, footer, home, firms list, firm page, request
+form, sign-up, sign-in, Apply as an Attorney, AI Chat, Legal Library, Community Hub,
+About, attorney page, Privacy page).
 WORK ON BRANCH main — ask before pushing.
 
-START WITH: §E item 0 — the Legal Library fixes I have ALREADY APPROVED ("ok" given):
-make them, verify on a phone, commit. Then continue the review: Community Hub, About,
-the attorney page (/lawyers/[id]), the public Privacy page. After that: deployment
-(§E3 onward).
+START WITH: deployment (§E3 onward). The privacy notice new version (§E1) is parked
+by me until launch - remind me before real users sign up.
 ```
 
 ---
@@ -275,6 +275,13 @@ Each is its own commit (on `main`); reasoning and tests are in PROGRESS.md (2026
 - AI Chat: greeting lists the Acts actually held (from the Legal Library); delete asks first;
   notice compact on phones.
 
+**2026-10-19 (fourth session)**: Legal Library (`85392a8`), Community Hub (`9eeb91d`), About
+(`6962f58`), attorney page (`f2f890d`). New switch `COMMUNITY_REQUEST_CTA_ENABLED = false`
+(`blog/page.tsx`: attorneys' "Request Community" had no form behind it). Owner: public pages
+describe what TheLawyr **is** - no extra "we are not a law firm / no legal advice" lines (the
+footer and AI screens carry the notice). Legal Library: the detail API returns `fileAvailable`
+(`findLegalDocumentFile` in `src/lib/legalDocuments.ts`).
+
 ## C. Law research (primary texts) — and how it was applied
 
 - **Rule 45**, Supreme Court (Conduct of and Etiquette for Attorneys-at-Law) Rules 1988:
@@ -353,33 +360,18 @@ Each is its own commit (on `main`); reasoning and tests are in PROGRESS.md (2026
 
 ## E. Next up
 
-0. **Legal Library — APPROVED by the owner ("ok", 2026-10-16), not yet made. Do first.**
-   Files: `src/app/[locale]/(public)/legal-library/page.tsx` and `.../legal-library/[id]/page.tsx`.
-   1. **Remove the invented "Document Structure & Summary"** on each Act's page: a hardcoded
-      fallback (`[id]/page.tsx` ~line 100-160) lists made-up chapters and page numbers ("Chapter 1:
-      Preliminary & Introductions - Page 1"…, and a fake Companies Act outline) for every law.
-      Show an outline only when `LegalDocument.outline` holds a real one (none do today).
-   2. Cards show "2024" for every Act (the Penal Code looks like a 2024 law). `year` is the
-      consolidation year (`last_updated_year` from the AI) → show "Consolidated to 2024".
-   3. "Act No. 24 of 2025" has **no PDF** anywhere (known: in the AI store only) → its Download
-      /Open buttons 404 as JSON. When the file is missing, hide the buttons and say "The PDF is
-      not available." (Check file existence server-side, e.g. the detail API.)
-   4. Top text claims "Case Law, and Gazette Notifications - cataloged and structured by our AI
-      knowledge graph for high-precision semantic search" → "Sri Lankan Acts and Ordinances, as
-      the AI assistant uses them. Open the full text of each."
-   5. Remove the card filler "Click to read the full document and view its details."
-   6. Search matches titles only ("theft" finds nothing) → placeholder "Search by title, e.g.
-      Penal Code" (it says "acts, ordinances, court decisions…").
-   7. Tab titles: "Legal Library", and each Act's own title.
-   Tested already (before the fixes): fits 412/1440; 13 of 14 PDFs open; search by title works.
-   Not code: two Acts are titled only by number — the owner can rename them in Admin → Legal
-   Documents.
-0b. **Then continue the public review:** Community Hub (/blog), About, attorney page
-   (/lawyers/[id] — Request button goes to the firm; check bio text and Chat button, decision 12),
-   public Privacy page. Earlier found, still open: login page `<title>`s in si/ta; si/ta
-   `HomePage.title/subtitle` still "find the right lawyer" (native speaker).
+0. ~~Public website review~~ — **complete** (2026-10-19). Left over, small: Legal Library sidebar
+   lists 4 empty categories ("Supreme Court Decisions - 0 documents") - asked, no answer yet;
+   login page `<title>`s in si/ta; si/ta `HomePage.title/subtitle` still "find the right lawyer"
+   (native speaker); NoticeDocument's multi-line `className` gives a dev-only hydration warning
+   (harmless; owner said leave the privacy page for now); an attorney cannot request a new
+   community (no form; switch above).
 
-1. **Privacy Notice — new version needed before launch (blocks launch).** The admin screen
+1. **Privacy Notice — new version needed before launch (blocks launch). PARKED by the owner
+   (2026-10-19): "later" - do it before real users sign up.** Also now wrong in 2026-08-03:
+   §5 says identity documents go to the image host (they stay on our server since `46d8c83`);
+   §3.2 says "practising certificate" (the form asks for the Attorney-at-Law ID card); 17 long
+   dashes. Data protection officer: owner did not name one. The admin screen
    is fine (no change). The published notice (2026-08-03) must get a new version that:
    §2 names **FiveNeurals** as the operator, a monitored contact address and a data
    protection officer; §8 names where data is held (database host + region, AI service,

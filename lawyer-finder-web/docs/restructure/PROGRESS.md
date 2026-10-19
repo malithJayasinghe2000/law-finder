@@ -3569,3 +3569,13 @@ firm page; still goes to the firm); "Back" went home → the attorney's firm pag
 sign-in returns here (tested end to end, DOM click and real tap); tab title is the attorney's name.
 412/1440, no overflow. **Still open (decision 12, owner: later):** a signed-in client can open a
 Chat with any listed attorney before sending a request.
+
+### 2026-10-19 — Public Privacy page; the public-website review is complete
+
+Page code is right (notice from the register, past versions kept, 7 tables fit 412px). The
+published notice (2026-08-03) is out of date: §5 says identity documents go to the image host
+(not since `46d8c83`), §3.2 says "practising certificate", §2 does not name FiveNeurals, §8 is
+blank (hosting undecided), 17 long dashes, and the additions listed in the brief §E1 are missing.
+**Owner parked it ("later")** — no change made; a new version must be published on the live site
+before real users sign up. Dev-only hydration warning from NoticeDocument's multi-line
+`className` (harmless) left as well.
