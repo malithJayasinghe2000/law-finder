@@ -3609,3 +3609,20 @@ DISPLAY_NAMES is a display-only stopgap; RAG-REVIEW §4.12). The theft question 
 definition) though it is in the Penal Code, and the answer says "the provided legal context".
 **Before real users:** paid Gemini key (free tier may train on prompts), Google named in the
 privacy notice (parked), Ollama + embedding model on the server.
+
+### 2026-10-19 — AI: own-case questions get the general answer; section labels fixed
+
+`b924c49`: the chunker split '"Theft". 366. Whoever…' into s.365C (quoted marginal note on the
+same line), so the assistant cited s.365C for theft; also 554AA-style numbers. Measured on all 14
+Acts, chunking only: nothing lost, 8 sections gained. **Takes effect only at the next ingest** —
+the owner will upload current official Acts on the live server (Admin → Legal Documents; type the
+full title, e.g. "Computer Crime Act, No. 24 of 2007"; archive + remove the old copy).
+`6fd3b55`: own-case questions (OWN_MATTER_ADVICE only) are rewritten by the AI service as a
+general question with no personal details (`/api/generalise`), checked by `acceptGeneralQuestion`,
+and that is answered with no history; the reply leads with "I cannot advise you on your own
+situation… Here is what the law says in general about: *…*". Tested 6 questions: 4 answered with
+citations, 2 not held (Rent Act, domestic violence) say so. **Privacy notice consequence:** §3.3
+says own-case questions are "refused before they are sent anywhere" — no longer true (the rewrite
+sends them to the AI provider). Add to the parked new version. Still open: answers say "the
+provided legal context" (prompt wording); a domestic-violence question gets no pointer to urgent
+help.

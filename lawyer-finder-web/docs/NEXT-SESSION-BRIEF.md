@@ -377,7 +377,9 @@ English until policy.ts's checks work in Sinhala.
    (2026-10-19): "later" - do it before real users sign up.** Also now wrong in 2026-08-03:
    §5 says identity documents go to the image host (they stay on our server since `46d8c83`);
    §3.2 says "practising certificate" (the form asks for the Attorney-at-Law ID card); 17 long
-   dashes. Data protection officer: owner did not name one. The admin screen
+   dashes. Since 2026-10-19 also: name **Google (Gemini)** as the AI provider (questions leave Sri
+   Lanka), and §3.3's "own-case questions are refused before they are sent anywhere" is no longer
+   true (`6fd3b55` sends them to the AI to be rewritten as a general question). Data protection officer: owner did not name one. The admin screen
    is fine (no change). The published notice (2026-08-03) must get a new version that:
    §2 names **FiveNeurals** as the operator, a monitored contact address and a data
    protection officer; §8 names where data is held (database host + region, AI service,
