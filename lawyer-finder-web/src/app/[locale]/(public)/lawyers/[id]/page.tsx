@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { notFound } from 'next/navigation';
@@ -9,6 +10,20 @@ import {
 import LawyerProfileClient from './LawyerProfileClient';
 import { LISTED_ATTORNEY_WHERE } from '@/lib/directory';
 import { publishableDescription } from '@/lib/selfPromotion';
+
+// Tab title: the attorney's name, under the same listing rule as the page.
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  const lawyer = await prisma.lawyerProfile.findFirst({
+    where: { id, ...LISTED_ATTORNEY_WHERE },
+    select: { fullName: true },
+  });
+  return { title: lawyer?.fullName ?? 'Attorney' };
+}
 
 export default async function LawyerProfilePage({
   params,

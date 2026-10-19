@@ -3559,3 +3559,13 @@ Control / Engage a Practice Directly / Legal Library and AI Assistant / Communit
 Design; "Are you an attorney?" → Apply as an Attorney + Find a Law Firm. Unsplash image dropped,
 tab title "About", phone title left-aligned. **Owner:** no "we are not a law firm / do not give
 legal advice" line on this page — describe what we are; the footer and AI screens carry the notice.
+
+### 2026-10-19 — Attorney page (/lawyers/[id])
+
+Reached from a firm page's attorney list. Fixed: "BASL Verified" badge on the photo (BASL does
+not verify anyone here; our team checks the ID card) → one "Verified" badge beside the name;
+languages shown twice → section only; "Request Consultation" → "Request an engagement" (as on the
+firm page; still goes to the firm); "Back" went home → the attorney's firm page; Chat signed out →
+sign-in returns here (tested end to end, DOM click and real tap); tab title is the attorney's name.
+412/1440, no overflow. **Still open (decision 12, owner: later):** a signed-in client can open a
+Chat with any listed attorney before sending a request.

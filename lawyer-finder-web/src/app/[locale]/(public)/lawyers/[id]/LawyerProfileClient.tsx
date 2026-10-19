@@ -64,7 +64,7 @@ export default function LawyerProfileClient({
 
   const handleChatClick = async () => {
     if (!isLoggedIn) {
-      router.push(`/${locale}/login`);
+      router.push(`/${locale}/login?redirect=${encodeURIComponent(window.location.pathname)}`);
       return;
     }
 
@@ -101,7 +101,8 @@ export default function LawyerProfileClient({
       {/* ─── Breadcrumb ─── */}
       <div className="border-b border-[#efeae0] bg-[#faf8f6]/80 backdrop-blur-md sticky top-24 z-10">
         <div className="mx-auto max-w-[1400px] px-6 lg:px-12 xl:px-24 py-4 flex items-center gap-3 text-xs uppercase tracking-widest">
-          <Link href={`/${locale}`} className="text-neutral-500 hover:text-[#bfa37a] transition-colors flex items-center gap-1.5">
+          {/* Back to the practice: that is where visitors reach this page from. */}
+          <Link href={lawyer.firm ? `/${locale}/firms/${lawyer.firm.slug}` : `/${locale}`} className="text-neutral-500 hover:text-[#bfa37a] transition-colors flex items-center gap-1.5">
             <ArrowLeft className="h-3.5 w-3.5" /> Back
           </Link>
           {directoryEnabled && (
@@ -135,31 +136,13 @@ export default function LawyerProfileClient({
                     className={lawyer.profileImageUrl ? 'w-full aspect-[4/5]' : 'w-full aspect-[3/2] lg:aspect-[4/5]'}
                     initialsClassName="font-serif text-6xl"
                   />
-                  {/* Languages - Always Visible */}
-                  <div className="absolute top-4 left-4 z-10 flex flex-wrap items-center gap-1.5">
-                    {lawyer.languages.map((lang) => (
-                      <span key={lang} className="text-[9px] bg-black/45 backdrop-blur-md text-white font-bold uppercase tracking-widest px-2.5 py-1 border border-white/10">
-                        {lang}
-                      </span>
-                    ))}
-                  </div>
-
                   {/* Soft Hover Overlay */}
                   <div className="absolute inset-0 bg-black/25 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
-                  {/* Verification badge only.
-                      The subscription plan name used to be rendered here beside
-                      it. A client could see which attorneys pay us more, which is
-                      exactly the paid prominence rule 3 forbids — and it was in
-                      the page source even before it was a badge. Removed.
-                      See docs/restructure/LEGAL-GUARDRAILS.md (rules 3 and 4). */}
-                  <div className="absolute bottom-4 left-4 right-4 z-10 flex flex-wrap items-center gap-2">
-                    {lawyer.isVerified && (
-                      <div className="flex items-center gap-1.5 text-white text-[9px] font-bold bg-[#bfa37a] w-fit px-3 py-1.5 uppercase tracking-widest rounded-none">
-                        <ShieldCheck className="h-3.5 w-3.5" /> BASL Verified
-                      </div>
-                    )}
-                  </div>
+                  {/* No badge on the photo. It said "BASL Verified", but BASL does
+                      not verify anyone here: our team checks the attorney's ID card.
+                      The one "Verified" badge is beside the name. (A subscription
+                      plan badge was removed from here earlier: rules 3 and 4.) */}
                 </div>
               </div>
 
@@ -176,7 +159,7 @@ export default function LawyerProfileClient({
                     )}
                     className="flex-1 flex items-center justify-center gap-2 bg-[#1a1a1a] text-white py-4.5 text-xs font-bold uppercase tracking-widest hover:bg-neutral-800 transition-all rounded-none text-center leading-tight px-2"
                   >
-                    <CalendarCheck className="h-4 w-4 shrink-0" /> Request Consultation
+                    <CalendarCheck className="h-4 w-4 shrink-0" /> Request an engagement
                   </button>
                 )}
                 <button
