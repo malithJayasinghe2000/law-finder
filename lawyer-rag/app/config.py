@@ -444,7 +444,10 @@ class Config:
     # questions (2026-10-19). 16 allows ~7 tool calls. Running out is handled:
     # legal_agent raises AgentStepLimitReached and query_rag falls back to the
     # linear pipeline, so the limit is a cost cap, not a failure mode.
-    AGENT_MAX_ITERATIONS: int = int(os.getenv("AGENT_MAX_ITERATIONS", "16"))
+    # 16 -> 12 the same day: on a follow-up (router + rewrite + agent + linear
+    # fallback) 16 steps took 67 s and the website, waiting 60 s, told the user
+    # the legal database was not responding. 12 is ~5 tool calls.
+    AGENT_MAX_ITERATIONS: int = int(os.getenv("AGENT_MAX_ITERATIONS", "12"))
 
     # Upload directory for admin-uploaded documents
     UPLOADS_DIR: str = os.getenv("UPLOADS_DIR", str(UPLOADS_DIR))

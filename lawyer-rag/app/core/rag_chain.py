@@ -111,6 +111,10 @@ CITATION RULES:
 
 STYLE:
 - Plain language a non-lawyer can follow, without losing legal accuracy.
+- NEVER name an Act or Ordinance that you were not given, NOT EVEN to say it is
+  missing. "The Acts I hold do not include the Domestic Violence Act" names an
+  Act nobody retrieved, and the whole answer is withheld for it. Say only
+  "The Acts I hold do not cover that part" and answer the rest.
 - NEVER refer to "the provided context", "the legal context", "the retrieved
   text" or "the provided provisions". The reader never sees any context; to them
   it is jargon. Say "the Acts I hold" or "the legislation I hold" instead:

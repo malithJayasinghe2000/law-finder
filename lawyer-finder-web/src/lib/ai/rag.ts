@@ -25,7 +25,11 @@ import { ragFetch } from './ragService';
  * `policy.ts` before a user sees it.
  */
 
-const RAG_TIMEOUT_MS = Number(process.env.RAG_TIMEOUT_MS || 60_000);
+// 90 s, was 60. With a hosted model a follow-up can take over 60 s, and a
+// timeout here is reported as "the legal database is not responding" — an
+// outage message for an answer that was merely slow (2026-10-19, 67 s). Stays
+// under gunicorn's 120 s worker timeout.
+const RAG_TIMEOUT_MS = Number(process.env.RAG_TIMEOUT_MS || 90_000);
 
 /** What the RAG service reports back. Field names are its, not ours. */
 type RagResponse = {
