@@ -51,7 +51,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
               className="absolute inset-0 -z-10 bg-gradient-to-r from-[#0f0f0f] via-[#0f0f0f]/90 to-[#0f0f0f]/30 lg:bg-[linear-gradient(to_right,#0f0f0f_40%,rgba(15,15,15,0.55)_55%,transparent_74%)]"
             />
 
-            <div className="mx-auto max-w-[1200px] px-6 py-20 sm:py-24 lg:px-12 lg:py-28">
+            <div className="mx-auto max-w-[1400px] px-6 py-20 sm:py-24 lg:px-12 lg:py-28 xl:px-24">
               <div className="max-w-2xl space-y-8 text-white">
                 <p className="font-serif text-lg text-white/85">Welcome to TheLawyr.</p>
 
@@ -97,12 +97,39 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
 
         
 
+        {/* 5. Directory entry point.
+            This used to be a grid of eight attorney portrait cards with their bios.
+            Ordered alphabetically, it put the same eight names on the front page
+            for ever — free prominence for some attorneys over all the others —
+            and the bios ("Expert in…", "Specialist in…") were self-promotion.
+            A single neutral entry point instead. See src/components/lawyer/LawyerCard.tsx. */}
+        {directoryEnabled && (
+          <section className="bg-neutral-100 py-20 border-t border-neutral-100">
+            <div className="max-w-[1400px] mx-auto px-6 lg:px-12 xl:px-24 flex flex-col md:flex-row md:items-end justify-between gap-6">
+              <div className="space-y-3">
+                <span className="text-[10px] text-[#bfa37a] uppercase tracking-[0.2em] font-bold">Directory</span>
+                <h2 className="text-3xl md:text-4xl font-serif text-neutral-900">
+                  Find an Attorney-at-Law
+                </h2>
+                <p className="text-neutral-500 text-sm max-w-md font-light leading-relaxed">
+                  Verified law firms, in an order that changes daily. Filter by practice area, district and language.
+                </p>
+              </div>
+              <Link href={`/${locale}/firms`}>
+                <Button className="bg-[#bfa37a] text-white hover:bg-[#a68d67] rounded-none px-8 py-6 text-xs font-bold uppercase tracking-widest transition-all">
+                  Browse the directory
+                </Button>
+              </Link>
+            </div>
+          </section>
+        )}
+
         {/* 3. What the site offers (charcoal background with round-br wave curve).
             Was "Legal Guidance & Professional Counsel … we connect client requirements
             with dedicated Attorneys-at-Law … vetted advocates": the platform presented
             as giving advice and placing clients with lawyers (rules 4, 6, 7). */}
-        <section className="relative bg-[#161616] text-white pt-24 pb-32 px-6 lg:px-12 xl:px-24 rounded-br-[120px] md:rounded-br-[220px] z-10">
-          <div className="max-w-[1200px] mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12">
+        <section className="relative bg-[#161616] text-white pt-24 pb-32 rounded-br-[120px] md:rounded-br-[220px] z-10">
+          <div className="max-w-[1400px] mx-auto px-6 lg:px-12 xl:px-24 grid grid-cols-1 lg:grid-cols-2 gap-12">
             {/* Left */}
             <div className="space-y-8">
               <h2 className="text-3xl sm:text-4xl md:text-5xl font-serif text-white tracking-tight leading-snug">
@@ -131,33 +158,6 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
           </div>
         </section>
 
-        {/* 5. Directory entry point.
-            This used to be a grid of eight attorney portrait cards with their bios.
-            Ordered alphabetically, it put the same eight names on the front page
-            for ever — free prominence for some attorneys over all the others —
-            and the bios ("Expert in…", "Specialist in…") were self-promotion.
-            A single neutral entry point instead. See src/components/lawyer/LawyerCard.tsx. */}
-        {directoryEnabled && (
-          <section className="bg-neutral-100 py-20 px-6 lg:px-12 xl:px-24 border-t border-neutral-100">
-            <div className="max-w-[1400px] mx-auto flex flex-col md:flex-row md:items-end justify-between gap-6">
-              <div className="space-y-3">
-                <span className="text-[10px] text-[#bfa37a] uppercase tracking-[0.2em] font-bold">Directory</span>
-                <h2 className="text-3xl md:text-4xl font-serif text-neutral-900">
-                  Find an Attorney-at-Law
-                </h2>
-                <p className="text-neutral-500 text-sm max-w-md font-light leading-relaxed">
-                  Verified law firms, in an order that changes daily. Filter by practice area, district and language.
-                </p>
-              </div>
-              <Link href={`/${locale}/firms`}>
-                <Button className="bg-[#bfa37a] text-white hover:bg-[#a68d67] rounded-none px-8 py-6 text-xs font-bold uppercase tracking-widest transition-all">
-                  Browse the directory
-                </Button>
-              </Link>
-            </div>
-          </section>
-        )}
-
         {/* 4. Browse by practice area (watermarked with the bg asset).
             Every card is a directory search, so the section goes with the directory.
             The cards used to be marketing titles ("Trusted Lawyer", "Legal Champion",
@@ -166,7 +166,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
             now real areas from PRACTICE_AREAS, passed exactly as firms store them. */}
         {directoryEnabled && (
           <section 
-            className="relative bg-white py-24 px-6 lg:px-12 xl:px-24 overflow-hidden -mt-10 pt-32"
+            className="relative bg-white py-24 overflow-hidden -mt-10 pt-32"
             style={{ 
               backgroundImage: "url('/assets/images/home1/practicearea-bg.webp')",
               backgroundPosition: 'left 5% center',
@@ -174,7 +174,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
               backgroundSize: '35% auto'
             }}
           >
-            <div className="max-w-[1200px] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-12 relative z-10">
+            <div className="max-w-[1400px] mx-auto px-6 lg:px-12 xl:px-24 grid grid-cols-1 lg:grid-cols-12 gap-12 relative z-10">
               {/* Title / Info on Left */}
               <div className="lg:col-span-4 flex flex-col justify-center space-y-8">
                 <h2 className="text-3xl sm:text-4xl font-serif text-neutral-900">
