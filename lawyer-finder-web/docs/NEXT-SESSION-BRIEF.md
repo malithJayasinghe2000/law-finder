@@ -276,7 +276,7 @@ Each is its own commit (on `main`); reasoning and tests are in PROGRESS.md (2026
   notice compact on phones.
 
 **2026-10-19 (fourth session)**: Legal Library (`85392a8`), Community Hub (`9eeb91d`), About
-(`6962f58`), attorney page (`f2f890d`). New switch `COMMUNITY_REQUEST_CTA_ENABLED = false`
+(`196f9bf`), attorney page (`f2f890d`). New switch `COMMUNITY_REQUEST_CTA_ENABLED = false`
 (`blog/page.tsx`: attorneys' "Request Community" had no form behind it). Owner: public pages
 describe what TheLawyr **is** - no extra "we are not a law firm / no legal advice" lines (the
 footer and AI screens carry the notice). Legal Library: the detail API returns `fileAvailable`
