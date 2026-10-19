@@ -302,6 +302,9 @@ export default function ChatClient({
         body: JSON.stringify({
           message: text,
           conversationId: activeConversationId,
+          // Keeps the emergency numbers on follow-ups in a guest chat, which
+          // the server has no history for. It can only add the note.
+          safetyShown: messages.some((m) => m.role === 'assistant' && m.content.includes('call the Police on **119**')),
         }),
       });
 

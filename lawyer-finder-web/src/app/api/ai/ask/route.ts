@@ -11,6 +11,8 @@ import {
   generalAnswerLead,
   generalNotHeldNote,
   safetyNote,
+  SAFETY_MARKER,
+  SAFETY_NOTE,
   type ResolvedCitation,
   type RefusalCategory,
 } from '@/lib/ai/policy';
@@ -115,8 +117,18 @@ export async function POST(req: Request) {
     // A refusal here means the user's description of their own legal problem is
     // never sent to any model. That is the confidentiality dividend of checking
     // the request rather than only the answer.
-    // Emergency numbers on any reply to a question about violence or danger.
-    const safety = safetyNote(question);
+    // Emergency numbers on any reply to a question about violence or danger —
+    // and on every later reply in that conversation, because the follow-up
+    // ("what legal action for this?") no longer names the danger. Signed in:
+    // read from our own store. A guest has no stored history, so the page says
+    // whether it has already shown the note; trusting it is safe, because the
+    // flag can only ADD the emergency numbers, never remove a check.
+    const priorHistory =
+      conversationId && session ? await loadHistory(conversationId, session.userId) : [];
+    const dangerEarlier =
+      body.safetyShown === true ||
+      priorHistory.some((m) => (m.role === 'user' ? safetyNote(m.content) !== null : m.content.includes(SAFETY_MARKER)));
+    const safety = safetyNote(question) ?? (dangerEarlier ? SAFETY_NOTE : null);
     const withSafety = (text: string) => (safety ? text + safety : text);
 
     const ruling = classifyRequest(question);
@@ -168,8 +180,7 @@ export async function POST(req: Request) {
     // History comes from the database for a signed-in user, so a client cannot
     // fabricate a conversation to steer the model. A guest has no stored
     // history, so their context is this question alone.
-    const history = conversationId && session ? await loadHistory(conversationId, session.userId) : [];
-    const context = buildModelContext(question, history);
+    const context = buildModelContext(question, priorHistory);
 
     let generated;
     try {

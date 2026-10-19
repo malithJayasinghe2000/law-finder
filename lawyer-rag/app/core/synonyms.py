@@ -111,6 +111,26 @@ LAY_TO_STATUTORY: dict[str, tuple[str, ...]] = {
     "drivers license": ("driving licence",),
     "drunk driving": ("under the influence of drink", "incapable of having proper control"),
 
+    # ── Penal Code: violence against a person (2026-10-19) ───────────────
+    # "my husband hit me" and its follow-up "what legal action for this"
+    # (rewritten "...a husband physically assaults or hits his wife") both
+    # found nothing, while ss.310-329 ("hurt", "voluntarily causing hurt") and
+    # s.343 ("assault") are in the Penal Code. Offence vocabulary only; the
+    # domestic-violence ACT is not held, so nothing here points at it.
+    "hit": ("voluntarily causing hurt", "assault"),
+    "hits": ("voluntarily causing hurt", "assault"),
+    "hitting": ("voluntarily causing hurt", "assault"),
+    "beat": ("voluntarily causing hurt", "assault"),
+    "beats": ("voluntarily causing hurt", "assault"),
+    "beating": ("voluntarily causing hurt", "assault"),
+    "beaten": ("voluntarily causing hurt", "assault"),
+    "slapped": ("voluntarily causing hurt", "assault"),
+    "punched": ("voluntarily causing hurt", "assault"),
+    "kicked": ("voluntarily causing hurt", "assault"),
+    "physically assaults": ("voluntarily causing hurt", "assault"),
+    "stole": ("theft",),
+    "stolen": ("theft", "stolen property"),
+
     # ── Computer Crimes Act ──────────────────────────────────────────────
     "hacking": ("unauthorised access", "computer crime"),
     "hacked": ("unauthorised access", "computer crime"),

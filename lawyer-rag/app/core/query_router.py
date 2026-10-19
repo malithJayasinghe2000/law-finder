@@ -69,6 +69,8 @@ Your task is to rewrite a follow-up question into a fully standalone legal quest
 
 Use the conversation history provided to figure out what the user is referring to. Replace any pronouns or ambiguous references (like "that", "it", "the first one") with the specific legal topic, law, or subject being discussed.
 
+Use the words Sri Lankan legislation itself uses rather than everyday words: "voluntarily causing hurt" or "assault" rather than "hit" or "beat", "theft" rather than "stole", "prescription" for long possession of land. A search over the Acts finds their own words, not paraphrases.
+
 If the question is already clear, just return it as is.
 Only return the rewritten question. Do NOT include any explanations or conversational text.
 

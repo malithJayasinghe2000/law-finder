@@ -1056,6 +1056,27 @@ console.log('\nFailing closed\n');
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+// 6. A statement of what was done to the person (2026-10-19)
+//
+// "my husband hit me" had no question in it and matched nothing, so it went to
+// the model as typed and the answer was that the law holds nothing. It is the
+// person's own matter; the textbook form of the same facts is not.
+
+{
+  const own = ['my husband hit me', 'My neighbour stole my goat', 'I was beaten by the police', 'someone broke my car window'];
+  for (const q of own) {
+    const r = classifyRequest(q);
+    check(`own-situation statement: "${q}"`, !r.allowed && r.category === 'OWN_MATTER_ADVICE',
+      'A report of what happened to the person is their own matter, question mark or not.');
+  }
+  const general = ['A hits B with a stick. What offence has A committed?', 'What is the punishment for assault under the Penal Code?', 'Is it theft if a person takes property intending to return it?'];
+  for (const q of general) {
+    check(`general form still answered: "${q.slice(0, 45)}"`, classifyRequest(q).allowed,
+      'The same facts about A and B are a law student\'s question, and refusing them breaks the research use.');
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 
 if (failures.length) {
   console.error('\n' + failures.join('\n\n'));

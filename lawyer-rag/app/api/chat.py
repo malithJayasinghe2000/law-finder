@@ -167,6 +167,7 @@ GENERALISE_PROMPT = """You rewrite a person's question about their own legal sit
 Rules:
 - Remove every personal detail: no "I", "my", "me", "we", "our", "you", "your", no names, places, dates, amounts or relationships specific to them.
 - Ask what the law says, in general terms, about the legal issue underneath. Use words like "a person", "an owner", "a tenant", "a driver".
+- Use the words Sri Lankan legislation itself uses, not everyday words: "causing hurt" or "assault" rather than "hit" or "beat", "theft" rather than "stole", "mischief" for damage to property, "prescription" for long possession of land. Where the issue is an offence against a person or property, ask what the Penal Code says about it.
 - Do not ask what anyone should do, whether anyone will win, or for a lawyer.
 - One sentence, ending with "?". At most 25 words.
 - If there is no legal issue in it, reply with exactly: NONE

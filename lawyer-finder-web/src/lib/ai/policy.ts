@@ -194,10 +194,11 @@ export const REFUSAL_MESSAGES: Record<RefusalCategory, string> = {
     'and is the same for everyone, position in it cannot be bought, and nothing you say to me affects what you see there.',
 
   NO_CITABLE_SOURCE:
-    'I could not find this in the legislation I hold, so I am not going to answer it.\n\n' +
-    'I only answer from Sri Lankan legal documents I can cite and you can open. Where I have nothing to point ' +
-    'to, an answer from me would be an opinion dressed as law, which is exactly what you should not rely on. ' +
-    'An attorney-at-law can help with material outside my library.',
+    // Kinder since 2026-10-19: the old second paragraph ("an opinion dressed as
+    // law, which is exactly what you should not rely on") was read by a person
+    // who had just written that their husband hit them.
+    'I could not find this in the Acts I hold, so I cannot answer it from a source.\n\n' +
+    'The Legal Library lists every Act I hold, and an attorney-at-law can help with law outside it.',
 
   ADVICE_IN_ANSWER:
     'I started to answer this, but the answer strayed into advising you about your own situation, ' +
@@ -340,6 +341,17 @@ const OWN_MATTER_PATTERNS: RegExp[] = [
       String.raw`(?=[\s\S]*\b(?:legal\s+actions?|take\s+actions?|what\s+actions?|court\s+actions?|remed(?:y|ies)|recourse|compensations?|damages|claims?|sue|suing|prosecute|file\s+a\s+(?:case|claim|suit)|next\s+steps?|get\s+(?:it|them|that|my|our|the)\s+back|take\s+(?:it|them|that)\s+back|recover|reclaim|evict|repossess|remove\s+(?:him|her|them)|stop\s+(?:him|her|them)|get\s+rid\s+of|throw\s+(?:him|her|them)\s+out)\b)`,
     'i'
   ),
+
+  // A STATEMENT of what was done to the person, with no question at all.
+  // "my husband hit me" (2026-10-19) matched nothing above, went to the model
+  // as typed, and the search for "hit" missed the Penal Code's "hurt" — so a
+  // person reporting violence was told the law holds nothing. Caught here, it
+  // goes to the general rewrite, which asks in the Act's own words.
+  //
+  // Needs the person as the object ("hit me", "stole my"), so a textbook
+  // question — "A hits B with a stick" — is untouched.
+  /\b(?:hit|hits|beat|beats|beaten|slapped|kicked|punched|stabbed|attacked|assaulted|abused|raped|robbed|threatened|harassed|cheated|molested|stole|stolen|took|damaged|broke|broken|evicted|sacked|fired)\s+(?:me|us|my|our)\b/i,
+  /\bi\s+(?:was|am|got|have\s+been|had\s+been)\s+(?:being\s+)?(?:hit|beaten|slapped|kicked|punched|stabbed|attacked|assaulted|abused|raped|robbed|threatened|harassed|cheated|molested|evicted|sacked|fired)\b/i,
 ];
 
 /** Asking the assistant to predict how a matter would end. */
@@ -1137,10 +1149,13 @@ const DANGER_PATTERNS: RegExp[] = [
   /\bsuicid\w*/i,
 ];
 
+/** A fixed phrase of the note, to recognise it in a stored or shown reply. */
+export const SAFETY_MARKER = 'call the Police on **119**';
+
+export const SAFETY_NOTE =
+  `\n\n**If you or someone else is in danger now:** ${SAFETY_MARKER}. ` +
+  "The Women's Helpline is **1938** and the National Child Protection Authority is **1929**.";
+
 export function safetyNote(question: string): string | null {
-  if (!DANGER_PATTERNS.some((p) => p.test(question ?? ''))) return null;
-  return (
-    '\n\n**If you or someone else is in danger now:** call the Police on **119**. ' +
-    "The Women's Helpline is **1938** and the National Child Protection Authority is **1929**."
-  );
+  return DANGER_PATTERNS.some((p) => p.test(question ?? '')) ? SAFETY_NOTE : null;
 }
