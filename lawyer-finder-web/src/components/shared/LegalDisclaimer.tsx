@@ -1,7 +1,7 @@
 import React from 'react';
 import { directoryPath } from '@/lib/directoryLinks';
 import Link from 'next/link';
-import { Info } from 'lucide-react';
+import { Info, X } from 'lucide-react';
 
 /**
  * Not-legal-advice notice.
@@ -63,12 +63,19 @@ export function LegalDisclaimer({
    * phone screen. The notice itself is always visible.
    */
   compactOnPhone = false,
+  /**
+   * Show a close button. Only where a short notice stays on screen without
+   * this one — the AI chat keeps "information only, not legal advice" under
+   * the input box — so closing never leaves an AI surface with no notice.
+   */
+  onClose,
 }: {
   variant?: Variant;
   className?: string;
   showDirectoryLink?: boolean;
   locale?: string;
   compactOnPhone?: boolean;
+  onClose?: () => void;
 }) {
   const { title, body } = COPY[variant];
 
@@ -79,7 +86,7 @@ export function LegalDisclaimer({
       className={`flex items-start gap-2.5 border border-neutral-200 bg-neutral-50 px-3 py-2.5 ${className}`}
     >
       <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-neutral-500" aria-hidden="true" />
-      <div className="space-y-0.5">
+      <div className="min-w-0 flex-1 space-y-0.5">
         <p className="text-[11px] font-bold uppercase tracking-wide text-neutral-700">
           {title}
         </p>
@@ -121,6 +128,16 @@ export function LegalDisclaimer({
           </details>
         )}
       </div>
+      {onClose && (
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close this notice"
+          className="-mr-1 -mt-0.5 shrink-0 rounded p-1 text-neutral-400 transition-colors hover:bg-neutral-200/60 hover:text-neutral-700"
+        >
+          <X className="h-3.5 w-3.5" aria-hidden="true" />
+        </button>
+      )}
     </aside>
   );
 }

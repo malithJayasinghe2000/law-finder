@@ -115,6 +115,22 @@ export default function ChatClient({
   const directoryEnabled = useDirectoryEnabled();
   // State
   const [messages, setMessages] = useState<Message[]>([]);
+
+  // The long notice above the input can be closed for this visit; the one-line
+  // "information only, not legal advice" under the input always stays. Kept
+  // per tab (sessionStorage), so every new visit shows it again.
+  const [noticeClosed, setNoticeClosed] = useState(false);
+  useEffect(() => {
+    try {
+      if (sessionStorage.getItem('ai_notice_closed') === '1') setNoticeClosed(true);
+    } catch {}
+  }, []);
+  const closeNotice = () => {
+    setNoticeClosed(true);
+    try {
+      sessionStorage.setItem('ai_notice_closed', '1');
+    } catch {}
+  };
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -798,13 +814,16 @@ export default function ChatClient({
         {/* Input Area */}
         <div className="shrink-0 bg-[#faf8f6]/95 backdrop-blur-sm border-t border-[#efeae0] pt-8 pb-4 px-5 sticky bottom-0 z-10">
           <div className="mx-auto max-w-3xl">
-            <LegalDisclaimer
-              variant="ai"
-              className="mb-3 rounded-xl"
-              compactOnPhone
-              showDirectoryLink={directoryEnabled}
-              locale={locale}
-            />
+            {!noticeClosed && (
+              <LegalDisclaimer
+                variant="ai"
+                className="mb-3 rounded-xl"
+                compactOnPhone
+                showDirectoryLink={directoryEnabled}
+                locale={locale}
+                onClose={closeNotice}
+              />
+            )}
             <form
               onSubmit={(e) => { e.preventDefault(); handleSend(input); }}
               className="bg-white border border-[#efeae0] p-4 shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-2xl flex flex-col gap-3 transition-all focus-within:border-[#bfa37a]/60"
