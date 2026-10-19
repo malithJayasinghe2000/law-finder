@@ -44,8 +44,28 @@ CHAPTER_PATTERN = re.compile(
 # The Penal Code's "Section 2" was exactly that, and it ranked in the top six
 # for three different questions. The explicit "Section N" form keeps the looser
 # spacing, because there the word does the disambiguating.
+# Up to TWO suffix letters: the Civil Procedure Code has 554AA and 554CC, and
+# with one letter allowed they were never recognised as sections at all.
 SECTION_PATTERN = re.compile(
-    r"^[\s]*(?:(?:Section|SECTION|Sec\.?)\s*(\d+[A-Z]?)[\.\s]|(\d+[A-Z]?)\.)",
+    r"^[\s]*(?:(?:Section|SECTION|Sec\.?)\s*(\d+[A-Z]{0,2})[\.\s]|(\d+[A-Z]{0,2})\.)",
+    re.MULTILINE,
+)
+
+# A quoted marginal note on the SAME line as the section number:
+#
+#     "Theft". 366. Whoever, intending to take dishonestly any movable...
+#
+# The Penal Code sets its definitions this way. A section only starts at the
+# beginning of a line, so 366 was never split off: it stayed inside s.365C and
+# every chunk of it was labelled "Section 365C". Asked about theft, the model
+# cited "Section 365C" for the definition, and the citation check passed it,
+# because 365C was what had been retrieved (2026-10-19). The same shape hid
+# s.18 "Court of Justice", s.21 "Wrongful gain", s.22 "Dishonestly".
+#
+# Only a QUOTED note is split, so ordinary prose ending in a number cannot be
+# ("No arrest for sum under Rs. 1,500. 301." is left alone).
+_INLINE_QUOTED_NOTE = re.compile(
+    r'^(\s*["\u201c][^"\u201d\n]{1,80}["\u201d]\.?)[ \t]+(?=\d{1,3}[A-Z]{0,2}\.\s)',
     re.MULTILINE,
 )
 
@@ -236,6 +256,10 @@ def smart_legal_chunk(
     if metadata_base is None:
         metadata_base = {}
 
+    # Put a quoted marginal note on its own line, so the section number after
+    # it starts a line and splits like every other section (see the pattern).
+    full_text = _INLINE_QUOTED_NOTE.sub(lambda m: m.group(1) + "\n", full_text)
+
     # -----------------------------------------------------------------------
     # Step 1: Split by major legal section boundaries
     # -----------------------------------------------------------------------
@@ -245,7 +269,7 @@ def smart_legal_chunk(
     # ("11 of 1887", "2 of 1883"), which is where the corpus's shortest and
     # least useful chunks came from.
     section_splits = re.split(
-        r"(?=^[\s]*(?:(?:Section|SECTION|Sec\.?)\s*\d+[A-Z]?[\.\s]|\d+[A-Z]?\.))",
+        r"(?=^[\s]*(?:(?:Section|SECTION|Sec\.?)\s*\d+[A-Z]{0,2}[\.\s]|\d+[A-Z]{0,2}\.))",
         full_text,
         flags=re.MULTILINE,
     )
