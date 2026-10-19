@@ -1,8 +1,7 @@
-import { getTranslations } from 'next-intl/server';
 import { directoryPath } from '@/lib/directoryLinks';
 import Link from 'next/link';
-import Footer from '@/components/layout/Footer';
 import { isPublicDirectoryEnabled } from '@/lib/directory';
+import { SITE_CONTACT } from '@/lib/siteContact';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import {
@@ -13,17 +12,24 @@ import {
   Search,
   MessageSquare,
   BookOpen,
-  Star,
-  Languages,
+  Users,
+  Lock,
   Scale,
   Gavel
 } from 'lucide-react';
-import LawyersMarquee from '@/components/home/LawyersMarquee';
 
-export default async function HomePage({ params }: { params: Promise<{ locale: string }> }) {
+export const metadata = { title: 'About' };
+
+// Everything on this page must be true of TheLawyr today. It used to carry a
+// law-firm template: invented results ("98% Client Satisfaction", "1,500+ Cases
+// Resolved"), "Delivering practical legal solutions", two contradicting founding
+// dates, "Trilingual Support", "hundreds of attorneys ... connect with clients".
+// A platform that is software must not read as a firm that handles cases
+// (guardrail rules 6 and 7), and invented figures are misleading advertising.
+export default async function AboutPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
   const directoryEnabled = await isPublicDirectoryEnabled();
-  const t = await getTranslations({ locale });
+  const company = SITE_CONTACT.company;
 
   return (
     <div className="flex min-h-screen flex-col font-sans">
@@ -35,37 +41,24 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
           <div className="absolute inset-0 overflow-hidden pointer-events-none">
             <img
               src="/hero.png"
-              alt="Lawyer Hero"
+              alt="Scales of justice"
               className="object-cover w-full h-full opacity-70"
             />
-            {/* Dark Toplayer Overlay as requested */}
             <div className="absolute inset-0 bg-black/40" />
             <div className="absolute inset-0 bg-gradient-to-b from-[#0f1115]/90 via-transparent to-[#0a0a0a]/90" />
           </div>
 
           <div className="relative z-10 flex-1 w-full max-w-[1200px] mx-auto flex flex-col justify-between">
-            {/* Top Row: Stats (Left) and Description (Right) */}
-            <div className="flex flex-col md:flex-row justify-between items-start w-full gap-10 mt-10">
-              <div className="flex flex-wrap gap-16">
-                <div>
-                  <div className="text-5xl sm:text-6xl font-light mb-3 text-white tracking-tight">98%</div>
-                  <div className="text-white/70 text-sm sm:text-base tracking-wide font-light">Client Satisfaction</div>
-                </div>
-                <div>
-                  <div className="text-5xl sm:text-6xl font-light mb-3 text-white tracking-tight">1,500+</div>
-                  <div className="text-white/70 text-sm sm:text-base tracking-wide font-light">Cases Resolved Successfully</div>
-                </div>
-              </div>
-
-              <div className="max-w-[400px] text-left md:text-right mt-6 md:mt-0">
-                <p className="text-white/80 text-lg sm:text-xl font-light leading-relaxed">
-                  Delivering practical legal solutions with insight, precision, and forward-thinking strategy.
-                </p>
-              </div>
+            {/* Top Row: what TheLawyr is */}
+            <div className="w-full mt-10">
+              <p className="max-w-[560px] text-white/80 text-lg sm:text-xl font-light leading-relaxed">
+                Software for law practices in Sri Lanka, a library of Sri Lankan legislation, and an
+                assistant that explains the law.
+              </p>
             </div>
 
             {/* Bottom Row: Title (Left) and Button (Right) */}
-            <div className="flex flex-col md:flex-row justify-between items-end w-full gap-12 mt-20 mb-8">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-end w-full gap-12 mt-20 mb-8">
               <div className="max-w-3xl">
                 <h1 className="text-5xl sm:text-6xl md:text-[5.5rem] font-light leading-[1.05] tracking-tight text-white mb-0 md:-mb-4">
                   About<br />
@@ -73,49 +66,47 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
                 </h1>
               </div>
 
-              <div className="w-full max-w-[340px]">
-                {/* <Link href={`/${locale}/lawyers`}>
-                  <Button className="bg-white text-black hover:bg-neutral-200 rounded-none px-6 py-8 text-lg font-medium w-full flex items-center justify-between group">
-                    Find Legal Help
-                    <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                  </Button>
-                </Link> */}
-
-                <div className="mt-8 border-t border-white/30 pt-6 flex flex-row items-center justify-between">
-                  <div className="flex items-center gap-3">
+              {company.name && (
+                <div className="w-full max-w-[340px]">
+                  <div className="border-t border-white/30 pt-6 flex items-center gap-3">
                     <Globe className="w-5 h-5 text-white/60" />
-                    <span className="text-white/60 text-sm font-light">Supporting clients since 2012</span>
+                    <span className="text-white/60 text-sm font-light">A product of {company.name}</span>
                   </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
         </section>
 
 
 
-        {/* Content Section mimicking 'About the Firm' layout provided in the screenshot */}
+        {/* Who is behind it */}
         <section className="py-24 px-6 lg:px-12 xl:px-24 bg-background">
-          <div className="max-w-[1200px] mx-auto flex flex-col lg:flex-row gap-16 justify-between items-start">
-            <div className="max-w-3xl">
-              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-light leading-snug tracking-tight text-foreground">
-                Since 2026, we've transformed the way legal support is delivered -
-                blending strategic thinking, deep domain expertise, and unwavering
-                dedication to secure the best outcomes for our clients.
-              </h2>
-            </div>
+          <div className="max-w-[1200px] mx-auto flex flex-col lg:flex-row gap-10 justify-between items-start">
+            <h2 className="max-w-3xl text-3xl sm:text-4xl lg:text-5xl font-light leading-snug tracking-tight text-foreground">
+              TheLawyr helps people in Sri Lanka read what the law says, and gives law practices
+              the tools to run their work.
+            </h2>
 
-            <div className="flex flex-col items-start lg:items-end gap-6 min-w-[200px] lg:pt-4">
-              <Link href={`/${locale}/about`} className="group flex items-center gap-2 border-b border-foreground pb-1 text-lg font-medium hover:text-primary transition-colors">
-                About the Firm.
-                <ArrowUpRight className="w-5 h-5 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
-              </Link>
-              <img
-                src="https://images.unsplash.com/photo-1505664194779-8beaceb93744?q=80&w=300&auto=format&fit=crop"
-                alt="Law books"
-                className="w-48 h-32 object-cover rounded-md grayscale opacity-80"
-              />
-            </div>
+            {company.name && (
+              <div className="flex flex-col items-start lg:items-end gap-3 min-w-[200px] lg:pt-4 lg:text-right">
+                <p className="text-sm text-muted-foreground max-w-xs">
+                  TheLawyr is a product of {company.name}
+                  {company.description ? `, ${company.description.charAt(0).toLowerCase()}${company.description.slice(1)}` : '.'}
+                </p>
+                {company.url && (
+                  <a
+                    href={company.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="group flex items-center gap-2 border-b border-foreground pb-1 text-base font-medium hover:text-primary transition-colors"
+                  >
+                    {company.url.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '')}
+                    <ArrowUpRight className="w-4 h-4 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
+                  </a>
+                )}
+              </div>
+            )}
           </div>
         </section>
 
@@ -124,10 +115,10 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
           <div className="mx-auto max-w-7xl px-4 sm:px-6">
             <div className="mx-auto max-w-2xl text-center mb-16">
               <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
-                The trusted way to find legal help
+                What TheLawyr is
               </h2>
               <p className="mt-4 text-lg text-muted-foreground">
-                A secure, intelligent platform designed specifically for Sri Lankan legal needs
+                Built for Sri Lankan law and the practices that work with it.
               </p>
             </div>
 
@@ -135,8 +126,8 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
               {[
                 {
                   icon: ShieldCheck,
-                  title: 'BASL Verified Attorneys',
-                  desc: 'Every lawyer on TheLawyr is verified against the Bar Association of Sri Lanka registry. No fake profiles, guaranteed authenticity.',
+                  title: 'Checked Practices',
+                  desc: 'Every listed practice is checked by our team before it appears.',
                 },
                 // Three claims on this page were rewritten in Phase 7, and each
                 // described something the restructure had already removed:
@@ -165,18 +156,18 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
                 },
                 {
                   icon: BookOpen,
-                  title: 'Knowledge Hub',
-                  desc: 'Access expert legal articles written by verified attorneys. Understand your rights before you consult.',
+                  title: 'Legal Library and AI Assistant',
+                  desc: 'Read Sri Lankan Acts and Ordinances in full, and ask the assistant what they say. Every answer shows its source.',
                 },
                 {
-                  icon: ShieldCheck,
+                  icon: Users,
+                  title: 'Community',
+                  desc: 'Discuss Sri Lankan law, area by area, with others who read it.',
+                },
+                {
+                  icon: Lock,
                   title: 'Privileged by Design',
                   desc: 'What you tell a firm about your problem is encrypted, and platform staff cannot read it. Your conversation with your attorney stays between you and them.',
-                },
-                {
-                  icon: Languages,
-                  title: 'Trilingual Support',
-                  desc: 'Full platform support in Sinhala, Tamil, and English. Access justice in the language you are most comfortable with.',
                 },
               ].map((feature) => (
                 <Card key={feature.title} className="group hover:shadow-lg transition-all duration-300 border-border/50 hover:border-border rounded-xl">
@@ -200,22 +191,22 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
               <Gavel className="h-7 w-7" />
             </div>
             <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
-              Are you a legal professional?
+              Are you an attorney?
             </h2>
             <p className="mx-auto mt-4 max-w-xl text-lg text-muted-foreground">
-              Join hundreds of Sri Lankan attorneys already using TheLawyr to grow their practice, publish insights, and connect with clients.
+              Apply to be verified, then register your practice and invite your colleagues.
             </p>
             <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
-              <Link href={`/${locale}/register`}>
+              <Link href={`/${locale}/apply`}>
                 <Button size="lg" className="gap-2 font-semibold px-8 rounded-none">
                   <Scale className="h-4 w-4" />
-                  Register Your Practice
+                  Apply as an Attorney
                 </Button>
               </Link>
               {directoryEnabled && (
                 <Link href={directoryPath(locale)}>
                   <Button size="lg" variant="outline" className="gap-2 font-semibold px-8 rounded-none">
-                    Browse Directory
+                    Find a Law Firm
                     <ArrowRight className="h-4 w-4" />
                   </Button>
                 </Link>

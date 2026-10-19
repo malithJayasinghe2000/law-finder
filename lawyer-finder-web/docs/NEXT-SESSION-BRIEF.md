@@ -528,6 +528,9 @@ Each is its own commit (on `main`); reasoning and tests are in PROGRESS.md (2026
   (`/Applications/Google Chrome.app/...`). Install it in the session scratchpad
   (`npm i puppeteer-core`). Recharts animates — wait ~3 s before a screenshot, and
   full-page screenshots can catch charts mid-animation.
+- **The dev server is not running** at the start of a session: start it with
+  `cd lawyer-finder-web && PORT=3001 npm run dev`. Left running for ~3 days it died with
+  "JavaScript heap out of memory" (~4 GB, 2026-10-19) — restart it rather than leave it up.
 - Moderation counters: changing `Post.status` by SQL skips `Community.postCount`; check it
   against the real published count after tests.
 - Local data now: the **14 Acts are in the local library** (synced from the AI on

@@ -3545,3 +3545,17 @@ Join signed out → sign in → back on the community). Post and community tab t
 when PUBLISHED). "Browse Directory" → "Find a Law Firm"; "Search posts"; Join button in site
 style; stray "•" before "Posted by" on community pages. 412/1440, no overflow.
 **Open (not code):** an attorney cannot ask for a new community; build a form, then switch on.
+
+### 2026-10-19 — About
+
+The page was a law-firm template: "98% Client Satisfaction", "1,500+ Cases Resolved",
+"Delivering practical legal solutions", "since 2012" and "Since 2026" together, "About the Firm"
+(linked to itself), "BASL Verified... guaranteed", "Knowledge Hub" articles (removed feature),
+"Trilingual Support" (false), "hundreds of attorneys... connect with clients", and "Register Your
+Practice" going to plain sign-up. Rewritten to what is true: "Software for law practices in Sri
+Lanka, a library of Sri Lankan legislation, and an assistant that explains the law"; "A product of
+FiveNeurals" (from `SITE_CONTACT`, with fiveneurals.com); cards Checked Practices / Search You
+Control / Engage a Practice Directly / Legal Library and AI Assistant / Community / Privileged by
+Design; "Are you an attorney?" → Apply as an Attorney + Find a Law Firm. Unsplash image dropped,
+tab title "About", phone title left-aligned. **Owner:** no "we are not a law firm / do not give
+legal advice" line on this page — describe what we are; the footer and AI screens carry the notice.
