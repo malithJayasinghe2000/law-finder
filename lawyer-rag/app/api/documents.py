@@ -235,11 +235,22 @@ def health_check():
             # Deliberately no model list, no base URL and no model names: this
             # route answers without the service token, so it may say whether
             # the dependency is up and must not describe the host.
+            embedding_available = any(config.EMBEDDING_MODEL in m for m in models)
             status["services"]["ollama"] = {
                 "status": "connected",
-                "llm_available": any(config.LLM_MODEL in m for m in models),
-                "embedding_available": any(config.EMBEDDING_MODEL in m for m in models),
+                "embedding_available": embedding_available,
             }
+            # Ollama only answers questions when it is the chat provider. With a
+            # hosted provider it still runs the embeddings, which every search
+            # needs, so it stays a dependency either way.
+            if config.LLM_PROVIDER == "ollama":
+                status["services"]["ollama"]["llm_available"] = any(
+                    config.LLM_MODEL in m for m in models
+                )
+            # Up but without the embedding model, every search fails: that is
+            # not healthy, whatever the chat provider.
+            if not embedding_available:
+                status["status"] = "degraded"
         else:
             status["services"]["ollama"] = {"status": "error", "code": resp.status_code}
             status["status"] = "degraded"
