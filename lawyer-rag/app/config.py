@@ -437,9 +437,14 @@ class Config:
     # Agentic RAG (LangGraph ReAct Orchestrator)
     # Set ENABLE_AGENTIC_RAG=false to fall back to the linear pipeline
     ENABLE_AGENTIC_RAG: bool = os.getenv("ENABLE_AGENTIC_RAG", "true").lower() == "true"
-    # Max LangGraph recursion steps — prevents infinite tool-call loops
-    # Each tool call + LLM response counts as 2 steps; 10 = ~5 tool calls max
-    AGENT_MAX_ITERATIONS: int = int(os.getenv("AGENT_MAX_ITERATIONS", "10"))
+    # Max LangGraph recursion steps — prevents infinite tool-call loops.
+    # Each tool call + LLM response counts as 2 steps, plus the final answer.
+    # Was 10 (~4 tool calls). gemini-3.8-flash routinely makes 4 (search,
+    # section lookup, search, search) and then hit the limit on 2 of 7 real
+    # questions (2026-10-19). 16 allows ~7 tool calls. Running out is handled:
+    # legal_agent raises AgentStepLimitReached and query_rag falls back to the
+    # linear pipeline, so the limit is a cost cap, not a failure mode.
+    AGENT_MAX_ITERATIONS: int = int(os.getenv("AGENT_MAX_ITERATIONS", "16"))
 
     # Upload directory for admin-uploaded documents
     UPLOADS_DIR: str = os.getenv("UPLOADS_DIR", str(UPLOADS_DIR))

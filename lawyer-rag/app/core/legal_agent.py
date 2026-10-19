@@ -49,6 +49,18 @@ from app.config import config
 
 logger = logging.getLogger(__name__)
 
+
+# What langgraph's prebuilt ReAct agent puts in the final message when it runs
+# out of recursion steps with tool calls still pending
+# (langgraph/prebuilt/chat_agent_executor.py). It used to be returned as the
+# answer: the user saw "Sorry, need more steps to process this request." with
+# the sources of the searches beside it, as if it were a reply about the law.
+_STEP_LIMIT_MESSAGE = "Sorry, need more steps to process this request."
+
+
+class AgentStepLimitReached(RuntimeError):
+    """The agent used every step without writing an answer."""
+
 # ---------------------------------------------------------------------------
 # Agent System Prompt
 # ---------------------------------------------------------------------------
@@ -308,6 +320,13 @@ def run_legal_agent(
     if final_answer:
         import re as _re
         final_answer = _re.sub(r'<think>.*?</think>', '', final_answer, flags=_re.DOTALL).strip()
+
+    if final_answer == _STEP_LIMIT_MESSAGE:
+        # Not an answer. Raising sends query_rag to the linear pipeline, which
+        # searches once on the user's own words and answers from that.
+        raise AgentStepLimitReached(
+            f"agent used all {config.AGENT_MAX_ITERATIONS} steps without answering"
+        )
 
     if not final_answer:
         final_answer = "I was unable to process your query. Please try rephrasing your question."
