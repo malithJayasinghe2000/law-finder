@@ -26,6 +26,7 @@
 
 import {
   acceptGeneralQuestion,
+  safetyNote,
   classifyRequest,
   evaluateAnswer,
   buildModelContext,
@@ -1019,6 +1020,39 @@ console.log('\nFailing closed\n');
   check('markdown is stripped from the rewrite',
     acceptGeneralQuestion('What does the **law** say about *theft*?') === 'What does the law say about theft?',
     'The rewrite is shown inside our italic lead; stray markup from the model would break it.');
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 5. Emergency numbers when someone may be in danger (2026-10-19)
+//
+// Both directions, per the rule at the top of this file: a person describing
+// violence must see the numbers, and a student asking about the offence must
+// not be treated as a victim.
+
+{
+  const danger = [
+    'My husband hits me. What should I do?',
+    'My father beats my mother every night',
+    'What can be done about domestic violence in my house?',
+    'My neighbour threatened to kill me',
+    'I want to kill myself',
+    'My uncle sexually abused my daughter',
+  ];
+  for (const q of danger) {
+    check(`safety note shown: "${q.slice(0, 40)}"`, safetyNote(q) !== null,
+      'A person who may be in danger must see the emergency numbers whatever the legal answer is.');
+  }
+  const general = [
+    'What is the punishment for assault under the Penal Code?',
+    'Explain the elements of the offence of theft under the Penal Code.',
+    'What does the Penal Code say about rape?',
+    'What must a director do if the company cannot pay its debts?',
+    'A hits B with a stick. What offence has A committed?',
+  ];
+  for (const q of general) {
+    check(`no safety note: "${q.slice(0, 40)}"`, safetyNote(q) === null,
+      'A general question about an offence is research, not an emergency; treating it as one reads as patronising.');
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

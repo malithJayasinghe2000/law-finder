@@ -1116,3 +1116,31 @@ export function generalNotHeldNote(generalQuestion: string): string {
     'nothing in the legislation I hold.'
   );
 }
+
+// ─── 5. Someone may be in danger ─────────────────────────────────────────────
+//
+// "My husband hits me. What should I do?" got a refusal and "nothing in the
+// legislation I hold" (2026-10-19) — correct about the law, and no help at all
+// to a person who may be in danger. Whatever the answer, a question about
+// violence, abuse or self-harm also gets the emergency numbers. Information,
+// not advice: it tells nobody what to do about their case.
+//
+// The numbers are national lines, not organisations we choose (rule 4 is about
+// lawyers; a police number is not a referral). Confirm them before launch.
+const DANGER_PATTERNS: RegExp[] = [
+  /\b(hits?|hitting|beats?|beating|beaten|slaps?|kicks?|chokes?|strangl\w*)\s+(me|my|her|him|us|them)\b/i,
+  /\b(domestic|family|sexual|physical)\s+(violence|abuse)\b/i,
+  /\b(abus\w+|assault\w*|rap(e|ed|ing)|molest\w*|harass\w*)\b.*\b(me|my|child|daughter|son|wife|husband)\b/i,
+  /\b(me|my|child|daughter|son|wife|husband)\b.*\b(abus\w+|assault\w*|rap(e|ed|ing)|molest\w*)\b/i,
+  /\bthreat\w*\s+to\s+(kill|hurt|harm)\b/i,
+  /\b(kill|hurt|harm)\s+(myself|me)\b/i,
+  /\bsuicid\w*/i,
+];
+
+export function safetyNote(question: string): string | null {
+  if (!DANGER_PATTERNS.some((p) => p.test(question ?? ''))) return null;
+  return (
+    '\n\n**If you or someone else is in danger now:** call the Police on **119**. ' +
+    "The Women's Helpline is **1938** and the National Child Protection Authority is **1929**."
+  );
+}

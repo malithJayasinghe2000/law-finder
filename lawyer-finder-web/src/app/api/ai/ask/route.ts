@@ -10,6 +10,7 @@ import {
   acceptGeneralQuestion,
   generalAnswerLead,
   generalNotHeldNote,
+  safetyNote,
   type ResolvedCitation,
   type RefusalCategory,
 } from '@/lib/ai/policy';
@@ -114,6 +115,10 @@ export async function POST(req: Request) {
     // A refusal here means the user's description of their own legal problem is
     // never sent to any model. That is the confidentiality dividend of checking
     // the request rather than only the answer.
+    // Emergency numbers on any reply to a question about violence or danger.
+    const safety = safetyNote(question);
+    const withSafety = (text: string) => (safety ? text + safety : text);
+
     const ruling = classifyRequest(question);
     if (!ruling.allowed) {
       // ── 1b. Own case: answer the general question behind it ──────────────
@@ -121,7 +126,7 @@ export async function POST(req: Request) {
       if (ruling.category === 'OWN_MATTER_ADVICE') {
         const general = await answerGeneralVersion(question);
         if (general?.kind === 'ANSWERED') {
-          const answer = generalAnswerLead(general.question) + general.answer;
+          const answer = withSafety(generalAnswerLead(general.question) + general.answer);
           const saved = await persist({
             session,
             conversationId,
@@ -145,13 +150,13 @@ export async function POST(req: Request) {
         session,
         conversationId,
         question,
-        answer: message,
+        answer: withSafety(message),
         citations: [],
         refusalCategory: ruling.category,
       });
 
       return NextResponse.json<AskResponse>({
-        answer: message,
+        answer: withSafety(message),
         citations: [],
         refused: true,
         refusalCategory: ruling.category,
@@ -204,13 +209,13 @@ export async function POST(req: Request) {
         session,
         conversationId,
         question,
-        answer: REFUSAL_MESSAGES.FOLLOW_UP_WITHOUT_CONTEXT,
+        answer: withSafety(REFUSAL_MESSAGES.FOLLOW_UP_WITHOUT_CONTEXT),
         citations: [],
         refusalCategory: 'FOLLOW_UP_WITHOUT_CONTEXT',
       });
 
       return NextResponse.json<AskResponse>({
-        answer: REFUSAL_MESSAGES.FOLLOW_UP_WITHOUT_CONTEXT,
+        answer: withSafety(REFUSAL_MESSAGES.FOLLOW_UP_WITHOUT_CONTEXT),
         citations: [],
         refused: true,
         refusalCategory: 'FOLLOW_UP_WITHOUT_CONTEXT',
@@ -238,13 +243,13 @@ export async function POST(req: Request) {
         session,
         conversationId,
         question,
-        answer: verdict.message,
+        answer: withSafety(verdict.message),
         citations: [],
         refusalCategory: verdict.category,
       });
 
       return NextResponse.json<AskResponse>({
-        answer: verdict.message,
+        answer: withSafety(verdict.message),
         citations: [],
         refused: true,
         refusalCategory: verdict.category,
@@ -257,13 +262,13 @@ export async function POST(req: Request) {
       session,
       conversationId,
       question,
-      answer: generated.answer,
+      answer: withSafety(generated.answer),
       citations: verdict.citations,
       refusalCategory: null,
     });
 
     return NextResponse.json<AskResponse>({
-      answer: generated.answer,
+      answer: withSafety(generated.answer),
       citations: verdict.citations,
       refused: false,
       refusalCategory: null,
