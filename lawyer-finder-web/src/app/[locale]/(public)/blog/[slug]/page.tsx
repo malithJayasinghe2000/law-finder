@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import prisma from '@/lib/db';
 import { directoryPath } from '@/lib/directoryLinks';
 import { isPublicDirectoryEnabled } from '@/lib/directory';
@@ -11,6 +12,21 @@ import Link from 'next/link';
 import PostInteractions from './PostInteractions';
 import { SidebarAd, AdBanner } from '@/components/ads/AdComponents';
 import { CommunityDisclaimer } from '@/components/community/CommunityNotice';
+
+// Tab title: the post's own, only once it is published (a post under review
+// or removed is not shown to the public, so neither is its title).
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  const post = await prisma.post.findFirst({
+    where: { slug, status: 'PUBLISHED' },
+    select: { title: true },
+  });
+  return { title: post?.title ?? 'Community Hub' };
+}
 
 export default async function PostDetailPage({
   params,
@@ -203,6 +219,7 @@ export default async function PostDetailPage({
               commentCount,
               authorId: post.authorId,
               communityName: post.community.name,
+              slug: post.slug,
             }}
             userVote={userVote as 'UPVOTE' | 'DOWNVOTE' | null}
             currentUserId={session?.userId || null}
@@ -226,7 +243,7 @@ export default async function PostDetailPage({
                 {directoryEnabled && (
                   <Link href={directoryPath(locale)}>
                     <button className="inline-flex items-center px-6 py-4 border border-[#bfa37a] text-[#bfa37a] hover:bg-[#bfa37a]/5 text-xs font-bold uppercase tracking-widest transition-all">
-                      Browse Directory
+                      Find a Law Firm
                     </button>
                   </Link>
                 )}

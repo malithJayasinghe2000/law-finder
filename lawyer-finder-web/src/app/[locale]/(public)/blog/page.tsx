@@ -9,10 +9,14 @@ import { SidebarAd, AdBanner, StickyBottomAd } from '@/components/ads/AdComponen
 import { CommunityDisclaimer } from '@/components/community/CommunityNotice';
 
 export const metadata = {
-  title: 'Legal Community Hub - Sri Lanka',
-  description:
-    'Join Sri Lanka\'s largest legal community. Discuss law, share experiences, and learn from verified attorneys.',
+  title: 'Community Hub',
+  description: 'Discuss Sri Lankan law, area by area. General discussion, not legal advice.',
 };
+
+// "Request Community" for attorneys. Off: there is no form to send a request
+// from (only the admin side uses /api/communities/requests). Switch on once one
+// exists, and point the button at it.
+const COMMUNITY_REQUEST_CTA_ENABLED = false;
 
 export default async function CommunityHubPage({
   params,
@@ -36,11 +40,13 @@ export default async function CommunityHubPage({
   });
 
   // Stats
-  const [totalPosts, totalMembers, totalCommunities] = await Promise.all([
+  // Members are people: one person in ten communities is one member, not ten.
+  const [totalPosts, memberGroups, totalCommunities] = await Promise.all([
     prisma.post.count({ where: { status: 'PUBLISHED' } }),
-    prisma.communityMember.count(),
+    prisma.communityMember.groupBy({ by: ['userId'] }),
     prisma.community.count({ where: { status: 'ACTIVE' } }),
   ]);
+  const totalMembers = memberGroups.length;
 
   return (
     <div className="py-12 sm:py-16 bg-white selection:bg-[#bfa37a]/30">
@@ -65,7 +71,7 @@ export default async function CommunityHubPage({
                   </Button>
                 </Link>
               ) : (
-                <Link href={`/${locale}/login`}>
+                <Link href={`/${locale}/login?redirect=${encodeURIComponent(`/${locale}/blog`)}`}>
                   <Button className="bg-[#bfa37a] text-white hover:bg-[#a68d67] rounded-none px-7 py-5.5 text-xs font-bold uppercase tracking-widest transition-all">
                     Join Community
                   </Button>
@@ -107,13 +113,14 @@ export default async function CommunityHubPage({
             {/* Search Box */}
             <Card className="border border-[#efeae0] rounded-none bg-[#faf8f6] shadow-none">
               <CardContent className="p-6 space-y-4 text-left">
-                <h3 className="font-serif font-bold text-base text-neutral-900 uppercase tracking-wider border-b border-[#efeae0] pb-2.5">Search Here</h3>
+                <h3 className="font-serif font-bold text-base text-neutral-900 uppercase tracking-wider border-b border-[#efeae0] pb-2.5">Search</h3>
                 <form action={`/${locale}/blog`} method="GET" className="flex">
                   <input
                     type="text"
                     name="search"
                     defaultValue={search}
-                    placeholder="Search Here"
+                    placeholder="Search posts"
+                    aria-label="Search posts"
                     className="w-full bg-white border border-[#efeae0] border-r-0 px-4 py-3 outline-none focus:border-[#bfa37a] text-neutral-800 text-xs font-light"
                   />
                   <button
@@ -169,7 +176,7 @@ export default async function CommunityHubPage({
             </Card>
 
             {/* Lawyer CTA */}
-            {session?.role === 'LAWYER' && (
+            {COMMUNITY_REQUEST_CTA_ENABLED && session?.role === 'LAWYER' && (
               <Card className="border border-[#bfa37a]/30 bg-[#faf8f6] rounded-none shadow-none">
                 <CardContent className="p-6 text-center space-y-4">
                   <h3 className="font-serif font-bold text-base text-neutral-900">Want to create a community?</h3>

@@ -81,7 +81,7 @@ export default function PostCard({ post, locale, onVote, showCommunity = true }:
                 <CommunityIcon icon={post.community.icon} className="h-3 w-3" /> {post.community.displayName}
               </Link>
             )}
-            <span>•</span>
+            {showCommunity && <span>•</span>}
             <span className="flex items-center gap-1">
               Posted by{' '}
               <span className="font-semibold text-neutral-700">

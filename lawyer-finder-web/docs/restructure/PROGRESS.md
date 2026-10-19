@@ -3529,3 +3529,19 @@ height it filled); search placeholder says it searches titles (fits at 412px); t
 14th 404s and its page hides the buttons, search "penal" finds the Penal Code.
 **Open:** the category sidebar lists six categories with four empty ("Supreme Court Decisions -
 0 documents") and "Categories 6" in the stats box.
+
+### 2026-10-19 — Community Hub
+
+Looked at with 4 test posts on a phone (inserted and deleted by id; no votes/comments left).
+Search preview said "Sri Lanka's largest legal community... learn from verified attorneys" → "Discuss
+Sri Lankan law, area by area. General discussion, not legal advice."; tab "Community Hub".
+"Members" counted memberships (one admin in 10 communities = 10) → distinct people. Each
+community's Moderators card showed "?" (staff account, no name) → "Moderated by the TheLawyr
+team."; raw category word ("civil") removed. **"Request Community"** for attorneys led to the
+dashboard, where no form exists (only admin uses `/api/communities/requests`) → hidden,
+`COMMUNITY_REQUEST_CTA_ENABLED = false` in the hub page (tested: shown to an attorney before,
+not after). Join / Join Community / comment "Sign in" now return to the page (tested end to end:
+Join signed out → sign in → back on the community). Post and community tab titles (post title only
+when PUBLISHED). "Browse Directory" → "Find a Law Firm"; "Search posts"; Join button in site
+style; stray "•" before "Posted by" on community pages. 412/1440, no overflow.
+**Open (not code):** an attorney cannot ask for a new community; build a form, then switch on.

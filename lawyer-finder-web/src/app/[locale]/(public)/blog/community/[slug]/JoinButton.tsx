@@ -18,7 +18,7 @@ export default function JoinButton({ communityId, isMember, isLoggedIn, locale }
 
   const handleClick = async () => {
     if (!isLoggedIn) {
-      router.push(`/${locale}/login`);
+      router.push(`/${locale}/login?redirect=${encodeURIComponent(window.location.pathname)}`);
       return;
     }
 
@@ -42,10 +42,13 @@ export default function JoinButton({ communityId, isMember, isLoggedIn, locale }
     <Button
       onClick={handleClick}
       disabled={loading}
-      variant={member ? 'outline' : 'default'}
-      className="font-semibold min-w-[100px]"
+      className={`min-w-[100px] rounded-none px-6 py-5 text-xs font-bold uppercase tracking-widest transition-all ${
+        member
+          ? 'bg-transparent border border-[#bfa37a] text-[#bfa37a] hover:bg-[#bfa37a]/5'
+          : 'bg-[#bfa37a] text-white hover:bg-[#a68d67]'
+      }`}
     >
-      {loading ? '...' : member ? 'Joined ✓' : 'Join'}
+      {loading ? '...' : member ? 'Joined' : 'Join'}
     </Button>
   );
 }

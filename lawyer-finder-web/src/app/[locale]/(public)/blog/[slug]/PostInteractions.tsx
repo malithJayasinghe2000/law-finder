@@ -23,6 +23,7 @@ interface PostData {
   commentCount: number;
   authorId: string;
   communityName: string;
+  slug: string;
 }
 
 interface Translation {
@@ -380,7 +381,7 @@ export default function PostInteractions({
         ) : (
           <div className="mb-6 p-4 bg-[#faf8f6] border border-[#efeae0] rounded-none text-xs font-bold uppercase tracking-widest text-center text-neutral-400">
             <span>Sign in to join the discussion. </span>
-            <a href={`/${locale}/login`} className="text-[#bfa37a] hover:text-[#a68d67] hover:underline ml-1.5 transition-colors">
+            <a href={`/${locale}/login?redirect=${encodeURIComponent(`/${locale}/blog/${post.slug}`)}`} className="text-[#bfa37a] hover:text-[#a68d67] hover:underline ml-1.5 transition-colors">
               Sign In
             </a>
           </div>

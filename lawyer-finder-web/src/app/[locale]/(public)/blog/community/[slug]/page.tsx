@@ -1,13 +1,26 @@
+import type { Metadata } from 'next';
 import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { notFound } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Users, FileText, Clock, ShieldCheck, PenSquare, Scale, BookOpen } from 'lucide-react';
 import Link from 'next/link';
 import PostFeed from '@/components/community/PostFeed';
 import JoinButton from './JoinButton';
 import { CommunityDisclaimer } from '@/components/community/CommunityNotice';
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  const community = await prisma.community.findFirst({
+    where: { name: slug, status: 'ACTIVE' },
+    select: { displayName: true },
+  });
+  return { title: community?.displayName ?? 'Community Hub' };
+}
 
 export default async function CommunityPage({
   params,
@@ -20,14 +33,6 @@ export default async function CommunityPage({
   const community = await prisma.community.findUnique({
     where: { name: slug },
     include: {
-      createdBy: { select: { id: true, fullName: true } },
-      members: {
-        where: { role: { in: ['CREATOR', 'MODERATOR'] } },
-        include: {
-          user: { select: { id: true, fullName: true, profileImageUrl: true, role: true } },
-        },
-        take: 10,
-      },
       _count: { select: { posts: true, members: true } },
     },
   });
@@ -125,12 +130,9 @@ export default async function CommunityPage({
                 <h3 className="font-serif font-bold text-sm uppercase tracking-wider text-neutral-900 mb-3 border-b border-[#efeae0] pb-2 flex items-center gap-1.5">
                   <ShieldCheck className="h-4 w-4 text-[#bfa37a]" /> About c/{community.name}
                 </h3>
-                <p className="text-xs text-neutral-500 font-light leading-relaxed mb-4">
+                <p className="text-xs text-neutral-500 font-light leading-relaxed">
                   {community.description}
                 </p>
-                <div className="text-xs text-neutral-450 font-light">
-                  Category: <Badge variant="secondary" className="text-[10px] rounded-none bg-neutral-100 border-none font-bold uppercase tracking-wider text-neutral-500">{community.category}</Badge>
-                </div>
               </CardContent>
             </Card>
 
@@ -148,33 +150,11 @@ export default async function CommunityPage({
               </Card>
             )}
 
-            {/* Moderators */}
-            <Card className="border border-[#efeae0] rounded-none bg-white shadow-none text-left">
-              <CardContent className="p-5">
-                <h3 className="font-serif font-bold text-sm uppercase tracking-wider text-neutral-900 mb-3 border-b border-[#efeae0] pb-2 flex items-center gap-1.5">
-                  <Users className="h-4 w-4 text-[#bfa37a]" /> Moderators
-                </h3>
-                <div className="space-y-3.5">
-                  {community.members.map((member) => (
-                    <div key={member.id} className="flex items-center gap-2.5">
-                      <div className="h-7 w-7 rounded-none bg-neutral-100 border border-[#efeae0] flex items-center justify-center text-xs font-bold text-neutral-700">
-                        {member.user.profileImageUrl ? (
-                          <img src={member.user.profileImageUrl} alt="" className="h-full w-full object-cover" />
-                        ) : (
-                          (member.user.fullName || '?').charAt(0)
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-xs font-semibold text-neutral-800 truncate">{member.user.fullName}</div>
-                      </div>
-                      <Badge variant="outline" className="text-[8px] rounded-none px-1.5 py-0 border-neutral-300 text-neutral-555 uppercase font-bold tracking-wider">
-                        {member.role === 'CREATOR' ? 'Creator' : 'Mod'}
-                      </Badge>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+            {/* Moderation: the platform moderates every community. The old card
+                listed creator accounts, which are staff accounts with no name. */}
+            <p className="text-xs text-neutral-500 font-light flex items-center gap-1.5">
+              <Users className="h-4 w-4 text-[#bfa37a]" /> Moderated by the TheLawyr team.
+            </p>
           </aside>
         </div>
       </div>
