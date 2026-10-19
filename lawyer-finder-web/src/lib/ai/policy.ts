@@ -210,11 +210,14 @@ export const REFUSAL_MESSAGES: Record<RefusalCategory, string> = {
     'Choosing who advises you is your decision, not mine. The directory lists every verified practice, ' +
     'in an order that changes daily, if you want to look.',
 
+  // Also what a question about an Act we do not hold usually ends in: the model
+  // names that Act from memory, and the citation check withholds it. So say
+  // plainly that it may not be in the library (2026-10-19: "the Computer Crimes
+  // Act" got "legislation I had not actually retrieved", which nobody follows).
   UNSUPPORTED_CITATION:
-    'I withheld that answer because it referred to legislation I had not actually retrieved, ' +
-    'which means I could not stand behind the citation.\n\n' +
-    'A wrong section number in a legal answer is worse than no answer. Try asking more specifically, ' +
-    'and name the Act if you know it.',
+    'I could not find support for this answer in the Acts I hold, so I have not shown it.\n\n' +
+    'Usually that means the law you asked about is not in my library yet, or the question was too ' +
+    'broad. The Legal Library lists every Act I hold - try naming one of them, or ask more specifically.',
 };
 
 // ─── 1. Refusing the question ────────────────────────────────────────────────
