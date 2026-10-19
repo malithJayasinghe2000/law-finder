@@ -1053,3 +1053,66 @@ export function retentionCutoff(now: Date = new Date()): Date {
   cutoff.setDate(cutoff.getDate() - AI_CONVERSATION_RETENTION_DAYS);
   return cutoff;
 }
+
+// ─── 4. Answering the general question behind an own-case one ───────────────
+//
+// A bare "I cannot advise you" reads as a system that will not help (owner,
+// 2026-10-19). So for OWN_MATTER_ADVICE only, the route asks the model service
+// to rewrite the question as a general one with every personal detail removed,
+// and answers THAT through the normal pipeline and every normal check.
+//
+// Why this stays information, not advice: the answering model is shown the
+// general question alone, never the person's facts, so it cannot apply the law
+// to their situation. That only holds if the rewrite really is general, which
+// is what acceptGeneralQuestion checks — the model's word for it is not enough.
+//
+// Deliberately not for OUTCOME_PREDICTION, DOCUMENT_DECISION or
+// REPRESENTATION_REQUEST: "will I win", "should I sign" and "find me a lawyer"
+// have no general question behind them that answers what was asked.
+
+/** A personal word anywhere means the rewrite still carries the person. */
+const PERSONAL_WORDS = /\b(i|i'm|i've|me|my|mine|myself|we|us|our|ours|you|your|yours)\b/i;
+
+/**
+ * Stricter than classifyRequest, for rewrites only. OUTCOME_PATTERNS look for
+ * "will I win"; a rewrite says "will a person win", which they do not catch.
+ * A question about chances, or about what someone should do, has no general
+ * answer in an Act — and the rewrite prompt forbids both — so either one means
+ * the rewrite has not done its job.
+ */
+const PREDICTION_OR_STEER_WORDS = /\b(win|wins|winning|lose|loses|succeed|succeeds|chances?|likely|should|best)\b/i;
+
+/**
+ * The model's rewrite, if it is safe to answer; otherwise null.
+ *
+ * It must read as one general question, contain no first- or second-person
+ * word, and pass classifyRequest itself — a rewrite that still asks for advice,
+ * a prediction or a lawyer is refused exactly as the original was.
+ */
+export function acceptGeneralQuestion(rewrite: string | null | undefined): string | null {
+  const q = (rewrite ?? '').replace(/[*_`#>\[\]]/g, '').replace(/\s+/g, ' ').trim();
+  if (q.length < 12 || q.length > 300) return null;
+  if (!q.endsWith('?')) return null;
+  if ((q.match(/\?/g) || []).length > 1) return null;
+  if (PERSONAL_WORDS.test(q)) return null;
+  if (PREDICTION_OR_STEER_WORDS.test(q)) return null;
+  if (!classifyRequest(q).allowed) return null;
+  return q;
+}
+
+/** Put in front of the answer to the general question. Our words, not the model's. */
+export function generalAnswerLead(generalQuestion: string): string {
+  return (
+    'I cannot advise you on your own situation - that can only come from an attorney-at-law ' +
+    'who knows the full facts. Here is what the law says in general about: ' +
+    `*${generalQuestion}*\n\n`
+  );
+}
+
+/** Appended to the own-case refusal when the general question found nothing either. */
+export function generalNotHeldNote(generalQuestion: string): string {
+  return (
+    `\n\nI also looked for what the law says in general about *${generalQuestion}* and found ` +
+    'nothing in the legislation I hold.'
+  );
+}

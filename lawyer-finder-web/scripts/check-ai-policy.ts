@@ -25,6 +25,7 @@
  */
 
 import {
+  acceptGeneralQuestion,
   classifyRequest,
   evaluateAnswer,
   buildModelContext,
@@ -975,6 +976,49 @@ console.log('\nFailing closed\n');
     verdict.outcome === 'REFUSE' && verdict.category === 'PRACTITIONER_STEERING',
     'The reason recorded against a withheld answer drives what gets investigated. Touting must not be filed as a missing footnote.'
   );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 4. The general question behind an own-case one (2026-10-19)
+//
+// The rewrite is what keeps the person's facts away from the answering model.
+// A rewrite that still carries them, or still asks for advice, a prediction or
+// a lawyer, must be rejected — and a genuinely general one must get through,
+// or the feature is a second refusal with extra steps.
+
+{
+  const accepted: string[] = [
+    'Who is liable when a vehicle is damaged by another person in an accident?',
+    'What does the law say about compensation when someone damages another person\'s property?',
+    'How long must a person possess land to claim it by prescription?',
+    'What must a director do if the company cannot pay its debts?',
+  ];
+  for (const q of accepted) {
+    check(`general rewrite accepted: "${q.slice(0, 50)}"`, acceptGeneralQuestion(q) === q,
+      'A general question with no personal detail is exactly what the feature exists to answer.');
+  }
+
+  const rejected: Array<[string, string]> = [
+    ['My bike was damaged in an accident. Who is liable?', 'carries "my"'],
+    ['What can I do if someone damages my property?', 'carries "I" and "my"'],
+    ['What should you do if your landlord locks you out?', 'second person is still the reader\'s case'],
+    ['Will a person win a prescription case after 12 years?', 'outcome prediction'],
+    ['Which lawyer is best for a land dispute?', 'asks for a lawyer'],
+    ['NONE', 'not a question'],
+    ['What is theft? What is robbery?', 'two questions'],
+    ['Explain prescription', 'no question mark'],
+    ['What should a person do if their vehicle is damaged?', 'asks what to do'],
+    ['What are the chances of a claim for damage succeeding?', 'chances'],
+    ['', 'empty'],
+  ];
+  for (const [q, why] of rejected) {
+    check(`general rewrite rejected (${why})`, acceptGeneralQuestion(q) === null,
+      'A rewrite that keeps the person, or asks for what the policy refuses, must not be answered.');
+  }
+
+  check('markdown is stripped from the rewrite',
+    acceptGeneralQuestion('What does the **law** say about *theft*?') === 'What does the law say about theft?',
+    'The rewrite is shown inside our italic lead; stray markup from the model would break it.');
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

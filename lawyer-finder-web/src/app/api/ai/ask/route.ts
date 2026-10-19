@@ -7,10 +7,13 @@ import {
   evaluateAnswer,
   REFUSAL_MESSAGES,
   buildModelContext,
+  acceptGeneralQuestion,
+  generalAnswerLead,
+  generalNotHeldNote,
   type ResolvedCitation,
   type RefusalCategory,
 } from '@/lib/ai/policy';
-import { askRag, loadLibraryIndex, RagUnavailableError } from '@/lib/ai/rag';
+import { askRag, generaliseQuestion, loadLibraryIndex, RagUnavailableError } from '@/lib/ai/rag';
 
 /**
  * POST /api/ai/ask — the only route that produces an AI answer.
@@ -35,8 +38,12 @@ import { askRag, loadLibraryIndex, RagUnavailableError } from '@/lib/ai/rag';
  * implementation detail:
  *
  *   1. Classify the question. If it asks for advice on the user's own matter,
- *      refuse *before* calling the model — so their account of their problem is
- *      never transmitted at all.
+ *      it is never answered as asked. Since 2026-10-19 the model service is
+ *      asked for the general question behind it (no personal details), and
+ *      only that is answered — see step 1b. The person's facts never reach the
+ *      model that writes the answer. (They do reach the rewrite: the privacy
+ *      notice used to say own-case questions are sent nowhere, and its next
+ *      version must say otherwise.)
  *   2. Generate.
  *   3. Evaluate the answer whole. Withhold if it advises, steers toward a
  *      practitioner, or cites something that was never retrieved.
@@ -109,17 +116,42 @@ export async function POST(req: Request) {
     // the request rather than only the answer.
     const ruling = classifyRequest(question);
     if (!ruling.allowed) {
+      // ── 1b. Own case: answer the general question behind it ──────────────
+      let message = ruling.message;
+      if (ruling.category === 'OWN_MATTER_ADVICE') {
+        const general = await answerGeneralVersion(question);
+        if (general?.kind === 'ANSWERED') {
+          const answer = generalAnswerLead(general.question) + general.answer;
+          const saved = await persist({
+            session,
+            conversationId,
+            question,
+            answer,
+            citations: general.citations,
+            refusalCategory: null,
+          });
+          return NextResponse.json<AskResponse>({
+            answer,
+            citations: general.citations,
+            refused: false,
+            refusalCategory: null,
+            conversationId: saved,
+          });
+        }
+        if (general?.kind === 'NOT_HELD') message += generalNotHeldNote(general.question);
+      }
+
       const saved = await persist({
         session,
         conversationId,
         question,
-        answer: ruling.message,
+        answer: message,
         citations: [],
         refusalCategory: ruling.category,
       });
 
       return NextResponse.json<AskResponse>({
-        answer: ruling.message,
+        answer: message,
         citations: [],
         refused: true,
         refusalCategory: ruling.category,
@@ -244,6 +276,50 @@ export async function POST(req: Request) {
       { status: 500 }
     );
   }
+}
+
+/**
+ * Answer the general question behind an own-case question, or say why not.
+ *
+ * ANSWERED only when the rewrite passes acceptGeneralQuestion AND the answer
+ * passes evaluateAnswer, exactly as a question typed in that form would.
+ * NOT_HELD when the general question has no source in the library, so the
+ * refusal can say it looked. null for everything else — the service is down,
+ * the rewrite carried the person with it, or the answer was withheld for
+ * advising or steering — and the caller shows the plain refusal.
+ *
+ * No history: earlier turns can hold the person's facts, and keeping them out
+ * of the answering model is the whole point.
+ */
+async function answerGeneralVersion(question: string): Promise<
+  | { kind: 'ANSWERED'; question: string; answer: string; citations: ResolvedCitation[] }
+  | { kind: 'NOT_HELD'; question: string }
+  | null
+> {
+  const general = acceptGeneralQuestion(await generaliseQuestion(question));
+  if (!general) return null;
+
+  let generated;
+  try {
+    generated = await askRag(buildModelContext(general, []));
+  } catch {
+    return null;
+  }
+  if (generated.needsContext || !generated.answer) return null;
+
+  const verdict = evaluateAnswer({
+    answer: generated.answer,
+    sources: generated.sources,
+    library: await loadLibraryIndex(),
+    requiresCitation: true,
+  });
+  if (verdict.outcome === 'REFUSE') {
+    console.warn('[AI_ASK_GENERAL_WITHHELD]', verdict.category, verdict.detail);
+    return verdict.category === 'NO_CITABLE_SOURCE' || verdict.category === 'UNSUPPORTED_CITATION'
+      ? { kind: 'NOT_HELD', question: general }
+      : null;
+  }
+  return { kind: 'ANSWERED', question: general, answer: generated.answer, citations: verdict.citations };
 }
 
 /**

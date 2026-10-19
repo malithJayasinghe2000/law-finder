@@ -115,6 +115,35 @@ export async function askRag(context: ModelContext): Promise<RagResult> {
   };
 }
 
+/**
+ * The general question behind a question about someone's own case, or null.
+ *
+ * Only a rewrite; nothing is retrieved or answered. Never throws: when the
+ * service cannot help, the caller falls back to the plain refusal, which needs
+ * no service at all. The rewrite is checked by acceptGeneralQuestion
+ * (policy.ts) before it is used.
+ */
+export async function generaliseQuestion(question: string): Promise<string | null> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 20_000);
+  try {
+    const response = await ragFetch('/api/generalise', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: question }),
+      signal: controller.signal,
+      cache: 'no-store',
+    });
+    if (!response.ok) return null;
+    const payload = (await response.json()) as { question?: unknown };
+    return typeof payload.question === 'string' ? payload.question : null;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 function normaliseSource(raw: NonNullable<RagResponse['sources']>[number]): AiSource {
   return {
     documentName: String(raw.document_name ?? ''),

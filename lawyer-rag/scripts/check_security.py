@@ -60,6 +60,7 @@ print("\n[1] Authentication — every route, not a list of routes")
 for method, path in [
     ("GET", "/"),
     ("POST", "/api/chat"),
+    ("POST", "/api/generalise"),
     ("POST", "/api/ingest"),
     ("POST", "/api/ingest/upload"),
     ("POST", "/api/ingest/amendment"),

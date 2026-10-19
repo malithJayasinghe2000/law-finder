@@ -148,3 +148,56 @@ def chat():
         return error_response(
             e, "An error occurred while processing your request", 500, context="chat"
         )
+
+
+# ── Turning a question about someone's own case into the general question ──
+#
+# The Next.js policy refuses advice on a person's own matter. A bare refusal
+# reads as a system that will not help (owner, 2026-10-19), so the caller asks
+# here for the general question behind it — "my bike was damaged, what can I
+# do?" becomes "Who is liable when a vehicle is damaged in an accident?" — and
+# answers THAT, through the normal pipeline and every normal check.
+#
+# The rewrite carries no facts. The point is not tone: the answering model is
+# then never shown the person's situation, so it cannot apply the law to it.
+# This route only rewrites; it retrieves nothing and answers nothing, and the
+# caller re-checks what comes back before using it.
+GENERALISE_PROMPT = """You rewrite a person's question about their own legal situation into ONE general question about what Sri Lankan law says.
+
+Rules:
+- Remove every personal detail: no "I", "my", "me", "we", "our", "you", "your", no names, places, dates, amounts or relationships specific to them.
+- Ask what the law says, in general terms, about the legal issue underneath. Use words like "a person", "an owner", "a tenant", "a driver".
+- Do not ask what anyone should do, whether anyone will win, or for a lawyer.
+- One sentence, ending with "?". At most 25 words.
+- If there is no legal issue in it, reply with exactly: NONE
+
+Reply with the question only."""
+
+
+@chat_bp.route("/api/generalise", methods=["POST"])
+def generalise():
+    try:
+        data = request.get_json(silent=True) or {}
+        message = data.get("message")
+        if not isinstance(message, str) or not message.strip():
+            return jsonify({"error": "Missing 'message'"}), 400
+        message = message.strip()
+        if len(message) > config.MAX_MESSAGE_CHARS:
+            return jsonify({"error": "Message too long"}), 413
+
+        from langchain_core.messages import HumanMessage, SystemMessage
+        from app.core.llm import get_llm, message_text
+
+        reply = get_llm().invoke(
+            [SystemMessage(content=GENERALISE_PROMPT), HumanMessage(content=message)]
+        )
+        text = message_text(reply).strip().strip('"').strip()
+        # Only the first line; a model that explains itself has not followed the
+        # format, and its explanation is not ours to show.
+        text = text.splitlines()[0].strip() if text else ""
+        if not text or text.upper().startswith("NONE"):
+            return jsonify({"question": None}), 200
+        # Length only. The caller decides whether the question is acceptable.
+        return jsonify({"question": text[:300]}), 200
+    except Exception as e:
+        return error_response(e, "Could not rewrite the question", 500, context="generalise")
