@@ -3588,3 +3588,24 @@ every page body was English. New switch `TRANSLATED_LOCALES_ENABLED = false`
 (307, query kept). Tested: /si, /si/firms, /si/legal-library?search=penal, /ta/blog,
 /ta/dashboard → English; "/" with a Sinhala browser or a NEXT_LOCALE=si cookie ends on /en;
 /api untouched. Owner's plan: Sinhala for the public side only, after launch.
+
+### 2026-10-19 — AI Chat on Gemini (gemini-3.8-flash): first real test
+
+Owner put a Gemini key in `lawyer-rag/.env` (`LLM_PROVIDER=google`, `LLM_MODEL=gemini-3.8-flash`).
+`.env` had `FLASK_PORT=5000` (macOS AirPlay; the site calls 5001) → set to 5001. **Ollama is still
+required with Gemini**: every search embeds the question with `nomic-embed-text` (274 MB) — the live
+server needs Ollama with that model. Through `/api/ai/ask`, 12 + 7 questions (guest, then the seeded
+citizen; test chats deleted by id): prescription, deeds (checked word for word against the Act),
+directors and Motor Traffic answer correctly with linked sections; own case, choosing a lawyer,
+Sinhala, case law and "ignore your rules" are refused. `check_injection` 16/16 on Gemini (first
+run against a hosted model), `check_security` 46/46, `check_routing` 29/29, `check:ai` 124/124.
+Fixed: agent step limit hit on 2/7 questions and langgraph's "Sorry, need more steps…" was shown
+as the answer with sources (`4b97e76`: 16 steps + fall back to the linear pipeline); health check
+(`2933346`); withheld-answer wording (`918bd01`). Answers take 15-37 s (local llama ~5 s); guests
+get 5 questions a day. **Found, not fixed:** "Act No. 24 of 2007" is the **Computer Crime Act** and
+"Act No. 24 of 2025" the Social Security Contribution Levy (Amendment) Act — stored by number, so
+the model's citation by title is withheld and every Computer Crime question fails (`corpus.py`
+DISPLAY_NAMES is a display-only stopgap; RAG-REVIEW §4.12). The theft question missed s.366 (the
+definition) though it is in the Penal Code, and the answer says "the provided legal context".
+**Before real users:** paid Gemini key (free tier may train on prompts), Google named in the
+privacy notice (parked), Ollama + embedding model on the server.
