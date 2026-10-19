@@ -2,6 +2,7 @@ import createMiddleware from 'next-intl/middleware';
 import { routing } from './i18n/routing';
 import { NextRequest, NextResponse } from 'next/server';
 import { decrypt } from '@/lib/auth';
+import { TRANSLATED_LOCALES_ENABLED } from '@/lib/translatedLocales';
 
 const intlMiddleware = createMiddleware(routing);
 
@@ -15,6 +16,16 @@ function getLocale(pathname: string): string {
 
 export default async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  // Sinhala and Tamil are switched off until the public pages are translated:
+  // send /si/... and /ta/... to the same page in English. 307, not 308, so the
+  // addresses are not dropped for good once translations exist.
+  if (!TRANSLATED_LOCALES_ENABLED && /^\/(si|ta)(\/|$)/.test(pathname)) {
+    const url = request.nextUrl.clone();
+    url.pathname = pathname.replace(/^\/(si|ta)(?=\/|$)/, '/en');
+    return NextResponse.redirect(url, 307);
+  }
+
   const locale = getLocale(pathname);
 
   // Protect /dashboard routes

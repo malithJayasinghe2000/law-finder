@@ -3579,3 +3579,12 @@ blank (hosting undecided), 17 long dashes, and the additions listed in the brief
 **Owner parked it ("later")** — no change made; a new version must be published on the live site
 before real users sign up. Dev-only hydration warning from NoticeDocument's multi-line
 `className` (harmless) left as well.
+
+### 2026-10-19 — Sinhala and Tamil switched off for launch
+
+/si showed only the menu and tab title in Sinhala (the title still "find the right lawyer");
+every page body was English. New switch `TRANSLATED_LOCALES_ENABLED = false`
+(`src/lib/translatedLocales.ts`): `proxy.ts` redirects /si/... and /ta/... to the English page
+(307, query kept). Tested: /si, /si/firms, /si/legal-library?search=penal, /ta/blog,
+/ta/dashboard → English; "/" with a Sinhala browser or a NEXT_LOCALE=si cookie ends on /en;
+/api untouched. Owner's plan: Sinhala for the public side only, after launch.

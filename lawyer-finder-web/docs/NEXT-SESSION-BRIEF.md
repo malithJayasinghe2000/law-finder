@@ -281,6 +281,12 @@ Each is its own commit (on `main`); reasoning and tests are in PROGRESS.md (2026
 describe what TheLawyr **is** - no extra "we are not a law firm / no legal advice" lines (the
 footer and AI screens carry the notice). Legal Library: the detail API returns `fileAvailable`
 (`findLegalDocumentFile` in `src/lib/legalDocuments.ts`).
+**Sinhala/Tamil off for launch:** `TRANSLATED_LOCALES_ENABLED = false`
+(`src/lib/translatedLocales.ts`) - `proxy.ts` sends every /si/... and /ta/... to the same page in
+English (307). Only the menu and titles were translated, so /si showed half-English pages. Owner
+wants Sinhala on the **public side only** (not dashboards), after launch: move the public text into
+messages/si.json, native-speaker review, language switcher, then switch on. AI answers stay
+English until policy.ts's checks work in Sinhala.
 
 ## C. Law research (primary texts) — and how it was applied
 
@@ -433,8 +439,8 @@ footer and AI screens carry the notice). Legal Library: the detail API returns `
 16. ~~User Management can toggle `isVerified` directly~~ — fixed `38a7e10` (withdraw-only).
 17. ~~Public `<title>`~~ fixed in English (2026-10-16); **si/ta `HomePage.title/subtitle` still say "find the right lawyer"** — need a native speaker. Was "Find the Right Lawyer in Sri Lanka" — add to item 5 (it is `HomePage.title`
     in messages/en.json; also "Featured Legal Experts", "Book consultations instantly").
-20. **No language switcher** (si/ta exist only by URL; most text is English-only in code).
-    Owner: not now. si/ta Navigation still says "Lawyer directory".
+20. **Sinhala for the public side, after launch** (owner, 2026-10-19). /si and /ta redirect to
+    English for now (`TRANSLATED_LOCALES_ENABLED`). Plan and limits in §B5 (2026-10-19 note).
 21. **No long dash "—" in visible text** (owner, 2026-10-16; `e6e054e`). The next privacy-notice
     version must follow suit; saved AI history left alone.
 18. **Withdrawn verification has no way back in the app** (`38a7e10`): re-applying creates a
