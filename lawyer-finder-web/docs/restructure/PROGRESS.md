@@ -3639,3 +3639,44 @@ numbers; follow-ups took 50-85 s. **Found, not fixed (blocks launch):** one Gemi
 the request ran **16 minutes**; the AI service has 1 worker × 1 thread, so every user waited
 behind it, and gunicorn's 120 s timeout did not stop it. Needs an overall time budget per request
 and more than one worker. Also: Gemini returned "503 UNAVAILABLE" once (Google overloaded).
+
+### 2026-10-21 — Legal Library: types, amendments, sources, and Parliament's list
+
+The library is built around how Sri Lankan law is published. **Types** replace the old
+categories (Constitution, Act, Ordinance, Regulation, Provincial Statute, Gazette, Court
+Rules, four kinds of decision); "Amendment Acts" is gone as a type: an amending Act is an
+ACT whose `amendsId` points at its law, and the law's page lists it. **Subjects** are a
+second filter. Every document records its **source** and the date it was **last checked**.
+Migration `20261021120000_legal_library_types_amendments_sources` (hand-edited: the enum
+swap maps old values instead of casting them). Labels live in `src/lib/legalLibrary.ts`;
+they were copied in four files.
+
+**Parliament's Acts listing is a review queue** (`src/lib/parliamentActs.ts`, model
+`ParliamentAct`): Admin > Legal Documents > New from Parliament, "Check Parliament now", and
+`npm run jobs:weekly`. Approving downloads the official PDF, links it to the law it amends
+(suggested by name; or a new law listed as **AWAITING_ORIGINAL**, "Original text: being
+added"), and sends it to the AI. One Act at a time: indexing runs the embedding model locally.
+AWAITING_ORIGINAL is never ACTIVE, so the chat greeting and citation links, which read
+ACTIVE only, never claim the AI holds it.
+
+Verified running (a separate production build on :3007): the check queued 14 real Acts and
+refused to mark laws checked until it caught up; approving Animals (Amendment) Act No. 19 of
+2026 created "Animals Act" (being added), indexed 4 chunks, served the PDF; double approval,
+self-amendment, a `javascript:` source and an old category were refused; no sideways scroll
+at 412 px. Penal Code and Civil Procedure Code set to Ordinance; two mislabelled rows fixed
+(OPEN-ITEMS D9). **Open:** D7 (old Ordinances, source now found), D8 (merged text), D9
+(replace the unofficial consolidations), B2 (nothing runs the weekly job yet). The dev
+server on :3001 predates the migration and needs a restart.
+
+### 2026-10-21 — The Penal Code is the first law on official texts only
+
+The owner uploaded the Penal Code, 1980 Revised Edition (CommonLII/LawNet, 552 sections) and
+approved its post-1980 amending Acts from Parliament: 2021 (Nos. 25 and 5), 2018, 2006, 2002,
+1998, 1995. 1998 and 1995 are scans: ingestion now OCRs a PDF with no text (`ocrmypdf`, lawyer-rag
+README) and failed documents have a Retry. Parliament's entry for No. 32 of 1991 links the
+Telecommunications Act, so approvals now send the Act's number and lawyer-rag refuses a PDF that
+does not mention it (`expect_text`); 1991 is dismissed and still missing. The old unofficial
+Penal Code (564 chunks) is removed from the AI; a theft question was answered from the 1980 text
+with library links. All 12 old consolidations are hidden from the library (Companies Act carried
+Lanka Law's cover); the other 11 stay in the AI until each is replaced the same way. A
+`kill -HUP` reload of lawyer-rag crash-looped its workers on macOS for ~25 min: restart it fully.

@@ -214,6 +214,76 @@ expect to set fees on.
 > **DECISION: collapse to `invoices` (list) and `invoices/[id]` (view and pay).** Do it
 > when wiring the payment gateway — same code, same visit.
 
+### D7. 🟠 Legal Library: the pre-1948 Ordinances have no official source yet
+
+Parliament's Acts listing (parliament.lk/en/business-of-parliament/acts-listing) goes back
+to about 1949 and has an official PDF for every Act, amendments included. It cannot hold
+laws made before Parliament existed: the Penal Code (Ordinance No. 2 of 1883), the
+Evidence Ordinance (1895), the Civil Procedure Code (1889) and others. For those it lists
+only the amending Acts.
+
+Private platforms (lankalaw.net, justice.lk) hold these texts, but their copies carry their
+own branding and may carry their own copyright. **Do not copy from them.**
+
+**Source found (2026-10-21):** CommonLII hosts LawNet's (Ministry of Justice) 1980 Revised
+Legislative Enactments as PDFs, marked "Copyright © 2005 Sri Lanka Government":
+http://www.commonlii.org/lk/legis/consol_act/ (the Penal Code is Chapter 25, `pc25130`). Each
+text includes amendments up to 1980; later ones come from Parliament. The site refuses
+scripts (403), so the PDFs are downloaded by hand.
+
+> **DECISION: download the main Ordinances (about 30-50) from CommonLII, and upload each
+> under Admin > Legal Documents > Missing original > "Upload original" (or a plain upload),
+> source "Revised Legislative Enactments 1980", "Includes amendments up to" 1980.** Until
+> then, the law's page lists its amendments and shows "Original text: being added". Do not
+> market the library as "every law in Sri Lanka" until this is done.
+
+### D9. 🟠 Legal Library: the AI's current main laws are unofficial consolidations
+
+The 12 main laws the AI answers from (Penal Code, Civil Procedure Code, Companies Act,
+Motor Traffic Act, ...) are PDFs named like `Penal-Code-Consolidated2024.pdf`, consolidated
+to 2024. Their source was never recorded and the naming matches lankalaw.net, a private
+platform. The library shows "Source not recorded" for each.
+
+> **DECISION: replace each with an official text plus its official amending Acts, one law
+> at a time, before launch.** Replace before removing: the AI answers from these today.
+> Replacing a 2024 consolidation with the 1980 text alone would make the AI *worse* (it
+> would lose 1980-2024 changes), so each law's post-1980 amending Acts must be approved
+> from the Parliament queue at the same time. Two were mislabelled and are fixed: "Act No.
+> 24 of 2007" is the Computer Crime Act; "Act No. 24 of 2025" is the Social Security
+> Contribution Levy (Amendment) Act, whose file is missing from disk.
+>
+> **Checked 2026-10-21, cover by cover:** only the Companies Act PDF carries Lanka Law's
+> cover and logo; it is ARCHIVED (hidden from the library, still used by the AI). The other
+> 11 carry no one's name but their source is still unknown; on the owner's decision they are
+> ARCHIVED too (hidden from the library, still used by the AI until replaced). While hidden,
+> the chat greeting does not name them and the AI's citations of them carry no library link. Companies Act No. 7 of 2007 is on Parliament's site.
+
+### D7b. 🟠 Legal Library: scanned Acts, and a wrong PDF on Parliament's site
+
+Older Acts on Parliament's site are scanned page images with no text: Penal Code
+(Amendment) No. 22 of 1995 and No. 29 of 1998 are in the library as FAILED ("Could not
+extract text from PDF"). **Fixed 2026-10-21:** ingestion now OCRs a PDF with no text
+(`ocrmypdf`, installed on the Mac; on the server `apt install ocrmypdf`, see lawyer-rag
+README), and a FAILED document has a Retry. Both are ACTIVE (47 and 10 sections). OCR text
+can misread a word; the PDF readers open is still the original scan.
+
+Parliament's entry for **Penal Code (Amendment) No. 32 of 1991 links the Telecommunications
+Act No. 25 of 1991** (`3507.pdf`, 95 MB scan). Dismiss it; the real text must come from
+another official source. Since 2026-10-21 an approval sends the Act's number and the AI
+service refuses a PDF whose text does not mention it (`expect_text`, lawyer-rag ingest).
+A scan cannot be checked this way until it is OCR'd.
+
+### D8. ⚪ Legal Library: no merged "current version" of each law
+
+A reader who wants to know what the law says today has to open the original and apply
+every amending Act in order. A merged text (original with every amendment applied) is
+what people want, and private platforms offer it. The government publishes none for most
+laws.
+
+> **DECISION: launch with the original + amendments, all official PDFs. Add merged texts
+> later, one law at a time, checked by someone qualified, and labelled "prepared by
+> TheLawyr, not an official text".** One wrong merge shows a wrong law as current.
+
 ---
 
 ## E. The AI

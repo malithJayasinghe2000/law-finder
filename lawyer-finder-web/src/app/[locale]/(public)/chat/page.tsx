@@ -23,8 +23,9 @@ export default async function ChatPage({
   // What the assistant holds, for its greeting: the Legal Library is the list
   // of what the AI has (Sync from AI keeps them equal). It used to be typed into
   // the greeting and named an Act the AI did not hold.
+  // Laws only: an amending Act is part of its law, not another law held.
   const acts = await prisma.legalDocument.findMany({
-    where: { status: 'ACTIVE' },
+    where: { status: 'ACTIVE', amendsId: null },
     select: { title: true },
     orderBy: { title: 'asc' },
   });

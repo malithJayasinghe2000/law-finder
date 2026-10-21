@@ -188,32 +188,32 @@ enum RefundStatus {
 }
 
 model User {
-  id                 String                    @id @default(uuid())
-  email              String                    @unique
-  passwordHash       String?
-  authProvider       AuthProvider              @default(LOCAL)
-  googleId           String?                   @unique
-  isEmailVerified    Boolean                   @default(false)
-  fullName           String?
-  profileImageUrl    String?
-  role               Role                      @default(CLIENT)
-  createdAt          DateTime                  @default(now())
+  id              String       @id @default(uuid())
+  email           String       @unique
+  passwordHash    String?
+  authProvider    AuthProvider @default(LOCAL)
+  googleId        String?      @unique
+  isEmailVerified Boolean      @default(false)
+  fullName        String?
+  profileImageUrl String?
+  role            Role         @default(CLIENT)
+  createdAt       DateTime     @default(now())
 
   /// Account lifecycle. See `UserStatus` — there are no hard deletes here,
   /// because a firm's matter file references the client for years.
-  status     UserStatus @default(ACTIVE)
+  status   UserStatus @default(ACTIVE)
   /// Set when identifying fields were overwritten under a PDPA erasure request.
-  erasedAt   DateTime?
+  erasedAt DateTime?
 
-  verificationTokens VerificationToken[]
+  verificationTokens  VerificationToken[]
   passwordResetTokens PasswordResetToken[]
-  profile            LawyerProfile?
-  application        LawyerApplication?
-  conversations      ConversationParticipant[]
-  messages           Message[]
+  profile             LawyerProfile?
+  application         LawyerApplication?
+  conversations       ConversationParticipant[]
+  messages            Message[]
   /// Threads where this user is the client. Distinct from `conversations`,
   /// which is participation of any kind.
-  clientConversations Conversation[] @relation("ClientConversations")
+  clientConversations Conversation[]            @relation("ClientConversations")
 
   /// Firms this user belongs to. A user is normally a member of exactly one
   /// firm, but the schema does not forbid more (an attorney may be a consultant
@@ -281,49 +281,49 @@ model LawyerApplication {
 }
 
 model LawyerProfile {
-  id                String         @id @default(uuid())
-  userId            String         @unique
-  user              User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  fullName          String
-  baslNumber        String         @unique
-  nic               String?
-  address           String?
-  contactPhone      String?
-  onlineMeetingLink String?
-  profileImageUrl   String?
-  bio               String?
-  practiceAreas     String[]
-  languages         String[]
-  district          String?
-  latitude          Float?
-  longitude         Float?
+  id                        String    @id @default(uuid())
+  userId                    String    @unique
+  user                      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fullName                  String
+  baslNumber                String    @unique
+  nic                       String?
+  address                   String?
+  contactPhone              String?
+  onlineMeetingLink         String?
+  profileImageUrl           String?
+  bio                       String?
+  practiceAreas             String[]
+  languages                 String[]
+  district                  String?
+  latitude                  Float?
+  longitude                 Float?
   // baseFeeRange removed in Phase 2. Publishing an attorney's fee indication in
   // a public directory is beyond the Rule 40 content limit and reads as
   // advertising. Fees are quoted per matter, to one client, in a Quote.
   // See docs/restructure/LEGAL-GUARDRAILS.md.
-  gender            String?
-  yearsOfExperience Int?
-  practiceType      String?
-  courts            String[]
-  isNotary          Boolean        @default(false)
-  licenseImageUrl   String?
-  identityImageUrl  String?
-  isVerified        Boolean        @default(false)
+  gender                    String?
+  yearsOfExperience         Int?
+  practiceType              String?
+  courts                    String[]
+  isNotary                  Boolean   @default(false)
+  licenseImageUrl           String?
+  identityImageUrl          String?
+  isVerified                Boolean   @default(false)
   /// Which admin verified this attorney, and when. "Verified" is a public claim
   /// that we checked their BASL registration; we must be able to say who did.
   /// Null on profiles verified before this was recorded (2026-10-16).
   /// A plain id, like `DataSubjectRequest.handledById`: a log, not a relation.
-  verifiedById      String?
-  verifiedAt        DateTime?
+  verifiedById              String?
+  verifiedAt                DateTime?
   /// Withdrawn by an admin (User Management → Revoke), with the reason the
   /// attorney is told. Verification is granted only through an application.
-  verificationRevokedById     String?
-  verificationRevokedAt       DateTime?
-  verificationRevokedReason   String?
+  verificationRevokedById   String?
+  verificationRevokedAt     DateTime?
+  verificationRevokedReason String?
   /// `Subscription` moved to `LawFirm` in Phase 3. An attorney does not buy a
   /// licence; the practice they work in does, and their access follows from
   /// their membership of it. Resolve through `src/lib/firms/billing.ts`.
-  invoices          Invoice[]      @relation("InvoiceLawyer")
+  invoices                  Invoice[] @relation("InvoiceLawyer")
 
   /// The firm this attorney practises in (Phase 2).
   ///
@@ -478,15 +478,15 @@ model LawFirm {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  members       FirmMember[]
-  offices       FirmOffice[]
-  lawyers       LawyerProfile[]
-  bookings      Booking[]
-  subscriptions Subscription[]
-  invoices      Invoice[]
-  feeNotes      FeeNote[]
-  conversations Conversation[]
-  invitations   FirmInvitation[]
+  members                 FirmMember[]
+  offices                 FirmOffice[]
+  lawyers                 LawyerProfile[]
+  bookings                Booking[]
+  subscriptions           Subscription[]
+  invoices                Invoice[]
+  feeNotes                FeeNote[]
+  conversations           Conversation[]
+  invitations             FirmInvitation[]
   clientIntakeInvitations ClientIntakeInvitation[]
 
   subjectRequestResponses SubjectRequestFirmResponse[]
@@ -588,11 +588,11 @@ model FirmInvitation {
 
   status FirmInvitationStatus @default(PENDING)
 
-  invitedById String
+  invitedById      String
   /// A stale invitation is a standing offer of access to privileged material,
   /// so it expires whether or not anyone remembers to revoke it.
-  expiresAt   DateTime
-  respondedAt DateTime?
+  expiresAt        DateTime
+  respondedAt      DateTime?
   /// Set on acceptance. Null while the invitee has no account yet.
   acceptedByUserId String?
 
@@ -841,14 +841,14 @@ model FeeNote {
   quote   Quote?  @relation(fields: [quoteId], references: [id], onDelete: SetNull)
 
   // --- Snapshotted parties, as at issue ---
-  firmName       String
-  firmAddress    String?
-  firmTin        String?
-  firmVatNumber  String?
-  firmBankName   String?
-  firmAccountName String?
+  firmName          String
+  firmAddress       String?
+  firmTin           String?
+  firmVatNumber     String?
+  firmBankName      String?
+  firmAccountName   String?
   firmAccountNumber String?
-  firmBankBranch String?
+  firmBankBranch    String?
 
   clientName    String
   clientAddress String?
@@ -861,8 +861,8 @@ model FeeNote {
   // --- Amounts, all in whole rupees ---
   /// [{ description, amount }] — narration comes from the accepted quote's
   /// scope, not from the client's account of their problem.
-  lineItems Json
-  subtotal  Int
+  lineItems      Json
+  subtotal       Int
   /// Snapshotted from the firm at issue, because the rate can change.
   vatRatePercent Int?
   vatAmount      Int    @default(0)
@@ -1429,7 +1429,7 @@ model Post {
   images     String[]
   language   String   @default("en")
 
-  status      PostStatus @default(PENDING_REVIEW)
+  status         PostStatus @default(PENDING_REVIEW)
   /// Who took a REMOVED post down: AUTHOR, MODERATOR, or AUTO_REPORTS (hidden at
   /// three pending reports). Dismissing a report restores only an AUTO_REPORTS
   /// removal — it used to republish a post its author or a moderator had removed.
@@ -1437,9 +1437,9 @@ model Post {
   /// The moderator's reason when a post is rejected or removed; shown to the
   /// author in My Posts (2026-10-16).
   moderationNote String?
-  isPinned    Boolean    @default(false)
-  isLocked    Boolean    @default(false)
-  isAnonymous Boolean    @default(false)
+  isPinned       Boolean    @default(false)
+  isLocked       Boolean    @default(false)
+  isAnonymous    Boolean    @default(false)
 
   upvotes      Int @default(0)
   downvotes    Int @default(0)
@@ -1549,13 +1549,36 @@ model Report {
 
 // ============= Legal Document Management System =============
 
+// What kind of document it is. "Amendment" is not a kind: an amending Act is an
+// ACT whose amendsId points at the law it changes. Labels: src/lib/legalLibrary.ts
 enum LegalDocumentCategory {
-  SRI_LANKA_LAW_REPORTS
-  ACTS_AND_ORDINANCES
-  AMENDMENT_ACTS
+  CONSTITUTION
+  ACT
+  ORDINANCE
+  REGULATION
+  PROVINCIAL_STATUTE
   GAZETTE_NOTIFICATIONS
+  COURT_RULES
+  SRI_LANKA_LAW_REPORTS
   SUPREME_COURT_DECISIONS
   COURT_OF_APPEAL_DECISIONS
+  HIGH_COURT_DECISIONS
+}
+
+// What a document is about, for people who think "I have a land problem".
+enum LegalSubject {
+  CONSTITUTIONAL
+  CRIMINAL
+  CIVIL_PROCEDURE
+  FAMILY
+  LAND_PROPERTY
+  LABOUR
+  BUSINESS
+  TAX_FINANCE
+  CONSUMER
+  MOTOR_TRAFFIC
+  ENVIRONMENT
+  ADMINISTRATIVE
 }
 
 enum LegalDocumentStatus {
@@ -1563,6 +1586,11 @@ enum LegalDocumentStatus {
   ACTIVE
   FAILED
   ARCHIVED
+  // A law listed without its original text yet: Parliament has its amending
+  // Acts, but the law itself predates Parliament (the Penal Code, 1883). Shown in
+  // the library as "Original text: being added". Never ACTIVE: the AI does not
+  // hold it, and everything that speaks for the AI reads ACTIVE only.
+  AWAITING_ORIGINAL
 }
 
 model LegalDocument {
@@ -1572,11 +1600,30 @@ model LegalDocument {
   description String?
 
   // Sri Lanka specific metadata
-  actNumber     String?
-  year          Int?
-  courtName     String?
-  caseNumber    String?
-  gazetteNumber String?
+  actNumber          String?
+  year               Int? // the year it was enacted or decided
+  // A consolidated text includes every amendment up to this year (the 1980
+  // Revised Edition: 1980). Null for a text as enacted.
+  consolidatedToYear Int?
+  courtName          String?
+  caseNumber         String?
+  gazetteNumber      String?
+  subjects           LegalSubject[] @default([])
+
+  // An amending Act points at the law it changes; that law lists it.
+  amendsId   String?
+  amends     LegalDocument?  @relation("Amendments", fields: [amendsId], references: [id], onDelete: SetNull)
+  amendments LegalDocument[] @relation("Amendments")
+
+  // Where the text came from, so a reader can check it: "Parliament of Sri Lanka"
+  // and the PDF's address there. Null when not recorded (older uploads).
+  sourceName    String?
+  sourceUrl     String?
+  // When someone last confirmed nothing newer exists. The Parliament check sets
+  // it on every law it found no pending amendment for.
+  lastCheckedAt DateTime?
+
+  parliamentAct ParliamentAct?
 
   // File info
   fileName  String
@@ -1603,6 +1650,43 @@ model LegalDocument {
   updatedAt DateTime @updatedAt
 
   @@index([category])
+  @@index([status])
+  @@index([year])
+  @@index([amendsId])
+}
+
+// Acts seen on Parliament's Acts listing (parliament.lk), waiting for an admin.
+// Nothing reaches the library or the AI until an admin approves it.
+enum ParliamentActStatus {
+  NEW
+  IMPORTED
+  DISMISSED
+}
+
+model ParliamentAct {
+  id                String              @id @default(uuid())
+  // Parliament's own id, "G6435" in .../act-details/G6435
+  ref               String              @unique
+  actNumber         String? // "23/2026"; null for a constitutional amendment
+  year              Int?
+  title             String // as Parliament prints it: "JUDICATURE (AMENDMENT)"
+  endorsedOn        DateTime?
+  pdfUrl            String
+  detailUrl         String
+  isAmendment       Boolean
+  // The library law its title names, when one was found: a suggestion the admin
+  // confirms or changes.
+  suggestedAmendsId String?
+  status            ParliamentActStatus @default(NEW)
+
+  legalDocumentId String?        @unique
+  legalDocument   LegalDocument? @relation(fields: [legalDocumentId], references: [id], onDelete: SetNull)
+
+  firstSeenAt DateTime  @default(now())
+  lastSeenAt  DateTime  @default(now())
+  decidedAt   DateTime?
+  decidedById String?
+
   @@index([status])
   @@index([year])
 }

@@ -5,9 +5,12 @@ import { toast } from 'sonner';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import {
-  BookOpen, Upload, FileText, Search, Trash2, Eye, AlertCircle, Archive, RotateCcw,
-  CheckCircle2, Clock, XCircle, Filter, RefreshCw, Database, GitBranch
+  BookOpen, Upload, FileText, Search, Trash2, AlertCircle, Archive, RotateCcw,
+  CheckCircle2, Clock, XCircle, RefreshCw, Database, GitBranch, Pencil, Hourglass
 } from 'lucide-react';
+import { ParliamentQueue } from '@/components/legal-library/admin/ParliamentQueue';
+import { EditDocumentDialog } from '@/components/legal-library/admin/EditDocumentDialog';
+import { SUBJECTS } from '@/lib/legalLibrary';
 
 interface LegalDocument {
   id: string;
@@ -19,6 +22,14 @@ interface LegalDocument {
   year: number | null;
   courtName: string | null;
   caseNumber: string | null;
+  subjects: string[];
+  consolidatedToYear: number | null;
+  amendsId: string | null;
+  amends: { id: string; title: string } | null;
+  _count: { amendments: number };
+  sourceName: string | null;
+  sourceUrl: string | null;
+  lastCheckedAt: string | null;
   fileName: string;
   fileSize: number;
   pageCount: number | null;
@@ -41,7 +52,12 @@ const STATUS_CONFIG: Record<string, { icon: any; color: string; bg: string }> = 
   PROCESSING: { icon: Clock, color: 'text-amber-700', bg: 'bg-amber-50 border-amber-100 rounded-none' },
   FAILED: { icon: XCircle, color: 'text-red-700', bg: 'bg-red-50 border-red-100 rounded-none' },
   ARCHIVED: { icon: AlertCircle, color: 'text-neutral-500', bg: 'bg-neutral-50 border-neutral-200 rounded-none' },
+  AWAITING_ORIGINAL: { icon: Hourglass, color: 'text-amber-700', bg: 'bg-amber-50 border-amber-100 rounded-none' },
 };
+
+const STATUS_LABEL: Record<string, string> = { AWAITING_ORIGINAL: 'Original missing' };
+
+type View = 'all' | 'parliament' | 'missing';
 
 export default function AdminLegalDocumentsPage() {
   const params = useParams();
@@ -54,6 +70,11 @@ export default function AdminLegalDocumentsPage() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
+  const [selectedSubject, setSelectedSubject] = useState('');
+  const [view, setView] = useState<View>('all');
+  const [awaitingOriginal, setAwaitingOriginal] = useState(0);
+  const [parliamentNew, setParliamentNew] = useState(0);
+  const [editing, setEditing] = useState<LegalDocument | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
 
   // The library compared with what the AI holds (api/admin/legal-documents/sync).
@@ -85,6 +106,8 @@ export default function AdminLegalDocumentsPage() {
       const params = new URLSearchParams();
       if (search) params.set('search', search);
       if (selectedCategory) params.set('category', selectedCategory);
+      if (selectedSubject) params.set('subject', selectedSubject);
+      if (view === 'missing') params.set('status', 'AWAITING_ORIGINAL');
       params.set('page', page.toString());
       params.set('limit', '15');
 
@@ -94,6 +117,7 @@ export default function AdminLegalDocumentsPage() {
       setDocuments(data.documents || []);
       setTotal(data.total || 0);
       setCategories(data.categories || []);
+      setAwaitingOriginal(data.awaitingOriginal || 0);
     } catch {
       toast.error('Failed to load documents');
     } finally {
@@ -102,11 +126,19 @@ export default function AdminLegalDocumentsPage() {
   };
 
   useEffect(() => {
-    fetchDocuments();
-  }, [page, selectedCategory]);
+    if (view !== 'parliament') fetchDocuments();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, selectedCategory, selectedSubject, view]);
+
+  const fetchParliamentCount = () =>
+    fetch('/api/admin/legal-documents/parliament?limit=1')
+      .then((r) => r.json())
+      .then((d) => setParliamentNew(d.counts?.NEW ?? 0))
+      .catch(() => {});
 
   useEffect(() => {
     fetchSync();
+    fetchParliamentCount();
   }, []);
 
   // Indexing runs in the background after an upload; refresh until it ends.
@@ -138,6 +170,22 @@ export default function AdminLegalDocumentsPage() {
       fetchDocuments();
     } catch (e) {
       toast.error(e instanceof Error && e.message ? e.message : 'Could not change that.');
+    } finally {
+      setDeleting(null);
+    }
+  };
+
+  // A failed document is sent to the AI again from the stored file.
+  const retry = async (id: string) => {
+    setDeleting(id);
+    try {
+      const res = await fetch(`/api/admin/legal-documents/${id}/reindex`, { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      toast.success('Sent to the AI again. A scanned PDF is read with OCR first.');
+      fetchDocuments();
+    } catch (e) {
+      toast.error(e instanceof Error && e.message ? e.message : 'Could not retry.');
     } finally {
       setDeleting(null);
     }
@@ -198,6 +246,40 @@ export default function AdminLegalDocumentsPage() {
           Upload Document
         </Link>
       </div>
+
+      {/* Views */}
+      <div className="flex flex-wrap gap-1 border-b border-neutral-200" role="tablist">
+        {([
+          ['all', 'All documents', null],
+          ['parliament', 'New from Parliament', parliamentNew],
+          ['missing', 'Missing original', awaitingOriginal],
+        ] as [View, string, number | null][]).map(([v, text, count]) => (
+          <button
+            key={v}
+            role="tab"
+            aria-selected={view === v}
+            onClick={() => { setView(v); setPage(1); }}
+            className={`px-4 py-2.5 text-xs font-bold uppercase tracking-wider border-b-2 -mb-px ${
+              view === v ? 'border-[#bfa37a] text-neutral-900' : 'border-transparent text-neutral-500 hover:text-neutral-800'
+            }`}
+          >
+            {text}
+            {count ? <span className="ml-1.5 bg-[#bfa37a] px-1.5 py-0.5 text-[10px] text-white">{count}</span> : null}
+          </button>
+        ))}
+      </div>
+
+      {view === 'parliament' ? (
+        <ParliamentQueue locale={locale} onChanged={() => { fetchParliamentCount(); fetchDocuments(); }} />
+      ) : (
+      <>
+      {view === 'missing' && (
+        <p className="border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+          Laws that Parliament has amended but whose own text is not in the library yet, often laws older than
+          Parliament, like the Penal Code. Get each from an official source (the 1980 Revised Edition on CommonLII,
+          or the Government Printer) and use &ldquo;Upload original&rdquo;.
+        </p>
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -307,14 +389,25 @@ export default function AdminLegalDocumentsPage() {
           <select
             value={selectedCategory}
             onChange={(e) => { setSelectedCategory(e.target.value); setPage(1); }}
+            aria-label="Filter by type"
             className="px-4 py-2.5 border border-neutral-200 text-sm focus:outline-none focus:border-[#bfa37a] focus:bg-[#faf8f6]/30 transition-all rounded-none bg-white text-[#0a0a0a] min-w-[200px]"
           >
-            <option value="">All Categories</option>
+            <option value="">All Types</option>
             {categories.map(cat => (
               <option key={cat.value} value={cat.value}>
                 {cat.label} ({cat.count})
               </option>
             ))}
+          </select>
+
+          <select
+            value={selectedSubject}
+            onChange={(e) => { setSelectedSubject(e.target.value); setPage(1); }}
+            aria-label="Filter by subject"
+            className="px-4 py-2.5 border border-neutral-200 text-sm focus:outline-none focus:border-[#bfa37a] transition-all rounded-none bg-white text-[#0a0a0a] min-w-[180px]"
+          >
+            <option value="">All Subjects</option>
+            {SUBJECTS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
           </select>
 
           {/* Refresh */}
@@ -354,8 +447,8 @@ export default function AdminLegalDocumentsPage() {
               <thead>
                 <tr className="border-b border-neutral-200 bg-neutral-50/50">
                   <th className="text-left px-5 py-3.5 text-xs font-bold text-neutral-500 uppercase tracking-wider">Document</th>
-                  <th className="text-left px-5 py-3.5 text-xs font-bold text-neutral-500 uppercase tracking-wider">Category</th>
-                  <th className="text-left px-5 py-3.5 text-xs font-bold text-neutral-500 uppercase tracking-wider">Year</th>
+                  <th className="text-left px-5 py-3.5 text-xs font-bold text-neutral-500 uppercase tracking-wider">Type</th>
+                  <th className="text-left px-5 py-3.5 text-xs font-bold text-neutral-500 uppercase tracking-wider">Source</th>
                   <th className="text-left px-5 py-3.5 text-xs font-bold text-neutral-500 uppercase tracking-wider">Status</th>
                   <th className="text-right px-5 py-3.5 text-xs font-bold text-neutral-500 uppercase tracking-wider">Chunks</th>
                   <th className="text-right px-5 py-3.5 text-xs font-bold text-neutral-500 uppercase tracking-wider">Graph</th>
@@ -373,9 +466,14 @@ export default function AdminLegalDocumentsPage() {
                         <div>
                           <p className="text-sm font-semibold text-neutral-900">{doc.title}</p>
                           <p className="text-xs text-neutral-500 mt-0.5">
-                            {doc.fileName} · {formatFileSize(doc.fileSize)}
-                            {doc.pageCount ? ` · ${doc.pageCount} pages` : ''}
+                            {doc.status === 'AWAITING_ORIGINAL'
+                              ? 'No text yet'
+                              : `${doc.fileName} · ${formatFileSize(doc.fileSize)}${doc.pageCount ? ` · ${doc.pageCount} pages` : ''}`}
                           </p>
+                          {doc.amends && <p className="mt-0.5 text-xs text-neutral-600">Amends: {doc.amends.title}</p>}
+                          {doc._count.amendments > 0 && (
+                            <p className="mt-0.5 text-xs text-neutral-600">{doc._count.amendments} amending Act{doc._count.amendments === 1 ? '' : 's'}</p>
+                          )}
                           {doc.status === 'FAILED' && doc.errorMessage && (
                             <p className="mt-1 text-xs text-red-700">{doc.errorMessage}</p>
                           )}
@@ -386,17 +484,55 @@ export default function AdminLegalDocumentsPage() {
                           {doc.categoryDisplay}
                         </span>
                       </td>
-                      <td className="px-5 py-4 text-sm text-neutral-700">{doc.year || ' - '}</td>
+                      <td className="px-5 py-4 text-xs text-neutral-700 max-w-[220px]">
+                        {doc.sourceName
+                          ? <span className="line-clamp-2">{doc.sourceName}</span>
+                          : <span className="text-amber-700">Not recorded</span>}
+                        {doc.lastCheckedAt && (
+                          <span className="mt-0.5 block text-neutral-400">
+                            Checked {new Date(doc.lastCheckedAt).toLocaleDateString('en-GB', { dateStyle: 'medium' })}
+                          </span>
+                        )}
+                      </td>
                       <td className="px-5 py-4">
                         <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider border ${statusConfig.bg}`}>
                           <StatusIcon className={`w-3.5 h-3.5 ${statusConfig.color}`} />
-                          <span className={statusConfig.color}>{doc.status}</span>
+                          <span className={statusConfig.color}>{STATUS_LABEL[doc.status] ?? doc.status}</span>
                         </span>
                       </td>
                       <td className="px-5 py-4 text-right text-sm text-neutral-700 font-mono">{doc.chunksCount}</td>
                       <td className="px-5 py-4 text-right text-sm text-neutral-700 font-mono">{doc.graphEntities}</td>
                       <td className="px-5 py-4">
                         <div className="flex items-center justify-end gap-2">
+                          {doc.status === 'AWAITING_ORIGINAL' && (
+                            <Link
+                              href={`/${locale}/dashboard/admin/legal-documents/upload?originalFor=${doc.id}`}
+                              className="whitespace-nowrap bg-[#0a0a0a] px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-white hover:bg-neutral-800"
+                            >
+                              Upload original
+                            </Link>
+                          )}
+                          {doc.status === 'FAILED' && (
+                            <button
+                              onClick={() => retry(doc.id)}
+                              disabled={deleting === doc.id}
+                              className="p-2 text-neutral-500 hover:text-neutral-900 hover:bg-neutral-100 rounded-none transition disabled:opacity-50"
+                              title="Retry: send to the AI again"
+                              aria-label={`Retry ${doc.title}`}
+                            >
+                              <RotateCcw className="w-4 h-4" />
+                            </button>
+                          )}
+                          {doc.status !== 'PROCESSING' && (
+                            <button
+                              onClick={() => setEditing(doc)}
+                              className="p-2 text-neutral-500 hover:text-neutral-900 hover:bg-neutral-100 rounded-none transition"
+                              title="Edit details"
+                              aria-label={`Edit ${doc.title}`}
+                            >
+                              <Pencil className="w-4 h-4" />
+                            </button>
+                          )}
                           {doc.status === 'ACTIVE' && (
                             <button
                               onClick={() => setStatus(doc.id, 'ARCHIVED')}
@@ -462,6 +598,15 @@ export default function AdminLegalDocumentsPage() {
           </div>
         )}
       </div>
+      </>
+      )}
+      {editing && (
+        <EditDocumentDialog
+          doc={editing}
+          onClose={() => setEditing(null)}
+          onSaved={() => { setEditing(null); fetchDocuments(); }}
+        />
+      )}
       {removeFor && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setRemoveFor(null)}>
           <div className="w-full max-w-md border border-neutral-200 bg-white p-5 space-y-4" onClick={(e) => e.stopPropagation()}>

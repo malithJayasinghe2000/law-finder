@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import prisma from '@/lib/db';
+import { PUBLIC_STATUSES } from '@/lib/legalLibrary';
 
 // The tab title is the Act's own title; the page itself is a client component.
 export async function generateMetadata({
@@ -9,7 +10,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { id } = await params;
   const doc = await prisma.legalDocument.findFirst({
-    where: { id, status: 'ACTIVE' },
+    where: { id, status: { in: [...PUBLIC_STATUSES] } },
     select: { title: true },
   });
   return { title: doc?.title ?? 'Legal Library' };

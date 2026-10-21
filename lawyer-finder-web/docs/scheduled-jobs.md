@@ -74,7 +74,14 @@ matter data to be readable at all, `MATTER_ENCRYPTION_KEYS` (see
 ```cron
 # 03:15 daily — quiet hours, and after any nightly backup
 15 3 * * * cd /srv/lawyer-finder-web && /usr/bin/npm run jobs:daily >> /var/log/lawfinder-jobs.log 2>&1
+# 04:00 Mondays — Parliament's Acts listing, for the Legal Library review queue
+0 4 * * 1 cd /srv/lawyer-finder-web && /usr/bin/npm run jobs:weekly >> /var/log/lawfinder-jobs.log 2>&1
 ```
+
+`jobs:weekly` reads Parliament's Acts listing and queues new Acts under Admin > Legal
+Documents > New from Parliament. It only queues: nothing reaches the library or the AI
+until an admin approves it. A run that catches up marks every law with no pending
+amendment as "checked" today; that date is shown on each law's page.
 
 ### A platform scheduler (Vercel Cron, GitHub Actions, Cloud Scheduler)
 

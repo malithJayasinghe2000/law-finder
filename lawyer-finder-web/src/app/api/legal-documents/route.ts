@@ -1,29 +1,26 @@
 import { NextResponse } from 'next/server';
+import type { Prisma } from '@prisma/client';
 import prisma from '@/lib/db';
+import { DOCUMENT_TYPES, PUBLIC_STATUSES, SUBJECTS, TYPE_LABEL, isDocumentType, isSubject } from '@/lib/legalLibrary';
+import { sanitizeString, validatePaginationParams } from '@/lib/security';
 
-const CATEGORY_MAP: Record<string, string> = {
-  'SRI_LANKA_LAW_REPORTS': 'Sri Lanka Law Reports',
-  'ACTS_AND_ORDINANCES': 'Acts & Ordinances',
-  'AMENDMENT_ACTS': 'Amendment Acts',
-  'GAZETTE_NOTIFICATIONS': 'Gazette Notifications',
-  'SUPREME_COURT_DECISIONS': 'Supreme Court Decisions',
-  'COURT_OF_APPEAL_DECISIONS': 'Court of Appeal Decisions',
-};
+const visible = { status: { in: [...PUBLIC_STATUSES] } };
 
-// GET: Public endpoint to list active legal documents
+/**
+ * GET: the public library. Laws are listed once each; an amending Act is
+ * listed on its law's page, and here only when someone searches for it.
+ */
 export async function GET(req: Request) {
   try {
     const url = new URL(req.url);
-    const category = url.searchParams.get('category') || undefined;
-    const search = url.searchParams.get('search') || undefined;
-    const yearFrom = url.searchParams.get('yearFrom');
-    const yearTo = url.searchParams.get('yearTo');
-    const page = parseInt(url.searchParams.get('page') || '1', 10);
-    const limit = parseInt(url.searchParams.get('limit') || '12', 10);
+    const category = url.searchParams.get('category');
+    const subject = url.searchParams.get('subject');
+    const search = url.searchParams.get('search') ? sanitizeString(url.searchParams.get('search') || '', 100) : '';
+    const { page, limit } = validatePaginationParams(url.searchParams.get('page'), url.searchParams.get('limit'));
 
-    const where: any = { status: 'ACTIVE' };
-
-    if (category) where.category = category;
+    const where: Prisma.LegalDocumentWhereInput = { ...visible };
+    if (isDocumentType(category)) where.category = category;
+    if (isSubject(subject)) where.subjects = { has: subject };
     if (search) {
       where.OR = [
         { title: { contains: search, mode: 'insensitive' } },
@@ -31,62 +28,65 @@ export async function GET(req: Request) {
         { actNumber: { contains: search, mode: 'insensitive' } },
         { courtName: { contains: search, mode: 'insensitive' } },
       ];
-    }
-    if (yearFrom || yearTo) {
-      where.year = {};
-      if (yearFrom) where.year.gte = parseInt(yearFrom, 10);
-      if (yearTo) where.year.lte = parseInt(yearTo, 10);
+    } else {
+      where.amendsId = null;
     }
 
-    const [documents, total] = await Promise.all([
+    const lawsOnly = { ...visible, amendsId: null };
+    const [documents, total, typeCounts, subjectRows] = await Promise.all([
       prisma.legalDocument.findMany({
         where,
         select: {
           id: true,
           title: true,
           category: true,
+          subjects: true,
+          status: true,
           description: true,
           actNumber: true,
           year: true,
+          consolidatedToYear: true,
           courtName: true,
           caseNumber: true,
-          gazetteNumber: true,
-          pageCount: true,
-          chunksCount: true,
-          createdAt: true,
+          sourceName: true,
+          lastCheckedAt: true,
+          amends: { select: { id: true, title: true } },
+          amendments: {
+            where: visible,
+            select: { year: true, actNumber: true },
+            orderBy: [{ year: 'desc' }, { createdAt: 'desc' }],
+          },
         },
-        orderBy: { createdAt: 'desc' },
+        // Laws by name, the way a reader looks for them.
+        orderBy: { title: 'asc' },
         skip: (page - 1) * limit,
         take: limit,
       }),
       prisma.legalDocument.count({ where }),
+      prisma.legalDocument.groupBy({ by: ['category'], where: lawsOnly, _count: { id: true } }),
+      prisma.legalDocument.findMany({ where: lawsOnly, select: { subjects: true } }),
     ]);
 
-    const enrichedDocs = documents.map((doc: any) => ({
-      ...doc,
-      categoryDisplay: CATEGORY_MAP[doc.category] || doc.category,
-    }));
-
-    // Get category counts (only active docs)
-    const categoryCounts = await prisma.legalDocument.groupBy({
-      by: ['category'],
-      where: { status: 'ACTIVE' },
-      _count: { id: true },
-    });
-
-    const categories = Object.entries(CATEGORY_MAP).map(([enumVal, display]) => ({
-      value: enumVal,
-      label: display,
-      count: categoryCounts.find((c: any) => c.category === enumVal)?._count?.id || 0,
-    }));
+    const subjectCounts = new Map<string, number>();
+    for (const row of subjectRows) for (const s of row.subjects) subjectCounts.set(s, (subjectCounts.get(s) ?? 0) + 1);
 
     return NextResponse.json({
-      documents: enrichedDocs,
+      documents: documents.map(({ amendments, ...doc }) => ({
+        ...doc,
+        categoryDisplay: TYPE_LABEL[doc.category],
+        amendmentCount: amendments.length,
+        lastAmendedYear: amendments[0]?.year ?? null,
+      })),
       total,
       page,
       limit,
       totalPages: Math.ceil(total / limit),
-      categories,
+      categories: DOCUMENT_TYPES.map((t) => ({
+        value: t.value,
+        label: t.label,
+        count: typeCounts.find((c) => c.category === t.value)?._count.id ?? 0,
+      })),
+      subjects: SUBJECTS.map((s) => ({ ...s, count: subjectCounts.get(s.value) ?? 0 })),
     });
   } catch (error) {
     console.error('[PUBLIC_LEGAL_DOCS]', error);

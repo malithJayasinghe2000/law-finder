@@ -1,95 +1,48 @@
 import { NextResponse } from 'next/server';
+import type { LegalSubject, Prisma } from '@prisma/client';
 import { getSession } from '@/lib/auth';
 import prisma from '@/lib/db';
-import { ragFetch } from '@/lib/ai/ragService';
 import { mkdir, writeFile } from 'fs/promises';
-import { LEGAL_DOCUMENT_STORAGE, legalDocumentStoragePath } from '@/lib/legalDocuments';
-
-// Category mapping for display ↔ enum
-const CATEGORY_MAP: Record<string, string> = {
-  'SRI_LANKA_LAW_REPORTS': 'Sri Lanka Law Reports',
-  'ACTS_AND_ORDINANCES': 'Acts & Ordinances',
-  'AMENDMENT_ACTS': 'Amendment Acts',
-  'GAZETTE_NOTIFICATIONS': 'Gazette Notifications',
-  'SUPREME_COURT_DECISIONS': 'Supreme Court Decisions',
-  'COURT_OF_APPEAL_DECISIONS': 'Court of Appeal Decisions',
-};
-
-const DISPLAY_TO_ENUM: Record<string, string> = Object.fromEntries(
-  Object.entries(CATEGORY_MAP).map(([k, v]) => [v, k])
-);
-
-import { z } from 'zod';
+import { LEGAL_DOCUMENT_STORAGE, legalDocumentStoragePath, ingestLegalDocument, checkAmends } from '@/lib/legalDocuments';
+import { DOCUMENT_TYPES, LEGISLATION_TYPES, TYPE_LABEL, isDocumentType, isSubject, ragCategoryFor } from '@/lib/legalLibrary';
+import { LegalDocumentUploadSchema } from '@/schemas/legalDocument.schema';
 import { sanitizeString, sanitizeFilename, validatePaginationParams } from '@/lib/security';
 
-
-
-const preprocessOptionalString = (val: unknown) => {
-  if (val === null || val === undefined || val === '') return undefined;
-  return typeof val === 'string' ? sanitizeString(val) : val;
-};
-
-const LegalDocIngestSchema = z.object({
-  title: z.preprocess(
-    (val) => typeof val === 'string' ? sanitizeString(val) : val,
-    z.string().min(3, 'Title must be at least 3 characters.').max(200, 'Title cannot exceed 200 characters.')
-  ),
-  category: z.preprocess(
-    (val) => typeof val === 'string' ? sanitizeString(val) : val,
-    z.string().min(1, 'Category is required.')
-  ),
-  description: z.preprocess(
-    preprocessOptionalString,
-    z.string().max(1000, 'Description cannot exceed 1000 characters.').optional().default('')
-  ),
-  actNumber: z.preprocess(
-    preprocessOptionalString,
-    z.string().max(50, 'Act number cannot exceed 50 characters.').optional().default('')
-  ),
-  year: z.preprocess(
-    (val) => (val === '' || val === null || val === undefined) ? undefined : Number(val),
-    z.number().int().min(1800, 'Year must be after 1800').max(2100, 'Year must be before 2100').optional()
-  ),
-  courtName: z.preprocess(
-    preprocessOptionalString,
-    z.string().max(100, 'Court name cannot exceed 100 characters.').optional().default('')
-  ),
-  caseNumber: z.preprocess(
-    preprocessOptionalString,
-    z.string().max(50, 'Case number cannot exceed 50 characters.').optional().default('')
-  ),
-  gazetteNumber: z.preprocess(
-    preprocessOptionalString,
-    z.string().max(50, 'Gazette number cannot exceed 50 characters.').optional().default('')
-  ),
-});
+const STATUSES = ['PROCESSING', 'ACTIVE', 'FAILED', 'ARCHIVED', 'AWAITING_ORIGINAL'] as const;
 
 // GET: List all legal documents
 export async function GET(req: Request) {
   try {
     const session = await getSession();
-    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!session || session.role !== 'ADMIN') return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
 
     const url = new URL(req.url);
-    const category = url.searchParams.get('category') || undefined;
-    const status = url.searchParams.get('status') || undefined;
+
+    // ?view=laws: every law an Act could amend, for the "Amends which law?" picker.
+    if (url.searchParams.get('view') === 'laws') {
+      const laws = await prisma.legalDocument.findMany({
+        where: { amendsId: null, category: { in: LEGISLATION_TYPES }, status: { not: 'FAILED' } },
+        select: { id: true, title: true, category: true, status: true, consolidatedToYear: true },
+        orderBy: { title: 'asc' },
+      });
+      return NextResponse.json({ laws });
+    }
+
+    const category = url.searchParams.get('category');
+    const subject = url.searchParams.get('subject');
+    const status = url.searchParams.get('status');
     const search = url.searchParams.get('search') ? sanitizeString(url.searchParams.get('search') || '', 100) : undefined;
-    
+
     // Clamp pagination parameters
     const { page, limit } = validatePaginationParams(
       url.searchParams.get('page'),
       url.searchParams.get('limit')
     );
 
-    const where: any = {};
-    if (category) {
-      where.category = CATEGORY_MAP[category] ? category : undefined;
-    }
-    
-    const validStatuses = ['PROCESSING', 'ACTIVE', 'FAILED'];
-    if (status && validStatuses.includes(status)) {
-      where.status = status;
-    }
+    const where: Prisma.LegalDocumentWhereInput = {};
+    if (isDocumentType(category)) where.category = category;
+    if (isSubject(subject)) where.subjects = { has: subject };
+    if (status && (STATUSES as readonly string[]).includes(status)) where.status = status as (typeof STATUSES)[number];
 
     if (search) {
       where.OR = [
@@ -99,41 +52,34 @@ export async function GET(req: Request) {
       ];
     }
 
-    const [documents, total] = await Promise.all([
+    const [documents, total, categoryCounts, awaitingOriginal] = await Promise.all([
       prisma.legalDocument.findMany({
         where,
+        include: {
+          amends: { select: { id: true, title: true } },
+          _count: { select: { amendments: true } },
+        },
         orderBy: { createdAt: 'desc' },
         skip: (page - 1) * limit,
         take: limit,
       }),
       prisma.legalDocument.count({ where }),
+      prisma.legalDocument.groupBy({ by: ['category'], _count: { id: true } }),
+      prisma.legalDocument.count({ where: { status: 'AWAITING_ORIGINAL' } }),
     ]);
 
-    // Add display category names
-    const enrichedDocs = documents.map((doc: any) => ({
-      ...doc,
-      categoryDisplay: CATEGORY_MAP[doc.category] || doc.category,
-    }));
-
-    // Get category counts
-    const categoryCounts = await prisma.legalDocument.groupBy({
-      by: ['category'],
-      _count: { id: true },
-    });
-
-    const categories = Object.entries(CATEGORY_MAP).map(([enumVal, display]) => ({
-      value: enumVal,
-      label: display,
-      count: categoryCounts.find((c: any) => c.category === enumVal)?._count?.id || 0,
-    }));
-
     return NextResponse.json({
-      documents: enrichedDocs,
+      documents: documents.map((doc) => ({ ...doc, categoryDisplay: TYPE_LABEL[doc.category] })),
       total,
       page,
       limit,
       totalPages: Math.ceil(total / limit),
-      categories,
+      categories: DOCUMENT_TYPES.map((t) => ({
+        value: t.value,
+        label: t.label,
+        count: categoryCounts.find((c) => c.category === t.value)?._count.id ?? 0,
+      })),
+      awaitingOriginal,
     });
   } catch (error) {
     console.error('[LEGAL_DOCS_LIST]', error instanceof Error ? error.message : 'Fetch failed');
@@ -151,31 +97,32 @@ export async function POST(req: Request) {
 
     const formData = await req.formData();
     const file = formData.get('file') as File | null;
-    
-    // Parse form entries into raw object
-    const rawData = {
-      title: formData.get('title'),
-      category: formData.get('category'),
-      description: formData.get('description'),
-      actNumber: formData.get('actNumber'),
-      year: formData.get('year'),
-      courtName: formData.get('courtName'),
-      caseNumber: formData.get('caseNumber'),
-      gazetteNumber: formData.get('gazetteNumber'),
-    };
 
-    const parsed = LegalDocIngestSchema.safeParse(rawData);
+    const field = (k: string) => formData.get(k) ?? undefined;
+    const parsed = LegalDocumentUploadSchema.safeParse({
+      title: field('title'),
+      category: field('category'),
+      subjects: field('subjects'),
+      description: field('description'),
+      actNumber: field('actNumber'),
+      year: field('year'),
+      consolidatedToYear: field('consolidatedToYear'),
+      courtName: field('courtName'),
+      caseNumber: field('caseNumber'),
+      gazetteNumber: field('gazetteNumber'),
+      amendsId: field('amendsId'),
+      sourceName: field('sourceName'),
+      sourceUrl: field('sourceUrl'),
+      originalForId: field('originalForId'),
+    });
     if (!parsed.success) {
       return NextResponse.json({ error: parsed.error.issues[0]?.message || 'Invalid form input.' }, { status: 400 });
     }
-
-    const {
-      title, category, description, actNumber, year,
-      courtName, caseNumber, gazetteNumber
-    } = parsed.data;
+    const { originalForId, ...data } = parsed.data;
+    const category = data.category as (typeof DOCUMENT_TYPES)[number]['value'];
 
     if (!file) return NextResponse.json({ error: 'No file provided' }, { status: 400 });
-    
+
     // PDF only, as the upload page says — it accepted Word, text and .log too.
     // Checked by content as well as name: a PDF starts with "%PDF-".
     const fileExt = file.name.split('.').pop()?.toLowerCase();
@@ -184,102 +131,44 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Only PDF files can be uploaded.' }, { status: 400 });
     }
 
-    const sanitizedName = sanitizeFilename(file.name);
-    const categoryEnum = DISPLAY_TO_ENUM[category] || category;
+    const problem = await checkAmends(data.amendsId, category, originalForId);
+    if (problem) return NextResponse.json({ error: problem }, { status: 400 });
 
-    // Create document record in Postgres first (status: PROCESSING)
-    const doc = await prisma.legalDocument.create({
-      data: {
-        title,
-        category: categoryEnum as any,
-        description,
-        actNumber: actNumber || null,
-        year: year || null,
-        courtName: courtName || null,
-        caseNumber: caseNumber || null,
-        gazetteNumber: gazetteNumber || null,
-        fileName: sanitizedName,
-        fileSize: file.size,
-        status: 'PROCESSING',
-        uploadedById: session.userId,
-      },
-    });
+    if (originalForId) {
+      const waiting = await prisma.legalDocument.findUnique({ where: { id: originalForId }, select: { status: true } });
+      if (waiting?.status !== 'AWAITING_ORIGINAL') {
+        return NextResponse.json({ error: 'That law already has its text. Upload this as a new document instead.' }, { status: 409 });
+      }
+    }
+
+    const sanitizedName = sanitizeFilename(file.name);
+    const record = {
+      ...data,
+      category,
+      subjects: data.subjects as LegalSubject[],
+      fileName: sanitizedName,
+      fileSize: file.size,
+      status: 'PROCESSING' as const,
+      lastCheckedAt: new Date(),
+      uploadedById: session.userId,
+    };
+
+    // Filling in a law listed without its original keeps its id, so the
+    // amendments already linked to it stay linked.
+    const doc = originalForId
+      ? await prisma.legalDocument.update({ where: { id: originalForId }, data: record })
+      : await prisma.legalDocument.create({ data: record });
 
     // The website's own copy, so the library can serve the file wherever the
     // AI service runs (src/lib/legalDocuments.ts).
     await mkdir(LEGAL_DOCUMENT_STORAGE, { recursive: true });
     await writeFile(legalDocumentStoragePath(doc.id, sanitizedName), Buffer.from(await file.arrayBuffer()));
 
-    // Indexing runs after the response. It used to run inside the request, and
-    // a long Act could outlast a server's time limit (often 60-100 s): the
-    // admin saw an error while indexing carried on. server.js is long-lived, so
-    // the work completes; the admin page shows PROCESSING until it does.
-    void ingestLegalDocument(doc.id, file, {
-      title, category, description, actNumber, year, courtName, caseNumber, gazetteNumber,
-    });
+    void ingestLegalDocument(doc.id, file, { ...data, ragCategory: ragCategoryFor(category, !!data.amendsId) });
 
     return NextResponse.json({ success: true, indexing: true, document: doc }, { status: 202 });
   } catch (error) {
     console.error('[LEGAL_DOC_UPLOAD]', error instanceof Error ? error.message : 'Upload failed');
     return NextResponse.json({ error: 'Failed to upload document' }, { status: 500 });
-  }
-}
-
-/**
- * Sends a stored upload to the AI service and records the outcome on the
- * document. Never throws: every failure ends as FAILED with a reason.
- */
-async function ingestLegalDocument(
-  docId: string,
-  file: File,
-  meta: {
-    title: string; category: string; description: string; actNumber?: string; year?: number;
-    courtName?: string; caseNumber?: string; gazetteNumber?: string;
-  }
-): Promise<void> {
-  try {
-    const ragFormData = new FormData();
-    ragFormData.append('file', file);
-    ragFormData.append('title', meta.title);
-    ragFormData.append('category', meta.category);
-    ragFormData.append('description', meta.description);
-    if (meta.actNumber) ragFormData.append('act_number', meta.actNumber);
-    if (meta.year) ragFormData.append('year', String(meta.year));
-    if (meta.courtName) ragFormData.append('court_name', meta.courtName);
-    if (meta.caseNumber) ragFormData.append('case_number', meta.caseNumber);
-    if (meta.gazetteNumber) ragFormData.append('gazette_number', meta.gazetteNumber);
-
-    // No Content-Type: fetch sets the multipart boundary for a FormData
-    // body, and ragFetch only adds the service token.
-    const ragRes = await ragFetch('/api/ingest/upload', { method: 'POST', body: ragFormData });
-    const ragData = await ragRes.json().catch(() => ({}));
-
-    if (ragRes.ok && ragData.success) {
-      await prisma.legalDocument.update({
-        where: { id: docId },
-        data: {
-          status: 'ACTIVE',
-          ragDocumentName: ragData.document_name || meta.title,
-          chunksCount: ragData.chunks_added || 0,
-          graphEntities: ragData.graph_stats?.entity_count || 0,
-          graphRelationships: ragData.graph_stats?.relationship_count || 0,
-          pageCount: ragData.pdf_info?.page_count || null,
-          outline: ragData.outline || null,
-          errorMessage: null,
-        },
-      });
-    } else {
-      await prisma.legalDocument.update({
-        where: { id: docId },
-        data: { status: 'FAILED', errorMessage: ragData.error || `Indexing failed (AI service answered ${ragRes.status}).` },
-      });
-    }
-  } catch (error) {
-    await prisma.legalDocument
-      .update({
-        where: { id: docId },
-        data: { status: 'FAILED', errorMessage: `The AI service could not be reached: ${error instanceof Error ? error.message : 'unknown error'}` },
-      })
-      .catch(() => {});
   }
 }

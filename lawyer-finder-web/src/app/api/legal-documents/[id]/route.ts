@@ -2,15 +2,9 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { ragFetch } from '@/lib/ai/ragService';
 import { findLegalDocumentFile } from '@/lib/legalDocuments';
+import { PUBLIC_STATUSES, TYPE_LABEL } from '@/lib/legalLibrary';
 
-const CATEGORY_MAP: Record<string, string> = {
-  'SRI_LANKA_LAW_REPORTS': 'Sri Lanka Law Reports',
-  'ACTS_AND_ORDINANCES': 'Acts & Ordinances',
-  'AMENDMENT_ACTS': 'Amendment Acts',
-  'GAZETTE_NOTIFICATIONS': 'Gazette Notifications',
-  'SUPREME_COURT_DECISIONS': 'Supreme Court Decisions',
-  'COURT_OF_APPEAL_DECISIONS': 'Court of Appeal Decisions',
-};
+const visible = { status: { in: [...PUBLIC_STATUSES] } };
 
 // GET: Public endpoint to get single document details
 export async function GET(
@@ -20,15 +14,25 @@ export async function GET(
   try {
     const { id } = await params;
 
-    const doc = await prisma.legalDocument.findUnique({
-      where: { id, status: 'ACTIVE' },
+    // AWAITING_ORIGINAL is shown too: a law listed with its amendments while
+    // its original text is being added.
+    const doc = await prisma.legalDocument.findFirst({
+      where: { id, ...visible },
+      include: {
+        amends: { select: { id: true, title: true, status: true } },
+        amendments: {
+          where: visible,
+          select: { id: true, title: true, actNumber: true, year: true, sourceUrl: true, status: true },
+          orderBy: [{ year: 'desc' }, { createdAt: 'desc' }],
+        },
+      },
     });
 
     if (!doc) return NextResponse.json({ error: 'Document not found' }, { status: 404 });
 
     // Enrich with related documents from RAG
     let relatedDocuments: string[] = [];
-    let graphEntities: any[] = [];
+    let graphEntities: unknown[] = [];
 
     if (doc.ragDocumentName) {
       try {
@@ -47,36 +51,30 @@ export async function GET(
     }
 
     // Find related documents in Postgres by matching ragDocumentName
-    let relatedDocs: any[] = [];
-    if (relatedDocuments.length > 0) {
-      relatedDocs = await prisma.legalDocument.findMany({
+    const relatedDocs = relatedDocuments.length === 0 ? [] : await prisma.legalDocument.findMany({
         where: {
           ragDocumentName: { in: relatedDocuments },
           status: 'ACTIVE',
           id: { not: doc.id },
         },
-        select: {
-          id: true,
-          title: true,
-          category: true,
-          year: true,
-          actNumber: true,
-        },
+        select: { id: true, title: true, category: true, year: true, actNumber: true },
         take: 10,
       });
-    }
 
+    // Internal fields stay internal.
+    const shown: Partial<typeof doc> = { ...doc };
+    delete shown.uploadedById;
+    delete shown.errorMessage;
+    delete shown.ragDocumentName;
     return NextResponse.json({
       document: {
-        ...doc,
-        categoryDisplay: CATEGORY_MAP[doc.category] || doc.category,
+        ...shown,
+        amends: doc.amends && (PUBLIC_STATUSES as readonly string[]).includes(doc.amends.status) ? doc.amends : null,
+        categoryDisplay: TYPE_LABEL[doc.category],
         // The page offers Download / Open only when there is a file to serve.
-        fileAvailable: findLegalDocumentFile(doc) !== null,
+        fileAvailable: doc.status === 'ACTIVE' && findLegalDocumentFile(doc) !== null,
       },
-      relatedDocuments: relatedDocs.map((d: any) => ({
-        ...d,
-        categoryDisplay: CATEGORY_MAP[d.category] || d.category,
-      })),
+      relatedDocuments: relatedDocs.map((d) => ({ ...d, categoryDisplay: TYPE_LABEL[d.category] })),
       graphEntities,
     });
   } catch (error) {

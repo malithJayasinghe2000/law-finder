@@ -24,10 +24,9 @@ type AiDocument = {
   last_updated_year?: number;
 };
 
-const CATEGORY_FOR_TYPE: Record<string, 'AMENDMENT_ACTS' | 'ACTS_AND_ORDINANCES'> = {
-  'Amendment Act': 'AMENDMENT_ACTS',
-  'Consolidated Act': 'ACTS_AND_ORDINANCES',
-};
+// The AI's own record says only "Act" or "Amendment Act"; an admin links an
+// amendment to its law afterwards.
+const typeFor = (name: string): 'ACT' | 'ORDINANCE' => (/\bordinance\b/i.test(name) ? 'ORDINANCE' : 'ACT');
 
 const RAG_DATA = path.join(process.cwd(), '..', 'lawyer-rag', 'data');
 
@@ -73,7 +72,7 @@ export async function POST() {
       await prisma.legalDocument.create({
         data: {
           title: d.document_name,
-          category: CATEGORY_FOR_TYPE[d.document_type ?? ''] ?? 'ACTS_AND_ORDINANCES',
+          category: typeFor(d.document_name),
           year: d.last_updated_year ?? null,
           fileName,
           fileSize: onDisk ? statSync(onDisk).size : 0,

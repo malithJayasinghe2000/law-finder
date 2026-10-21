@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import {
-  ArrowLeft, Download, FileText, ExternalLink, Compass
+  ArrowLeft, Download, FileText, ExternalLink, Compass, History, Hourglass, ShieldCheck
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { LegalDisclaimer } from '@/components/shared/LegalDisclaimer';
@@ -18,10 +18,29 @@ interface DocumentDetail {
   fileName: string;
   fileSize: number;
   year: number | null;
+  consolidatedToYear: number | null;
   actNumber: string | null;
+  status: 'ACTIVE' | 'AWAITING_ORIGINAL';
+  sourceName: string | null;
+  sourceUrl: string | null;
+  lastCheckedAt: string | null;
+  amends: { id: string; title: string } | null;
+  amendments: Amendment[];
   fileAvailable: boolean;
   outline?: OutlineItem[] | null;
 }
+
+interface Amendment {
+  id: string;
+  title: string;
+  actNumber: string | null;
+  year: number | null;
+  sourceUrl: string | null;
+  status: 'ACTIVE' | 'AWAITING_ORIGINAL';
+}
+
+const formatDate = (iso: string) =>
+  new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 
 interface OutlineItem {
   title: string;
@@ -121,9 +140,20 @@ export default function DocumentDetailPage() {
             </h1>
             <p className="text-xs text-neutral-500 font-medium uppercase tracking-wider">
               {documentDetail.categoryDisplay}
-              {documentDetail.year ? ` • Consolidated to ${documentDetail.year}` : ''}
+              {documentDetail.actNumber ? ` • ${documentDetail.actNumber}` : ''}
+              {documentDetail.consolidatedToYear
+                ? ` • Consolidated to ${documentDetail.consolidatedToYear}`
+                : documentDetail.year ? ` • ${documentDetail.year}` : ''}
               {documentDetail.fileAvailable ? ` • ${fileSizeMb} MB` : ''}
             </p>
+            {documentDetail.amends && (
+              <p className="text-sm text-neutral-600">
+                Amends the{' '}
+                <Link href={`/${locale}/legal-library/${documentDetail.amends.id}`} className="text-[#a68d67] underline underline-offset-2 hover:text-[#8a7350]">
+                  {documentDetail.amends.title}
+                </Link>
+              </p>
+            )}
           </div>
 
           {documentDetail.fileAvailable && (
@@ -144,7 +174,18 @@ export default function DocumentDetailPage() {
           )}
         </div>
 
-        {!documentDetail.fileAvailable ? (
+        <LawRecord doc={documentDetail} locale={locale} />
+
+        {documentDetail.status === 'AWAITING_ORIGINAL' ? (
+          <div className="bg-white border border-neutral-200/80 p-8 flex flex-col items-center text-center gap-3">
+            <Hourglass className="w-10 h-10 text-[#bfa37a] stroke-[1]" />
+            <p className="font-serif text-lg text-neutral-800">Original text: being added</p>
+            <p className="max-w-lg text-sm text-neutral-500 font-light leading-relaxed">
+              The text of this law itself is being added from an official source. The Acts that amended it are
+              listed above, each with its official PDF.
+            </p>
+          </div>
+        ) : !documentDetail.fileAvailable ? (
           <div className="bg-white border border-neutral-200/80 p-8 flex flex-col items-center text-center gap-3">
             <FileText className="w-10 h-10 text-[#bfa37a] stroke-[1]" />
             <p className="font-serif text-lg text-neutral-800">The PDF is not available.</p>
@@ -222,3 +263,92 @@ export default function DocumentDetailPage() {
   );
 }
 
+/**
+ * Where the text came from, when it was last checked, and every Act that
+ * amended it, newest first. The amendments are separate official texts: the
+ * law's own text above does not include changes made after its date.
+ */
+function LawRecord({ doc, locale }: { doc: DocumentDetail; locale: string }) {
+  const [showAll, setShowAll] = useState(false);
+  const amendments = doc.amendments ?? [];
+  const shown = showAll ? amendments : amendments.slice(0, 6);
+  const hasRecord = doc.sourceName || doc.lastCheckedAt || amendments.length > 0;
+  if (!hasRecord) return null;
+
+  return (
+    <div className="mb-8 grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <div className="lg:col-span-4 bg-white border border-neutral-200/80 p-6 space-y-4">
+        <div className="flex items-center gap-2 pb-3 border-b border-neutral-100">
+          <ShieldCheck className="w-4 h-4 text-[#bfa37a]" />
+          <h2 className="text-xs font-bold uppercase tracking-wider text-neutral-800">About this text</h2>
+        </div>
+        <dl className="space-y-3 text-sm">
+          <div>
+            <dt className="text-[10px] font-bold uppercase tracking-widest text-neutral-400">Source</dt>
+            <dd className="text-neutral-800">
+              {doc.sourceName ?? 'Not recorded'}
+              {doc.sourceUrl && (
+                <>
+                  {' · '}
+                  <a href={doc.sourceUrl} target="_blank" rel="noopener noreferrer" className="text-[#a68d67] underline underline-offset-2 hover:text-[#8a7350]">
+                    official copy
+                  </a>
+                </>
+              )}
+            </dd>
+          </div>
+          {doc.consolidatedToYear && (
+            <div>
+              <dt className="text-[10px] font-bold uppercase tracking-widest text-neutral-400">Includes amendments up to</dt>
+              <dd className="text-neutral-800">{doc.consolidatedToYear}</dd>
+            </div>
+          )}
+          {doc.lastCheckedAt && (
+            <div>
+              <dt className="text-[10px] font-bold uppercase tracking-widest text-neutral-400">Checked for newer Acts</dt>
+              <dd className="text-neutral-800">{formatDate(doc.lastCheckedAt)}</dd>
+            </div>
+          )}
+        </dl>
+      </div>
+
+      {amendments.length > 0 && (
+        <div className="lg:col-span-8 bg-white border border-neutral-200/80 p-6">
+          <div className="flex items-center gap-2 pb-3 border-b border-neutral-100">
+            <History className="w-4 h-4 text-[#bfa37a]" />
+            <h2 className="text-xs font-bold uppercase tracking-wider text-neutral-800">
+              Amended by {amendments.length} Act{amendments.length === 1 ? '' : 's'}
+            </h2>
+          </div>
+          <ul className="divide-y divide-neutral-100">
+            {shown.map((a) => (
+              <li key={a.id} className="flex flex-col gap-1 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+                <Link href={`/${locale}/legal-library/${a.id}`} className="text-sm text-neutral-900 hover:text-[#a68d67] min-w-0">
+                  {a.title}
+                </Link>
+                {a.sourceUrl && (
+                  <a
+                    href={a.sourceUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex shrink-0 items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-[#a68d67] hover:text-[#8a7350]"
+                  >
+                    Official PDF <ExternalLink className="w-3 h-3" />
+                  </a>
+                )}
+              </li>
+            ))}
+          </ul>
+          {amendments.length > 6 && (
+            <button
+              onClick={() => setShowAll((v) => !v)}
+              className="mt-2 text-[10px] font-bold uppercase tracking-widest text-[#a68d67] hover:text-[#8a7350]"
+            >
+              {showAll ? 'Show fewer' : `Show all ${amendments.length}`}
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}

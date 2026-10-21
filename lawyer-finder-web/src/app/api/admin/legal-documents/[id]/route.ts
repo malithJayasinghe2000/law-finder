@@ -3,6 +3,9 @@ import { getSession } from '@/lib/auth';
 import prisma from '@/lib/db';
 import { ragFetch } from '@/lib/ai/ragService';
 import { LegalDocumentUpdateSchema } from '@/schemas/legalDocument.schema';
+import { checkAmends } from '@/lib/legalDocuments';
+import { LEGISLATION_TYPES } from '@/lib/legalLibrary';
+import type { LegalDocumentCategory, LegalSubject } from '@prisma/client';
 
 // GET: Get single document details
 export async function GET(
@@ -11,12 +14,16 @@ export async function GET(
 ) {
   try {
     const session = await getSession();
-    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!session || session.role !== 'ADMIN') return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
 
     const { id } = await params;
 
-    const doc = await prisma.legalDocument.findUnique({ where: { id } });
-    if (!doc) return NextResponse.json({ error: 'Document not found' }, { status: 404 });
+    const found = await prisma.legalDocument.findUnique({
+      where: { id },
+      include: { _count: { select: { amendments: true } } },
+    });
+    if (!found) return NextResponse.json({ error: 'Document not found' }, { status: 404 });
+    const { _count, ...doc } = found;
 
     // Try to get related documents from RAG backend
     let relatedDocuments: string[] = [];
@@ -40,6 +47,7 @@ export async function GET(
 
     return NextResponse.json({
       document: doc,
+      amendmentCount: _count.amendments,
       relatedDocuments,
       graphEntities,
     });
@@ -132,7 +140,7 @@ export async function PATCH(
 
     const doc = await prisma.legalDocument.findUnique({
       where: { id },
-      select: { status: true, ragDocumentName: true, chunksCount: true },
+      select: { status: true, ragDocumentName: true, chunksCount: true, category: true, _count: { select: { amendments: true } } },
     });
     if (!doc) return NextResponse.json({ error: 'Document not found' }, { status: 404 });
 
@@ -144,10 +152,33 @@ export async function PATCH(
         { status: 409 }
       );
     }
+    if (doc.status === 'AWAITING_ORIGINAL' && parsed.data.status) {
+      return NextResponse.json({ error: 'Upload the original text to show this law, or archive its amendments.' }, { status: 409 });
+    }
 
+    const { markChecked, ...changes } = parsed.data;
+    const category = changes.category ?? doc.category;
+    if (changes.amendsId) {
+      if (doc._count.amendments > 0) {
+        return NextResponse.json({ error: 'Other Acts amend this law, so it cannot itself be an amendment.' }, { status: 409 });
+      }
+      const problem = await checkAmends(changes.amendsId, category, id);
+      if (problem) return NextResponse.json({ error: problem }, { status: 400 });
+    }
+    if (changes.category && !LEGISLATION_TYPES.includes(changes.category as (typeof LEGISLATION_TYPES)[number]) && doc._count.amendments > 0) {
+      return NextResponse.json({ error: 'Other Acts amend this law, so it must stay legislation.' }, { status: 409 });
+    }
+
+    // The AI keeps the kind it was told at upload (law or amending Act); a
+    // changed link shows in the library at once and reaches the AI on re-upload.
     const updated = await prisma.legalDocument.update({
       where: { id },
-      data: parsed.data,
+      data: {
+        ...changes,
+        category: changes.category as LegalDocumentCategory | undefined,
+        subjects: changes.subjects as LegalSubject[] | undefined,
+        ...(markChecked ? { lastCheckedAt: new Date() } : {}),
+      },
     });
 
     return NextResponse.json({ success: true, document: updated });

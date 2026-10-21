@@ -9,6 +9,9 @@ Provides endpoints for:
 """
 
 import os
+import re
+import shutil
+import subprocess
 import logging
 import traceback
 from pathlib import Path
@@ -516,10 +519,29 @@ def upload_and_ingest():
         # Get PDF info
         pdf_info = get_pdf_info(pdf_path)
 
-        # Extract text
+        # Extract text. A scan (older Acts on Parliament's site are page images)
+        # has none: OCR it once, in place, and read again.
         full_text = extract_text_from_pdf(pdf_path)
+        ocr_used = False
         if not full_text.strip():
-            return jsonify({"error": "Could not extract text from PDF"}), 400
+            ocr_error = _ocr_in_place(pdf_path)
+            if ocr_error:
+                return jsonify({"error": ocr_error}), 400
+            full_text = extract_text_from_pdf(pdf_path)
+            ocr_used = True
+            if not full_text.strip():
+                return jsonify({"error": "This PDF is a scan and OCR found no readable text in it."}), 400
+
+        # The caller may say what the PDF must name, e.g. "No. 32 of 1991".
+        # Parliament's listing has linked the wrong PDF (its Penal Code
+        # (Amendment) No. 32 of 1991 opens the Telecommunications Act), and a
+        # wrong text filed under a law is worse than none.
+        expect = request.form.get("expect_text", "").strip()
+        if expect and not _mentions(full_text[:20000], expect):
+            Path(pdf_path).unlink(missing_ok=True)
+            return jsonify({
+                "error": f'This PDF does not mention "{expect}" on its first pages, so it may be the wrong file. Nothing was added to the AI.'
+            }), 422
 
         # Chunk
         chunks = smart_legal_chunk(
@@ -554,10 +576,52 @@ def upload_and_ingest():
             "chunks_added": chunks_added,
             "graph_stats": graph_stats,
             "outline": outline,
+            # The text came from OCR of a scan: it can misread a few words.
+            "ocr_used": ocr_used,
         }), 200
 
     except Exception as e:
         return error_response(e, "Upload ingestion failed", 500, context="upload ingestion")
+
+
+# Long enough for a 50-page scan (about 30 s on an M-series Mac), short of
+# gunicorn's 120 s worker timeout, which would kill the whole request.
+OCR_TIMEOUT_SECONDS = int(os.getenv("OCR_TIMEOUT_SECONDS", "90"))
+
+
+def _ocr_in_place(pdf_path: str) -> str | None:
+    """
+    Add a text layer to a scanned PDF with ocrmypdf (English), replacing the
+    file. The page images are kept, so the PDF still looks like the original.
+    Returns an error message, or None on success. Needs `ocrmypdf` installed:
+    `brew install ocrmypdf` on a Mac, `apt install ocrmypdf` on the server.
+    """
+    exe = shutil.which("ocrmypdf")
+    if not exe:
+        return "This PDF is a scan (pictures of pages, no text). Install ocrmypdf so the AI can read it."
+    out = Path(pdf_path).with_suffix(".ocr.pdf")
+    try:
+        subprocess.run(
+            [exe, "--skip-text", "-l", "eng", "--optimize", "1", "-q", str(pdf_path), str(out)],
+            check=True, capture_output=True, timeout=OCR_TIMEOUT_SECONDS,
+        )
+        os.replace(out, pdf_path)
+        logger.info("OCR added a text layer to %s", Path(pdf_path).name)
+        return None
+    except subprocess.TimeoutExpired:
+        out.unlink(missing_ok=True)
+        return f"This PDF is a scan and reading it took longer than {OCR_TIMEOUT_SECONDS} seconds. Try a smaller file."
+    except subprocess.CalledProcessError as e:
+        out.unlink(missing_ok=True)
+        logger.warning("ocrmypdf failed on %s: %s", Path(pdf_path).name, e.stderr.decode(errors="replace")[-500:])
+        return "This PDF is a scan and OCR could not read it."
+
+
+def _mentions(text: str, expect: str) -> bool:
+    """True when `text` contains `expect`, ignoring case, spacing and the dot in
+    "No." - PDFs print "ACT, No. 32 OF 1991" and "No.32 of 1991" alike."""
+    words = [re.escape(w) for w in re.split(r"[\s.]+", expect) if w]
+    return bool(words) and re.search(r"[\s.]*".join(words), text, re.IGNORECASE) is not None
 
 
 def _category_to_doc_type(category: str) -> str:

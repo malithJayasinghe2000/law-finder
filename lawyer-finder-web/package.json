@@ -22,6 +22,8 @@
     "check:billing": "TS_NODE_COMPILER_OPTIONS='{\"module\":\"CommonJS\"}' ts-node -r dotenv/config -r tsconfig-paths/register ./scripts/check-billing-policy.ts",
     "check:pdpa": "TS_NODE_COMPILER_OPTIONS='{\"module\":\"CommonJS\"}' ts-node -r dotenv/config -r tsconfig-paths/register ./scripts/check-pdpa-policy.ts",
     "jobs:daily": "npm run privacy:purge && npm run ads:expire && npm run invitations:expire",
+    "jobs:weekly": "npm run library:check-parliament",
+    "library:check-parliament": "TS_NODE_COMPILER_OPTIONS='{\"module\":\"CommonJS\"}' ts-node -r dotenv/config -r tsconfig-paths/register ./scripts/check-parliament-acts.ts",
     "invitations:expire": "TS_NODE_COMPILER_OPTIONS='{\"module\":\"CommonJS\"}' ts-node -r dotenv/config -r tsconfig-paths/register ./scripts/expire-invitations.ts",
     "ads:expire": "node -e \"const u=new URL(process.env.APP_URL+'/api/ads/expire');if(process.env.CRON_SECRET)u.searchParams.set('token',process.env.CRON_SECRET);fetch(u,{method:'POST'}).then(r=>r.text()).then(console.log)\"",
     "privacy:purge": "TS_NODE_COMPILER_OPTIONS='{\"module\":\"CommonJS\"}' ts-node -r dotenv/config -r tsconfig-paths/register ./scripts/purge-expired-personal-data.ts"

@@ -188,6 +188,25 @@ lawyer-rag/
 
 ## Adding New Documents
 
+### Scanned PDFs need OCR
+
+Older Acts on Parliament's site are scanned page images with no text. Ingestion
+OCRs such a PDF once, in place, with `ocrmypdf` (English) and then reads it; a PDF
+that already has text never touches it. Install it where this service runs, and
+make sure it is on the service's `PATH`:
+
+```bash
+brew install ocrmypdf            # Mac (Homebrew: /opt/homebrew/bin)
+sudo apt install ocrmypdf        # Ubuntu/Debian server
+```
+
+Without it, a scan is refused with "Install ocrmypdf so the AI can read it". A 19-page
+scan takes about 11 s; `OCR_TIMEOUT_SECONDS` (default 90) stays under gunicorn's 120 s.
+
+On a Mac, restart the service fully, never with `kill -HUP` (workers crash-loop on
+macOS fork safety): `OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES venv/bin/gunicorn -c gunicorn.conf.py wsgi:app`.
+
+
 1. Place the PDF in the `Acts/` directory
 2. Call the ingest API or re-run batch ingestion
 3. For amendments, use the `/api/ingest/amendment` endpoint
