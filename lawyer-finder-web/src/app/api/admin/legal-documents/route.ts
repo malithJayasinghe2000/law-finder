@@ -21,7 +21,9 @@ export async function GET(req: Request) {
     // ?view=laws: every law an Act could amend, for the "Amends which law?" picker.
     if (url.searchParams.get('view') === 'laws') {
       const laws = await prisma.legalDocument.findMany({
-        where: { amendsId: null, category: { in: LEGISLATION_TYPES }, status: { not: 'FAILED' } },
+        // Not FAILED or ARCHIVED: an archived law is an old copy being replaced
+        // (e.g. an unofficial consolidation), never something to link to.
+        where: { amendsId: null, category: { in: LEGISLATION_TYPES }, status: { notIn: ['FAILED', 'ARCHIVED'] } },
         select: { id: true, title: true, category: true, status: true, consolidatedToYear: true },
         orderBy: { title: 'asc' },
       });

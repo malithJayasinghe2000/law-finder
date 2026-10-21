@@ -93,5 +93,10 @@ export default async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!_next|.*\\..*).*)'],
+  // The library upload route is left out: the proxy buffers a request body
+  // only up to 10 MB (proxyClientMaxBodySize), and a scanned Act is 25-300 MB,
+  // so the route received a cut-off PDF. Raising that limit would apply to
+  // every route, public ones included. The route checks for an ADMIN session
+  // itself, on every method (api/admin/legal-documents/route.ts).
+  matcher: ['/((?!_next|api/admin/legal-documents$|.*\\..*).*)'],
 };

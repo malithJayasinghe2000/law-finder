@@ -134,9 +134,10 @@ export async function checkAmends(
   if (amendsId === selfId) return 'A law cannot amend itself.';
   const target = await prisma.legalDocument.findUnique({
     where: { id: amendsId },
-    select: { amendsId: true, category: true },
+    select: { amendsId: true, category: true, status: true },
   });
   if (!target) return 'The law it amends was not found.';
+  if (target.status === 'ARCHIVED') return 'That law is archived (an old copy). Choose the current one.';
   if (target.amendsId) return 'Choose the law itself, not another amendment to it.';
   if (!LEGISLATION_TYPES.includes(target.category)) return 'The law it amends must be legislation.';
   return null;

@@ -32,9 +32,15 @@ export async function GET(req: Request) {
   const [listed, total, counts, lastSeen] = await Promise.all([
     prisma.parliamentAct.findMany({
       where,
-      // Acts that amend a law the library already holds first: they finish a law
-      // in progress (e.g. the Penal Code's amendments after its 1980 text).
-      orderBy: [{ suggestedAmendsId: { sort: 'asc', nulls: 'last' } }, { endorsedOn: 'desc' }, { ref: 'desc' }],
+      // A law itself first (its amendments can only link to it once it is added),
+      // then Acts that amend a law the library already holds (finishing a law in
+      // progress, e.g. the Penal Code after its 1980 text), then newest first.
+      orderBy: [
+        { isAmendment: 'asc' },
+        { suggestedAmendsId: { sort: 'asc', nulls: 'last' } },
+        { endorsedOn: 'desc' },
+        { ref: 'desc' },
+      ],
       skip: (page - 1) * limit,
       take: limit,
     }),
