@@ -607,6 +607,7 @@ def _ocr_in_place(pdf_path: str) -> str | None:
         )
         os.replace(out, pdf_path)
         logger.info("OCR added a text layer to %s", Path(pdf_path).name)
+        _shrink_scan(pdf_path)
         return None
     except subprocess.TimeoutExpired:
         out.unlink(missing_ok=True)
@@ -615,6 +616,32 @@ def _ocr_in_place(pdf_path: str) -> str | None:
         out.unlink(missing_ok=True)
         logger.warning("ocrmypdf failed on %s: %s", Path(pdf_path).name, e.stderr.decode(errors="replace")[-500:])
         return "This PDF is a scan and OCR could not read it."
+
+
+def _shrink_scan(pdf_path: str) -> None:
+    """
+    Re-save an OCR'd scan with its page images at screen quality (Ghostscript,
+    which ocrmypdf installs). The text layer is unchanged; the file shrinks
+    about 85% (24 MB -> 3.7 MB). This folder is kept in git, which refuses files
+    over 100 MB, and the website keeps the full-quality original for readers.
+    Leaves the file as it is if anything fails or it would not get smaller.
+    """
+    gs = shutil.which("gs")
+    if not gs:
+        return
+    out = Path(pdf_path).with_suffix(".small.pdf")
+    try:
+        subprocess.run(
+            [gs, "-q", "-dNOPAUSE", "-dBATCH", "-dSAFER", "-sDEVICE=pdfwrite",
+             "-dPDFSETTINGS=/ebook", f"-sOutputFile={out}", str(pdf_path)],
+            check=True, capture_output=True, timeout=60,
+        )
+        if out.stat().st_size < Path(pdf_path).stat().st_size:
+            os.replace(out, pdf_path)
+    except (subprocess.SubprocessError, OSError) as e:
+        logger.warning("Could not shrink %s: %s", Path(pdf_path).name, e)
+    finally:
+        out.unlink(missing_ok=True)
 
 
 def _mentions(text: str, expect: str) -> bool:

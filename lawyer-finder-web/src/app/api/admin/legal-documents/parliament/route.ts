@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import type { Prisma } from '@prisma/client';
 import { getSession } from '@/lib/auth';
 import prisma from '@/lib/db';
 import { checkParliament, queueFromSearch, refreshSuggestions } from '@/lib/parliamentActs';
@@ -23,18 +24,22 @@ export async function GET(req: Request) {
   const statusParam = url.searchParams.get('status');
   const status = statusParam === 'IMPORTED' || statusParam === 'DISMISSED' ? statusParam : 'NEW';
   const { page, limit } = validatePaginationParams(url.searchParams.get('page'), url.searchParams.get('limit'));
+  // ?q=Penal Code: only that law's Acts, after a Find.
+  const q = sanitizeString(url.searchParams.get('q') ?? '', 80).trim();
+  const byName: Prisma.ParliamentActWhereInput = q ? { title: { contains: q, mode: 'insensitive' } } : {};
+  const where: Prisma.ParliamentActWhereInput = { ...byName, status };
 
   const [listed, total, counts, lastSeen] = await Promise.all([
     prisma.parliamentAct.findMany({
-      where: { status },
+      where,
       // Acts that amend a law the library already holds first: they finish a law
       // in progress (e.g. the Penal Code's amendments after its 1980 text).
       orderBy: [{ suggestedAmendsId: { sort: 'asc', nulls: 'last' } }, { endorsedOn: 'desc' }, { ref: 'desc' }],
       skip: (page - 1) * limit,
       take: limit,
     }),
-    prisma.parliamentAct.count({ where: { status } }),
-    prisma.parliamentAct.groupBy({ by: ['status'], _count: { id: true } }),
+    prisma.parliamentAct.count({ where }),
+    prisma.parliamentAct.groupBy({ by: ['status'], where: byName, _count: { id: true } }),
     prisma.parliamentAct.aggregate({ _max: { lastSeenAt: true } }),
   ]);
 

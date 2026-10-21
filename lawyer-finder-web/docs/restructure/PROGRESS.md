@@ -3680,3 +3680,14 @@ Penal Code (564 chunks) is removed from the AI; a theft question was answered fr
 with library links. All 12 old consolidations are hidden from the library (Companies Act carried
 Lanka Law's cover); the other 11 stay in the AI until each is replaced the same way. A
 `kill -HUP` reload of lawyer-rag crash-looped its workers on macOS for ~25 min: restart it fully.
+
+### 2026-10-21 — Civil Procedure Code on official texts; scans up to 140 MB
+
+Civil Procedure Code, 1980 Revised Edition plus 19 post-1980 amending Acts (1988-2024), all
+ACTIVE; the old consolidation is removed from the AI, and a summons question was answered with
+the 2024 e-mail service rule. Scans: the website accepts Parliament PDFs up to 140 MB, lawyer-rag
+accepts 150 MB (`MAX_CONTENT_LENGTH_MB`) and, after OCR, re-saves its own copy with Ghostscript
+at screen quality (24 MB -> 3.7 MB, same text) because `lawyer-rag/data/uploads` is in git; the
+library keeps the full-quality original. Parliament writes "04/2005" where the Act says "No. 4":
+leading zeros are dropped, which the wrong-file check had refused. Find now lists only that
+law's Acts, with "Show all".

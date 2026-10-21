@@ -113,7 +113,8 @@ export function tidyTitle(title: string): string {
 export function libraryTitle(act: { title: string; actNumber: string | null; year: number | null }): string {
   const name = tidyTitle(act.title);
   if (!act.actNumber) return name;
-  const [no, year = act.year] = act.actNumber.split('/');
+  const [rawNo, year = act.year] = act.actNumber.split('/');
+  const no = rawNo.replace(/^0+(?=\d)/, ''); // Parliament prints "04/2005"; the Act says "No. 4"
   const withAct = /\b(act|ordinance|law)$/i.test(name) || /constitution/i.test(name) ? name : `${name} Act`;
   return year ? `${withAct}, No. ${no} of ${year}` : `${withAct}, No. ${no}`;
 }

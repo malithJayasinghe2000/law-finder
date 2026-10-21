@@ -8,7 +8,9 @@ import { PARLIAMENT_SOURCE, ragCategoryFor } from '@/lib/legalLibrary';
 import { libraryTitle } from '@/lib/parliamentActs';
 import { ParliamentApproveSchema } from '@/schemas/legalDocument.schema';
 
-const MAX_PDF_BYTES = 40 * 1024 * 1024;
+// Older Acts are full-page scans: 95 MB for 51 pages. The AI service accepts
+// 150 MB (lawyer-rag MAX_CONTENT_LENGTH_MB) and shrinks its copy after OCR.
+const MAX_PDF_BYTES = 140 * 1024 * 1024;
 
 async function requireAdmin() {
   const session = await getSession();
@@ -49,7 +51,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     const res = await fetch(act.pdfUrl, { signal: AbortSignal.timeout(60000) });
     if (!res.ok) throw new Error(`Parliament's website answered ${res.status}.`);
     pdf = Buffer.from(await res.arrayBuffer());
-    if (pdf.length > MAX_PDF_BYTES) throw new Error('The PDF is larger than 40 MB.');
+    if (pdf.length > MAX_PDF_BYTES) throw new Error('The PDF is larger than 140 MB.');
     if (pdf.subarray(0, 5).toString('latin1') !== '%PDF-') throw new Error('Parliament did not send a PDF.');
   } catch (error) {
     await prisma.parliamentAct.update({ where: { id }, data: { status: 'NEW', decidedAt: null, decidedById: null } });
@@ -76,7 +78,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     : amendsId ?? null;
 
   const fileName = `${act.ref}.pdf`;
-  const [no, year = act.year] = (act.actNumber ?? '').split('/');
+  const [rawNo, year = act.year] = (act.actNumber ?? '').split('/');
+  const no = rawNo.replace(/^0+(?=\d)/, ''); // "04/2005" is "No. 4 of 2005" in the Act itself
   const doc = await prisma.legalDocument.create({
     data: {
       title: libraryTitle(act),

@@ -43,12 +43,14 @@ export function ParliamentQueue({ locale, onChanged }: { locale: string; onChang
   const [loading, setLoading] = useState(true);
   const [checking, setChecking] = useState(false);
   const [keyword, setKeyword] = useState('');
+  // After a Find, only that law's Acts are listed.
+  const [shownFor, setShownFor] = useState('');
 
   const load = async () => {
     setLoading(true);
     try {
       const [q, l] = await Promise.all([
-        fetch(`/api/admin/legal-documents/parliament?status=${tab}&page=${page}&limit=10`).then((r) => r.json()),
+        fetch(`/api/admin/legal-documents/parliament?status=${tab}&page=${page}&limit=10${shownFor ? `&q=${encodeURIComponent(shownFor)}` : ''}`).then((r) => r.json()),
         fetch('/api/admin/legal-documents?view=laws').then((r) => r.json()),
       ]);
       setActs(q.acts || []);
@@ -66,7 +68,7 @@ export function ParliamentQueue({ locale, onChanged }: { locale: string; onChang
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab, page]);
+  }, [tab, page, shownFor]);
 
   // With a keyword: every Act under that name. Without: the newest Acts.
   const checkNow = async (byName?: string) => {
@@ -87,7 +89,9 @@ export function ParliamentQueue({ locale, onChanged }: { locale: string; onChang
       );
       setPage(1);
       setTab('NEW');
-      load();
+      if (byName) setShownFor(byName);
+      else if (shownFor) setShownFor('');
+      else load();
     } catch (e) {
       toast.error(e instanceof Error && e.message ? e.message : "Could not read Parliament's website.");
     } finally {
@@ -137,6 +141,18 @@ export function ParliamentQueue({ locale, onChanged }: { locale: string; onChang
           <Search className="h-3.5 w-3.5" /> Find
         </button>
       </form>
+
+      {shownFor && (
+        <div className="flex items-center justify-between gap-3 border border-[#bfa37a]/30 bg-[#faf6f0] px-4 py-2.5 text-sm text-neutral-800">
+          <span>Showing only Acts named &ldquo;{shownFor}&rdquo;.</span>
+          <button
+            onClick={() => { setShownFor(''); setPage(1); }}
+            className="shrink-0 text-xs font-bold uppercase tracking-widest text-[#a68d67] hover:text-[#8a7350]"
+          >
+            Show all
+          </button>
+        </div>
+      )}
 
       <div className="flex gap-1 border-b border-neutral-200" role="tablist">
         {(['NEW', 'IMPORTED', 'DISMISSED'] as Tab[]).map((t) => (
