@@ -18,6 +18,9 @@ payments, advertising, and AI output are all mid-restructure.
 **Want the whole system feature by feature? Read `docs/TOUR.md`** — the guided walk through
 every screen and why it is built that way.
 
+**Adding laws to the Legal Library? Read `docs/LEGAL-LIBRARY-GUIDE.md`**: the official sources,
+the four steps per law, what is done and what is left.
+
 **Lost the thread, or new here? Read `docs/THE-PROJECT.md` first** — what this is, how a
 matter flows, who may read what, and what state everything is in. Then `docs/DIRECTION.md`
 for what happens next, and `docs/OPEN-ITEMS.md` for everything outstanding.

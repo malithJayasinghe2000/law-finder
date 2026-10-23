@@ -222,7 +222,7 @@
       "attrs": {
         "type": "ACT",
         "name": "This Act",
-        "document_name": "Motor Traffic Act"
+        "document_name": "Prescription (Special Provisions) Act, No. 5 of 2016"
       }
     },
     {
@@ -247,14 +247,6 @@
         "type": "ACT",
         "name": "Penal Code",
         "document_name": "Motor Traffic Act"
-      }
-    },
-    {
-      "id": "act::ordinance",
-      "attrs": {
-        "type": "ACT",
-        "name": "Ordinance",
-        "document_name": "Prescription Ordinance (1980 Revised Edition)"
       }
     },
     {
@@ -3994,14 +3986,6 @@
         "type": "SECTION",
         "name": "Section 1 of Penal Code (1980 Revised Edition)",
         "document_name": "Penal Code (1980 Revised Edition)"
-      }
-    },
-    {
-      "id": "act::this_ordinance",
-      "attrs": {
-        "type": "ACT",
-        "name": "This\nOrdinance",
-        "document_name": "Prescription Ordinance (1980 Revised Edition)"
       }
     },
     {
@@ -8863,7 +8847,7 @@
       "attrs": {
         "type": "ACT",
         "name": "Terrorist Financing Act",
-        "document_name": "Convention on the Suppression of Terrorist Financing (Amendment) Act, No. 18 of 2026"
+        "document_name": "Prescription (Special Provisions) Act, No. 5 of 2016"
       }
     },
     {
@@ -26045,14 +26029,6 @@
       }
     },
     {
-      "id": "act::prescription_ordinance",
-      "attrs": {
-        "type": "ACT",
-        "name": "Prescription Ordinance",
-        "document_name": "Prescription Ordinance (1980 Revised Edition)"
-      }
-    },
-    {
       "id": "section::prescription_ordinance_1980_revised_edition_section_2",
       "attrs": {
         "type": "SECTION",
@@ -26163,6 +26139,144 @@
         "name": "Section 15 of Prescription Ordinance (1980 Revised Edition)",
         "document_name": "Prescription Ordinance (1980 Revised Edition)"
       }
+    },
+    {
+      "id": "act::prescription_amendment_act_no_26_of_2014",
+      "attrs": {
+        "type": "ACT",
+        "name": "Prescription (Amendment) Act, No. 26 of 2014",
+        "document_name": "Prescription (Amendment) Act, No. 26 of 2014",
+        "document_type": "Amendment Act"
+      }
+    },
+    {
+      "id": "section::prescription_amendment_act_no_26_of_2014_section_6",
+      "attrs": {
+        "type": "SECTION",
+        "name": "Section 6 of Prescription (Amendment) Act, No. 26 of 2014",
+        "document_name": "Prescription (Amendment) Act, No. 26 of 2014"
+      }
+    },
+    {
+      "id": "section::prescription_amendment_act_no_26_of_2014_section_1",
+      "attrs": {
+        "type": "SECTION",
+        "name": "Section 1 of Prescription (Amendment) Act, No. 26 of 2014",
+        "document_name": "Prescription (Amendment) Act, No. 26 of 2014"
+      }
+    },
+    {
+      "id": "section::prescription_amendment_act_no_26_of_2014_section_2",
+      "attrs": {
+        "type": "SECTION",
+        "name": "Section 2 of Prescription (Amendment) Act, No. 26 of 2014",
+        "document_name": "Prescription (Amendment) Act, No. 26 of 2014"
+      }
+    },
+    {
+      "id": "section::prescription_ordinance_section_15",
+      "attrs": {
+        "type": "SECTION",
+        "name": "Section 15 of Prescription Ordinance",
+        "document_name": "Prescription (Amendment) Act, No. 26 of 2014"
+      }
+    },
+    {
+      "id": "section::prescription_amendment_act_no_26_of_2014_section_15",
+      "attrs": {
+        "type": "SECTION",
+        "name": "Section 15 of Prescription (Amendment) Act, No. 26 of 2014",
+        "document_name": "Prescription (Amendment) Act, No. 26 of 2014"
+      }
+    },
+    {
+      "id": "section::prescription_amendment_act_no_26_of_2014_section_3",
+      "attrs": {
+        "type": "SECTION",
+        "name": "Section 3 of Prescription (Amendment) Act, No. 26 of 2014",
+        "document_name": "Prescription (Amendment) Act, No. 26 of 2014"
+      }
+    },
+    {
+      "id": "act::prescription_special_provisions_act_no_5_of_2016",
+      "attrs": {
+        "type": "ACT",
+        "name": "Prescription (Special Provisions) Act, No. 5 of 2016",
+        "document_name": "Prescription (Special Provisions) Act, No. 5 of 2016",
+        "document_type": "Consolidated Act"
+      }
+    },
+    {
+      "id": "section::prescription_special_provisions_act_no_5_of_2016_section_6",
+      "attrs": {
+        "type": "SECTION",
+        "name": "Section 6 of Prescription (Special Provisions) Act, No. 5 of 2016",
+        "document_name": "Prescription (Special Provisions) Act, No. 5 of 2016"
+      }
+    },
+    {
+      "id": "section::prescription_special_provisions_act_no_5_of_2016_section_1",
+      "attrs": {
+        "type": "SECTION",
+        "name": "Section 1 of Prescription (Special Provisions) Act, No. 5 of 2016",
+        "document_name": "Prescription (Special Provisions) Act, No. 5 of 2016"
+      }
+    },
+    {
+      "id": "section::prescription_special_provisions_act_no_5_of_2016_section_2",
+      "attrs": {
+        "type": "SECTION",
+        "name": "Section 2 of Prescription (Special Provisions) Act, No. 5 of 2016",
+        "document_name": "Prescription (Special Provisions) Act, No. 5 of 2016"
+      }
+    },
+    {
+      "id": "section::prescription_special_provisions_act_no_5_of_2016_section_3",
+      "attrs": {
+        "type": "SECTION",
+        "name": "Section 3 of Prescription (Special Provisions) Act, No. 5 of 2016",
+        "document_name": "Prescription (Special Provisions) Act, No. 5 of 2016"
+      }
+    },
+    {
+      "id": "section::prescription_special_provisions_act_no_5_of_2016_section_4",
+      "attrs": {
+        "type": "SECTION",
+        "name": "Section 4 of Prescription (Special Provisions) Act, No. 5 of 2016",
+        "document_name": "Prescription (Special Provisions) Act, No. 5 of 2016"
+      }
+    },
+    {
+      "id": "section::prescription_special_provisions_act_no_5_of_2016_section_5",
+      "attrs": {
+        "type": "SECTION",
+        "name": "Section 5 of Prescription (Special Provisions) Act, No. 5 of 2016",
+        "document_name": "Prescription (Special Provisions) Act, No. 5 of 2016"
+      }
+    },
+    {
+      "id": "act::land_development_ordinance",
+      "attrs": {
+        "type": "ACT",
+        "name": "Land Development Ordinance",
+        "document_name": "Prescription (Special Provisions) Act, No. 5 of 2016"
+      }
+    },
+    {
+      "id": "act::state_lands_ordinance",
+      "attrs": {
+        "type": "ACT",
+        "name": "State Lands Ordinance",
+        "document_name": "Prescription (Special Provisions) Act, No. 5 of 2016"
+      }
+    },
+    {
+      "id": "section::prescription_special_provisions_act_no_5_of_2016_section_7",
+      "attrs": {
+        "type": "SECTION",
+        "name": "Section 7 of Prescription (Special Provisions) Act, No. 5 of 2016",
+        "document_name": "Prescription (Special Provisions) Act, No. 5 of 2016"
+      }
     }
   ],
   "edges": [
@@ -26183,13 +26297,6 @@
     {
       "source": "act::codeofcriminalproceduerconsolidated2024",
       "target": "act::penal_code",
-      "attrs": {
-        "type": "REFERENCES"
-      }
-    },
-    {
-      "source": "act::codeofcriminalproceduerconsolidated2024",
-      "target": "act::ordinance",
       "attrs": {
         "type": "REFERENCES"
       }
@@ -29541,13 +29648,6 @@
       }
     },
     {
-      "source": "act::motor_traffic_act",
-      "target": "act::ordinance",
-      "attrs": {
-        "type": "REFERENCES"
-      }
-    },
-    {
       "source": "section::codeofcriminalproceduerconsolidated2024_section_434",
       "target": "act::codeofcriminalproceduerconsolidated2024",
       "attrs": {
@@ -29773,21 +29873,7 @@
     },
     {
       "source": "act::penal_code_1980_revised_edition",
-      "target": "act::ordinance",
-      "attrs": {
-        "type": "REFERENCES"
-      }
-    },
-    {
-      "source": "act::penal_code_1980_revised_edition",
       "target": "act::dutch_criminal_law",
-      "attrs": {
-        "type": "REFERENCES"
-      }
-    },
-    {
-      "source": "act::penal_code_1980_revised_edition",
-      "target": "act::this_ordinance",
       "attrs": {
         "type": "REFERENCES"
       }
@@ -33504,13 +33590,6 @@
     },
     {
       "source": "act::judicature_amendment_act_no_23_of_2026",
-      "target": "act::ordinance",
-      "attrs": {
-        "type": "REFERENCES"
-      }
-    },
-    {
-      "source": "act::judicature_amendment_act_no_23_of_2026",
       "target": "act::english_act",
       "attrs": {
         "type": "REFERENCES"
@@ -33932,13 +34011,6 @@
     {
       "source": "act::prevention_of_money_laundering_amendment_act_no_16_of_2026",
       "target": "act::trusts_ordinance",
-      "attrs": {
-        "type": "REFERENCES"
-      }
-    },
-    {
-      "source": "act::prevention_of_money_laundering_amendment_act_no_16_of_2026",
-      "target": "act::ordinance",
       "attrs": {
         "type": "REFERENCES"
       }
@@ -36024,21 +36096,7 @@
     },
     {
       "source": "act::civil_procedure_code_1980_revised_edition",
-      "target": "act::ordinance",
-      "attrs": {
-        "type": "REFERENCES"
-      }
-    },
-    {
-      "source": "act::civil_procedure_code_1980_revised_edition",
       "target": "act::act_no_53_of_1980",
-      "attrs": {
-        "type": "REFERENCES"
-      }
-    },
-    {
-      "source": "act::civil_procedure_code_1980_revised_edition",
-      "target": "act::this_ordinance",
       "attrs": {
         "type": "REFERENCES"
       }
@@ -43024,13 +43082,6 @@
     },
     {
       "source": "act::civil_procedure_code_amendment_act_no_14_of_1997",
-      "target": "act::ordinance",
-      "attrs": {
-        "type": "REFERENCES"
-      }
-    },
-    {
-      "source": "act::civil_procedure_code_amendment_act_no_14_of_1997",
       "target": "section::ordinance_section_192",
       "attrs": {
         "type": "REFERENCES"
@@ -43689,13 +43740,6 @@
     },
     {
       "source": "act::civil_procedure_code_amendment_act_no_6_of_1990",
-      "target": "act::ordinance",
-      "attrs": {
-        "type": "REFERENCES"
-      }
-    },
-    {
-      "source": "act::civil_procedure_code_amendment_act_no_6_of_1990",
       "target": "act::monetary_law_act",
       "attrs": {
         "type": "REFERENCES"
@@ -43802,13 +43846,6 @@
     {
       "source": "act::civil_procedure_code_amendment_act_no_79_of_1988",
       "target": "act::justice_law",
-      "attrs": {
-        "type": "REFERENCES"
-      }
-    },
-    {
-      "source": "act::civil_procedure_code_amendment_act_no_79_of_1988",
-      "target": "act::ordinance",
       "attrs": {
         "type": "REFERENCES"
       }
@@ -44460,13 +44497,6 @@
     {
       "source": "act::motor_traffic_act_no_14_of_1951",
       "target": "act::crimes_ordinance",
-      "attrs": {
-        "type": "REFERENCES"
-      }
-    },
-    {
-      "source": "act::motor_traffic_act_no_14_of_1951",
-      "target": "act::ordinance",
       "attrs": {
         "type": "REFERENCES"
       }
@@ -46565,13 +46595,6 @@
       }
     },
     {
-      "source": "act::motor_traffic_amendment_act_no_8_of_2009",
-      "target": "act::ordinance",
-      "attrs": {
-        "type": "REFERENCES"
-      }
-    },
-    {
       "source": "section::motor_traffic_amendment_act_no_8_of_2009_section_88",
       "target": "act::motor_traffic_amendment_act_no_8_of_2009",
       "attrs": {
@@ -47420,13 +47443,6 @@
     },
     {
       "source": "act::motor_traffic_amendment_act_no_1_of_1952",
-      "target": "act::ordinance",
-      "attrs": {
-        "type": "REFERENCES"
-      }
-    },
-    {
-      "source": "act::motor_traffic_amendment_act_no_1_of_1952",
       "target": "act::highway_code",
       "attrs": {
         "type": "REFERENCES"
@@ -47687,13 +47703,6 @@
     {
       "source": "act::motor_traffic_amendment_act_no_39_of_1964",
       "target": "act::this_act",
-      "attrs": {
-        "type": "REFERENCES"
-      }
-    },
-    {
-      "source": "act::motor_traffic_amendment_act_no_39_of_1964",
-      "target": "act::ordinance",
       "attrs": {
         "type": "REFERENCES"
       }
@@ -49820,27 +49829,6 @@
       }
     },
     {
-      "source": "act::prescription_ordinance_1980_revised_edition",
-      "target": "act::ordinance",
-      "attrs": {
-        "type": "REFERENCES"
-      }
-    },
-    {
-      "source": "act::prescription_ordinance_1980_revised_edition",
-      "target": "act::this_ordinance",
-      "attrs": {
-        "type": "REFERENCES"
-      }
-    },
-    {
-      "source": "act::prescription_ordinance_1980_revised_edition",
-      "target": "act::prescription_ordinance",
-      "attrs": {
-        "type": "REFERENCES"
-      }
-    },
-    {
       "source": "section::prescription_ordinance_1980_revised_edition_section_1",
       "target": "act::prescription_ordinance_1980_revised_edition",
       "attrs": {
@@ -49941,6 +49929,132 @@
     {
       "source": "section::prescription_ordinance_1980_revised_edition_section_15",
       "target": "act::prescription_ordinance_1980_revised_edition",
+      "attrs": {
+        "type": "PART_OF"
+      }
+    },
+    {
+      "source": "act::prescription_amendment_act_no_26_of_2014",
+      "target": "act::this_act",
+      "attrs": {
+        "type": "REFERENCES"
+      }
+    },
+    {
+      "source": "act::prescription_amendment_act_no_26_of_2014",
+      "target": "section::prescription_ordinance_section_15",
+      "attrs": {
+        "type": "REFERENCES"
+      }
+    },
+    {
+      "source": "section::prescription_amendment_act_no_26_of_2014_section_6",
+      "target": "act::prescription_amendment_act_no_26_of_2014",
+      "attrs": {
+        "type": "PART_OF"
+      }
+    },
+    {
+      "source": "section::prescription_amendment_act_no_26_of_2014_section_1",
+      "target": "act::prescription_amendment_act_no_26_of_2014",
+      "attrs": {
+        "type": "PART_OF"
+      }
+    },
+    {
+      "source": "section::prescription_amendment_act_no_26_of_2014_section_2",
+      "target": "act::prescription_amendment_act_no_26_of_2014",
+      "attrs": {
+        "type": "PART_OF"
+      }
+    },
+    {
+      "source": "section::prescription_amendment_act_no_26_of_2014_section_15",
+      "target": "act::prescription_amendment_act_no_26_of_2014",
+      "attrs": {
+        "type": "PART_OF"
+      }
+    },
+    {
+      "source": "section::prescription_amendment_act_no_26_of_2014_section_3",
+      "target": "act::prescription_amendment_act_no_26_of_2014",
+      "attrs": {
+        "type": "PART_OF"
+      }
+    },
+    {
+      "source": "act::prescription_special_provisions_act_no_5_of_2016",
+      "target": "act::this_act",
+      "attrs": {
+        "type": "REFERENCES"
+      }
+    },
+    {
+      "source": "act::prescription_special_provisions_act_no_5_of_2016",
+      "target": "act::land_development_ordinance",
+      "attrs": {
+        "type": "REFERENCES"
+      }
+    },
+    {
+      "source": "act::prescription_special_provisions_act_no_5_of_2016",
+      "target": "act::state_lands_ordinance",
+      "attrs": {
+        "type": "REFERENCES"
+      }
+    },
+    {
+      "source": "act::prescription_special_provisions_act_no_5_of_2016",
+      "target": "act::terrorist_financing_act",
+      "attrs": {
+        "type": "REFERENCES"
+      }
+    },
+    {
+      "source": "section::prescription_special_provisions_act_no_5_of_2016_section_6",
+      "target": "act::prescription_special_provisions_act_no_5_of_2016",
+      "attrs": {
+        "type": "PART_OF"
+      }
+    },
+    {
+      "source": "section::prescription_special_provisions_act_no_5_of_2016_section_1",
+      "target": "act::prescription_special_provisions_act_no_5_of_2016",
+      "attrs": {
+        "type": "PART_OF"
+      }
+    },
+    {
+      "source": "section::prescription_special_provisions_act_no_5_of_2016_section_2",
+      "target": "act::prescription_special_provisions_act_no_5_of_2016",
+      "attrs": {
+        "type": "PART_OF"
+      }
+    },
+    {
+      "source": "section::prescription_special_provisions_act_no_5_of_2016_section_3",
+      "target": "act::prescription_special_provisions_act_no_5_of_2016",
+      "attrs": {
+        "type": "PART_OF"
+      }
+    },
+    {
+      "source": "section::prescription_special_provisions_act_no_5_of_2016_section_4",
+      "target": "act::prescription_special_provisions_act_no_5_of_2016",
+      "attrs": {
+        "type": "PART_OF"
+      }
+    },
+    {
+      "source": "section::prescription_special_provisions_act_no_5_of_2016_section_5",
+      "target": "act::prescription_special_provisions_act_no_5_of_2016",
+      "attrs": {
+        "type": "PART_OF"
+      }
+    },
+    {
+      "source": "section::prescription_special_provisions_act_no_5_of_2016_section_7",
+      "target": "act::prescription_special_provisions_act_no_5_of_2016",
       "attrs": {
         "type": "PART_OF"
       }

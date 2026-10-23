@@ -273,6 +273,17 @@ another official source. Since 2026-10-21 an approval sends the Act's number and
 service refuses a PDF whose text does not mention it (`expect_text`, lawyer-rag ingest).
 A scan cannot be checked this way until it is OCR'd.
 
+### D7c. 🟡 The AI cannot answer basic Prescription questions (the 0.62 floor)
+
+"How many years must a person possess land to claim it by prescription?" (s.3, ten years)
+and "time limit on a written contract" (s.6) are refused as not found: the right sections
+score 0.59-0.61, under `RETRIEVAL_MIN_SCORE` 0.62. Measured 2026-10-23 with the official
+1980 text AND with the old consolidation: identical, so this predates the library work (the
+config already notes prop-003, Prescription s.9, at 0.614). The old copy was removed again.
+
+> **DECISION: re-run the golden evaluation set (E0) now that six laws have new texts, then
+> decide the floor (or the hybrid keyword gate, config.py) on its numbers, not on one law.**
+
 ### D8. 🟠 Legal Library: no merged "current version" of each law
 
 A reader who wants to know what the law says today has to open the original and apply
