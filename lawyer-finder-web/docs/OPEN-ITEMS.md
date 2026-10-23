@@ -273,12 +273,22 @@ another official source. Since 2026-10-21 an approval sends the Act's number and
 service refuses a PDF whose text does not mention it (`expect_text`, lawyer-rag ingest).
 A scan cannot be checked this way until it is OCR'd.
 
-### D8. ⚪ Legal Library: no merged "current version" of each law
+### D8. 🟠 Legal Library: no merged "current version" of each law
 
 A reader who wants to know what the law says today has to open the original and apply
 every amending Act in order. A merged text (original with every amendment applied) is
 what people want, and private platforms offer it. The government publishes none for most
 laws.
+
+**Measured 2026-10-21, and why this is no longer "nice to have":** with an official base text
+plus its amending Acts, the AI found a later rule when the amendment *substitutes* a whole
+section (Penal Code s.364, 1995; Civil Procedure Code summons by e-mail, 2024). For the Motor
+Traffic Act (1951 original + 19 amending Acts, no official consolidation; the main Act is
+missing from CommonLII) it could not: asked for the drink-driving or no-licence penalty, it said
+the penalty was not in what it holds, because the penalty sections were renumbered and rewritten
+across many Acts. The unofficial consolidation was put back in the AI (archived, hidden from the
+library) and answers correctly again. A law with many piecemeal amendments needs a merged text
+for the AI to be reliable.
 
 > **DECISION: launch with the original + amendments, all official PDFs. Add merged texts
 > later, one law at a time, checked by someone qualified, and labelled "prepared by

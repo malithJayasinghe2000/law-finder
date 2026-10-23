@@ -3691,3 +3691,14 @@ at screen quality (24 MB -> 3.7 MB, same text) because `lawyer-rag/data/uploads`
 library keeps the full-quality original. Parliament writes "04/2005" where the Act says "No. 4":
 leading zeros are dropped, which the wrong-file check had refused. Find now lists only that
 law's Acts, with "Show all".
+
+### 2026-10-21 — Motor Traffic: official texts in the library, the old copy kept in the AI
+
+The Motor Traffic Act is not on CommonLII; Parliament has the 1951 Act (a 300 MB, 180-page scan:
+OCR'd and shrunk here to 49 MB, 617 chunks) and 19 amending Acts (4 more are listed without a PDF),
+all now in the library and ACTIVE. Removing the old consolidation made the AI unable to state the
+drink-driving or no-licence penalty, so it was re-indexed and archived again (OPEN-ITEMS D8). The
+proxy cut every request body at 10 MB (`proxyClientMaxBodySize`), so admin uploads over 10 MB
+failed; `/api/admin/legal-documents` is now outside the proxy matcher (the route checks ADMIN
+itself; 403 verified). Archived laws are no longer offered as "Amends which law?". Queue: laws
+before their amendments; suggestions refresh when the list loads.
